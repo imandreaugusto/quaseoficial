@@ -1,0 +1,21 @@
+{
+  "entities": {
+    "userAppData": {
+      "type": "document",
+      "path": "users/{userId}/appData/{dataKey}",
+      "description": "Stores user state including ReadClub library, conversation, boards, activities, and settings",
+      "params": [
+        {
+          "name": "userId",
+          "type": "string",
+          "description": "The user's auth UID"
+        },
+        {
+          "name": "dataKey",
+          "type": "string",
+          "description": "Document key (e.g. readclub_library, readclub_sessions, readclub_glossary, readclub_learned, conversation_library, conversation_saved_words, bia_compare_activities, bia_board_saves, settings)"
+        }
+      ]
+    }
+  }
+}

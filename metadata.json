@@ -1,0 +1,6 @@
+{
+  "name": "Brazilian in Action",
+  "description": "Portal de atividades, controle de aulas, leitura inteligente e quadro virtual interativo para aulas de inglês",
+  "requestFramePermissions": ["camera", "microphone", "display-capture"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
