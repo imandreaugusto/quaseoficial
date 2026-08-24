@@ -160,7 +160,10 @@ async function startServer() {
           email: email || 'aluno@brazilianinaction.com',
           first_name: firstName || 'Aluno',
           last_name: lastName || 'BIA'
-        }
+        },
+        ...(process.env.PUBLIC_APP_URL
+          ? { notification_url: `${process.env.PUBLIC_APP_URL.replace(/\/$/, '')}/api/webhook/payment` }
+          : {})
       };
 
       const response = await fetch('https://api.mercadopago.com/v1/payments', {
@@ -250,6 +253,29 @@ async function startServer() {
     if (!response.ok) {
       const details = await response.text();
       throw new Error(`Supabase respondeu ${response.status}: ${details}`);
+    }
+
+    const profileResponse = await fetch(
+      `${supabaseUrl}/rest/v1/profiles?email=eq.${encodeURIComponent(email.toLowerCase())}`,
+      {
+        method: 'PATCH',
+        headers: {
+          apikey: serviceRoleKey,
+          Authorization: `Bearer ${serviceRoleKey}`,
+          'Content-Type': 'application/json',
+          Prefer: 'return=minimal'
+        },
+        body: JSON.stringify({
+          status: 'active',
+          data_expiracao: expiresAt,
+          updated_at: new Date().toISOString()
+        })
+      }
+    );
+
+    if (!profileResponse.ok) {
+      const details = await profileResponse.text();
+      throw new Error(`Perfil não foi atualizado (${profileResponse.status}): ${details}`);
     }
   };
 
