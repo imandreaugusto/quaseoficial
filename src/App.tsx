@@ -792,7 +792,7 @@ export default function App() {
         )}
 
         {/* Main View Port Routing */}
-        <main className={`relative z-10 ${currentUser ? 'pt-18 sm:pt-20 pb-12' : 'pt-24 pb-8'} min-h-[90vh]`}>
+        <main className={`relative z-10 ${currentUser ? 'pt-18 sm:pt-20 pb-12' : 'pt-24 pb-8'} ${currentUser && currentApp === 'home' && !effectiveIsAdmin ? 'h-screen overflow-hidden' : 'min-h-[90vh]'}`}>
           {/* 1. AUTH MODAL (Unified Login/Cadastro + 17-Click Easter Egg) */}
           <AuthModal
             isOpen={isAuthModalOpen || !currentUser}
