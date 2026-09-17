@@ -1035,7 +1035,7 @@ const COMMON_DICTIONARY: Record<string, string> = {
                 }}
               >
                 <div className="pointer-events-none sticky -top-14 z-20 h-14 -mb-14 bg-gradient-to-b from-black/45 to-transparent" aria-hidden="true" />
-                <div className="relative group/title flex flex-col items-center justify-center gap-2 mb-6 text-center">
+                <div className="relative group/title flex flex-col items-center justify-center gap-2 mb-6 text-center cinematic-copy">
                   <h1 className={`text-2xl sm:text-3xl font-extralight tracking-tight uppercase ${currentThemeStyle.titleColor} flex items-center justify-center flex-wrap gap-x-2 gap-y-1`}>
                     {activeBook.title.split(/(\s+)/).map((word, wIdx) => {
                       const cleanWord = word.toLowerCase().replace(/[^a-zA-ZáéíóúâêîôûãõçÁÉÍÓÚÂÊÎÔÛÃÕÇ]/g, '');
@@ -1076,7 +1076,7 @@ const COMMON_DICTIONARY: Record<string, string> = {
                 )}
 
                 {/* Subtext mapping with customizable alignment */}
-                <div className={`flex flex-col gap-2.5 sm:gap-3 text-justify ${alignMode === 'center' ? 'text-center' : 'text-justify'}`}>
+                <div className={`flex flex-col gap-2.5 sm:gap-3 text-justify cinematic-copy ${alignMode === 'center' ? 'text-center' : 'text-justify'}`}>
                   {activeBook.text.split(/\n\s*\n/).filter((p) => p.trim()).map((para, pIdx) => {
                     const isTtsHighlight = ttsCurrentParagraph === pIdx;
                     const lines = para.split('\n').filter((l) => l.trim());

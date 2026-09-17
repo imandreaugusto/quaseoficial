@@ -73,7 +73,20 @@ input, textarea, select {
 }
 
 .menu-cinematic-text {
+  position: relative;
+  isolation: isolate;
   text-shadow: 0 2px 14px rgba(0, 0, 0, 0.95), 0 0 28px rgba(0, 0, 0, 0.55);
+}
+
+.menu-cinematic-text::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: -0.65rem -1.4rem;
+  background: radial-gradient(ellipse at 0% 50%, rgba(0, 0, 0, 0.82), rgba(0, 0, 0, 0.34) 42%, transparent 78%);
+  filter: blur(10px);
+  opacity: 0.88;
+  pointer-events: none;
 }
 
 .cinema-selectable {
@@ -84,6 +97,21 @@ input, textarea, select {
 .cinema-selectable:hover {
   color: #fff;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.95), 0 0 24px rgba(255, 255, 255, 0.16);
+}
+
+.cinematic-copy {
+  position: relative;
+  isolation: isolate;
+}
+
+.cinematic-copy::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: -2rem -3rem;
+  background: radial-gradient(ellipse at 0% 45%, rgba(0, 0, 0, 0.74), rgba(0, 0, 0, 0.28) 46%, transparent 80%);
+  filter: blur(18px);
+  pointer-events: none;
 }
 
 .page-motion {
