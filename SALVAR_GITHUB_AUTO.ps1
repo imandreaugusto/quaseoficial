@@ -36,7 +36,10 @@ function Save-Project {
 
   $timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
   Invoke-Git @('commit', '-m', "Auto-save: $timestamp")
-  Invoke-Git @('pull', '--rebase', 'origin', 'main')
+  & $git show-ref --verify --quiet 'refs/remotes/origin/main'
+  if ($LASTEXITCODE -eq 0) {
+    Invoke-Git @('pull', '--rebase', 'origin', 'main')
+  }
   Invoke-Git @('push', 'origin', 'main')
   Write-Host "Projeto salvo no GitHub: $timestamp"
 }
