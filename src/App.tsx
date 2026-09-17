@@ -436,12 +436,12 @@ export default function App() {
   const handleUpdateClassItem = (id: string, updated: Partial<ClassItem>) => {
     setClasses((prev) => {
       const next = prev.map((c) => (c.id === id ? { ...c, ...updated } : c));
-      queuePlatformSync({ classes: next, settings, library });
       try {
         const stored = localStorage.getItem('bia_v14_final');
         const parsed = stored ? JSON.parse(stored) : {};
         localStorage.setItem('bia_v14_final', JSON.stringify({ ...parsed, aulas: next, desp: expenses }));
       } catch (e) {}
+      queuePlatformSync({ classes: next, settings, library });
       return next;
     });
   };
@@ -449,12 +449,12 @@ export default function App() {
   const handleDeleteClassItem = (id: string) => {
     setClasses((prev) => {
       const next = prev.filter((c) => c.id !== id);
-      queuePlatformSync({ classes: next, settings, library });
       try {
         const stored = localStorage.getItem('bia_v14_final');
         const parsed = stored ? JSON.parse(stored) : {};
         localStorage.setItem('bia_v14_final', JSON.stringify({ ...parsed, aulas: next, desp: expenses }));
       } catch (e) {}
+      queuePlatformSync({ classes: next, settings, library });
       return next;
     });
   };
@@ -472,13 +472,12 @@ export default function App() {
   const handleUpdateExpenseItem = (id: string, updated: Partial<ExpenseItem>) => {
     setExpenses((prev) => {
       const next = prev.map((e) => (e.id === id ? { ...e, ...updated } : e));
-      const storedClasses = classes;
-      queuePlatformSync({ classes: storedClasses, settings, library });
       try {
         const stored = localStorage.getItem('bia_v14_final');
         const parsed = stored ? JSON.parse(stored) : {};
         localStorage.setItem('bia_v14_final', JSON.stringify({ ...parsed, aulas: classes, desp: next }));
       } catch (e) {}
+      queuePlatformSync({ classes, settings, library });
       return next;
     });
   };
@@ -486,12 +485,12 @@ export default function App() {
   const handleDeleteExpenseItem = (id: string) => {
     setExpenses((prev) => {
       const next = prev.filter((e) => e.id !== id);
-      queuePlatformSync({ classes, settings, library });
       try {
         const stored = localStorage.getItem('bia_v14_final');
         const parsed = stored ? JSON.parse(stored) : {};
         localStorage.setItem('bia_v14_final', JSON.stringify({ ...parsed, aulas: classes, desp: next }));
       } catch (e) {}
+      queuePlatformSync({ classes, settings, library });
       return next;
     });
   };
