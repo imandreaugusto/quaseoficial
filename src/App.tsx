@@ -91,7 +91,7 @@ const LandmarkControlsWidget: React.FC<{
           className="flex items-center gap-1.5 text-xs font-medium text-white/90 drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)]"
         >
           <MapPin size={12} className="text-amber-400 shrink-0" />
-          <span className="font-semibold tracking-wide uppercase text-[11px] text-white/90 menu-cinematic-text">
+          <span className="font-semibold tracking-wide uppercase text-[11px] text-white/90">
             {US_LANDMARKS[bgIndex]?.name}
           </span>
         </motion.div>
