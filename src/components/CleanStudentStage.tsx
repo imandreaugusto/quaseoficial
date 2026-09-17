@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { stageBroadcaster, StageBroadcastState } from '../lib/stageBroadcast';
+import { stageBroadcaster } from '../lib/stageBroadcast';
+import type { StageBroadcastState } from '../types';
 import { QrCode, Clock } from 'lucide-react';
 
 interface CleanStudentStageProps {

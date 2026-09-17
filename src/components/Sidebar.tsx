@@ -183,14 +183,9 @@ const NavButton: React.FC<{
         />
       </span>
       <span
-        className="text-sm tracking-wide flex-1 text-left font-semibold"
+        className="text-sm tracking-wide flex-1 text-left font-semibold menu-cinematic-text"
         style={{
-          backgroundImage: isActive
-            ? `linear-gradient(90deg, #fff7ed, ${accentColor}, #fde68a)`
-            : `linear-gradient(90deg, rgba(255,255,255,0.95), ${accentColor}, #fff)`,
-          WebkitBackgroundClip: 'text',
-          backgroundClip: 'text',
-          color: 'transparent',
+          color: isActive ? '#ffffff' : 'rgba(255,255,255,0.82)',
           fontWeight: isActive ? 800 : 600,
         }}
       >
@@ -210,6 +205,7 @@ const NavButton: React.FC<{
 
 const ALL_ADMIN_ITEMS = [
   { id: 'home', label: 'Home', icon: Home },
+  { id: 'work', label: 'Work', icon: LayoutGrid },
   { id: 'brazilianfriends', label: 'Brazilian Friends', icon: Users },
   { id: 'stories', label: 'Brazilian Post', icon: Instagram },
   { id: 'practice', label: 'Brazilian Practice', icon: Globe },
@@ -242,7 +238,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [appConfig, setAppConfig] = useState<GlobalAppConfig>({
     studentAppOrder: ['home', 'brazilianfriends', 'stories', 'practice', 'readclub', 'board', 'quiz', 'biacompare', 'conversation', 'tradutor', 'youtube'],
-    adminAppOrder: ['home', 'brazilianfriends', 'stories', 'practice', 'dashboard', 'admin_settings', 'readclub', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'biacompare', 'conversation', 'tradutor', 'settings'],
+    adminAppOrder: ['home', 'work', 'brazilianfriends', 'stories', 'practice', 'dashboard', 'admin_settings', 'readclub', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'biacompare', 'conversation', 'tradutor', 'settings'],
     studentGlobalEnabled: {
       brazilianfriends: true,
       stories: true,
@@ -404,15 +400,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             className="w-2 h-2 rounded-full animate-pulse"
             style={{ backgroundImage: `linear-gradient(135deg, #34d399, ${accentColor})` }}
           />
-          <span
-            className="font-extrabold uppercase tracking-wider"
-            style={{
-              backgroundImage: `linear-gradient(90deg, #fff, ${accentColor}, #fde68a)`,
-              WebkitBackgroundClip: 'text',
-              backgroundClip: 'text',
-              color: 'transparent',
-            }}
-          >
+          <span className="font-extrabold uppercase tracking-wider menu-cinematic-text" style={{ color: '#fff' }}>
             {currentItem.label}
           </span>
         </div>
@@ -430,14 +418,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
               type="button"
               onClick={onToggleStudentPreview}
               className={`flex items-center justify-center p-2 bg-transparent border-0 transition-all cursor-pointer group active:scale-95 drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)] ${
-                isStudentPreviewMode ? 'text-amber-300' : 'text-amber-400 hover:text-white'
+                isStudentPreviewMode ? 'text-white' : 'text-white/80 hover:text-white'
               }`}
               title={isStudentPreviewMode ? "Sair da Visão de Aluno e retornar ao Modo CEO" : "Visualizar como Aluno (Simulação)"}
             >
               {isStudentPreviewMode ? (
                 <EyeOff size={16} />
               ) : (
-                <Eye size={16} className="text-amber-400 group-hover:scale-110 transition-transform" />
+                <Eye size={16} className="text-white group-hover:scale-110 transition-transform" />
               )}
             </button>
           )}
@@ -447,13 +435,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               type="button"
               onClick={onToggleFloatingCam}
-              className={`flex items-center gap-1.5 p-2 bg-transparent border-0 text-xs font-extrabold transition-all cursor-pointer group active:scale-95 drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)] ${
-                isFloatingCamActive ? 'text-rose-300' : 'text-purple-300 hover:text-white'
+                className={`flex items-center gap-1.5 p-2 bg-transparent border-0 text-xs font-extrabold transition-all cursor-pointer group active:scale-95 drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)] ${
+                isFloatingCamActive ? 'text-white' : 'text-white/80 hover:text-white'
               }`}
               title="Ativar / Ocultar Câmera Bolinha (B Cam Flutuante do CEO)"
             >
               <div className="relative flex items-center justify-center">
-                <Video size={14} className="text-purple-400 group-hover:scale-110 transition-transform" />
+                <Video size={14} className="text-white group-hover:scale-110 transition-transform" />
                 {isFloatingCamActive && (
                   <span className="absolute -top-1 -right-1 flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
@@ -465,27 +453,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
 
           {currentUser && (
-            <div className="flex items-center gap-2 bg-transparent p-1 drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
-              <div
-                className="w-6 h-6 rounded-xl flex items-center justify-center text-[10px] font-bold shrink-0"
-                style={{
-                  backgroundImage: `linear-gradient(135deg, #fff7ed, ${accentColor})`,
-                  color: '#1a0f00',
-                }}
-              >
-                {currentUser.full_name?.charAt(0).toUpperCase() || currentUser.email.charAt(0).toUpperCase()}
-              </div>
-              <span
-                className="text-xs font-bold truncate max-w-[90px] xs:max-w-[120px] sm:max-w-[160px]"
-                style={{
-                  backgroundImage: `linear-gradient(90deg, #fff, ${accentColor})`,
-                  WebkitBackgroundClip: 'text',
-                  backgroundClip: 'text',
-                  color: 'transparent',
-                }}
-              >
-                {currentUser.full_name || currentUser.email.split('@')[0]}
-              </span>
+            <div className="flex items-center gap-1 bg-transparent p-1 drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
               {onLogout && (
                 <button
                   type="button"
@@ -520,17 +488,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
               initial="hidden"
               animate="visible"
               exit="exit"
-              className="fixed top-0 left-0 bottom-0 w-72 z-[3400] bg-transparent p-4 pt-18 flex flex-col justify-between select-none"
+              className="fixed top-0 left-0 bottom-0 w-72 z-[3400] bg-black/72 backdrop-blur-md border-r border-white/10 p-4 pt-18 flex flex-col justify-between select-none shadow-[30px_0_90px_rgba(0,0,0,0.55)]"
             >
               <div className="flex flex-col gap-1 overflow-y-auto custom-scrollbar pr-1">
                 <div
-                  className="px-2 py-2 text-[10px] font-bold uppercase tracking-widest font-mono"
-                  style={{
-                    backgroundImage: `linear-gradient(90deg, rgba(255,255,255,0.7), ${accentColor}, #fde68a)`,
-                    WebkitBackgroundClip: 'text',
-                    backgroundClip: 'text',
-                    color: 'transparent',
-                  }}
+                  className="px-2 py-2 text-[10px] font-bold uppercase tracking-widest font-mono menu-cinematic-text text-white/75"
                 >
                   {isAdmin ? 'Painel do CEO André Augusto' : 'Módulos Práticos do Aluno'}
                 </div>
@@ -555,25 +517,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <div className="pt-4 text-center flex flex-col items-center gap-2.5 text-[11px] drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
                 <SocialLinksBar size="sm" variant="plain" />
                 <div className="flex flex-col items-center gap-0.5">
-                  <span
-                    className="font-semibold"
-                    style={{
-                      backgroundImage: `linear-gradient(90deg, #fff, ${accentColor}, #fde68a)`,
-                      WebkitBackgroundClip: 'text',
-                      backgroundClip: 'text',
-                      color: 'transparent',
-                    }}
-                  >
+                  <span className="font-semibold menu-cinematic-text text-white/90">
                     Brazilian in Action Platform
                   </span>
-                  <span
-                    style={{
-                      backgroundImage: `linear-gradient(90deg, rgba(255,255,255,0.85), ${accentColor})`,
-                      WebkitBackgroundClip: 'text',
-                      backgroundClip: 'text',
-                      color: 'transparent',
-                    }}
-                  >
+                  <span className="menu-cinematic-text text-white/60">
                     {isAdmin ? 'Modo CEO & Gestão Total' : 'Ambiente do Aluno'}
                   </span>
                 </div>

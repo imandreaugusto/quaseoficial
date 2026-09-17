@@ -1,4 +1,4 @@
-import { StageBroadcastState } from '../types';
+import type { StageBroadcastState } from '../types';
 
 const BROADCAST_CHANNEL_NAME = 'brazilian_live_stage_sync';
 

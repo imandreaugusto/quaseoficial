@@ -22,6 +22,7 @@ interface HomeProps {
   onNavigate: (app: string) => void;
   currentUser?: UserProfile | null;
   isAdmin?: boolean;
+  showWorkspace?: boolean;
 }
 
 export const Home: React.FC<HomeProps> = ({
@@ -32,6 +33,7 @@ export const Home: React.FC<HomeProps> = ({
   onNavigate,
   currentUser,
   isAdmin: propIsAdmin,
+  showWorkspace = true,
 }) => {
   const [agendaMode, setAgendaMode] = useState<'semana' | 'hoje'>('semana');
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -132,6 +134,12 @@ export const Home: React.FC<HomeProps> = ({
     return decTime > classDec + 0.85;
   }).length;
   const remainingTodayCount = todayClasses.length - completedTodayCount;
+  const firstName = currentUser?.full_name?.trim().split(/\s+/)[0] || currentUser?.email.split('@')[0] || 'there';
+  const greeting = currentTime.getHours() < 12
+    ? `Good morning, ${firstName}`
+    : currentTime.getHours() < 18
+    ? `Good afternoon, ${firstName}`
+    : `Good evening, ${firstName}`;
 
   // Reusable Social Media Footer (YouTube, TikTok, Instagram, WhatsApp) - Soltos e Separados
   const renderSocialLinks = () => (
@@ -143,17 +151,32 @@ export const Home: React.FC<HomeProps> = ({
   // STUDENT VIEW: Pure, clean, minimalist clock, rolling background wallpapers and social links at the bottom
   if (!isAdmin) {
     return (
-      <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-6 md:py-10 flex flex-col justify-between min-h-[calc(100vh-5rem)] z-10 select-none">
+      <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-6 md:py-10 h-[calc(100vh-5rem)] overflow-hidden flex flex-col justify-between z-10 select-none">
         
         {/* UPPER LEFT: IDENTICAL OFFICIAL CLOCK WITH DATE & FOUNDER TEXT */}
         <div className="flex justify-start items-center">
-          <Clock clock24h={clock24h} align="left" />
+          <div className="flex flex-col gap-2">
+            <span className="text-xl sm:text-2xl font-semibold tracking-tight text-white menu-cinematic-text">{greeting}</span>
+            <Clock clock24h={clock24h} align="left" />
+          </div>
         </div>
 
         {/* BOTTOM: SOCIAL LINKS */}
         <div className="w-full mt-auto">
           {renderSocialLinks()}
         </div>
+      </div>
+    );
+  }
+
+  if (!showWorkspace) {
+    return (
+      <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-6 md:py-10 h-[calc(100vh-5rem)] overflow-hidden flex flex-col justify-between z-10 select-none">
+        <div className="flex flex-col gap-2">
+          <span className="text-xl sm:text-2xl font-semibold tracking-tight text-white menu-cinematic-text">{greeting}</span>
+          <Clock clock24h={clock24h} align="left" />
+        </div>
+        {renderSocialLinks()}
       </div>
     );
   }

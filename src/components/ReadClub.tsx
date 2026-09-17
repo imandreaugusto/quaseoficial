@@ -1012,10 +1012,10 @@ const COMMON_DICTIONARY: Record<string, string> = {
             />
 
             {/* Centered glass sheet container (scrolls over ambient backdrop) */}
-            <div className="flex-1 overflow-y-auto px-4 sm:px-6 pt-8 pb-28 flex justify-center relative z-10 custom-scrollbar">
+            <div className="flex-1 overflow-hidden px-4 sm:px-6 pt-8 pb-6 flex justify-center relative z-10">
               <div
                 ref={paperRef}
-                className={`w-full max-w-3xl h-fit rounded-3xl border shadow-[0_25px_60px_rgba(0,0,0,0.85)] p-8 sm:p-14 relative flex flex-col leading-relaxed backdrop-blur-2xl transition-all ${currentThemeStyle.bg}`}
+                className={`w-full max-w-3xl h-full max-h-full overflow-y-auto custom-scrollbar rounded-3xl border shadow-[0_25px_60px_rgba(0,0,0,0.85)] p-8 sm:p-14 relative flex flex-col leading-relaxed backdrop-blur-2xl transition-all ${currentThemeStyle.bg}`}
                 style={{
                   fontSize: `${fontSize}px`,
                   fontFamily:
@@ -1034,6 +1034,7 @@ const COMMON_DICTIONARY: Record<string, string> = {
                       : "'Poppins', sans-serif",
                 }}
               >
+                <div className="pointer-events-none sticky -top-14 z-20 h-14 -mb-14 bg-gradient-to-b from-black/45 to-transparent" aria-hidden="true" />
                 <div className="relative group/title flex flex-col items-center justify-center gap-2 mb-6 text-center">
                   <h1 className={`text-2xl sm:text-3xl font-extralight tracking-tight uppercase ${currentThemeStyle.titleColor} flex items-center justify-center flex-wrap gap-x-2 gap-y-1`}>
                     {activeBook.title.split(/(\s+)/).map((word, wIdx) => {

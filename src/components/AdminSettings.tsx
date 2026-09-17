@@ -88,6 +88,7 @@ const ALL_STUDENT_APPS = [
 
 const ALL_ADMIN_APPS = [
   { id: 'home', label: 'Home', icon: Home, desc: 'Grade semanal de horários e aulas' },
+  { id: 'work', label: 'Work', icon: LayoutGrid, desc: 'Resumo do dia e lousa de horários' },
   { id: 'stories', label: 'Brazilian Post', icon: Instagram, desc: 'Gestão e moderação de stories e posts gravados pelos alunos' },
   { id: 'practice', label: 'Brazilian Practice', icon: Globe, desc: 'Ambientes de conversação e imersão ao vivo' },
   { id: 'dashboard', label: 'Controle Financeiro', icon: LayoutDashboard, desc: 'Cálculo de lucros, alunos e despesas' },
@@ -158,7 +159,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   // App Order and Global Availability Configuration
   const [appConfig, setAppConfig] = useState<GlobalAppConfig>({
     studentAppOrder: ['brazilianfriends', 'stories', 'practice', 'readclub', 'board', 'quiz', 'biacompare', 'conversation', 'tradutor', 'youtube'],
-    adminAppOrder: ['home', 'brazilianfriends', 'stories', 'practice', 'dashboard', 'admin_settings', 'readclub', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'biacompare', 'conversation', 'tradutor', 'settings'],
+    adminAppOrder: ['home', 'work', 'brazilianfriends', 'stories', 'practice', 'dashboard', 'admin_settings', 'readclub', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'biacompare', 'conversation', 'tradutor', 'settings'],
     studentGlobalEnabled: {
       brazilianfriends: true,
       stories: true,
@@ -259,9 +260,9 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
           studentAppOrder: parsed.studentAppOrder.includes('brazilianfriends')
             ? parsed.studentAppOrder
             : ['brazilianfriends', ...parsed.studentAppOrder],
-          adminAppOrder: parsed.adminAppOrder.includes('brazilianfriends')
+          adminAppOrder: parsed.adminAppOrder.includes('work')
             ? parsed.adminAppOrder
-            : ['brazilianfriends', ...parsed.adminAppOrder],
+            : ['work', ...parsed.adminAppOrder],
           studentGlobalEnabled: {
             brazilianfriends: true,
             ...parsed.studentGlobalEnabled
@@ -590,7 +591,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   const handleResetAppOrder = () => {
     const defaultConfig: GlobalAppConfig = {
       studentAppOrder: ['brazilianfriends', 'readclub', 'board', 'quiz', 'biacompare', 'conversation', 'tradutor', 'youtube'],
-      adminAppOrder: ['home', 'brazilianfriends', 'dashboard', 'admin_settings', 'readclub', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'biacompare', 'conversation', 'tradutor', 'settings'],
+      adminAppOrder: ['home', 'work', 'brazilianfriends', 'dashboard', 'admin_settings', 'readclub', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'biacompare', 'conversation', 'tradutor', 'settings'],
       studentGlobalEnabled: {
         brazilianfriends: true,
         readclub: true,
@@ -1483,6 +1484,17 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                 <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
                   {appConfig.adminAppOrder.length} Módulos
                 </span>
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => handleSaveAppConfig(appConfig)}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-emerald-400/30 bg-emerald-400/10 text-emerald-200 text-[11px] font-bold hover:bg-emerald-400/20 transition-colors"
+                >
+                  <CheckCircle size={14} />
+                  Aplicar alterações
+                </button>
               </div>
 
               <div className="space-y-2.5">

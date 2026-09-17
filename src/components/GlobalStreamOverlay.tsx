@@ -326,7 +326,7 @@ export const GlobalStreamOverlay: React.FC<GlobalStreamOverlayProps> = ({
       {/* ========================================================= */}
       {/* 2. FLOATING TEACHER CONTROL DOCK (ONLY SEEN BY TEACHER)   */}
       {/* ========================================================= */}
-      <div className="fixed bottom-3 right-3 z-[4000] flex flex-col items-end gap-2 select-none pointer-events-auto">
+      <div className="hidden fixed bottom-3 right-3 z-[4000] flex flex-col items-end gap-2 select-none pointer-events-auto">
         {/* Expanded Controls Panel */}
         <AnimatePresence>
           {isDockOpen && (

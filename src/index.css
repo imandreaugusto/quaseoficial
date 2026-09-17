@@ -72,6 +72,10 @@ input, textarea, select {
   box-shadow: 0 25px 60px rgba(0, 0, 0, 0.75);
 }
 
+.menu-cinematic-text {
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.95), 0 0 28px rgba(0, 0, 0, 0.55);
+}
+
 body {
   margin: 0;
   padding: 0;

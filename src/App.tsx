@@ -81,7 +81,7 @@ const LandmarkControlsWidget: React.FC<{
       animate={{ opacity: 1, y: 0, right: landmarkRightOffset }}
       transition={{ type: 'spring', damping: 25, stiffness: 240 }}
       style={{ position: 'fixed', bottom: '12px', zIndex: 2500 }}
-      className="select-none text-right flex items-center gap-2 bg-neutral-950/80 border border-white/10 p-1.5 px-3 rounded-2xl backdrop-blur-md shadow-2xl"
+      className="select-none text-right flex items-center gap-2 p-1.5 px-3 rounded-2xl"
     >
       <AnimatePresence mode="wait">
         <motion.div
@@ -93,7 +93,7 @@ const LandmarkControlsWidget: React.FC<{
           className="flex items-center gap-1.5 text-xs font-medium text-white/90 drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)]"
         >
           <MapPin size={12} className="text-amber-400 shrink-0" />
-          <span className="font-semibold tracking-wide uppercase text-[11px] text-white/90">
+          <span className="font-semibold tracking-wide uppercase text-[11px] text-white/90 menu-cinematic-text">
             {US_LANDMARKS[bgIndex]?.name}
           </span>
         </motion.div>
@@ -105,6 +105,7 @@ const LandmarkControlsWidget: React.FC<{
 export default function App() {
   // SAAS Authentication & Access Control States
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [isBooting, setIsBooting] = useState(true);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [currentApp, setCurrentApp] = useState<string>('home');
   const [quickTradutorModalOpen, setQuickTradutorModalOpen] = useState(false);
@@ -145,6 +146,22 @@ export default function App() {
   const [isTimerRunning, setIsTimerRunning] = useState(false);
 
   const alarmPlayedRef = useRef<Record<string, boolean>>({});
+  const platformSyncQueueRef = useRef(Promise.resolve());
+  const progressSyncQueueRef = useRef(Promise.resolve());
+
+  const queuePlatformSync = (payload: { classes: ClassItem[]; settings: AppSettings; library: StoryItem[] }) => {
+    platformSyncQueueRef.current = platformSyncQueueRef.current
+      .catch(() => undefined)
+      .then(() => syncSharedContentToSupabase('platform', payload))
+      .catch((error) => console.warn('Platform sync queued failed:', error));
+  };
+
+  const queueProgressSync = (userId: string, progress: { sessions: unknown; glossary: unknown; learnedWords: unknown }) => {
+    progressSyncQueueRef.current = progressSyncQueueRef.current
+      .catch(() => undefined)
+      .then(() => syncStudentProgressToSupabase(userId, progress))
+      .catch((error) => console.warn('Progress sync queued failed:', error));
+  };
 
   // Initial Auth & Session Verification
   useEffect(() => {
@@ -172,15 +189,19 @@ export default function App() {
           localStorage.setItem('bia_current_user', JSON.stringify(user));
         }
 
-        void hydrateUserWithCloudSubscription(user).then((hydratedUser) => {
-          setCurrentUser(hydratedUser);
-          setCurrentApp('home');
-        });
+        void hydrateUserWithCloudSubscription(user)
+          .then((hydratedUser) => {
+            setCurrentUser(hydratedUser);
+            setCurrentApp('home');
+          })
+          .finally(() => setIsBooting(false));
       } catch (e) {
         setIsAuthModalOpen(true);
+        setIsBooting(false);
       }
     } else {
       setIsAuthModalOpen(true);
+      setIsBooting(false);
     }
 
     const handleUsersChange = () => {
@@ -336,7 +357,7 @@ export default function App() {
   // Sync state helpers with atomic persistence
   const handleUpdateClasses = (next: ClassItem[]) => {
     setClasses(next);
-    void syncSharedContentToSupabase('platform', { classes: next, settings, library });
+    queuePlatformSync({ classes: next, settings, library });
     try {
       const stored = localStorage.getItem('bia_v14_final');
       const parsed = stored ? JSON.parse(stored) : {};
@@ -360,31 +381,31 @@ export default function App() {
   const handleUpdateSettings = (updated: Partial<AppSettings>) => {
     const next = { ...settings, ...updated };
     setSettings(next);
-    void syncSharedContentToSupabase('platform', { classes, settings: next, library });
+    queuePlatformSync({ classes, settings: next, library });
     localStorage.setItem('bia_settings_final', JSON.stringify(next));
   };
 
   const handleUpdateLibrary = (next: StoryItem[]) => {
     setLibrary(next);
-    void syncSharedContentToSupabase('platform', { classes, settings, library: next });
+    queuePlatformSync({ classes, settings, library: next });
     localStorage.setItem('bia_readclub_library', JSON.stringify(next));
   };
 
   const handleUpdateSessions = (next: ReadSession[]) => {
     setSessions(next);
-    if (currentUser) void syncStudentProgressToSupabase(currentUser.id, { sessions: next, glossary, learnedWords });
+    if (currentUser) queueProgressSync(currentUser.id, { sessions: next, glossary, learnedWords });
     localStorage.setItem('bia_readclub_sessions', JSON.stringify(next));
   };
 
   const handleUpdateGlossary = (next: Record<string, GlossaryEntry>) => {
     setGlossary(next);
-    if (currentUser) void syncStudentProgressToSupabase(currentUser.id, { sessions, glossary: next, learnedWords });
+    if (currentUser) queueProgressSync(currentUser.id, { sessions, glossary: next, learnedWords });
     localStorage.setItem('bia_readclub_glossary', JSON.stringify(next));
   };
 
   const handleUpdateLearnedWords = (next: Record<number, string[]>) => {
     setLearnedWords(next);
-    if (currentUser) void syncStudentProgressToSupabase(currentUser.id, { sessions, glossary, learnedWords: next });
+    if (currentUser) queueProgressSync(currentUser.id, { sessions, glossary, learnedWords: next });
     localStorage.setItem('bia_readclub_learned', JSON.stringify(next));
   };
 
@@ -407,6 +428,7 @@ export default function App() {
   const handleUpdateClassItem = (id: string, updated: Partial<ClassItem>) => {
     setClasses((prev) => {
       const next = prev.map((c) => (c.id === id ? { ...c, ...updated } : c));
+      queuePlatformSync({ classes: next, settings, library });
       try {
         const stored = localStorage.getItem('bia_v14_final');
         const parsed = stored ? JSON.parse(stored) : {};
@@ -419,6 +441,7 @@ export default function App() {
   const handleDeleteClassItem = (id: string) => {
     setClasses((prev) => {
       const next = prev.filter((c) => c.id !== id);
+      queuePlatformSync({ classes: next, settings, library });
       try {
         const stored = localStorage.getItem('bia_v14_final');
         const parsed = stored ? JSON.parse(stored) : {};
@@ -441,6 +464,8 @@ export default function App() {
   const handleUpdateExpenseItem = (id: string, updated: Partial<ExpenseItem>) => {
     setExpenses((prev) => {
       const next = prev.map((e) => (e.id === id ? { ...e, ...updated } : e));
+      const storedClasses = classes;
+      queuePlatformSync({ classes: storedClasses, settings, library });
       try {
         const stored = localStorage.getItem('bia_v14_final');
         const parsed = stored ? JSON.parse(stored) : {};
@@ -453,6 +478,7 @@ export default function App() {
   const handleDeleteExpenseItem = (id: string) => {
     setExpenses((prev) => {
       const next = prev.filter((e) => e.id !== id);
+      queuePlatformSync({ classes, settings, library });
       try {
         const stored = localStorage.getItem('bia_v14_final');
         const parsed = stored ? JSON.parse(stored) : {};
@@ -688,6 +714,20 @@ export default function App() {
     });
   };
 
+  if (isBooting) {
+    return (
+      <div className="fixed inset-0 bg-black text-white flex items-center justify-center overflow-hidden">
+        <div className="relative flex flex-col items-center gap-5 px-8 text-center">
+          <div className="h-14 w-14 rounded-full border border-white/20 border-t-amber-400 animate-spin" />
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.35em] text-white/60 menu-cinematic-text">Brazilian in Action</p>
+            <p className="mt-2 text-sm text-white/40">Preparing your learning space...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <LayoutPositionProvider>
       {/* CLEAN STUDENT STAGE POPOUT MODE (For sharing with Google Meet / OBS) */}
@@ -794,6 +834,20 @@ export default function App() {
                       onNavigate={setCurrentApp}
                       currentUser={currentUser}
                       isAdmin={effectiveIsAdmin}
+                      showWorkspace={!effectiveIsAdmin ? true : false}
+                    />
+                  )}
+
+                  {effectiveIsAdmin && currentApp === 'work' && (
+                    <Home
+                      classes={classes}
+                      clock24h={settings.clock24h}
+                      accentColor={settings.accentColor}
+                      showNextClass={settings.showNextClass}
+                      onNavigate={setCurrentApp}
+                      currentUser={currentUser}
+                      isAdmin={true}
+                      showWorkspace={true}
                     />
                   )}
 
