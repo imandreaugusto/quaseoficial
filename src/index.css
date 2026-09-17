@@ -73,7 +73,8 @@ input, textarea, select {
 }
 
 .menu-cinematic-text {
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.98), 0 3px 5px rgba(0, 0, 0, 0.86), 0 7px 14px rgba(0, 0, 0, 0.52), 0 12px 24px rgba(0, 0, 0, 0.28);
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.98)) drop-shadow(0 6px 8px rgba(0, 0, 0, 0.84)) drop-shadow(0 12px 20px rgba(0, 0, 0, 0.58));
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.98), 0 3px 5px rgba(0, 0, 0, 0.9), 0 8px 16px rgba(0, 0, 0, 0.62), 0 14px 26px rgba(0, 0, 0, 0.38);
 }
 
 .cinema-selectable {
@@ -87,7 +88,8 @@ input, textarea, select {
 }
 
 .cinematic-copy {
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.96), 0 3px 5px rgba(0, 0, 0, 0.8), 0 8px 16px rgba(0, 0, 0, 0.42);
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.92)) drop-shadow(0 7px 12px rgba(0, 0, 0, 0.62));
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.96), 0 3px 5px rgba(0, 0, 0, 0.86), 0 8px 16px rgba(0, 0, 0, 0.52);
 }
 
 .page-motion {
