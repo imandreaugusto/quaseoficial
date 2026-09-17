@@ -667,6 +667,18 @@ export default function App() {
   const effectiveIsAdmin = isAdmin && !isStudentPreviewMode;
   const isStudent = currentUser?.role === 'student' || !isAdmin;
   const isSubscriptionActive = currentUser?.status === 'active' || isAdmin;
+
+  useEffect(() => {
+    const lockHomeScroll = Boolean(currentUser && currentApp === 'home' && !effectiveIsAdmin);
+    document.documentElement.classList.toggle('home-scroll-locked', lockHomeScroll);
+    document.body.classList.toggle('home-scroll-locked', lockHomeScroll);
+
+    return () => {
+      document.documentElement.classList.remove('home-scroll-locked');
+      document.body.classList.remove('home-scroll-locked');
+    };
+  }, [currentApp, currentUser, effectiveIsAdmin]);
+
   const perms: StudentPermissions = currentUser?.permissions || {
     friends: true,
     readclub: true,

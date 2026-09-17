@@ -145,6 +145,12 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+html.home-scroll-locked,
+body.home-scroll-locked {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
+
 /* Custom transitions and styling presets */
 .compact input, .compact select, .compact button {
   padding-top: 0.45rem !important;
