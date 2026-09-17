@@ -189,7 +189,7 @@ export const Home: React.FC<HomeProps> = ({
       <div className="w-full flex flex-col md:flex-row md:items-center md:justify-between gap-6 md:gap-10 pt-2 pb-2 shrink-0">
         
         {/* THE CLOCK - LEFT ALIGNED AND SLEEK */}
-        <div className="flex justify-start items-center">
+        <div className="flex justify-end items-center pr-5 sm:pr-12 lg:pr-28">
           <Clock clock24h={clock24h} align="left" />
         </div>
 

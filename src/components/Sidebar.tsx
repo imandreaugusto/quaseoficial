@@ -400,7 +400,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             className="w-2 h-2 rounded-full animate-pulse"
             style={{ backgroundImage: `linear-gradient(135deg, #34d399, ${accentColor})` }}
           />
-          <span className="font-extrabold uppercase tracking-wider menu-cinematic-text" style={{ color: '#fff' }}>
+          <span className="font-extrabold uppercase tracking-wider" style={{ color: '#fff' }}>
             {currentItem.label}
           </span>
         </div>
