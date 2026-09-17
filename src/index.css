@@ -76,6 +76,16 @@ input, textarea, select {
   text-shadow: 0 2px 14px rgba(0, 0, 0, 0.95), 0 0 28px rgba(0, 0, 0, 0.55);
 }
 
+.cinema-selectable {
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.8);
+  transition: color 180ms ease, text-shadow 180ms ease, background-color 180ms ease;
+}
+
+.cinema-selectable:hover {
+  color: #fff;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.95), 0 0 24px rgba(255, 255, 255, 0.16);
+}
+
 body {
   margin: 0;
   padding: 0;

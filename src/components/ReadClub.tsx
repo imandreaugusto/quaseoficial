@@ -706,13 +706,13 @@ const COMMON_DICTIONARY: Record<string, string> = {
                         {categoryBooks.map((b) => (
                           <div
                             key={b.id}
-                            className="group flex items-center justify-between p-2 rounded-lg hover:bg-white/[0.03] transition-all"
+                            className="group flex items-center justify-between p-2 rounded-lg hover:bg-white/[0.045] transition-all cinema-selectable"
                           >
                             <div className="flex-1 min-w-0 pr-2">
                               <div className="flex items-center justify-between w-full">
                                 <button
                                   onClick={() => enterReadingMode(b, null)}
-                                  className="text-left text-xs font-medium text-white/80 hover:text-white truncate block cursor-pointer flex-1"
+                                  className="text-left text-xs font-medium text-white/80 hover:text-white truncate block cursor-pointer flex-1 cinema-selectable"
                                 >
                                   {b.title}
                                   {b.level && (

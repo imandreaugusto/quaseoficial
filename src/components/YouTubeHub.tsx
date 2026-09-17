@@ -674,7 +674,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6' 
         {/* LEFT / MAIN COLUMN: VIDEO PLAYER & LYRICS */}
         <div className="lg:col-span-7 xl:col-span-8 flex flex-col gap-5">
           {/* PLAYER CARD */}
-          <div className="bg-neutral-900/80 border border-white/10 rounded-2xl p-4 sm:p-5 shadow-xl flex flex-col gap-4 backdrop-blur-md">
+          <div className="bg-neutral-950/90 border border-white/10 rounded-2xl p-4 sm:p-5 shadow-xl flex flex-col gap-4">
             <div className="flex items-center justify-between border-b border-white/10 pb-3 gap-2">
               <div className="flex items-center gap-2 min-w-0">
                 <span className="px-2 py-0.5 rounded bg-white/10 text-white/70 border border-white/10 text-[10px] font-mono font-medium shrink-0">
@@ -749,7 +749,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6' 
 
           {/* INTERACTIVE LYRICS & TRANSLATION SECTION */}
           {(hasLyricsInActive || isEditingLyrics) && (
-            <div className="bg-neutral-900/80 border border-white/10 rounded-2xl p-4 sm:p-5 shadow-xl flex flex-col gap-4 backdrop-blur-md">
+            <div className="bg-neutral-950/90 border border-white/10 rounded-2xl p-4 sm:p-5 shadow-xl flex flex-col gap-4">
               {/* Header with Translation Modes & Controls */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/10 pb-3 gap-3">
                 <div className="flex items-center gap-2">
