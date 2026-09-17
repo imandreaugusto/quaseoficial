@@ -28,7 +28,7 @@ import { ClassItem, ExpenseItem, AppSettings, StoryItem, ReadSession, GlossaryEn
 import { INITIAL_READ_LIBRARY, SLIDESHOW_IMAGES, US_LANDMARKS } from './data';
 import { CEO_EMAIL, logAdminAccessAttempt, isAuthorizedCeoEmail } from './utils/security';
 import { motion, AnimatePresence } from 'motion/react';
-import { LayoutPositionProvider, useLayoutPosition } from './lib/LayoutPositionContext';
+import { LayoutPositionProvider } from './lib/LayoutPositionContext';
 import { Eye, EyeOff, MapPin } from 'lucide-react';
 import {
   getSubscriptionStatusFromSupabase,
@@ -71,16 +71,14 @@ const LandmarkControlsWidget: React.FC<{
   bgPaused: boolean;
   setBgPaused: React.Dispatch<React.SetStateAction<boolean>>;
 }> = ({ settings, bgIndex }) => {
-  const { landmarkRightOffset } = useLayoutPosition();
-
   if (!settings.bgEnabled || !US_LANDMARKS[bgIndex]) return null;
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 15 }}
-      animate={{ opacity: 1, y: 0, right: landmarkRightOffset }}
+      animate={{ opacity: 1, y: 0, right: 'clamp(0.75rem, 2vw, 2rem)' }}
       transition={{ type: 'spring', damping: 25, stiffness: 240 }}
-      style={{ position: 'fixed', bottom: '12px', zIndex: 2500 }}
+      style={{ position: 'fixed', right: 'clamp(0.75rem, 2vw, 2rem)', bottom: '12px', zIndex: 2500 }}
       className="select-none text-right flex items-center gap-2 p-1.5 px-3 rounded-2xl"
     >
       <AnimatePresence mode="wait">
@@ -801,7 +799,7 @@ export default function App() {
         )}
 
         {/* Main View Port Routing */}
-        <main className={`relative z-10 ${currentUser ? 'pt-18 sm:pt-20 pb-12' : 'pt-24 pb-8'} ${currentUser && currentApp === 'home' && !effectiveIsAdmin ? 'h-screen overflow-hidden' : 'min-h-[90vh]'}`}>
+        <main className={`relative z-10 ${currentUser ? 'pt-18 sm:pt-20 pb-12' : 'pt-24 pb-8'} ${currentUser && currentApp === 'home' && !effectiveIsAdmin ? 'h-screen box-border overflow-hidden overscroll-none' : 'min-h-[90vh]'}`}>
           {/* 1. AUTH MODAL (Unified Login/Cadastro + 17-Click Easter Egg) */}
           <AuthModal
             isOpen={isAuthModalOpen || !currentUser}

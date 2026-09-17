@@ -151,10 +151,10 @@ export const Home: React.FC<HomeProps> = ({
   // STUDENT VIEW: Pure, clean, minimalist clock, rolling background wallpapers and social links at the bottom
   if (!isAdmin) {
     return (
-      <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-6 md:py-10 h-[calc(100dvh-5rem)] max-h-[calc(100dvh-5rem)] overflow-hidden flex flex-col justify-between z-10 select-none">
+      <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-6 md:py-10 box-border h-[calc(100dvh-5rem)] max-h-[calc(100dvh-5rem)] overflow-hidden flex flex-col justify-between z-10 select-none">
         
         {/* UPPER LEFT: IDENTICAL OFFICIAL CLOCK WITH DATE & FOUNDER TEXT */}
-        <div className="flex justify-end items-center pt-4 pr-2 sm:pr-6">
+        <div className="flex justify-end items-center pt-4 pr-5 sm:pr-12 lg:pr-28">
           <div className="flex flex-col gap-2">
             <Clock clock24h={clock24h} align="left" />
             <span className="text-xl sm:text-2xl font-semibold tracking-tight text-white menu-cinematic-text text-right">{greeting}</span>
@@ -171,7 +171,7 @@ export const Home: React.FC<HomeProps> = ({
 
   if (!showWorkspace) {
     return (
-      <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-6 md:py-10 h-[calc(100dvh-5rem)] max-h-[calc(100dvh-5rem)] overflow-hidden flex flex-col justify-between z-10 select-none">
+      <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-6 md:py-10 box-border h-[calc(100dvh-5rem)] max-h-[calc(100dvh-5rem)] overflow-hidden flex flex-col justify-between z-10 select-none">
         <div className="flex flex-col gap-2">
           <span className="text-xl sm:text-2xl font-semibold tracking-tight text-white menu-cinematic-text">{greeting}</span>
           <Clock clock24h={clock24h} align="left" />
