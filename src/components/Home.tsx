@@ -143,7 +143,7 @@ export const Home: React.FC<HomeProps> = ({
 
   // Reusable Social Media Footer (YouTube, TikTok, Instagram, WhatsApp) - Soltos e Separados
   const renderSocialLinks = () => (
-    <div className="flex justify-center items-center px-4 py-4 w-full max-w-4xl mx-auto mt-4 mb-20 md:mb-14 shrink-0 z-10">
+    <div className="flex justify-center items-end px-4 pt-4 pb-1 w-full max-w-4xl mx-auto mt-auto mb-0 shrink-0 z-10">
       <SocialLinksBar size="md" />
     </div>
   );
