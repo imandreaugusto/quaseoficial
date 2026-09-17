@@ -86,6 +86,21 @@ input, textarea, select {
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.95), 0 0 24px rgba(255, 255, 255, 0.16);
 }
 
+.page-motion {
+  will-change: opacity, transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 body {
   margin: 0;
   padding: 0;

@@ -341,16 +341,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
       transition: {
         type: 'spring',
         damping: 26,
-        stiffness: 260,
+        stiffness: 210,
         staggerChildren: 0.035,
-        delayChildren: 0.05,
+        delayChildren: 0.08,
       },
     },
     exit: {
       x: '-100%',
       opacity: 0,
       transition: {
-        duration: 0.22,
+        duration: 0.32,
         ease: [0.4, 0, 1, 1],
       },
     },
@@ -478,6 +478,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
+              transition={{ duration: 0.28, ease: 'easeOut' }}
               onClick={() => setIsOpen(false)}
               className="fixed inset-0 z-[3300] bg-transparent"
             />

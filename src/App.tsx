@@ -716,15 +716,24 @@ export default function App() {
 
   if (isBooting) {
     return (
-      <div className="fixed inset-0 bg-black text-white flex items-center justify-center overflow-hidden">
-        <div className="relative flex flex-col items-center gap-5 px-8 text-center">
+      <motion.div
+        initial={{ opacity: 1 }}
+        animate={{ opacity: 1 }}
+        className="fixed inset-0 bg-black text-white flex items-center justify-center overflow-hidden"
+      >
+        <motion.div
+          initial={{ opacity: 0, y: 12, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+          className="relative flex flex-col items-center gap-5 px-8 text-center page-motion"
+        >
           <div className="h-14 w-14 rounded-full border border-white/20 border-t-amber-400 animate-spin" />
           <div>
             <p className="text-[11px] uppercase tracking-[0.35em] text-white/60 menu-cinematic-text">Brazilian in Action</p>
             <p className="mt-2 text-sm text-white/40">Preparing your learning space...</p>
           </div>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     );
   }
 
@@ -818,10 +827,10 @@ export default function App() {
                 animate={{ opacity: 1, x: 0, scale: 1 }}
                 exit={settings.animOn ? { opacity: 0, x: -14, scale: 0.995 } : { opacity: 1, x: 0, scale: 1 }}
                 transition={{ 
-                  duration: settings.animOn ? 0.28 : 0, 
+                  duration: settings.animOn ? 0.42 : 0, 
                   ease: [0.16, 1, 0.3, 1] 
                 }}
-                className="w-full h-full"
+                className="w-full h-full page-motion"
               >
                 <ErrorBoundary fallbackTitle="Erro ao carregar este módulo">
                   {/* HOME TAB - Accessible to all authenticated users */}
