@@ -272,7 +272,8 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6' 
         user.uid,
         'bia_youtube_library',
         (data) => {
-          if (data && Array.isArray(data) && data.length > 0) {
+          const localLibrary = localStorage.getItem('bia_youtube_library');
+          if (!localLibrary && data && Array.isArray(data) && data.length > 0) {
             setLibrary(data);
             localStorage.setItem('bia_youtube_library', JSON.stringify(data));
           }

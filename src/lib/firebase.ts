@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, User, signOut } from 'firebase/auth';
-import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, getDoc, onSnapshot } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
@@ -42,6 +42,43 @@ export const saveUserDataToCloud = async (userId: string, key: string, data: any
     await setDoc(docRef, { payload: data, updatedAt: new Date().toISOString() }, { merge: true });
   } catch (err) {
     console.error(`Error saving ${key} to Firestore:`, err);
+    window.dispatchEvent(new CustomEvent('bia_cloud_sync_error', {
+      detail: { provider: 'firebase', key, error: err }
+    }));
+  }
+};
+
+export const loadUserDataFromCloud = async (userId: string, key: string) => {
+  if (!userId || !key) return null;
+  try {
+    const snapshot = await getDoc(doc(db, 'users', userId, 'appData', key));
+    return snapshot.exists() ? snapshot.data()?.payload ?? null : null;
+  } catch (err) {
+    console.error(`Error loading ${key} from Firestore:`, err);
+    return null;
+  }
+};
+
+export const savePlatformDataToCloud = async (key: string, data: any) => {
+  if (!key) return;
+  try {
+    await setDoc(doc(db, 'system', key), { payload: data, updatedAt: new Date().toISOString() }, { merge: true });
+  } catch (err) {
+    console.error(`Error saving system/${key} to Firestore:`, err);
+    window.dispatchEvent(new CustomEvent('bia_cloud_sync_error', {
+      detail: { provider: 'firebase', key: `system/${key}`, error: err }
+    }));
+  }
+};
+
+export const loadPlatformDataFromCloud = async (key: string) => {
+  if (!key) return null;
+  try {
+    const snapshot = await getDoc(doc(db, 'system', key));
+    return snapshot.exists() ? snapshot.data()?.payload ?? null : null;
+  } catch (err) {
+    console.error(`Error loading system/${key} from Firestore:`, err);
+    return null;
   }
 };
 

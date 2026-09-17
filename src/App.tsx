@@ -29,13 +29,10 @@ import { INITIAL_READ_LIBRARY, SLIDESHOW_IMAGES, US_LANDMARKS } from './data';
 import { CEO_EMAIL, logAdminAccessAttempt, isAuthorizedCeoEmail } from './utils/security';
 import { motion, AnimatePresence } from 'motion/react';
 import { LayoutPositionProvider } from './lib/LayoutPositionContext';
+import { loadPlatformDataFromCloud, loadUserDataFromCloud, savePlatformDataToCloud, saveUserDataToCloud } from './lib/firebase';
 import { Eye, EyeOff, MapPin } from 'lucide-react';
 import {
   getSubscriptionStatusFromSupabase,
-  loadSharedContentFromSupabase,
-  loadStudentProgressFromSupabase,
-  syncSharedContentToSupabase,
-  syncStudentProgressToSupabase,
   syncSubscriptionToSupabase
 } from './utils/supabaseClient';
 
@@ -150,14 +147,14 @@ export default function App() {
   const queuePlatformSync = (payload: { classes: ClassItem[]; settings: AppSettings; library: StoryItem[] }) => {
     platformSyncQueueRef.current = platformSyncQueueRef.current
       .catch(() => undefined)
-      .then(() => syncSharedContentToSupabase('platform', payload))
+      .then(() => savePlatformDataToCloud('platform', payload))
       .catch((error) => console.warn('Platform sync queued failed:', error));
   };
 
   const queueProgressSync = (userId: string, progress: { sessions: unknown; glossary: unknown; learnedWords: unknown }) => {
     progressSyncQueueRef.current = progressSyncQueueRef.current
       .catch(() => undefined)
-      .then(() => syncStudentProgressToSupabase(userId, progress))
+      .then(() => saveUserDataToCloud(userId, 'readclub_progress', progress))
       .catch((error) => console.warn('Progress sync queued failed:', error));
   };
 
@@ -232,19 +229,32 @@ export default function App() {
     if (!currentUser) return;
 
     const loadCloudContent = async () => {
-      const shared = await loadSharedContentFromSupabase<{
+      const shared = await loadPlatformDataFromCloud('platform') as {
         classes?: ClassItem[];
         settings?: AppSettings;
         library?: StoryItem[];
-      }>('platform');
-      if (shared?.classes) setClasses(shared.classes);
-      if (shared?.settings) setSettings({ ...DEFAULT_SETTINGS, ...shared.settings });
-      if (shared?.library) setLibrary(shared.library);
+      } | null;
+      const localDashboard = localStorage.getItem('bia_v14_final');
+      const localSettings = localStorage.getItem('bia_settings_final');
+      const localLibrary = localStorage.getItem('bia_readclub_library');
+      if (!localDashboard && shared?.classes) setClasses(shared.classes);
+      if (!localSettings && shared?.settings) setSettings({ ...DEFAULT_SETTINGS, ...shared.settings });
+      if (!localLibrary && shared?.library) setLibrary(shared.library);
 
-      const progress = await loadStudentProgressFromSupabase(currentUser.id);
-      if (progress?.sessions) setSessions(progress.sessions as ReadSession[]);
-      if (progress?.glossary) setGlossary(progress.glossary as Record<string, GlossaryEntry>);
-      if (progress?.learned_words) setLearnedWords(progress.learned_words as Record<number, string[]>);
+      const progress = await loadUserDataFromCloud(currentUser.id, 'readclub_progress') as {
+        sessions?: ReadSession[];
+        glossary?: Record<string, GlossaryEntry>;
+        learnedWords?: Record<number, string[]>;
+      } | null;
+      if (!localStorage.getItem('bia_readclub_sessions') && progress?.sessions) {
+        setSessions(progress.sessions);
+      }
+      if (!localStorage.getItem('bia_readclub_glossary') && progress?.glossary) {
+        setGlossary(progress.glossary);
+      }
+      if (!localStorage.getItem('bia_readclub_learned') && progress?.learnedWords) {
+        setLearnedWords(progress.learnedWords);
+      }
     };
 
     void loadCloudContent();

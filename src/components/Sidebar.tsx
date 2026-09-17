@@ -71,7 +71,6 @@ const NavButton: React.FC<{
 }> = ({ item, isActive, accentColor, onClick }) => {
   const btnRef = useRef<HTMLButtonElement | null>(null);
   const iconRef = useRef<HTMLSpanElement | null>(null);
-  const dotRef = useRef<HTMLSpanElement | null>(null);
 
   // 1. Ao passar o mouse: toca o som e aciona o GSAP
   const handleMouseEnter = () => {
@@ -99,14 +98,6 @@ const NavButton: React.FC<{
       });
     }
 
-    // Acende a bolinha indicadora
-    if (dotRef.current) {
-      gsap.to(dotRef.current, {
-        scale: 1.5,
-        opacity: 1,
-        duration: 0.2,
-      });
-    }
   };
 
   // 2. Ao tirar o mouse: volta para o estado normal suavemente
@@ -131,13 +122,6 @@ const NavButton: React.FC<{
       });
     }
 
-    if (dotRef.current) {
-      gsap.to(dotRef.current, {
-        scale: 1,
-        opacity: isActive ? 1 : 0.4,
-        duration: 0.2,
-      });
-    }
   };
 
   // 3. Ao pressionar o mouse: efeito de clique físico (afunda)
@@ -172,7 +156,7 @@ const NavButton: React.FC<{
       onMouseLeave={handleMouseLeave}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
-      className="w-full flex items-center gap-3.5 px-2 py-2.5 bg-transparent select-none cursor-pointer drop-shadow-[0_2px_10px_rgba(0,0,0,0.85)]"
+      className="w-full flex items-center gap-3.5 px-2 py-2.5 bg-transparent select-none cursor-pointer"
     >
       <span ref={iconRef} className="shrink-0 flex items-center justify-center">
         <item.icon
@@ -191,14 +175,6 @@ const NavButton: React.FC<{
       >
         {item.label}
       </span>
-      <span
-        ref={dotRef}
-        className="w-1.5 h-1.5 rounded-full"
-        style={{
-          backgroundImage: `linear-gradient(135deg, #fff, ${accentColor})`,
-          opacity: isActive ? 1 : 0.35,
-        }}
-      />
     </button>
   );
 };
@@ -381,7 +357,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             style={{ color: isOpen ? accentColor : '#ffffff' }}
             title="Abrir Menu de Navegação"
           >
-            {isOpen ? <X size={18} /> : <Menu size={18} />}
+            <Menu size={18} />
           </button>
 
           {/* Automatic Brand Logo */}
@@ -489,7 +465,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               initial="hidden"
               animate="visible"
               exit="exit"
-              className="fixed top-0 left-0 bottom-0 w-72 z-[3400] bg-black/72 backdrop-blur-md border-r border-white/10 p-4 pt-18 flex flex-col justify-between select-none shadow-[30px_0_90px_rgba(0,0,0,0.55)]"
+              className="menu-cinematic-panel fixed top-0 left-0 bottom-0 w-72 z-[3400] bg-transparent p-4 pt-18 flex flex-col justify-between select-none"
             >
               <div className="flex flex-col gap-1 overflow-y-auto custom-scrollbar pr-1">
                 <div

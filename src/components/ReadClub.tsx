@@ -639,7 +639,7 @@ const COMMON_DICTIONARY: Record<string, string> = {
     <div className="h-screen w-full flex overflow-hidden text-white">
       {/* 1. Left Sidebar: Library Selector */}
       {!activeBook && (
-        <div className="w-full md:w-80 bg-neutral-950/70 border-r border-white/10 flex flex-col p-4 pt-16 md:pt-4 pl-24 sm:pl-28 md:pl-4 backdrop-blur-md h-full flex-shrink-0 z-20">
+        <div className="readclub-library-panel w-full md:w-80 box-border min-h-0 flex flex-col p-4 pt-16 md:pt-4 pl-24 sm:pl-28 md:pl-4 h-full flex-shrink-0 z-20">
           <div className="text-center mb-4">
             <h3 className="text-xs font-light tracking-[0.25em] uppercase text-white/50">Biblioteca</h3>
           </div>
@@ -683,7 +683,7 @@ const COMMON_DICTIONARY: Record<string, string> = {
           </button>
 
           {/* Groupings display Accordion */}
-          <div className="flex-1 overflow-y-auto flex flex-col gap-2">
+          <div className="min-h-0 flex-1 overflow-y-auto flex flex-col gap-2">
             {Object.keys(groupedBooks).length === 0 ? (
               <div className="text-center py-10 text-white/20 italic text-xs">Vazio</div>
             ) : (
@@ -706,13 +706,13 @@ const COMMON_DICTIONARY: Record<string, string> = {
                         {categoryBooks.map((b) => (
                           <div
                             key={b.id}
-                            className="group flex items-center justify-between p-2 rounded-lg hover:bg-white/[0.045] transition-all cinema-selectable"
+                            className="group flex items-center justify-between p-2 rounded-lg hover:bg-white/[0.045] transition-all"
                           >
                             <div className="flex-1 min-w-0 pr-2">
                               <div className="flex items-center justify-between w-full">
                                 <button
                                   onClick={() => enterReadingMode(b, null)}
-                                  className="text-left text-xs font-medium text-white/80 hover:text-white truncate block cursor-pointer flex-1 cinema-selectable"
+                                  className="text-left text-xs font-medium text-white/80 hover:text-white truncate block cursor-pointer flex-1"
                                 >
                                   {b.title}
                                   {b.level && (

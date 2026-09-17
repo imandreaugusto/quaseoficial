@@ -10,17 +10,16 @@ import {
 
 export { auth, listenToAuth, loginWithGoogle, logoutUser };
 
-const pendingSaveTimers: Record<string, NodeJS.Timeout> = {};
+const pendingSavePromises: Record<string, Promise<void>> = {};
 
-// Helper to save data to cloud with a short debounce to avoid spamming writes
 export const syncToCloud = (userId: string | null | undefined, key: string, data: any) => {
-  if (!userId) return;
-  if (pendingSaveTimers[key]) {
-    clearTimeout(pendingSaveTimers[key]);
-  }
-  pendingSaveTimers[key] = setTimeout(() => {
-    saveUserDataToCloud(userId, key, data);
-  }, 500);
+  if (!userId || !key) return;
+
+  const previousSave = pendingSavePromises[key] || Promise.resolve();
+  const currentSave = previousSave
+    .catch(() => undefined)
+    .then(() => saveUserDataToCloud(userId, key, data));
+  pendingSavePromises[key] = currentSave;
 };
 
 export interface CloudSyncState {
