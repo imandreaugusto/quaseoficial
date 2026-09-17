@@ -64,11 +64,13 @@ export const WhatsAppIcon: React.FC<{ size?: number; className?: string }> = ({ 
 interface SocialLinksBarProps {
   size?: 'sm' | 'md' | 'lg';
   className?: string;
+  variant?: 'glass' | 'plain';
 }
 
 export const SocialLinksBar: React.FC<SocialLinksBarProps> = ({
   size = 'md',
-  className = ''
+  className = '',
+  variant = 'glass'
 }) => {
   const iconSize = size === 'sm' ? 16 : size === 'lg' ? 22 : 18;
   const buttonPadding = size === 'sm' ? 'w-9 h-9' : size === 'lg' ? 'w-11 h-11' : 'w-10 h-10';
@@ -79,6 +81,7 @@ export const SocialLinksBar: React.FC<SocialLinksBarProps> = ({
       url: SOCIAL_LINKS.youtube,
       icon: YouTubeIcon,
       hoverClass: 'hover:text-white hover:bg-red-600 hover:border-red-500 hover:shadow-[0_0_18px_rgba(239,68,68,0.6)] text-red-400 border-red-500/30 bg-black/40',
+      plainClass: 'text-red-400 hover:text-red-300',
       label: 'YouTube Oficial'
     },
     {
@@ -86,6 +89,7 @@ export const SocialLinksBar: React.FC<SocialLinksBarProps> = ({
       url: SOCIAL_LINKS.tiktok,
       icon: TikTokIcon,
       hoverClass: 'hover:text-black hover:bg-cyan-400 hover:border-cyan-300 hover:shadow-[0_0_18px_rgba(34,211,238,0.6)] text-cyan-400 border-cyan-500/30 bg-black/40',
+      plainClass: 'text-cyan-400 hover:text-cyan-200',
       label: 'TikTok Oficial'
     },
     {
@@ -93,6 +97,7 @@ export const SocialLinksBar: React.FC<SocialLinksBarProps> = ({
       url: SOCIAL_LINKS.instagram,
       icon: InstagramIcon,
       hoverClass: 'hover:text-white hover:bg-gradient-to-tr hover:from-amber-500 hover:via-pink-600 hover:to-purple-600 hover:border-pink-400 hover:shadow-[0_0_18px_rgba(244,114,182,0.6)] text-pink-400 border-pink-500/30 bg-black/40',
+      plainClass: 'text-pink-400 hover:text-pink-200',
       label: 'Instagram Oficial'
     },
     {
@@ -100,6 +105,7 @@ export const SocialLinksBar: React.FC<SocialLinksBarProps> = ({
       url: SOCIAL_LINKS.whatsapp,
       icon: WhatsAppIcon,
       hoverClass: 'hover:text-white hover:bg-emerald-600 hover:border-emerald-400 hover:shadow-[0_0_18px_rgba(52,211,153,0.6)] text-emerald-400 border-emerald-500/30 bg-black/40',
+      plainClass: 'text-emerald-400 hover:text-emerald-200',
       label: 'Canal VIP WhatsApp'
     }
   ];
@@ -116,7 +122,11 @@ export const SocialLinksBar: React.FC<SocialLinksBarProps> = ({
             rel="noopener noreferrer"
             title={item.label}
             aria-label={item.label}
-            className={`${buttonPadding} rounded-2xl border transition-all duration-300 cursor-pointer flex items-center justify-center backdrop-blur-md shadow-lg hover:scale-110 active:scale-95 ${item.hoverClass}`}
+            className={
+              variant === 'plain'
+                ? `${buttonPadding} bg-transparent border-0 transition-all duration-300 cursor-pointer flex items-center justify-center drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)] hover:scale-110 active:scale-95 ${item.plainClass}`
+                : `${buttonPadding} rounded-2xl border transition-all duration-300 cursor-pointer flex items-center justify-center backdrop-blur-md shadow-lg hover:scale-110 active:scale-95 ${item.hoverClass}`
+            }
           >
             <IconComponent size={iconSize} />
           </a>

@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile, StorySubmission, StoryBadge } from '../types';
+import { getSupabaseClient, loadStoriesFromSupabase, syncStoriesToSupabase } from '../utils/supabaseClient';
 
 interface StoryPromptOption {
   id: string;
@@ -199,6 +200,55 @@ export const BrazilianStories: React.FC<BrazilianStoriesProps> = ({
     return saved ? JSON.parse(saved) : INITIAL_STORIES;
   });
 
+  useEffect(() => {
+    const client = getSupabaseClient();
+    if (!client) return;
+
+    const loadRemoteStories = async () => {
+      const remote = await loadStoriesFromSupabase();
+      if (remote.length > 0) {
+        setStories(remote);
+        localStorage.setItem('bia_stories_submissions', JSON.stringify(remote));
+      }
+    };
+
+    void loadRemoteStories();
+
+    const channel = client
+      .channel('stories-live-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'stories' }, (payload) => {
+        const nextStory = payload.new as any;
+        if (!nextStory) return;
+        const mapped: StorySubmission = {
+          id: String(nextStory.id),
+          studentId: nextStory.student_id,
+          studentName: nextStory.student_name,
+          title: nextStory.title,
+          category: nextStory.category,
+          promptUsed: nextStory.prompt_used,
+          videoUrl: nextStory.video_url || undefined,
+          thumbnailUrl: nextStory.thumbnail_url || undefined,
+          createdAt: nextStory.created_at,
+          status: nextStory.status,
+          likesCount: Number(nextStory.likes_count || 0),
+          instagramHandle: nextStory.instagram_handle || undefined
+        };
+
+        setStories((prev) => {
+          const exists = prev.some((item) => item.id === mapped.id);
+          if (exists) {
+            return prev.map((item) => (item.id === mapped.id ? mapped : item));
+          }
+          return [mapped, ...prev];
+        });
+      })
+      .subscribe();
+
+    return () => {
+      void client.removeChannel(channel);
+    };
+  }, []);
+
   // User badges & points
   const [badges, setBadges] = useState<StoryBadge[]>(() => {
     const saved = localStorage.getItem('bia_user_story_badges');
@@ -219,6 +269,11 @@ export const BrazilianStories: React.FC<BrazilianStoriesProps> = ({
   // Save stories
   useEffect(() => {
     localStorage.setItem('bia_stories_submissions', JSON.stringify(stories));
+
+    const client = getSupabaseClient();
+    if (client && stories.length > 0) {
+      void syncStoriesToSupabase(stories);
+    }
   }, [stories]);
 
   // Clean up camera stream on unmount or tab change
@@ -343,7 +398,7 @@ export const BrazilianStories: React.FC<BrazilianStoriesProps> = ({
       category: selectedPrompt.category,
       promptUsed: selectedPrompt.title,
       videoUrl: recordedVideoUrl || undefined,
-      createdAt: 'Agora mesmo',
+      createdAt: new Date().toISOString(),
       status: 'pending',
       likesCount: 1,
       instagramHandle: studentInstagram.trim() || undefined

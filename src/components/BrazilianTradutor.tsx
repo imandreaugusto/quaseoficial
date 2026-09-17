@@ -38,6 +38,7 @@ export interface TranslationOption {
   english: string;
   context: string;
   toneAndEmphasis?: string;
+  phonetic?: string;
 }
 
 export interface LiteralVsNative {
@@ -217,6 +218,7 @@ export const BrazilianTradutor: React.FC<BrazilianTradutorProps> = ({
               badge: 'Dia a Dia / Conversacional',
               title: 'Opção 1 (A mais natural e calorosa no cotidiano):',
               english: "Thank you, Pastor. I appreciate you and you're a big inspiration to me.",
+              phonetic: 'Thénk iu, Pás-tôr. Ai a-prí-xi-eit iu énd iur a bíg ins-pi-rêi-xân tu mi.',
               context: 'Tradução: "Obrigado, Pastor. Eu te valorizo/aprecio e você é uma grande inspiração para mim."',
               toneAndEmphasis: 'Diga enfatizando levemente a palavra "you" ao falar "I appreciate YOU" para soar caloroso e sincero.'
             },
@@ -224,6 +226,7 @@ export const BrazilianTradutor: React.FC<BrazilianTradutorProps> = ({
               badge: 'Comunidade / Religioso',
               title: 'Opção 2 (Ideal para o ambiente de igreja e comunidade):',
               english: "Thank you, Pastor. I'm so grateful for your life and I really look up to you.",
+              phonetic: 'Thénk iu, Pás-tôr. Aim sou grêit-fûl fôr iur láif énd ai rí-li lúk âp tu iu.',
               context: 'Tradução: "Obrigado, Pastor. Sou muito grato pela sua vida e me inspiro muito em você."',
               toneAndEmphasis: 'Pronuncie "grateful for your life" de forma calma e solene.'
             },
@@ -231,6 +234,7 @@ export const BrazilianTradutor: React.FC<BrazilianTradutorProps> = ({
               badge: 'Informal / Afetuoso',
               title: 'Opção 3 (Mais direta para relacionamentos próximos):',
               english: "Thank you, Pastor. I love you too and you truly inspire me.",
+              phonetic: 'Thénk iu, Pás-tôr. Ai lâv iu tú énd iu trú-li ins-pái-er mi.',
               context: 'Tradução: "Obrigado, Pastor. Eu te amo também e você realmente me inspira."',
               toneAndEmphasis: 'Excelente para líderes com quem você tem amizade pessoal e próxima.'
             }
@@ -529,6 +533,12 @@ export const BrazilianTradutor: React.FC<BrazilianTradutorProps> = ({
                           <p className="text-base sm:text-lg font-extrabold text-amber-300 leading-relaxed font-sans pl-1 border-l-2 border-amber-400/60">
                             "{opt.english}"
                           </p>
+
+                          {opt.phonetic && (
+                            <p className="text-[11px] font-mono text-emerald-300/80 pl-1">
+                              Pronúncia: <span className="text-emerald-200/95">{opt.phonetic}</span>
+                            </p>
+                          )}
 
                           {opt.context && (
                             <p className="text-xs font-mono text-white/70 italic pl-1">

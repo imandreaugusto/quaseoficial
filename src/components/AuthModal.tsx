@@ -26,6 +26,7 @@ import { BrazilianLogo } from './BrazilianLogo';
 import { SubscriptionInfoModal } from './SubscriptionInfoModal';
 import { Clock } from './Clock';
 import { SocialLinksBar } from './SocialLinksBar';
+import { findUserProfileByEmail, syncUserProfileToSupabase, fetchCouponFromSupabase, redeemCouponInSupabase } from '../utils/supabaseClient';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -112,26 +113,36 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         const cleanPromo = promoParam.trim().toUpperCase();
         setIsSignUp(true);
         setCouponCode(cleanPromo);
-        checkCouponValidity(cleanPromo);
+        void checkCouponValidity(cleanPromo);
       }
     } catch (e) {}
   }, []);
 
-  // Function to validate coupon against single-use database & master trial codes
-  const checkCouponValidity = (rawCode: string) => {
+  // Validates a coupon against the shared database first (so a code that was
+  // already redeemed on another device/browser is correctly rejected here too).
+  // Falls back to the local single-device list only when Supabase isn't configured.
+  const checkCouponValidity = async (rawCode: string) => {
     const clean = rawCode.trim().toUpperCase();
     if (!clean) {
       setCouponState({ status: 'idle', days: 5, message: '' });
       return;
     }
 
-    // Universal static trial codes that always grant 5 trial days
-    const UNIVERSAL_TRIAL_CODES = ['BIA-5DIAS', 'DEGUSTA5', 'BRAZILIAN5', '5DIAS', 'TRIAL5', 'BIA5', 'DEGUSTACAO'];
-    if (UNIVERSAL_TRIAL_CODES.includes(clean)) {
+    const remoteCoupon = await fetchCouponFromSupabase(clean);
+    if (remoteCoupon) {
+      if (remoteCoupon.is_used) {
+        setCouponState({
+          status: 'used',
+          days: 5,
+          message: 'Este cupom de uso único já foi resgatado e não pode ser reutilizado.'
+        });
+        return;
+      }
+
       setCouponState({
         status: 'valid',
-        days: 5,
-        message: 'Cupom Válido: 5 Dias de Degustação Gratuita liberados para você!'
+        days: remoteCoupon.days || 5,
+        message: `Cupom Válido: ${remoteCoupon.days || 5} Dias de Degustação Gratuita liberados!`
       });
       return;
     }
@@ -141,16 +152,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       const found = couponsList.find((c) => c.code.toUpperCase() === clean);
 
       if (!found) {
-        // If code has prefix BIA- or TRIAL, grant 5 days gracefully
-        if (clean.startsWith('BIA-TRIAL') || clean.startsWith('BIA-') || clean.includes('TRIAL')) {
-          setCouponState({
-            status: 'valid',
-            days: 5,
-            message: 'Cupom Promocional Válido: 5 Dias de Degustação Gratuita liberados!'
-          });
-          return;
-        }
-
         setCouponState({
           status: 'invalid',
           days: 5,
@@ -254,26 +255,58 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         const isCouponActive = couponState.status === 'valid';
         const trialDays = couponState.days || 5;
 
-        const expirationDate = new Date();
+        // Re-validate + atomically redeem right before creating the account, so a
+        // coupon cannot be double-spent by two signups racing each other.
+        let couponGranted = false;
+        let grantedDays = trialDays;
         if (isCouponActive) {
-          expirationDate.setDate(expirationDate.getDate() + trialDays);
+          const redeemResult = await redeemCouponInSupabase(couponCode, cleanEmail);
+          if (redeemResult.ok) {
+            couponGranted = true;
+            grantedDays = redeemResult.coupon?.days || trialDays;
+          } else if (redeemResult.reason === 'offline') {
+            // No Supabase configured: fall back to the local single-device list.
+            try {
+              const rawCoupons = localStorage.getItem('bia_trial_coupons');
+              const parsed: TrialCoupon[] = rawCoupons ? JSON.parse(rawCoupons) : [];
+              const target = parsed.find((c) => c.code.toUpperCase() === couponCode.trim().toUpperCase());
+              if (target && !target.isUsed) {
+                const updated = parsed.map((c) =>
+                  c.code.toUpperCase() === couponCode.trim().toUpperCase()
+                    ? { ...c, isUsed: true, usedByEmail: cleanEmail, usedAt: new Date().toISOString() }
+                    : c
+                );
+                localStorage.setItem('bia_trial_coupons', JSON.stringify(updated));
+                couponGranted = true;
+              }
+            } catch (e) {}
+          } else {
+            throw new Error('Este cupom de uso único já foi resgatado e não pode ser reutilizado.');
+          }
+        }
+
+        const expirationDate = new Date();
+        if (couponGranted) {
+          expirationDate.setDate(expirationDate.getDate() + grantedDays);
         } else {
           expirationDate.setDate(expirationDate.getDate() + 30);
         }
 
         const newUser: UserProfile = {
-          id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+          id: typeof crypto !== 'undefined' && crypto.randomUUID
+            ? crypto.randomUUID()
+            : `user_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
           email: cleanEmail,
           password: password,
           full_name: fullName.trim() || 'Estudante Brazilian in Action',
           role: 'student',
-          status: isCouponActive ? 'active' : 'pending',
+          status: couponGranted ? 'active' : 'pending',
           data_expiracao: expirationDate.toISOString(),
           email_verified: true,
           ip_country: geo.country,
           ip_region: geo.regionName,
           ip_city: geo.city,
-          cupom_usado: isCouponActive ? couponCode.trim().toUpperCase() : undefined,
+          cupom_usado: couponGranted ? couponCode.trim().toUpperCase() : undefined,
           permissions: {
             friends: true,
             readclub: true,
@@ -289,34 +322,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           created_at: new Date().toISOString()
         };
 
-        if (isCouponActive) {
-          try {
-            const rawCoupons = localStorage.getItem('bia_trial_coupons');
-            if (rawCoupons) {
-              const parsed: TrialCoupon[] = JSON.parse(rawCoupons);
-              const updated = parsed.map((c) => {
-                if (c.code.toUpperCase() === couponCode.trim().toUpperCase()) {
-                  return {
-                    ...c,
-                    isUsed: true,
-                    usedBy: cleanEmail,
-                    usedAt: new Date().toISOString()
-                  };
-                }
-                return c;
-              });
-              localStorage.setItem('bia_trial_coupons', JSON.stringify(updated));
-            }
-          } catch (e) {}
-        }
-
         usersList.push(newUser);
         localStorage.setItem('bia_users_database', JSON.stringify(usersList));
         localStorage.setItem('bia_current_user', JSON.stringify(newUser));
+        void syncUserProfileToSupabase(newUser);
 
         setSuccessMsg(
-          isCouponActive
-            ? `Conta criada com sucesso! ${trialDays} Dias de Degustação Liberados.`
+          couponGranted
+            ? `Conta criada com sucesso! ${grantedDays} Dias de Degustação Liberados.`
             : 'Conta criada! Prossiga com o pagamento Pix para ativar seu acesso.'
         );
 
@@ -370,6 +383,34 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
         // Student Login
         let existingUser = usersList.find((u) => u.email.toLowerCase() === cleanEmail);
+        const remoteProfile = await findUserProfileByEmail(cleanEmail);
+        if (remoteProfile && !existingUser) {
+          existingUser = {
+            id: remoteProfile.id,
+            email: remoteProfile.email,
+            full_name: remoteProfile.full_name || remoteProfile.email.split('@')[0],
+            role: remoteProfile.role || 'student',
+            status: remoteProfile.status || 'pending',
+            data_expiracao: remoteProfile.data_expiracao || null,
+            permissions: remoteProfile.permissions || {
+              friends: true,
+              readclub: true,
+              board: true,
+              quiz: true,
+              biacompare: true,
+              conversation: true,
+              tradutor: true,
+              youtube: true,
+              practice: true,
+              stories: true
+            },
+            created_at: remoteProfile.created_at || new Date().toISOString(),
+            updated_at: remoteProfile.updated_at || new Date().toISOString()
+          } as UserProfile;
+          usersList.push(existingUser);
+          localStorage.setItem('bia_users_database', JSON.stringify(usersList));
+        }
+
         if (!existingUser) {
           throw new Error('E-mail não cadastrado. Clique em "Criar Conta" para começar.');
         }
@@ -387,6 +428,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         }
 
         localStorage.setItem('bia_current_user', JSON.stringify(existingUser));
+        void syncUserProfileToSupabase(existingUser);
         setSuccessMsg(`Bem-vindo de volta, ${existingUser.full_name || existingUser.email}.`);
         setTimeout(() => {
           if (existingUser) onAuthSuccess(existingUser);
@@ -602,7 +644,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   onChange={(e) => {
                     const val = e.target.value.toUpperCase();
                     setCouponCode(val);
-                    checkCouponValidity(val);
+                    void checkCouponValidity(val);
                   }}
                   className="bg-transparent text-white font-mono text-xs sm:text-sm outline-none w-full placeholder:text-white/50 uppercase tracking-wider"
                 />

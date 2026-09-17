@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, Variants } from 'motion/react';
+import gsap from 'gsap';
+import { playHoverSound, playMenuSelectSound } from '../lib/menuSounds';
 import { 
   Menu, 
   X, 
@@ -54,6 +56,157 @@ const ALL_STUDENT_ITEMS = [
   { id: 'tradutor', label: 'Tradutor Cultural', icon: Languages, permKey: 'tradutor' as const },
   { id: 'youtube', label: 'Brazilian Music', icon: Music, permKey: 'youtube' as const }
 ];
+
+type NavItem = {
+  id: string;
+  label: string;
+  icon: React.ComponentType<{ size?: number; style?: React.CSSProperties; className?: string }>;
+};
+
+const NavButton: React.FC<{
+  item: NavItem;
+  isActive: boolean;
+  accentColor: string;
+  onClick: () => void;
+}> = ({ item, isActive, accentColor, onClick }) => {
+  const btnRef = useRef<HTMLButtonElement | null>(null);
+  const iconRef = useRef<HTMLSpanElement | null>(null);
+  const dotRef = useRef<HTMLSpanElement | null>(null);
+
+  // 1. Ao passar o mouse: toca o som e aciona o GSAP
+  const handleMouseEnter = () => {
+    playHoverSound(0.15); // Dispara o som sintetizado
+
+    if (!btnRef.current) return;
+
+    // Desloca o botão para a direita e aumenta levemente o tamanho
+    gsap.to(btnRef.current, {
+      x: 6,
+      scale: 1.02,
+      duration: 0.25,
+      ease: 'power2.out',
+      overwrite: 'auto',
+    });
+
+    // Dá uma leve rotação de 8° no ícone com efeito elástico
+    if (iconRef.current) {
+      gsap.to(iconRef.current, {
+        scale: 1.15,
+        rotation: 8,
+        duration: 0.3,
+        ease: 'back.out(2)',
+        overwrite: 'auto',
+      });
+    }
+
+    // Acende a bolinha indicadora
+    if (dotRef.current) {
+      gsap.to(dotRef.current, {
+        scale: 1.5,
+        opacity: 1,
+        duration: 0.2,
+      });
+    }
+  };
+
+  // 2. Ao tirar o mouse: volta para o estado normal suavemente
+  const handleMouseLeave = () => {
+    if (!btnRef.current) return;
+
+    gsap.to(btnRef.current, {
+      x: 0,
+      scale: 1,
+      duration: 0.3,
+      ease: 'power2.out',
+      overwrite: 'auto',
+    });
+
+    if (iconRef.current) {
+      gsap.to(iconRef.current, {
+        scale: 1,
+        rotation: 0,
+        duration: 0.25,
+        ease: 'power2.out',
+        overwrite: 'auto',
+      });
+    }
+
+    if (dotRef.current) {
+      gsap.to(dotRef.current, {
+        scale: 1,
+        opacity: isActive ? 1 : 0.4,
+        duration: 0.2,
+      });
+    }
+  };
+
+  // 3. Ao pressionar o mouse: efeito de clique físico (afunda)
+  const handleMouseDown = () => {
+    if (!btnRef.current) return;
+    gsap.to(btnRef.current, {
+      scale: 0.96,
+      duration: 0.1,
+      ease: 'power1.out',
+    });
+  };
+
+  const handleMouseUp = () => {
+    if (!btnRef.current) return;
+    gsap.to(btnRef.current, {
+      scale: 1.02,
+      duration: 0.15,
+      ease: 'back.out(2)',
+    });
+  };
+
+  const handleClick = () => {
+    playMenuSelectSound(0.18); // Toca o som de seleção
+    onClick();
+  };
+
+  return (
+    <button
+      ref={btnRef}
+      onClick={handleClick}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      onMouseDown={handleMouseDown}
+      onMouseUp={handleMouseUp}
+      className="w-full flex items-center gap-3.5 px-2 py-2.5 bg-transparent select-none cursor-pointer drop-shadow-[0_2px_10px_rgba(0,0,0,0.85)]"
+    >
+      <span ref={iconRef} className="shrink-0 flex items-center justify-center">
+        <item.icon
+          size={20}
+          style={{
+            color: isActive ? accentColor : 'rgba(255,255,255,0.82)',
+          }}
+        />
+      </span>
+      <span
+        className="text-sm tracking-wide flex-1 text-left font-semibold"
+        style={{
+          backgroundImage: isActive
+            ? `linear-gradient(90deg, #fff7ed, ${accentColor}, #fde68a)`
+            : `linear-gradient(90deg, rgba(255,255,255,0.95), ${accentColor}, #fff)`,
+          WebkitBackgroundClip: 'text',
+          backgroundClip: 'text',
+          color: 'transparent',
+          fontWeight: isActive ? 800 : 600,
+        }}
+      >
+        {item.label}
+      </span>
+      <span
+        ref={dotRef}
+        className="w-1.5 h-1.5 rounded-full"
+        style={{
+          backgroundImage: `linear-gradient(135deg, #fff, ${accentColor})`,
+          opacity: isActive ? 1 : 0.35,
+        }}
+      />
+    </button>
+  );
+};
 
 const ALL_ADMIN_ITEMS = [
   { id: 'home', label: 'Home', icon: Home },
@@ -218,21 +371,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <>
-      {/* Invisible Hover Zone on the left to show the hamburger easily */}
-      <div 
-        className="fixed top-0 left-0 w-6 h-full z-[3000]"
-        onMouseEnter={() => setIsOpen(true)}
-      />
-
       {/* FLOATING TOP NAVIGATION ISLANDS (No full-width dark background strip) */}
       <div className="fixed top-3 left-0 right-0 z-[3200] px-3 sm:px-5 flex items-center justify-between select-none pointer-events-none">
         {/* Left Floating Island: Hamburger & Brand Logo */}
         <div className="flex items-center gap-2 shrink-0 pointer-events-auto">
           <button
             id="hamburger-btn"
-            onClick={() => setIsOpen(!isOpen)}
-            className="p-2 sm:p-2.5 rounded-2xl bg-neutral-900/80 hover:bg-neutral-800 border border-white/15 hover:border-white/30 text-white/90 hover:text-white transition-all cursor-pointer backdrop-blur-xl shadow-2xl active:scale-95"
-            style={{ color: isOpen ? accentColor : undefined }}
+            onClick={() => {
+              playMenuSelectSound(0.18);
+              setIsOpen(!isOpen);
+            }}
+            className="p-2 sm:p-2.5 bg-transparent border-0 hover:scale-110 transition-transform cursor-pointer drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)] active:scale-95"
+            style={{ color: isOpen ? accentColor : '#ffffff' }}
             title="Abrir Menu de Navegação"
           >
             {isOpen ? <X size={18} /> : <Menu size={18} />}
@@ -241,7 +391,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {/* Automatic Brand Logo */}
           <div
             onClick={() => onNavigate('home')}
-            className="flex items-center gap-2 cursor-pointer hover:scale-[1.02] transition-transform bg-neutral-900/80 hover:bg-neutral-800 border border-white/15 px-3 py-1.5 rounded-2xl backdrop-blur-xl shadow-2xl"
+            className="flex items-center gap-2 cursor-pointer hover:scale-[1.02] transition-transform bg-transparent px-1 py-1 drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)]"
             title="Brazilian in Action"
           >
             <BrazilianLogo size="sm" />
@@ -249,16 +399,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Center Floating Island: Current Module Indicator Badge (Clean without Admin badge) */}
-        <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-neutral-900/80 border border-white/15 rounded-full font-mono text-xs text-white/90 backdrop-blur-xl shadow-2xl pointer-events-auto">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="font-semibold text-white/90 uppercase tracking-wider">{currentItem.label}</span>
+        <div className="hidden md:flex items-center gap-2 px-1 py-1 bg-transparent font-mono text-xs pointer-events-auto drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
+          <span
+            className="w-2 h-2 rounded-full animate-pulse"
+            style={{ backgroundImage: `linear-gradient(135deg, #34d399, ${accentColor})` }}
+          />
+          <span
+            className="font-extrabold uppercase tracking-wider"
+            style={{
+              backgroundImage: `linear-gradient(90deg, #fff, ${accentColor}, #fde68a)`,
+              WebkitBackgroundClip: 'text',
+              backgroundClip: 'text',
+              color: 'transparent',
+            }}
+          >
+            {currentItem.label}
+          </span>
         </div>
 
         {/* Right Floating Island: Social Links & User Profile & Actions */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 pointer-events-auto">
           {/* Social Channels (YouTube, TikTok, Instagram, WhatsApp) - Soltos & Separados */}
           <div className="hidden xs:flex items-center">
-            <SocialLinksBar size="sm" />
+            <SocialLinksBar size="sm" variant="plain" />
           </div>
 
           {/* Ver como Aluno (Simulação de Visão do Aluno) - EXCLUSIVO PARA O CEO - Apenas Ícone */}
@@ -266,10 +429,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               type="button"
               onClick={onToggleStudentPreview}
-              className={`flex items-center justify-center p-2.5 rounded-2xl backdrop-blur-xl shadow-2xl transition-all cursor-pointer group active:scale-95 ${
-                isStudentPreviewMode
-                  ? 'bg-amber-500 hover:bg-amber-400 text-black shadow-[0_0_15px_rgba(245,158,11,0.4)]'
-                  : 'bg-neutral-900/80 hover:bg-neutral-800 border border-amber-500/50 hover:border-amber-400 text-amber-300 hover:text-white shadow-[0_0_12px_rgba(245,158,11,0.2)]'
+              className={`flex items-center justify-center p-2 bg-transparent border-0 transition-all cursor-pointer group active:scale-95 drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)] ${
+                isStudentPreviewMode ? 'text-amber-300' : 'text-amber-400 hover:text-white'
               }`}
               title={isStudentPreviewMode ? "Sair da Visão de Aluno e retornar ao Modo CEO" : "Visualizar como Aluno (Simulação)"}
             >
@@ -286,10 +447,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               type="button"
               onClick={onToggleFloatingCam}
-              className={`flex items-center gap-1.5 p-2 px-3 rounded-2xl backdrop-blur-xl shadow-2xl text-xs font-extrabold transition-all cursor-pointer group active:scale-95 ${
-                isFloatingCamActive
-                  ? 'bg-rose-950/85 hover:bg-rose-900 border border-rose-500/60 text-rose-300 shadow-[0_0_15px_rgba(244,63,94,0.4)]'
-                  : 'bg-neutral-900/80 hover:bg-neutral-800 border border-purple-500/50 hover:border-purple-400 text-purple-300 hover:text-white shadow-[0_0_12px_rgba(168,85,247,0.2)]'
+              className={`flex items-center gap-1.5 p-2 bg-transparent border-0 text-xs font-extrabold transition-all cursor-pointer group active:scale-95 drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)] ${
+                isFloatingCamActive ? 'text-rose-300' : 'text-purple-300 hover:text-white'
               }`}
               title="Ativar / Ocultar Câmera Bolinha (B Cam Flutuante do CEO)"
             >
@@ -302,23 +461,36 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   </span>
                 )}
               </div>
-              <span className="hidden sm:inline">B Cam</span>
             </button>
           )}
 
           {currentUser && (
-            <div className="flex items-center gap-2 bg-neutral-900/80 border border-white/15 p-1.5 px-3 rounded-2xl backdrop-blur-xl shadow-2xl">
-              <div className="w-6 h-6 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-[10px] font-bold text-amber-300 shrink-0">
+            <div className="flex items-center gap-2 bg-transparent p-1 drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
+              <div
+                className="w-6 h-6 rounded-xl flex items-center justify-center text-[10px] font-bold shrink-0"
+                style={{
+                  backgroundImage: `linear-gradient(135deg, #fff7ed, ${accentColor})`,
+                  color: '#1a0f00',
+                }}
+              >
                 {currentUser.full_name?.charAt(0).toUpperCase() || currentUser.email.charAt(0).toUpperCase()}
               </div>
-              <span className="text-xs font-semibold text-white truncate max-w-[90px] xs:max-w-[120px] sm:max-w-[160px]">
+              <span
+                className="text-xs font-bold truncate max-w-[90px] xs:max-w-[120px] sm:max-w-[160px]"
+                style={{
+                  backgroundImage: `linear-gradient(90deg, #fff, ${accentColor})`,
+                  WebkitBackgroundClip: 'text',
+                  backgroundClip: 'text',
+                  color: 'transparent',
+                }}
+              >
                 {currentUser.full_name || currentUser.email.split('@')[0]}
               </span>
               {onLogout && (
                 <button
                   type="button"
                   onClick={onLogout}
-                  className="p-1 hover:bg-white/10 rounded-xl text-white/50 hover:text-red-400 transition-all cursor-pointer ml-0.5"
+                  className="p-1 bg-transparent text-white/70 hover:text-red-400 transition-all cursor-pointer ml-0.5"
                   title="Sair da Conta"
                 >
                   <LogOut size={14} />
@@ -339,7 +511,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsOpen(false)}
-              className="fixed inset-0 z-[3300] bg-black/60 backdrop-blur-sm"
+              className="fixed inset-0 z-[3300] bg-transparent"
             />
 
             {/* Sidebar Menu Panel */}
@@ -348,46 +520,62 @@ export const Sidebar: React.FC<SidebarProps> = ({
               initial="hidden"
               animate="visible"
               exit="exit"
-              className="fixed top-0 left-0 bottom-0 w-72 z-[3400] glass-modal border-r border-white/15 p-4 pt-18 flex flex-col justify-between select-none shadow-2xl"
+              className="fixed top-0 left-0 bottom-0 w-72 z-[3400] bg-transparent p-4 pt-18 flex flex-col justify-between select-none"
             >
               <div className="flex flex-col gap-1 overflow-y-auto custom-scrollbar pr-1">
-                <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-white/40 font-mono">
+                <div
+                  className="px-2 py-2 text-[10px] font-bold uppercase tracking-widest font-mono"
+                  style={{
+                    backgroundImage: `linear-gradient(90deg, rgba(255,255,255,0.7), ${accentColor}, #fde68a)`,
+                    WebkitBackgroundClip: 'text',
+                    backgroundClip: 'text',
+                    color: 'transparent',
+                  }}
+                >
                   {isAdmin ? 'Painel do CEO André Augusto' : 'Módulos Práticos do Aluno'}
                 </div>
 
                 {menuItems.map((item) => {
-                  const Icon = item.icon;
                   const isActive = currentApp === item.id;
 
                   return (
-                    <motion.button
-                      key={item.id}
-                      variants={itemVariants}
-                      onClick={() => handleNavigate(item.id)}
-                      className={`flex items-center gap-3 w-full px-3.5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition-all text-left cursor-pointer group ${
-                        isActive
-                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-lg shadow-amber-500/10'
-                          : 'text-white/70 hover:text-white hover:bg-white/5 border border-transparent'
-                      }`}
-                    >
-                      <Icon
-                        size={17}
-                        className={`transition-transform duration-200 group-hover:scale-110 ${
-                          isActive ? 'text-amber-400' : 'text-white/50 group-hover:text-white'
-                        }`}
+                    <motion.div key={item.id} variants={itemVariants}>
+                      <NavButton
+                        item={item}
+                        isActive={isActive}
+                        accentColor={accentColor}
+                        onClick={() => handleNavigate(item.id)}
                       />
-                      <span className="truncate">{item.label}</span>
-                    </motion.button>
+                    </motion.div>
                   );
                 })}
               </div>
 
               {/* Drawer Footer info & Social Media */}
-              <div className="pt-4 border-t border-white/10 text-center flex flex-col items-center gap-2.5 text-[11px] text-white/40">
-                <SocialLinksBar size="sm" />
+              <div className="pt-4 text-center flex flex-col items-center gap-2.5 text-[11px] drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
+                <SocialLinksBar size="sm" variant="plain" />
                 <div className="flex flex-col items-center gap-0.5">
-                  <span className="font-semibold text-white/60">Brazilian in Action Platform</span>
-                  <span>{isAdmin ? 'Modo CEO & Gestão Total' : 'Ambiente do Aluno'}</span>
+                  <span
+                    className="font-semibold"
+                    style={{
+                      backgroundImage: `linear-gradient(90deg, #fff, ${accentColor}, #fde68a)`,
+                      WebkitBackgroundClip: 'text',
+                      backgroundClip: 'text',
+                      color: 'transparent',
+                    }}
+                  >
+                    Brazilian in Action Platform
+                  </span>
+                  <span
+                    style={{
+                      backgroundImage: `linear-gradient(90deg, rgba(255,255,255,0.85), ${accentColor})`,
+                      WebkitBackgroundClip: 'text',
+                      backgroundClip: 'text',
+                      color: 'transparent',
+                    }}
+                  >
+                    {isAdmin ? 'Modo CEO & Gestão Total' : 'Ambiente do Aluno'}
+                  </span>
                 </div>
               </div>
             </motion.nav>

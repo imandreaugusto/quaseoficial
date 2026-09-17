@@ -617,6 +617,12 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   const pendingStudentsCount = users.filter((u) => u.role === 'student' && u.status === 'pending').length;
   const expiredStudentsCount = users.filter((u) => u.role === 'student' && u.status === 'expired').length;
 
+  // Strict segregation: coupon/trial students never count as paid revenue.
+  const payingActiveStudents = users.filter((u) => u.role === 'student' && u.status === 'active' && !u.cupom_usado);
+  const couponActiveStudents = users.filter((u) => u.role === 'student' && u.status === 'active' && !!u.cupom_usado);
+  const payingActiveStudentsCount = payingActiveStudents.length;
+  const couponActiveStudentsCount = couponActiveStudents.length;
+
   // REVENUE CALCULATIONS
   const getClassMonthlyValue = (c: ClassItem) => {
     if (typeof c.valor === 'number' && c.valor > 0) return c.valor;
@@ -641,13 +647,12 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
     else countIndividual++;
   });
 
-  // SaaS Subscriptions Gross (Pure SaaS calculation based on real R$ 10 plan)
+  // SaaS Subscriptions Gross (Pure SaaS calculation based on real, PAID R$ 10 plan students only)
   const currentSubscriptionPrice = gatewaySettings.subscriptionPrice || 10;
-  const saasMonthlyGross = activeStudentsCount * currentSubscriptionPrice;
+  const saasMonthlyGross = payingActiveStudentsCount * currentSubscriptionPrice;
   const saasTotalReceived = pixPayments
     .filter((p) => p.status === 'approved')
     .reduce((acc, p) => acc + (typeof p.amount === 'number' ? p.amount : currentSubscriptionPrice), 0);
-  const saasAnnualProjection = saasMonthlyGross * 12;
   const saasWeeklyGross = saasMonthlyGross / 4;
   const approvedPaymentsList = pixPayments.filter((p) => p.status === 'approved');
 
@@ -958,6 +963,11 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                           {student.role === 'admin' && (
                             <span className="px-2 py-0.2 rounded-full text-[9px] font-black uppercase bg-red-600/30 text-red-300 border border-red-500/40">
                               CEO / Admin
+                            </span>
+                          )}
+                          {student.cupom_usado && (
+                            <span className="px-2 py-0.2 rounded-full text-[9px] font-black uppercase bg-purple-600/25 text-purple-300 border border-purple-500/40">
+                              Cupom Grátis
                             </span>
                           )}
                         </div>
@@ -1551,7 +1561,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
         <div className="space-y-6">
           {/* Top 3 Crystal-Clear Cards for Layman Understanding */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {/* 1. FATURAMENTO MENSAL REAL */}
+            {/* 1. FATURAMENTO MENSAL REAL (SOMENTE ASSINANTES PAGANTES, SEM CUPOM) */}
             <div className="glass-card p-5 sm:p-6 rounded-3xl border border-emerald-500/30 relative overflow-hidden bg-neutral-900/80 shadow-xl">
               <div className="absolute top-0 right-0 w-28 h-28 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
               <div className="flex items-center justify-between text-xs font-bold text-emerald-400 mb-1">
@@ -1562,7 +1572,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                 R$ {saasMonthlyGross.toFixed(2).replace('.', ',')}
               </div>
               <div className="text-xs text-white/60 mt-1">
-                {activeStudentsCount} alunos ativos × R$ {currentSubscriptionPrice.toFixed(2).replace('.', ',')}/mês
+                {payingActiveStudentsCount} alunos pagantes × R$ {currentSubscriptionPrice.toFixed(2).replace('.', ',')}/mês
               </div>
             </div>
 
@@ -1581,18 +1591,18 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
               </div>
             </div>
 
-            {/* 3. PREVISÃO ANUAL SIMPLES */}
-            <div className="glass-card p-5 sm:p-6 rounded-3xl border border-amber-500/30 relative overflow-hidden bg-neutral-900/80 shadow-xl">
-              <div className="absolute top-0 right-0 w-28 h-28 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
-              <div className="flex items-center justify-between text-xs font-bold text-amber-400 mb-1">
-                <span>PREVISÃO ANUAL (12 MESES)</span>
-                <Calendar size={16} />
+            {/* 3. ALUNOS EM CUPOM GRATUITO (ISOLADOS DA RECEITA) */}
+            <div className="glass-card p-5 sm:p-6 rounded-3xl border border-purple-500/30 relative overflow-hidden bg-neutral-900/80 shadow-xl">
+              <div className="absolute top-0 right-0 w-28 h-28 bg-purple-500/10 rounded-full blur-2xl pointer-events-none" />
+              <div className="flex items-center justify-between text-xs font-bold text-purple-400 mb-1">
+                <span>ALUNOS EM CUPOM GRÁTIS</span>
+                <Ticket size={16} />
               </div>
-              <div className="text-2xl sm:text-3xl font-black text-amber-300 font-mono mt-2">
-                R$ {saasAnnualProjection.toFixed(2).replace('.', ',')}
+              <div className="text-2xl sm:text-3xl font-black text-purple-300 font-mono mt-2">
+                {couponActiveStudentsCount}
               </div>
               <div className="text-xs text-white/60 mt-1">
-                Projeção mantendo os {activeStudentsCount} alunos atuais
+                Acesso promocional temporário, não contam como receita
               </div>
             </div>
           </div>

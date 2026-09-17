@@ -179,7 +179,20 @@ export const PixPaymentScreen: React.FC<PixPaymentScreenProps> = ({
     };
   }, [user.id, user.email, settings.subscriptionPrice]);
 
-  const checkLiveStatus = () => {
+  const checkLiveStatus = async () => {
+    if (mercadoPagoPix?.id) {
+      try {
+        const response = await fetch(`/api/payments/status/${mercadoPagoPix.id}`);
+        const statusData = await response.json();
+        if (response.ok && statusData.isApproved) {
+          onPaymentSuccess();
+          return;
+        }
+      } catch (error) {
+        console.warn('Mercado Pago status check failed:', error);
+      }
+    }
+
     try {
       const storedUsersRaw = localStorage.getItem('bia_users_database');
       if (storedUsersRaw) {

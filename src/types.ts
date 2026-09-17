@@ -225,3 +225,42 @@ export interface ConversationLesson {
   createdAt: string;
 }
 
+// App Permissions & Control Types
+export interface AppPermissions {
+  friends: boolean;
+  stories: boolean;
+  practice: boolean;
+  readclub: boolean;
+  board: boolean;
+  quiz: boolean;
+  biacompare: boolean;
+  conversation: boolean;
+  tradutor: boolean;
+  youtube: boolean;
+}
+
+export interface AppDefinition {
+  id: string;
+  label: string;
+  desc: string;
+  category: string;
+  targetRole: 'student' | 'admin' | 'both';
+}
+
+// Stage Broadcast Types
+export interface StageBroadcastState {
+  activeApp: string;
+  headlineTitle: string;
+  headlineSubtitle: string;
+  tickerText: string;
+  showTicker: boolean;
+  showHeadline: boolean;
+  showPixQr: boolean;
+  pixKey: string;
+  pixName: string;
+  timerSeconds: number;
+  isTimerRunning: boolean;
+  themeColor: string;
+  timestamp: number;
+}
+

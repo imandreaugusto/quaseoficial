@@ -160,7 +160,10 @@ async function startServer() {
           email: email || 'aluno@brazilianinaction.com',
           first_name: firstName || 'Aluno',
           last_name: lastName || 'BIA'
-        }
+        },
+        ...(process.env.PUBLIC_APP_URL
+          ? { notification_url: `${process.env.PUBLIC_APP_URL.replace(/\/$/, '')}/api/webhook/payment` }
+          : {})
       };
 
       const response = await fetch('https://api.mercadopago.com/v1/payments', {
@@ -250,6 +253,29 @@ async function startServer() {
     if (!response.ok) {
       const details = await response.text();
       throw new Error(`Supabase respondeu ${response.status}: ${details}`);
+    }
+
+    const profileResponse = await fetch(
+      `${supabaseUrl}/rest/v1/profiles?email=eq.${encodeURIComponent(email.toLowerCase())}`,
+      {
+        method: 'PATCH',
+        headers: {
+          apikey: serviceRoleKey,
+          Authorization: `Bearer ${serviceRoleKey}`,
+          'Content-Type': 'application/json',
+          Prefer: 'return=minimal'
+        },
+        body: JSON.stringify({
+          status: 'active',
+          data_expiracao: expiresAt,
+          updated_at: new Date().toISOString()
+        })
+      }
+    );
+
+    if (!profileResponse.ok) {
+      const details = await profileResponse.text();
+      throw new Error(`Perfil não foi atualizado (${profileResponse.status}): ${details}`);
     }
   };
 
@@ -1057,16 +1083,19 @@ Return ONLY a valid JSON object following the schema provided.`;
           {
             title: 'Opção 1 (Mais natural e comum no ambiente de igreja nos EUA):',
             english: "Thank you, Pastor. I appreciate you and you're a big inspiration to me.",
+            phonetic: 'Thénk iu, Pás-tôr. Ai a-prí-xi-eit iu énd iur a bíg ins-pi-rêi-xân tu mi.',
             context: 'Tradução: "Obrigado, Pastor. Eu te valorizo/aprecio e você é uma grande inspiração para mim."'
           },
           {
             title: 'Opção 2 (Uma tradução muito usada para "amo sua vida", que soa como "sou grato por você existir/ter você na minha vida"):',
             english: "Thank you, Pastor. I'm so grateful for your life and I really look up to you.",
+            phonetic: 'Thénk iu, Pás-tôr. Aim sou gréit-fûl fôr iur láif énd ai rí-li lúk âp tu iu.',
             context: 'Tradução: "Obrigado, Pastor. Sou muito grato pela sua vida e me inspiro muito em você."'
           },
           {
             title: 'Opção 3 (Um pouco mais informal/afetuosa):',
             english: "Thank you, Pastor. I love you too and you truly inspire me.",
+            phonetic: 'Thénk iu, Pás-tôr. Ai lâv iu tú énd iu trú-li ins-pái-er mi.',
             context: 'Tradução: "Obrigado, Pastor. Eu te amo também e você realmente me inspira."'
           }
         ],
@@ -1184,6 +1213,7 @@ YOU MUST PROVIDE A RICH, DEEP LINGUISTIC & CULTURAL BREAKDOWN IN PORTUGUESE ACCO
    - "badge": A clean, concise context label WITHOUT ANY EMOJIS (e.g. "Dia a Dia / Conversacional", "Formal / Profissional", "Informal / Amigos", "Comunidade / Religioso").
    - "title": Short title in Portuguese explaining the context.
    - "english": The exact natural English sentence.
+   - "phonetic": A simplified phonetic pronunciation guide written using Portuguese-friendly syllables (e.g. "Thénk iu, Pás-tôr"), so a Brazilian speaker can read it aloud naturally.
    - "context": Portuguese translation prefixed with "Tradução: ".
    - "toneAndEmphasis": Practical tip on tone of voice, rhythm, or word emphasis when pronouncing this sentence in conversation.
 
@@ -1219,10 +1249,11 @@ Return ONLY a JSON object strictly following the schema.`;
                     badge: { type: Type.STRING },
                     title: { type: Type.STRING },
                     english: { type: Type.STRING },
+                    phonetic: { type: Type.STRING },
                     context: { type: Type.STRING },
                     toneAndEmphasis: { type: Type.STRING },
                   },
-                  required: ['badge', 'title', 'english', 'context', 'toneAndEmphasis'],
+                  required: ['badge', 'title', 'english', 'phonetic', 'context', 'toneAndEmphasis'],
                 },
               },
               culturalNote: { type: Type.STRING },

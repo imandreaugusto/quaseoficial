@@ -17,8 +17,29 @@ create table if not exists public.brazilian_friends_messages (
   receiver_id text not null references public.brazilian_friends_users(id) on delete cascade,
   body text not null check (char_length(trim(body)) between 1 and 2000),
   created_at timestamptz not null default now(),
+  expires_at timestamptz not null default (now() + interval '5 days'),
   constraint brazilian_friends_messages_distinct_users check (sender_id <> receiver_id)
 );
+
+alter table public.brazilian_friends_messages
+  add column if not exists expires_at timestamptz;
+
+update public.brazilian_friends_messages
+set expires_at = created_at + interval '5 days'
+where expires_at is null;
+
+create or replace function public.purge_expired_brazilian_friend_messages()
+returns trigger as $$
+begin
+  delete from public.brazilian_friends_messages where expires_at <= now();
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists purge_expired_brazilian_friend_messages on public.brazilian_friends_messages;
+create trigger purge_expired_brazilian_friend_messages
+before insert on public.brazilian_friends_messages
+for each row execute function public.purge_expired_brazilian_friend_messages();
 
 create index if not exists brazilian_friends_messages_conversation_idx
   on public.brazilian_friends_messages (sender_id, receiver_id, created_at);
@@ -26,30 +47,26 @@ create index if not exists brazilian_friends_messages_conversation_idx
 alter table public.brazilian_friends_users enable row level security;
 alter table public.brazilian_friends_messages enable row level security;
 
+-- Auth is handled by Firebase on the frontend (not Supabase Auth), so auth.uid()
+-- is always null here. Policies are permissive at the DB layer, matching the
+-- rest of this project's tables (see schema.sql), and access is gated by the app.
 drop policy if exists "Friends can read profiles" on public.brazilian_friends_users;
-create policy "Friends can read profiles"
-  on public.brazilian_friends_users for select
-  using (auth.uid()::text is not null);
+drop policy if exists "brazilian_friends_users_all_access" on public.brazilian_friends_users;
+create policy "brazilian_friends_users_all_access"
+  on public.brazilian_friends_users for all
+  using (true)
+  with check (true);
 
 drop policy if exists "Users can create their own profile" on public.brazilian_friends_users;
-create policy "Users can create their own profile"
-  on public.brazilian_friends_users for insert
-  with check (id = auth.uid()::text);
-
 drop policy if exists "Users can update their own profile" on public.brazilian_friends_users;
-create policy "Users can update their own profile"
-  on public.brazilian_friends_users for update
-  using (id = auth.uid()::text)
-  with check (id = auth.uid()::text);
 
 drop policy if exists "Participants can read messages" on public.brazilian_friends_messages;
-create policy "Participants can read messages"
-  on public.brazilian_friends_messages for select
-  using (sender_id = auth.uid()::text or receiver_id = auth.uid()::text);
+drop policy if exists "brazilian_friends_messages_all_access" on public.brazilian_friends_messages;
+create policy "brazilian_friends_messages_all_access"
+  on public.brazilian_friends_messages for all
+  using (true)
+  with check (true);
 
 drop policy if exists "Users can send as themselves" on public.brazilian_friends_messages;
-create policy "Users can send as themselves"
-  on public.brazilian_friends_messages for insert
-  with check (sender_id = auth.uid()::text);
 
 alter publication supabase_realtime add table public.brazilian_friends_messages;
