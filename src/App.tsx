@@ -669,7 +669,7 @@ export default function App() {
   const isSubscriptionActive = currentUser?.status === 'active' || isAdmin;
 
   useEffect(() => {
-    const lockHomeScroll = Boolean(currentUser && currentApp === 'home' && !effectiveIsAdmin);
+    const lockHomeScroll = Boolean(currentUser && currentApp === 'home');
     document.documentElement.classList.toggle('home-scroll-locked', lockHomeScroll);
     document.body.classList.toggle('home-scroll-locked', lockHomeScroll);
 
@@ -811,7 +811,7 @@ export default function App() {
         )}
 
         {/* Main View Port Routing */}
-        <main className={`relative z-10 ${currentUser ? 'pt-18 sm:pt-20 pb-12' : 'pt-24 pb-8'} ${currentUser && currentApp === 'home' && !effectiveIsAdmin ? 'h-screen box-border overflow-hidden overscroll-none' : 'min-h-[90vh]'}`}>
+        <main className={`relative z-10 ${currentUser ? 'pt-18 sm:pt-20 pb-12' : 'pt-24 pb-8'} ${currentUser && currentApp === 'home' ? 'h-screen box-border overflow-hidden overscroll-none' : 'min-h-[90vh]'}`}>
           {/* 1. AUTH MODAL (Unified Login/Cadastro + 17-Click Easter Egg) */}
           <AuthModal
             isOpen={isAuthModalOpen || !currentUser}
