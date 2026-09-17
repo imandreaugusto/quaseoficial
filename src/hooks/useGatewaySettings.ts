@@ -3,7 +3,7 @@ import { GatewaySettings } from '../types';
 
 export const DEFAULT_GATEWAY_SETTINGS: GatewaySettings = {
   subscriptionPrice: 10.00,
-  provider: 'mercadopago',
+  provider: 'abatepay',
   apiKey: '',
   publicKey: '',
   clientId: '',

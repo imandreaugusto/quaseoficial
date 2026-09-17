@@ -182,7 +182,7 @@ export interface UserProfile {
 
 export interface GatewaySettings {
   subscriptionPrice: number;
-  provider: 'asaas' | 'mercadopago';
+  provider: 'asaas' | 'mercadopago' | 'abatepay';
   apiKey: string;
   publicKey?: string;
   clientId?: string;

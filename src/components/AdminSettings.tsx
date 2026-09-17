@@ -177,7 +177,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   // Gateway Settings State
   const [gatewaySettings, setGatewaySettings] = useState<GatewaySettings>({
     subscriptionPrice: 10.00,
-    provider: 'asaas',
+    provider: 'abatepay',
     apiKey: '',
     webhookSecret: '',
     pixKey: 'brazilianinaction@gmail.com',
@@ -1721,7 +1721,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
         </div>
       )}
 
-      {/* TAB 4: CONFIGURAÇÕES DE GATEWAY PIX (ASAAS / MERCADO PAGO) */}
+      {/* TAB 4: CONFIGURAÇÕES DE GATEWAY PIX (ABATEPAY) */}
       {activeTab === 'gateway' && (
         <form onSubmit={handleSaveGateway} className="space-y-6">
           <div className="glass-card p-6 rounded-3xl border border-white/10 space-y-4">
@@ -1730,7 +1730,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
               <span>Configurações do Gateway de Pagamento Pix</span>
             </h2>
             <p className="text-xs text-white/60">
-              O Mercado Pago usa o token configurado no servidor. Aqui ficam apenas os dados comerciais e a chave Pix de fallback.
+              A AbatePay usa o token configurado no servidor. Aqui ficam apenas os dados comerciais e a chave Pix de fallback.
             </p>
 
             {savedSuccess && (
@@ -1802,7 +1802,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white/60 font-mono"
                 />
                 <span className="text-[10px] text-white/40 mt-1 block">
-                  Cadastre essa URL no Mercado Pago. O Access Token fica no arquivo .env do servidor e não deve ser colado aqui.
+                  Cadastre essa URL no painel da AbatePay. O token fica no arquivo .env do servidor e não deve ser colado aqui.
                 </span>
               </div>
             </div>

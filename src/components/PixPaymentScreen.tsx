@@ -22,6 +22,7 @@ import {
 import { BrazilianLogo } from './BrazilianLogo';
 import { SocialLinksBar } from './SocialLinksBar';
 import { getSupabaseClient } from '../utils/supabaseClient';
+import { SiteLegalFooter } from './SiteLegalFooter';
 
 interface PixPaymentScreenProps {
   user: UserProfile;
@@ -41,14 +42,14 @@ export const PixPaymentScreen: React.FC<PixPaymentScreenProps> = ({
   const [checking, setChecking] = useState(false);
   const [paymentHistory, setPaymentHistory] = useState<PixPaymentRecord[]>([]);
   const [selectedReceipt, setSelectedReceipt] = useState<PixPaymentRecord | null>(null);
-  const [mercadoPagoPix, setMercadoPagoPix] = useState<{
+  const [abatePayPix, setAbatePayPix] = useState<{
     id: string;
     qrCode?: string;
     qrCodeBase64?: string;
     ticketUrl?: string;
   } | null>(null);
-  const [mercadoPagoLoading, setMercadoPagoLoading] = useState(false);
-  const [mercadoPagoError, setMercadoPagoError] = useState('');
+  const [abatePayLoading, setAbatePayLoading] = useState(false);
+  const [abatePayError, setAbatePayError] = useState('');
 
   // CEO Instant VIP Token
   const [showVipTokenModal, setShowVipTokenModal] = useState(false);
@@ -67,13 +68,13 @@ export const PixPaymentScreen: React.FC<PixPaymentScreenProps> = ({
     amount: settings.subscriptionPrice || 10.0,
     txId: `BIA${user.id.slice(-6).toUpperCase()}`
   });
-  const copyablePixValue = mercadoPagoPix?.qrCode || activePixPayload;
+  const copyablePixValue = abatePayPix?.qrCode || activePixPayload;
 
   useEffect(() => {
     let cancelled = false;
-    const createMercadoPagoPix = async () => {
-      setMercadoPagoLoading(true);
-      setMercadoPagoError('');
+    const createAbatePayPix = async () => {
+      setAbatePayLoading(true);
+      setAbatePayError('');
       try {
         const nameParts = (user.full_name || 'Aluno BIA').trim().split(/\s+/);
         const response = await fetch('/api/payments/create-pix', {
@@ -89,17 +90,17 @@ export const PixPaymentScreen: React.FC<PixPaymentScreenProps> = ({
         });
         const data = await response.json();
         if (!response.ok || !data.id) {
-          throw new Error(data.error || 'Mercado Pago is not configured on the server.');
+          throw new Error(data.error || 'AbatePay ainda não está configurado no servidor.');
         }
-        if (!cancelled) setMercadoPagoPix(data);
+        if (!cancelled) setAbatePayPix(data);
       } catch (error: any) {
-        if (!cancelled) setMercadoPagoError(error.message || 'Unable to create the Pix charge.');
+        if (!cancelled) setAbatePayError(error.message || 'Não foi possível criar a cobrança Pix.');
       } finally {
-        if (!cancelled) setMercadoPagoLoading(false);
+        if (!cancelled) setAbatePayLoading(false);
       }
     };
 
-    void createMercadoPagoPix();
+    void createAbatePayPix();
     return () => {
       cancelled = true;
     };
@@ -180,16 +181,16 @@ export const PixPaymentScreen: React.FC<PixPaymentScreenProps> = ({
   }, [user.id, user.email, settings.subscriptionPrice]);
 
   const checkLiveStatus = async () => {
-    if (mercadoPagoPix?.id) {
+    if (abatePayPix?.id) {
       try {
-        const response = await fetch(`/api/payments/status/${mercadoPagoPix.id}`);
+        const response = await fetch(`/api/payments/status/${abatePayPix.id}`);
         const statusData = await response.json();
         if (response.ok && statusData.isApproved) {
           onPaymentSuccess();
           return;
         }
       } catch (error) {
-        console.warn('Mercado Pago status check failed:', error);
+        console.warn('AbatePay status check failed:', error);
       }
     }
 
@@ -428,10 +429,10 @@ export const PixPaymentScreen: React.FC<PixPaymentScreenProps> = ({
 
               {/* QR Code Canvas */}
               <div className="p-3 bg-white rounded-2xl shadow-xl border-4 border-amber-400/80 mb-3 transition-transform hover:scale-102">
-                {mercadoPagoPix?.qrCodeBase64 ? (
+                {abatePayPix?.qrCodeBase64 ? (
                   <img
-                    src={mercadoPagoPix.qrCodeBase64.startsWith('data:') ? mercadoPagoPix.qrCodeBase64 : `data:image/png;base64,${mercadoPagoPix.qrCodeBase64}`}
-                    alt="Mercado Pago Pix QR Code"
+                    src={abatePayPix.qrCodeBase64.startsWith('data:') ? abatePayPix.qrCodeBase64 : `data:image/png;base64,${abatePayPix.qrCodeBase64}`}
+                    alt="AbatePay Pix QR Code"
                     className="block h-[220px] w-[220px] rounded-lg"
                   />
                 ) : (
@@ -443,7 +444,7 @@ export const PixPaymentScreen: React.FC<PixPaymentScreenProps> = ({
               <div className="w-full text-xs text-white/80 bg-neutral-900/80 p-2.5 rounded-xl border border-white/10 mb-3 text-left font-mono">
                 <div className="flex justify-between border-b border-white/10 pb-1">
                   <span className="text-white/50">Chave Pix:</span>
-                  <strong className="text-amber-300 select-all">{mercadoPagoPix ? 'Mercado Pago Pix' : activePixKey}</strong>
+                  <strong className="text-amber-300 select-all">{abatePayPix ? 'AbatePay Pix' : activePixKey}</strong>
                 </div>
                 <div className="flex justify-between pt-1 text-[11px]">
                   <span className="text-white/50">Favorecido:</span>
@@ -509,9 +510,10 @@ export const PixPaymentScreen: React.FC<PixPaymentScreenProps> = ({
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                 <span>O sistema monitora pagamentos via Pix e libera seu login em tempo real.</span>
               </div>
-              {mercadoPagoLoading && <p className="mt-2 text-[11px] text-amber-200/80">Creating your secure Mercado Pago charge...</p>}
-              {mercadoPagoError && <p className="mt-2 text-[11px] text-rose-300">{mercadoPagoError} The fallback Pix key is still available.</p>}
+              {abatePayLoading && <p className="mt-2 text-[11px] text-amber-200/80">Criando sua cobrança segura pela AbatePay...</p>}
+              {abatePayError && <p className="mt-2 text-[11px] text-rose-300">{abatePayError} A chave Pix direta continua disponível.</p>}
             </div>
+            <SiteLegalFooter />
 
             {/* VIP Token Trigger link */}
             <div className="w-full pt-1 text-center">

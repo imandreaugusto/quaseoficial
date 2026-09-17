@@ -130,48 +130,61 @@ async function startServer() {
   // JSON parser for API requests
   app.use(express.json());
 
+  // Baseline security headers; Cloudflare can add WAF, rate limits and TLS at the edge.
+  app.use((_req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy', 'camera=(self), microphone=(self), geolocation=()');
+    next();
+  });
+
   // 1. Health check endpoint
   app.get('/api/health', (req, res) => {
     res.json({ 
       status: 'ok', 
       time: new Date().toISOString(),
       supabaseConfigured: Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY),
-      mercadoPagoConfigured: Boolean(process.env.MERCADO_PAGO_TOKEN)
+      abatePayConfigured: Boolean(process.env.ABATEPAY_TOKEN)
     });
   });
 
-  // 1.1 Endpoint para Criar Cobrança Pix Dinâmica no Mercado Pago (usando process.env.MERCADO_PAGO_TOKEN)
+  // 1.1 Endpoint para Criar Cobrança Pix pela AbatePay.
   app.post('/api/payments/create-pix', async (req, res) => {
     try {
       const { email, firstName, lastName, amount, description } = req.body;
-      const mpToken = process.env.MERCADO_PAGO_TOKEN;
+      const abatePayToken = process.env.ABATEPAY_TOKEN;
+      const abatePayCreateUrl = process.env.ABATEPAY_CREATE_URL || 'https://api.abatepay.com/v1/billing/create';
 
-      if (!mpToken) {
+      if (!abatePayToken) {
         return res.status(400).json({ 
-          error: 'MERCADO_PAGO_TOKEN não configurado no ambiente do servidor (Netlify / Node env).' 
+          error: 'ABATEPAY_TOKEN não configurado no ambiente do servidor.'
         });
       }
 
       const paymentData = {
-        transaction_amount: Number(amount) || 10.0,
-        description: description || 'Assinatura Mensal - Brazilian in Action Idiomas',
-        payment_method_id: 'pix',
-        payer: {
-          email: email || 'aluno@brazilianinaction.com',
-          first_name: firstName || 'Aluno',
-          last_name: lastName || 'BIA'
+        frequency: 'MONTHLY',
+        methods: ['PIX'],
+        products: [{
+          externalId: 'brazilian-in-action-monthly',
+          name: description || 'Assinatura Mensal - Brazilian in Action Idiomas',
+          quantity: 1,
+          price: Math.round((Number(amount) || 10) * 100)
+        }],
+        customer: {
+          name: `${firstName || 'Aluno'} ${lastName || 'BIA'}`.trim(),
+          email: email || 'aluno@brazilianinaction.com'
         },
-        ...(process.env.PUBLIC_APP_URL
-          ? { notification_url: `${process.env.PUBLIC_APP_URL.replace(/\/$/, '')}/api/webhook/payment` }
-          : {})
+        returnUrl: process.env.PUBLIC_APP_URL || undefined,
+        callbackUrl: process.env.PUBLIC_APP_URL ? `${process.env.PUBLIC_APP_URL.replace(/\/$/, '')}/api/webhook/payment` : undefined
       };
 
-      const response = await fetch('https://api.mercadopago.com/v1/payments', {
+      const response = await fetch(abatePayCreateUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${mpToken}`,
-          'X-Idempotency-Key': `pix-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+          'Authorization': `Bearer ${abatePayToken}`,
+          'X-Idempotency-Key': `bia-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
         },
         body: JSON.stringify(paymentData)
       });
@@ -179,48 +192,46 @@ async function startServer() {
       const data: any = await response.json();
 
       if (!response.ok) {
-        console.error('❌ Erro na API do Mercado Pago:', data);
-        return res.status(response.status).json({ error: data.message || 'Erro ao gerar Pix no Mercado Pago', details: data });
+        console.error('❌ Erro na API da AbatePay:', data);
+        return res.status(response.status).json({ error: data.message || data.error || 'Erro ao gerar Pix na AbatePay', details: data });
       }
 
-      const pointOfInteraction = data.point_of_interaction?.transaction_data;
+      const billing = data.data || data;
+      const pix = billing.pix || billing.payment?.pix || billing.qr_code || {};
       return res.status(200).json({
-        id: data.id,
-        status: data.status,
-        qrCode: pointOfInteraction?.qr_code,
-        qrCodeBase64: pointOfInteraction?.qr_code_base64,
-        ticketUrl: pointOfInteraction?.ticket_url
+        id: billing.id || billing.billingId,
+        status: billing.status,
+        qrCode: pix.qrCode || pix.qr_code || billing.pixQrCode || billing.qrCode,
+        qrCodeBase64: pix.qrCodeBase64 || pix.qr_code_base64 || billing.pixQrCodeBase64,
+        ticketUrl: billing.checkoutUrl || billing.paymentUrl
       });
     } catch (err: any) {
-      console.error('❌ Erro interno ao criar Pix no Mercado Pago:', err);
+      console.error('❌ Erro interno ao criar Pix na AbatePay:', err);
       return res.status(500).json({ error: 'Erro interno ao processar cobrança Pix', message: err.message });
     }
   });
 
-  // 1.2 Endpoint para Verificar Status do Pagamento no Mercado Pago
+  // 1.2 Endpoint para Verificar Status do Pagamento na AbatePay
   app.get('/api/payments/status/:id', async (req, res) => {
     try {
       const paymentId = req.params.id;
-      const mpToken = process.env.MERCADO_PAGO_TOKEN;
+      const abatePayToken = process.env.ABATEPAY_TOKEN;
+      const statusTemplate = process.env.ABATEPAY_STATUS_URL_TEMPLATE || 'https://api.abatepay.com/v1/billing/{id}';
 
-      if (!mpToken) {
-        return res.status(400).json({ error: 'MERCADO_PAGO_TOKEN ausente' });
+      if (!abatePayToken) {
+        return res.status(400).json({ error: 'ABATEPAY_TOKEN ausente' });
       }
 
-      const response = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
+      const response = await fetch(statusTemplate.replace('{id}', encodeURIComponent(paymentId)), {
         headers: {
-          'Authorization': `Bearer ${mpToken}`
+          'Authorization': `Bearer ${abatePayToken}`
         }
       });
 
       const data: any = await response.json();
-      return res.status(200).json({
-        id: data.id,
-        status: data.status,
-        statusDetail: data.status_detail,
-        isApproved: data.status === 'approved',
-        payerEmail: data.payer?.email
-      });
+      const payment = data.data || data;
+      const status = String(payment.status || payment.paymentStatus || '').toLowerCase();
+      return res.status(200).json({ id: payment.id || paymentId, status, isApproved: ['approved', 'paid', 'completed', 'confirmed'].includes(status), payerEmail: payment.customer?.email || payment.email });
     } catch (err: any) {
       return res.status(500).json({ error: 'Erro ao consultar status do pagamento' });
     }
@@ -279,43 +290,20 @@ async function startServer() {
     }
   };
 
-  // 1.3 Webhook de Pagamento Pix Automático (Mercado Pago / Asaas)
+  // 1.3 Webhook de Pagamento Pix Automático (AbatePay / Asaas)
   app.post('/api/webhook/payment', async (req, res) => {
     try {
       const payload = req.body;
-      const mpToken = process.env.MERCADO_PAGO_TOKEN;
       console.log('💳 Webhook de Pagamento Pix Recebido:', JSON.stringify(payload, null, 2));
 
       let isApproved = false;
       let payerEmail = '';
       let paymentId = '';
 
-      // Tratamento Mercado Pago Webhook / IPN
-      if (payload.type === 'payment' || payload.action === 'payment.created' || payload.action === 'payment.updated' || payload.data?.id) {
-        paymentId = payload.data?.id || payload.id;
-        if (paymentId && mpToken) {
-          try {
-            const checkRes = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
-              headers: { 'Authorization': `Bearer ${mpToken}` }
-            });
-            if (checkRes.ok) {
-              const paymentData: any = await checkRes.json();
-              if (paymentData.status === 'approved') {
-                isApproved = true;
-                payerEmail = paymentData.payer?.email || '';
-              }
-            }
-          } catch (e) {
-            console.error('Erro ao verificar pagamento via token:', e);
-          }
-        }
-      }
-
-      // Tratamento Asaas Webhook
-      if (payload.event === 'PAYMENT_RECEIVED' || payload.event === 'PAYMENT_CONFIRMED' || payload.status === 'approved') {
-        isApproved = true;
-        payerEmail = payload.payment?.customerEmail || payload.customer?.email || payload.email || '';
-      }
+      paymentId = payload.data?.id || payload.payment?.id || payload.id || '';
+      const webhookStatus = String(payload.status || payload.event || payload.data?.status || payload.payment?.status || '').toLowerCase();
+      isApproved = ['approved', 'paid', 'completed', 'confirmed', 'payment_received', 'payment_confirmed'].includes(webhookStatus);
+      payerEmail = payload.customer?.email || payload.payment?.customerEmail || payload.payment?.customer?.email || payload.email || '';
 
       if (isApproved && payerEmail) {
         const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();

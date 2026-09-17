@@ -27,6 +27,7 @@ import { SubscriptionInfoModal } from './SubscriptionInfoModal';
 import { Clock } from './Clock';
 import { SocialLinksBar } from './SocialLinksBar';
 import { findUserProfileByEmail, syncUserProfileToSupabase, fetchCouponFromSupabase, redeemCouponInSupabase } from '../utils/supabaseClient';
+import { SiteLegalFooter } from './SiteLegalFooter';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -756,6 +757,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           © 2026 Brazilian in Action. Todos os direitos reservados.
         </p>
       </footer>
+      <SiteLegalFooter />
 
       {/* Subscription Tour Modal */}
       <SubscriptionInfoModal
