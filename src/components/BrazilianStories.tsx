@@ -440,7 +440,7 @@ export const BrazilianStories: React.FC<BrazilianStoriesProps> = ({
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-white/10">
         <div>
           <div className="flex items-center gap-2 mb-1.5">
-            <span className="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-pink-500/20 to-orange-500/20 border border-pink-500/40 text-pink-300 font-mono text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 shadow-md">
+            <span className="px-2.5 py-0.5 rounded-full bg-black/35 border border-white/15 text-white/75 font-mono text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 shadow-md">
               <Sparkles size={11} className="text-amber-400" />
               <span>O Palco Oficial da Sua Fluência</span>
             </span>
@@ -482,7 +482,7 @@ export const BrazilianStories: React.FC<BrazilianStoriesProps> = ({
             }}
             className={`px-4 py-2 rounded-xl text-xs font-bold font-mono uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer ${
               activeTab === 'recorder'
-                ? 'bg-gradient-to-r from-pink-500 to-orange-500 text-white shadow-lg shadow-pink-500/25 font-extrabold'
+                ? 'bg-white text-neutral-950 shadow-lg font-extrabold'
                 : 'text-white/60 hover:text-white hover:bg-white/5'
             }`}
           >
@@ -531,7 +531,7 @@ export const BrazilianStories: React.FC<BrazilianStoriesProps> = ({
         <div className="space-y-8">
           
           {/* TOP HIGHLIGHT BANNER */}
-          <div className="relative rounded-3xl bg-gradient-to-br from-neutral-950 via-neutral-900 to-neutral-950 border border-amber-500/40 p-6 sm:p-8 overflow-hidden shadow-[0_0_40px_rgba(245,158,11,0.1)]">
+          <div className="relative rounded-3xl bg-neutral-950/90 border border-white/12 p-6 sm:p-8 overflow-hidden shadow-[0_25px_70px_rgba(0,0,0,0.35)]">
             <div className="absolute top-0 right-0 w-80 h-80 bg-pink-500/10 rounded-full blur-3xl pointer-events-none" />
             
             <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
@@ -560,7 +560,7 @@ export const BrazilianStories: React.FC<BrazilianStoriesProps> = ({
                   setActiveTab('recorder');
                   startCamera();
                 }}
-                className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-pink-500 via-rose-500 to-orange-500 hover:from-pink-400 hover:to-orange-400 text-white font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2.5 cursor-pointer shadow-xl shadow-pink-500/25 hover:scale-[1.02] shrink-0"
+                className="px-6 py-3.5 rounded-2xl bg-white hover:bg-white/85 text-neutral-950 font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2.5 cursor-pointer shadow-xl hover:scale-[1.02] shrink-0"
               >
                 <Camera size={16} />
                 <span>Gravar Meu Story Agora</span>
