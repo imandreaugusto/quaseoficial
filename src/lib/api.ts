@@ -1,4 +1,4 @@
-const productionApiUrl = 'https://brazilian-in-action.onrender.com';
+const productionApiUrl = 'https://brazilian-in-action-i036.onrender.com';
 
 const apiBaseUrl = import.meta.env.DEV
   ? ''
