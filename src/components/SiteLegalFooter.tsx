@@ -9,10 +9,10 @@ export const SiteLegalFooter: React.FC = () => (
       <a className="underline underline-offset-2 hover:text-white" href="https://whatsapp.com/channel/0029Vb8DViVLdQef42OGsV1m" target="_blank" rel="noreferrer">
         WhatsApp
       </a>
-      <a className="underline underline-offset-2 hover:text-white" href="#terms">
+      <a className="underline underline-offset-2 hover:text-white" href="?legal=terms" target="_blank" rel="noreferrer">
         Termos
       </a>
-      <a className="underline underline-offset-2 hover:text-white" href="#privacy">
+      <a className="underline underline-offset-2 hover:text-white" href="?legal=privacy" target="_blank" rel="noreferrer">
         Privacidade
       </a>
     </div>
