@@ -322,9 +322,27 @@ async function startServer() {
       let paymentId = '';
 
       paymentId = payload.data?.id || payload.payment?.id || payload.id || '';
-      const webhookStatus = String(payload.status || payload.event || payload.data?.status || payload.payment?.status || '').toLowerCase();
-      isApproved = ['approved', 'paid', 'completed', 'confirmed', 'payment_received', 'payment_confirmed'].includes(webhookStatus);
-      payerEmail = payload.customer?.email || payload.payment?.customerEmail || payload.payment?.customer?.email || payload.email || '';
+      const webhookStatus = String(
+        payload.status || payload.event || payload.data?.status || payload.payment?.status || ''
+      ).toLowerCase();
+      isApproved = [
+        'approved',
+        'paid',
+        'completed',
+        'confirmed',
+        'payment_received',
+        'payment_confirmed',
+        'billing.paid',
+        'checkout.completed'
+      ].includes(webhookStatus);
+      payerEmail = payload.customer?.email
+        || payload.data?.customer?.email
+        || payload.data?.billing?.customer?.email
+        || payload.payment?.customerEmail
+        || payload.payment?.customer?.email
+        || payload.email
+        || payload.data?.email
+        || '';
 
       if (isApproved && payerEmail) {
         const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();

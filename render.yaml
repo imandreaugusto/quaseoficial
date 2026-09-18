@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: brazilian-in-action
+    runtime: node
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: API_PUBLIC_URL
+        value: https://brazilian-in-action.onrender.com
+      - key: PUBLIC_APP_URL
+        value: https://imandreaugusto.github.io/quaseoficial/
+      - key: ABATEPAY_TOKEN
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
