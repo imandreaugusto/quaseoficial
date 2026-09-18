@@ -35,6 +35,25 @@ export const getSupabaseClient = () => {
   });
 };
 
+export const deleteExpiredBrazilianFriendMessages = async () => {
+  const client = getSupabaseClient();
+  if (!client) return { ok: false, deleted: 0 };
+
+  try {
+    const { data, error } = await client
+      .from('brazilian_friends_messages')
+      .delete()
+      .lte('expires_at', new Date().toISOString())
+      .select('id');
+
+    if (error) throw error;
+    return { ok: true, deleted: data?.length || 0 };
+  } catch (error) {
+    console.warn('Expired Brazilian Friends messages cleanup failed:', error);
+    return { ok: false, deleted: 0 };
+  }
+};
+
 export const syncUserProfileToSupabase = async (profile: UserProfile) => {
   const client = getSupabaseClient();
   if (!client || !profile?.email) return null;

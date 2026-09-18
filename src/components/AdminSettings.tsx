@@ -4,7 +4,8 @@ import {
   getAuthorizedCeoEmails, 
   addAuthorizedCeoEmail, 
   removeAuthorizedCeoEmail, 
-  isValidEmailFormat 
+  isValidEmailFormat,
+  isVerifiedCeoEmail
 } from '../utils/security';
 import { 
   Users, 
@@ -64,13 +65,14 @@ import {
   Layers
 } from 'lucide-react';
 import { BrazilianLogo } from './BrazilianLogo';
-import { getSupabaseConfig } from '../utils/supabaseClient';
+import { deleteExpiredBrazilianFriendMessages, getSupabaseClient, getSupabaseConfig } from '../utils/supabaseClient';
 
 interface AdminSettingsProps {
   accentColor?: string;
   classes?: ClassItem[];
   expenses?: ExpenseItem[];
   onRefreshUsers?: () => void;
+  currentUser?: UserProfile | null;
 }
 
 const ALL_STUDENT_APPS = [
@@ -118,9 +120,10 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   accentColor = '#f59e0b',
   classes = [],
   expenses = [],
-  onRefreshUsers
+  onRefreshUsers,
+  currentUser
 }) => {
-  const [activeTab, setActiveTab] = useState<'students' | 'apps_order' | 'revenue' | 'gateway' | 'promotions' | 'pix_approvals' | 'ceo_security'>('students');
+  const [activeTab, setActiveTab] = useState<'students' | 'apps_order' | 'revenue' | 'gateway' | 'promotions' | 'pix_approvals' | 'ceo_security' | 'friends_cleanup'>('students');
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [coupons, setCoupons] = useState<TrialCoupon[]>([]);
   const [pixPayments, setPixPayments] = useState<PixPaymentRecord[]>([]);
@@ -131,6 +134,10 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [copiedCouponId, setCopiedCouponId] = useState<string | null>(null);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [expiredFriendMessages, setExpiredFriendMessages] = useState(0);
+  const [isCleaningFriends, setIsCleaningFriends] = useState(false);
+  const [friendsCleanupMessage, setFriendsCleanupMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const isMainCeo = Boolean(currentUser?.email && isVerifiedCeoEmail(currentUser.email));
 
   // Accordion state for grouping students by status
   const [openAccordions, setOpenAccordions] = useState<{
@@ -207,6 +214,37 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
       window.removeEventListener('bia_users_changed', handleDataChange);
     };
   }, []);
+
+  useEffect(() => {
+    if (!isMainCeo) return;
+
+    const loadExpiredFriendMessages = async () => {
+      const client = getSupabaseClient();
+      if (!client) return;
+      const threshold = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString();
+      const { count } = await client
+        .from('brazilian_friends_messages')
+        .select('id', { count: 'exact', head: true })
+        .lte('created_at', threshold)
+        .lte('expires_at', new Date().toISOString());
+      setExpiredFriendMessages(count || 0);
+    };
+
+    void loadExpiredFriendMessages();
+  }, [isMainCeo]);
+
+  const handleCleanupExpiredFriendMessages = async () => {
+    if (!isMainCeo || !window.confirm('Apagar definitivamente todas as mensagens do Brazilian Friends que já venceram?')) return;
+
+    setIsCleaningFriends(true);
+    setFriendsCleanupMessage(null);
+    const result = await deleteExpiredBrazilianFriendMessages();
+    setIsCleaningFriends(false);
+    setExpiredFriendMessages(0);
+    setFriendsCleanupMessage(result.ok
+      ? { text: `${result.deleted} mensagem(ns) vencida(s) apagada(s) do Supabase.`, type: 'success' }
+      : { text: 'Não foi possível apagar as mensagens vencidas.', type: 'error' });
+  };
 
   const loadData = () => {
     const storedUsers = localStorage.getItem('bia_users_database');
@@ -874,6 +912,26 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
               <KeyRound size={14} className={activeTab === 'ceo_security' ? 'text-white' : 'text-red-400'} />
               <span>Segurança CEO</span>
             </button>
+
+            {isMainCeo && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('friends_cleanup')}
+                className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer backdrop-blur-xl shadow-lg border active:scale-95 ${
+                  activeTab === 'friends_cleanup'
+                    ? 'bg-red-600 text-white border-red-500 font-black shadow-red-950/50'
+                    : 'bg-neutral-900/80 hover:bg-neutral-800 text-white/80 hover:text-white border-white/15 hover:border-white/30'
+                }`}
+              >
+                <Trash2 size={14} className={activeTab === 'friends_cleanup' ? 'text-white' : 'text-red-400'} />
+                <span>Limpeza Friends</span>
+                {expiredFriendMessages > 0 && (
+                  <span className="px-1.5 py-0.5 bg-red-600 text-white text-[10px] font-black rounded-full shadow-sm animate-pulse">
+                    {expiredFriendMessages}
+                  </span>
+                )}
+              </button>
+            )}
           </div>
         </nav>
       </div>
@@ -2534,6 +2592,46 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                 <span>Adicionar E-mail CEO</span>
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'friends_cleanup' && isMainCeo && (
+        <div className="space-y-6">
+          <div className={`rounded-3xl border p-5 sm:p-6 ${expiredFriendMessages > 0 ? 'border-red-500/60 bg-red-950/40 animate-pulse' : 'border-emerald-500/30 bg-emerald-950/20'}`}>
+            <div className="flex items-start gap-3">
+              <div className="rounded-2xl bg-red-600/80 p-3 text-white">
+                <Trash2 size={22} />
+              </div>
+              <div>
+                <h2 className="text-lg font-black text-white">Limpeza do Brazilian Friends</h2>
+                <p className="mt-1 text-xs leading-5 text-white/65">
+                  Este controle apaga somente mensagens que já passaram do prazo de 7 dias. Mensagens recentes não são tocadas.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {friendsCleanupMessage && (
+            <div className={`rounded-2xl border p-3 text-xs font-bold ${friendsCleanupMessage.type === 'success' ? 'border-emerald-500/40 bg-emerald-600/20 text-emerald-200' : 'border-red-500/40 bg-red-600/20 text-red-200'}`}>
+              {friendsCleanupMessage.text}
+            </div>
+          )}
+
+          <div className="glass-card flex flex-col gap-4 rounded-3xl border border-white/10 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-black text-white">Mensagens vencidas há 5 dias ou mais</p>
+              <p className="mt-1 text-xs text-white/50">Encontradas: {expiredFriendMessages}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void handleCleanupExpiredFriendMessages()}
+              disabled={isCleaningFriends || expiredFriendMessages === 0}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-red-600 px-4 py-2.5 text-xs font-black text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <Trash2 size={15} />
+              {isCleaningFriends ? 'Apagando...' : 'Apagar vencidas do Supabase'}
+            </button>
           </div>
         </div>
       )}

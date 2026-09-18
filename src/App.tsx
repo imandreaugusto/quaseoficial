@@ -900,6 +900,7 @@ export default function App() {
                       accentColor={settings.accentColor}
                       classes={classes}
                       expenses={expenses}
+                      currentUser={currentUser}
                     />
                   )}
 
