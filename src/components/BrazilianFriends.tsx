@@ -3,6 +3,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import { ArrowLeft, ChevronDown, MessageCircle, Send, Smile, Users, WifiOff, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile } from '../types';
+import { BrazilianLogo } from './BrazilianLogo';
 import { getSupabaseClient, getSupabaseConfig } from '../utils/supabaseClient';
 import { CEO_EMAIL } from '../utils/security';
 
@@ -28,7 +29,7 @@ interface FriendProfile {
 interface FriendMessage {
   id: string;
   sender_id: string;
-  receiver_id: string;
+  receiver_id: string | null;
   body: string;
   created_at: string;
   expires_at: string;
@@ -80,12 +81,11 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
 
   const selectedFriend = profiles.find((profile) => profile.id === selectedFriendId) || null;
   const onlineFriends = useMemo(
-    () => profiles.filter((profile) => profile.id !== currentUser.id && onlineUsers[profile.id]),
-    [currentUser.id, onlineUsers, profiles]
+    () => profiles.filter((profile) => onlineUsers[profile.id]),
+    [onlineUsers, profiles]
   );
   const allFriends = useMemo(
     () => profiles
-      .filter((profile) => profile.id !== currentUser.id)
       .sort((a, b) => {
         const aOnline = onlineUsers[a.id] ? 1 : 0;
         const bOnline = onlineUsers[b.id] ? 1 : 0;
@@ -178,28 +178,28 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
 
   useEffect(() => {
     const client = getSupabaseClient();
-    if (!client || !selectedFriendId) {
-      setMessages([]);
-      return;
-    }
-
     let cancelled = false;
-    const conversationKey = getConversationKey(currentUser.id, selectedFriendId);
+    const conversationKey = selectedFriendId
+      ? getConversationKey(currentUser.id, selectedFriendId)
+      : 'public';
     const loadConversation = async () => {
       setIsLoadingMessages(true);
       setError('');
       const now = new Date().toISOString();
-      await client
+      if (selectedFriendId) await client
         .from(MESSAGES_TABLE)
         .delete()
         .lte('expires_at', now)
         .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${selectedFriendId}),and(sender_id.eq.${selectedFriendId},receiver_id.eq.${currentUser.id})`);
-      const { data, error: messagesError } = await client
+      let query = client
         .from(MESSAGES_TABLE)
         .select('id, sender_id, receiver_id, body, created_at, expires_at')
-        .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${selectedFriendId}),and(sender_id.eq.${selectedFriendId},receiver_id.eq.${currentUser.id})`)
         .gt('expires_at', now)
         .order('created_at', { ascending: true });
+      query = selectedFriendId
+        ? query.or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${selectedFriendId}),and(sender_id.eq.${selectedFriendId},receiver_id.eq.${currentUser.id})`)
+        : query.is('receiver_id', null);
+      const { data, error: messagesError } = await query;
 
       if (cancelled) return;
       if (messagesError) {
@@ -218,9 +218,10 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
         (payload) => {
           const nextMessage = payload.new as FriendMessage;
           if (new Date(nextMessage.expires_at).getTime() <= Date.now()) return;
-          const isThisConversation =
-            (nextMessage.sender_id === currentUser.id && nextMessage.receiver_id === selectedFriendId) ||
-            (nextMessage.sender_id === selectedFriendId && nextMessage.receiver_id === currentUser.id);
+          const isThisConversation = selectedFriendId
+            ? ((nextMessage.sender_id === currentUser.id && nextMessage.receiver_id === selectedFriendId) ||
+              (nextMessage.sender_id === selectedFriendId && nextMessage.receiver_id === currentUser.id))
+            : nextMessage.receiver_id === null;
           if (isThisConversation) {
             setMessages((current) => current.some((message) => message.id === nextMessage.id)
               ? current
@@ -248,7 +249,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
   const sendMessage = async () => {
     const body = draft.trim();
     const client = getSupabaseClient();
-    if (!client || !selectedFriendId || !body) return;
+    if (!client || !body) return;
 
     setDraft('');
     const { data, error: sendError } = await client
@@ -274,7 +275,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
   const renderPeople = (mobile = false) => (
     <aside className={mobile ? 'friends-people-panel friends-people-panel-mobile' : 'friends-people-panel'}>
       <div className="friends-people-heading">
-        <div className="friends-brand-mark">B</div>
+        <BrazilianLogo size="sm" variant="full" showText={false} className="friends-official-logo" />
         <div>
           <p className="friends-brand-name">Brazilian Friends</p>
           <p className="friends-brand-subtitle">Connect · Chat · Make Friends</p>
@@ -284,7 +285,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
       <div className="friends-online-label"><span className="friends-online-dot" /> Online ({onlineFriends.length}) <ChevronDown size={14} /></div>
       <div className="friends-people-list custom-scrollbar">
         {isLoading && <p className="friends-muted-copy">Finding friends...</p>}
-        {!isLoading && allFriends.length === 0 && <p className="friends-muted-copy">No friends registered yet.</p>}
+        {!isLoading && allFriends.length === 0 && <p className="friends-muted-copy">No one is online yet.</p>}
         {allFriends.map((friend) => {
           const presence = onlineUsers[friend.id];
           const isOnline = Boolean(presence);
@@ -292,7 +293,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
           return (
             <button key={friend.id} type="button" onClick={() => { setSelectedFriendId(friend.id); setIsPeopleDrawerOpen(false); }} className={`friends-person ${isSelected ? 'friends-person-selected' : ''}`}>
               <span className="friends-avatar" style={{ '--avatar-color': accentColor } as React.CSSProperties}>{(presence?.full_name || friend.full_name).charAt(0).toUpperCase()}<span className={`friends-status ${isOnline ? 'friends-status-online' : ''}`} /></span>
-              <span className="friends-person-copy"><strong>{presence?.full_name || friend.full_name}</strong><small>{formatLocation(presence || friend)}</small></span>
+              <span className="friends-person-copy"><strong>{presence?.full_name || friend.full_name}</strong><small>{formatLocation(presence || friend)}{friend.id === currentUser.id ? ' · You' : ''}</small></span>
             </button>
           );
         })}
@@ -316,30 +317,25 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
     <section className="friends-shell">
       <div className="friends-glass-frame">
         {renderPeople()}
-        <main className="friends-conversation">
+        <main className={`friends-conversation ${selectedFriend ? 'friends-conversation-private' : ''}`}>
           <header className="friends-conversation-header">
-            <div className="friends-header-title"><div className="friends-header-icon"><Users size={18} /></div><div><h1>Brazilian Friends</h1><p>{onlineFriends.length} people online</p></div></div>
+            <div className="friends-header-title"><div className="friends-header-icon"><Users size={18} /></div><div><h1>{selectedFriend ? selectedFriend.full_name : 'Brazilian Friends'}</h1><p>{selectedFriend ? `Private conversation · ${formatLocation(selectedFriend)}` : `${onlineFriends.length} people online`}</p></div></div>
             <button type="button" className="friends-mobile-people-button" onClick={() => setIsPeopleDrawerOpen(true)}><Users size={16} /><span>{onlineFriends.length} online</span></button>
-            {selectedFriend && <div className="friends-selected-chip"><span className="friends-status friends-status-online" /> {selectedFriend.full_name}</div>}
+            {selectedFriend && <button type="button" className="friends-selected-chip" onClick={() => setSelectedFriendId(null)}><ArrowLeft size={13} /> {selectedFriend.full_name}</button>}
           </header>
 
           <div className="friends-message-scroll custom-scrollbar">
-            {!selectedFriend && (
+            {!selectedFriend && messages.length === 0 && (
               <div className="friends-empty-conversation">
                 <MessageCircle size={28} className="mb-3" />
-                <p>Choose a friend to begin.</p>
+                <p>Say hi to everyone in Brazilian Friends.</p>
               </div>
             )}
-            {selectedFriend && isLoadingMessages && <p className="friends-muted-copy">Loading conversation...</p>}
-            {selectedFriend && !isLoadingMessages && messages.length === 0 && (
-              <div className="friends-empty-conversation">
-                Start a conversation in English.
-              </div>
-            )}
+            {isLoadingMessages && <p className="friends-muted-copy">Loading conversation...</p>}
             {messages.map((message) => {
               const ownMessage = message.sender_id === currentUser.id;
               const senderProfile = profiles.find((p) => p.id === message.sender_id);
-              const senderName = ownMessage ? (currentUser.full_name || 'You') : (senderProfile?.full_name || selectedFriend?.full_name || 'User');
+              const senderName = ownMessage ? publicName : (senderProfile?.full_name || selectedFriend?.full_name || 'User');
               const senderLocation = ownMessage ? formatLocation(currentUser) : (senderProfile ? formatLocation(senderProfile) : 'Brasil');
               
               return (
@@ -396,7 +392,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
               <button
                 type="button"
                 onClick={() => setShowEmojiPicker((current) => !current)}
-                disabled={!selectedFriend}
+                disabled={false}
                 className="friends-icon-button friends-composer-icon"
                 aria-label="Insert emoji"
                 title="Insert emoji"
@@ -406,14 +402,14 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
               <input
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
-                disabled={!selectedFriend}
+                disabled={false}
                 placeholder="Write in English..."
                 className="friends-composer-input"
                 maxLength={2000}
               />
               <button
                 type="submit"
-                disabled={!selectedFriend || !draft.trim()}
+                disabled={!draft.trim()}
                 className="friends-send-button"
                 style={{ backgroundColor: accentColor }}
                 aria-label="Send message"

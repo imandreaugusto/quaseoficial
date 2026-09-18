@@ -93,15 +93,16 @@ input, textarea, select {
 }
 
 .friends-glass-frame {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(14rem, 17rem) minmax(0, 1fr);
   width: 100%;
   height: 100%;
   min-height: 0;
   overflow: hidden;
-  border: 1px solid rgba(211, 224, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: clamp(1.25rem, 3vw, 2rem);
-  background: linear-gradient(120deg, rgba(19, 31, 75, 0.52), rgba(24, 20, 62, 0.3));
+  background: rgba(18, 18, 22, 0.58);
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45), inset 0 1px rgba(255, 255, 255, 0.22);
   backdrop-filter: blur(18px) saturate(125%);
   -webkit-backdrop-filter: blur(18px) saturate(125%);
@@ -112,7 +113,7 @@ input, textarea, select {
   min-height: 0;
   flex-direction: column;
   border-right: 1px solid rgba(214, 224, 255, 0.17);
-  background: rgba(6, 13, 38, 0.35);
+  background: rgba(18, 18, 22, 0.34);
 }
 
 .friends-people-heading {
@@ -133,12 +134,10 @@ input, textarea, select {
   border: 1px solid rgba(255, 255, 255, 0.48);
   border-radius: 0.85rem;
   color: white;
-  font-size: 1.45rem;
-  font-weight: 800;
-  font-style: italic;
-  background: linear-gradient(135deg, #3c71ff, #6550e8 68%, #e3437c);
-  box-shadow: 0 0 22px rgba(73, 115, 255, 0.5);
+  background: rgba(255, 255, 255, 0.08);
 }
+
+.friends-official-logo { width: 2.45rem; height: 2.45rem; }
 
 .friends-brand-name, .friends-brand-subtitle { margin: 0; }
 .friends-brand-name { color: white; font-size: 0.9rem; font-weight: 700; letter-spacing: -0.02em; }
@@ -177,8 +176,8 @@ input, textarea, select {
   background: transparent;
   transition: background 160ms ease, border 160ms ease;
 }
-.friends-person:hover, .friends-person-selected { border-color: rgba(141, 177, 255, 0.25); background: rgba(98, 124, 235, 0.22); }
-.friends-avatar { position: relative; display: grid; width: 1.72rem; height: 1.72rem; place-items: center; flex: 0 0 auto; border: 1px solid rgba(255,255,255,0.45); border-radius: 50%; color: white; font-size: 0.7rem; font-weight: 700; background: linear-gradient(135deg, var(--avatar-color), #6d4be8); }
+.friends-person:hover, .friends-person-selected { border-color: rgba(255, 255, 255, 0.22); background: rgba(255, 255, 255, 0.1); }
+.friends-avatar { position: relative; display: grid; width: 1.72rem; height: 1.72rem; place-items: center; flex: 0 0 auto; border: 1px solid rgba(255,255,255,0.45); border-radius: 50%; color: white; font-size: 0.7rem; font-weight: 700; background: rgba(255,255,255,0.16); }
 .friends-status { position: absolute; right: -0.06rem; bottom: -0.02rem; width: 0.42rem; height: 0.42rem; border: 2px solid #172150; }
 .friends-person-copy { min-width: 0; display: flex; flex-direction: column; }
 .friends-person-copy strong { overflow: hidden; color: rgba(255,255,255,0.92); font-size: 0.7rem; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
@@ -186,6 +185,17 @@ input, textarea, select {
 .friends-muted-copy { padding: 0.8rem; color: rgba(225,233,255,0.52); font-size: 0.72rem; }
 
 .friends-conversation { display: flex; min-width: 0; min-height: 0; flex-direction: column; }
+.friends-conversation-private {
+  position: absolute;
+  inset: 8% 4% 8% 31%;
+  z-index: 5;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 1.35rem;
+  background: rgba(18, 18, 22, 0.82);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.48);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+}
 .friends-conversation-header { display: flex; min-height: 5rem; align-items: center; gap: 1rem; padding: 0.9rem clamp(1rem, 3vw, 2rem); border-bottom: 1px solid rgba(214,224,255,0.16); }
 .friends-header-title { display: flex; min-width: 0; align-items: center; gap: 0.75rem; }
 .friends-header-icon { display: grid; width: 2.2rem; height: 2.2rem; place-items: center; border-radius: 0.8rem; color: #e8eeff; background: rgba(129, 153, 255, 0.24); }
@@ -201,12 +211,12 @@ input, textarea, select {
 .friends-message-row-own .friends-message-group { text-align: right; }
 .friends-message-meta { display: flex; align-items: baseline; gap: 0.45rem; padding: 0 0.7rem 0.25rem; color: rgba(229,236,255,0.5); font-size: 0.59rem; }
 .friends-message-meta strong { color: rgba(255,255,255,0.9); font-size: 0.68rem; }
-.friends-message-bubble { display: inline-block; max-width: 100%; border: 1px solid rgba(205, 222, 255, 0.15); border-radius: 1.1rem 1.1rem 1.1rem 0.35rem; padding: 0.65rem 0.8rem 0.45rem; color: rgba(247,249,255,0.9); background: rgba(117, 137, 222, 0.2); box-shadow: inset 0 1px rgba(255,255,255,0.09); text-align: left; }
+.friends-message-bubble { display: inline-block; max-width: 100%; border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 1.1rem 1.1rem 1.1rem 0.35rem; padding: 0.65rem 0.8rem 0.45rem; color: rgba(247,249,255,0.9); background: rgba(255, 255, 255, 0.1); box-shadow: inset 0 1px rgba(255,255,255,0.09); text-align: left; }
 .friends-message-bubble-own { border-color: color-mix(in srgb, var(--bubble-accent) 55%, white 10%); border-radius: 1.1rem 1.1rem 0.35rem 1.1rem; background: linear-gradient(135deg, color-mix(in srgb, var(--bubble-accent) 72%, #243c96), rgba(63, 183, 192, 0.72)); }
 .friends-message-bubble p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.82rem; line-height: 1.45; }
 .friends-message-bubble span { display: block; margin-top: 0.22rem; color: rgba(230,237,255,0.48); font-size: 0.56rem; }
 .friends-composer { position: relative; padding: 0.8rem clamp(0.8rem, 2.5vw, 1.75rem) clamp(0.8rem, 2.5vw, 1.4rem); border-top: 1px solid rgba(214,224,255,0.14); }
-.friends-composer-inner { display: flex; align-items: center; gap: 0.35rem; border: 1px solid rgba(218,229,255,0.23); border-radius: 1.1rem; padding: 0.3rem; background: rgba(10, 18, 54, 0.42); box-shadow: inset 0 1px rgba(255,255,255,0.09); }
+.friends-composer-inner { display: flex; align-items: center; gap: 0.35rem; border: 1px solid rgba(255,255,255,0.18); border-radius: 1.1rem; padding: 0.3rem; background: rgba(18, 18, 22, 0.52); box-shadow: inset 0 1px rgba(255,255,255,0.09); }
 .friends-composer-input { min-width: 0; flex: 1; border: 0; outline: 0; padding: 0.65rem 0.6rem; color: white; background: transparent; font: inherit; font-size: 0.78rem; }
 .friends-composer-input::placeholder { color: rgba(220,228,255,0.46); }
 .friends-icon-button, .friends-send-button { display: grid; width: 2.2rem; height: 2.2rem; place-items: center; border: 0; border-radius: 0.8rem; color: rgba(233,239,255,0.72); background: transparent; }
@@ -238,6 +248,7 @@ input, textarea, select {
   .friends-message-group { max-width: 88%; }
   .friends-message-bubble p { font-size: 0.76rem; }
   .friends-composer { padding-bottom: max(0.7rem, env(safe-area-inset-bottom)); }
+  .friends-conversation-private { inset: 0.35rem; border-radius: 1.1rem; }
 }
 
 @media (min-width: 721px) and (max-width: 1024px) {
