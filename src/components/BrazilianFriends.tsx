@@ -180,6 +180,12 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
 
   useEffect(() => {
     const client = getSupabaseClient();
+    if (!client) {
+      setIsLoadingMessages(false);
+      setError('Supabase connection is waiting to be configured.');
+      setMessages([]);
+      return;
+    }
     let cancelled = false;
     const conversationKey = selectedFriendId
       ? getConversationKey(currentUser.id, selectedFriendId)
