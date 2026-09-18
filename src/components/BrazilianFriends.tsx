@@ -187,11 +187,17 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
     const loadConversation = async () => {
       setIsLoadingMessages(true);
       setError('');
+      const now = new Date().toISOString();
+      await client
+        .from(MESSAGES_TABLE)
+        .delete()
+        .lte('expires_at', now)
+        .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${selectedFriendId}),and(sender_id.eq.${selectedFriendId},receiver_id.eq.${currentUser.id})`);
       const { data, error: messagesError } = await client
         .from(MESSAGES_TABLE)
         .select('id, sender_id, receiver_id, body, created_at, expires_at')
         .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${selectedFriendId}),and(sender_id.eq.${selectedFriendId},receiver_id.eq.${currentUser.id})`)
-        .gt('expires_at', new Date().toISOString())
+        .gt('expires_at', now)
         .order('created_at', { ascending: true });
 
       if (cancelled) return;
