@@ -180,8 +180,42 @@ create policy "ceo_friend_messages_all_access" on bia_ceo_friend_messages
 for all using (true) with check (true);
 
 drop policy if exists "trial_coupons_all_access" on bia_trial_coupons;
-create policy "trial_coupons_all_access" on bia_trial_coupons
-for all using (true) with check (true);
+create policy "trial_coupons_public_read" on bia_trial_coupons
+for select using (true);
+
+revoke insert, update, delete on table bia_trial_coupons from anon, authenticated;
+
+create or replace function redeem_trial_coupon(requested_code text, redeemer_email text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  redeemed_coupon bia_trial_coupons;
+begin
+  update bia_trial_coupons
+  set is_used = true,
+      used_by_email = lower(trim(redeemer_email)),
+      used_at = now()
+  where upper(code) = upper(trim(requested_code))
+    and is_used = false
+    and (expires_at is null or expires_at > now())
+  returning * into redeemed_coupon;
+
+  if redeemed_coupon.id is null then
+    return jsonb_build_object('ok', false, 'reason', 'invalid_or_used');
+  end if;
+
+  return jsonb_build_object(
+    'ok', true,
+    'coupon', jsonb_build_object('code', redeemed_coupon.code, 'days', redeemed_coupon.days)
+  );
+end;
+$$;
+
+revoke all on function redeem_trial_coupon(text, text) from public;
+grant execute on function redeem_trial_coupon(text, text) to anon, authenticated;
 
 create or replace function update_updated_at_column()
 returns trigger as $$

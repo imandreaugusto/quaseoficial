@@ -26,7 +26,7 @@ import { BrazilianLogo } from './BrazilianLogo';
 import { SubscriptionInfoModal } from './SubscriptionInfoModal';
 import { Clock } from './Clock';
 import { SocialLinksBar } from './SocialLinksBar';
-import { findUserProfileByEmail, syncUserProfileToSupabase, fetchCouponFromSupabase, redeemCouponInSupabase } from '../utils/supabaseClient';
+import { findUserProfileByEmail, syncUserProfileToSupabase, fetchCouponFromSupabase, redeemCouponInSupabase, getSupabaseConfig } from '../utils/supabaseClient';
 import { SiteLegalFooter } from './SiteLegalFooter';
 
 interface AuthModalProps {
@@ -121,7 +121,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   // Validates a coupon against the shared database first (so a code that was
   // already redeemed on another device/browser is correctly rejected here too).
-  // Falls back to the local single-device list only when Supabase isn't configured.
+  // Local coupons are only allowed when Supabase is not configured at all.
   const checkCouponValidity = async (rawCode: string) => {
     const clean = rawCode.trim().toUpperCase();
     if (!clean) {
@@ -129,8 +129,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
+    const { url: supabaseUrl, anonKey: supabaseAnonKey } = getSupabaseConfig();
     const remoteCoupon = await fetchCouponFromSupabase(clean);
     if (remoteCoupon) {
+      if (remoteCoupon.expires_at && new Date(remoteCoupon.expires_at).getTime() <= Date.now()) {
+        setCouponState({ status: 'invalid', days: 5, message: 'Este cupom expirou.' });
+        return;
+      }
       if (remoteCoupon.is_used) {
         setCouponState({
           status: 'used',
@@ -145,6 +150,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         days: remoteCoupon.days || 5,
         message: `Cupom Válido: ${remoteCoupon.days || 5} Dias de Degustação Gratuita liberados!`
       });
+      return;
+    }
+
+    if (supabaseUrl && supabaseAnonKey) {
+      setCouponState({ status: 'invalid', days: 5, message: 'Não foi possível validar o cupom no servidor.' });
       return;
     }
 

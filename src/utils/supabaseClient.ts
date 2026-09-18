@@ -321,21 +321,14 @@ export const redeemCouponInSupabase = async (code: string, usedByEmail: string) 
   if (!client || !code) return { ok: false, reason: 'offline' as const };
 
   try {
-    const { data, error } = await client
-      .from('bia_trial_coupons')
-      .update({
-        is_used: true,
-        used_by_email: usedByEmail.trim().toLowerCase(),
-        used_at: new Date().toISOString()
-      })
-      .ilike('code', code.trim().toUpperCase())
-      .eq('is_used', false)
-      .select()
-      .maybeSingle();
+    const { data, error } = await client.rpc('redeem_trial_coupon', {
+      requested_code: code.trim().toUpperCase(),
+      redeemer_email: usedByEmail.trim().toLowerCase()
+    });
 
     if (error) throw error;
-    if (!data) return { ok: false, reason: 'already_used' as const };
-    return { ok: true, coupon: data };
+    if (!data?.ok) return { ok: false, reason: data?.reason || 'already_used' as const };
+    return { ok: true, coupon: data.coupon };
   } catch (error) {
     console.warn('Supabase coupon redeem failed:', error);
     return { ok: false, reason: 'error' as const };
