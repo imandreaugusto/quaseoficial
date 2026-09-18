@@ -225,8 +225,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
       const { count } = await client
         .from('brazilian_friends_messages')
         .select('id', { count: 'exact', head: true })
-        .lte('created_at', threshold)
-        .lte('expires_at', new Date().toISOString());
+        .lte('created_at', threshold);
       setExpiredFriendMessages(count || 0);
     };
 
@@ -2620,7 +2619,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
 
           <div className="glass-card flex flex-col gap-4 rounded-3xl border border-white/10 p-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-sm font-black text-white">Mensagens vencidas há 5 dias ou mais</p>
+              <p className="text-sm font-black text-white">Mensagens com 5 dias ou mais</p>
               <p className="mt-1 text-xs text-white/50">Encontradas: {expiredFriendMessages}</p>
             </div>
             <button
