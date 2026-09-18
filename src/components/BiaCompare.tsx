@@ -4,6 +4,7 @@ import { translateText, lookupDictionary } from '../lib/translator';
 import { auth, listenToAuth, syncToCloud } from '../lib/cloudSync';
 import { subscribeToUserDataFromCloud } from '../lib/firebase';
 import { compressImage } from '../lib/imageUtils';
+import { apiFetch } from '../lib/api';
 import {
   Sparkles, Plus, Save, Copy, Star, Settings as SettingsIcon,
   Play, Search, Trash2, Edit2, ChevronLeft, ChevronRight,
@@ -170,7 +171,7 @@ export const BiaCompare: React.FC<{ accentColor: string; onNavigate?: (app: stri
     setActiveWordDef(null);
 
     try {
-      const res = await fetch('/api/define-word', {
+      const res = await apiFetch('/api/define-word', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ word: cleanWord })

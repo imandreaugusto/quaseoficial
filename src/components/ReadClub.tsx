@@ -5,6 +5,7 @@ import { Plus, Trash2, Edit, ChevronRight, ChevronLeft, ChevronDown, BookOpen, V
 import { motion, AnimatePresence } from 'motion/react';
 import { translateText, lookupDictionary } from '../lib/translator';
 import { BrazilianLogo } from './BrazilianLogo';
+import { apiFetch } from '../lib/api';
 
 interface ReadClubProps {
   library: StoryItem[];
@@ -144,7 +145,7 @@ export const ReadClub: React.FC<ReadClubProps> = ({
     if (!targetText.trim()) return;
     setIsFormattingText(true);
     try {
-      const res = await fetch('/api/format-paragraphs', {
+      const res = await apiFetch('/api/format-paragraphs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: targetText, mode: activeTab === 'music' ? 'lyrics' : 'story' }),

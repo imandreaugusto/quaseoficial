@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth, listenToAuth, syncToCloud } from '../lib/cloudSync';
 import { subscribeToUserDataFromCloud } from '../lib/firebase';
+import { apiFetch } from '../lib/api';
 import {
   Sparkles,
   MessageSquare,
@@ -371,7 +372,7 @@ export const BrazilianConversation: React.FC<BrazilianConversationProps> = ({ ac
     }, 1200);
 
     try {
-      const response = await fetch('/api/generate-conversation', {
+      const response = await apiFetch('/api/generate-conversation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -438,7 +439,7 @@ export const BrazilianConversation: React.FC<BrazilianConversationProps> = ({ ac
     const localMatch = lookupDictionary(cleanWord.toLowerCase());
 
     try {
-      const response = await fetch('/api/define-word', {
+      const response = await apiFetch('/api/define-word', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -29,6 +29,7 @@ import {
   Maximize,
   Minimize2
 } from 'lucide-react';
+import { apiFetch } from '../lib/api';
 import { translateText, lookupPtToEnDictionary, lookupDictionary } from '../lib/translator';
 import { listenToAuth, syncToCloud } from '../lib/cloudSync';
 import { subscribeToUserDataFromCloud } from '../lib/firebase';
@@ -443,7 +444,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6' 
     if (!targetText.trim()) return;
     setIsFormattingLyrics(true);
     try {
-      const res = await fetch('/api/format-paragraphs', {
+      const res = await apiFetch('/api/format-paragraphs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: targetText, mode: 'lyrics' }),

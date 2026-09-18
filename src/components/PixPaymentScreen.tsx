@@ -23,6 +23,7 @@ import { BrazilianLogo } from './BrazilianLogo';
 import { SocialLinksBar } from './SocialLinksBar';
 import { getSupabaseClient } from '../utils/supabaseClient';
 import { SiteLegalFooter } from './SiteLegalFooter';
+import { apiFetch } from '../lib/api';
 
 interface PixPaymentScreenProps {
   user: UserProfile;
@@ -77,7 +78,7 @@ export const PixPaymentScreen: React.FC<PixPaymentScreenProps> = ({
       setAbatePayError('');
       try {
         const nameParts = (user.full_name || 'Aluno BIA').trim().split(/\s+/);
-        const response = await fetch('/api/payments/create-pix', {
+        const response = await apiFetch('/api/payments/create-pix', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

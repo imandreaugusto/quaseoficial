@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { apiFetch } from '../lib/api';
 import {
   HelpCircle,
   Trophy,
@@ -318,7 +319,7 @@ export const BrazilianQuiz: React.FC<BrazilianQuizProps> = ({ accentColor = '#ff
     setGenerateError('');
 
     try {
-      const res = await fetch('/api/generate-quiz', {
+      const res = await apiFetch('/api/generate-quiz', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

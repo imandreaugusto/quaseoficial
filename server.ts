@@ -130,6 +130,25 @@ async function startServer() {
   // JSON parser for API requests
   app.use(express.json());
 
+  const allowedOrigins = new Set([
+    'https://imandreaugusto.github.io',
+    'http://localhost:5173',
+    'http://localhost:3000'
+  ]);
+  app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    if (origin && allowedOrigins.has(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Vary', 'Origin');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    }
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(204);
+    }
+    next();
+  });
+
   // Baseline security headers; Cloudflare can add WAF, rate limits and TLS at the edge.
   app.use((_req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -176,7 +195,9 @@ async function startServer() {
           email: email || 'aluno@brazilianinaction.com'
         },
         returnUrl: process.env.PUBLIC_APP_URL || undefined,
-        callbackUrl: process.env.PUBLIC_APP_URL ? `${process.env.PUBLIC_APP_URL.replace(/\/$/, '')}/api/webhook/payment` : undefined
+        callbackUrl: (process.env.API_PUBLIC_URL || process.env.PUBLIC_API_URL)
+          ? `${(process.env.API_PUBLIC_URL || process.env.PUBLIC_API_URL || '').replace(/\/$/, '')}/api/webhook/payment`
+          : undefined
       };
 
       const response = await fetch(abatePayCreateUrl, {

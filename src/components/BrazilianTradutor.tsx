@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { apiFetch } from '../lib/api';
 import {
   Languages,
   Send,
@@ -284,7 +285,7 @@ export const BrazilianTradutor: React.FC<BrazilianTradutorProps> = ({
 
     setLoading(true);
     try {
-      const res = await fetch('/api/cultural-translate', {
+      const res = await apiFetch('/api/cultural-translate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
