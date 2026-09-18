@@ -86,6 +86,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
   );
   const allFriends = useMemo(
     () => profiles
+      .filter((profile) => Boolean(onlineUsers[profile.id]))
       .sort((a, b) => {
         const aOnline = onlineUsers[a.id] ? 1 : 0;
         const bOnline = onlineUsers[b.id] ? 1 : 0;
@@ -162,6 +163,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
               ip_region: profile.ip_region,
               ip_country: profile.ip_country
             });
+            updatePresence();
           }
         });
     };
