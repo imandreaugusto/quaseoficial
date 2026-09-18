@@ -4,6 +4,7 @@ import { MessageCircle, Send, Smile, Users, WifiOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile } from '../types';
 import { getSupabaseClient, getSupabaseConfig } from '../utils/supabaseClient';
+import { CEO_EMAIL } from '../utils/security';
 
 const QUICK_EMOJIS = [
   '😀', '😂', '😍', '😊', '😉', '😎', '🥳', '😢',
@@ -30,6 +31,7 @@ interface FriendMessage {
   receiver_id: string;
   body: string;
   created_at: string;
+  expires_at: string;
 }
 
 interface PresencePayload {
@@ -56,6 +58,11 @@ const formatLocation = (profile: Pick<FriendProfile, 'ip_region' | 'ip_country'>
 
 const formatTime = (date: string) =>
   new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit' }).format(new Date(date));
+
+const getPublicName = (user: Pick<UserProfile, 'email' | 'full_name'>) =>
+  user.email.trim().toLowerCase() === CEO_EMAIL.toLowerCase()
+    ? 'André Augusto'
+    : user.full_name?.trim() || user.email.split('@')[0];
 
 export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsProps) {
   const [profiles, setProfiles] = useState<FriendProfile[]>([]);
@@ -100,7 +107,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
       const profile: FriendProfile = {
         id: currentUser.id,
         email: currentUser.email,
-        full_name: currentUser.full_name || currentUser.email.split('@')[0],
+        full_name: getPublicName(currentUser),
         ip_region: currentUser.ip_region,
         ip_country: currentUser.ip_country
       };
@@ -182,8 +189,9 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
       setError('');
       const { data, error: messagesError } = await client
         .from(MESSAGES_TABLE)
-        .select('id, sender_id, receiver_id, body, created_at')
+        .select('id, sender_id, receiver_id, body, created_at, expires_at')
         .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${selectedFriendId}),and(sender_id.eq.${selectedFriendId},receiver_id.eq.${currentUser.id})`)
+        .gt('expires_at', new Date().toISOString())
         .order('created_at', { ascending: true });
 
       if (cancelled) return;
@@ -202,6 +210,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
         { event: 'INSERT', schema: 'public', table: MESSAGES_TABLE },
         (payload) => {
           const nextMessage = payload.new as FriendMessage;
+          if (new Date(nextMessage.expires_at).getTime() <= Date.now()) return;
           const isThisConversation =
             (nextMessage.sender_id === currentUser.id && nextMessage.receiver_id === selectedFriendId) ||
             (nextMessage.sender_id === selectedFriendId && nextMessage.receiver_id === currentUser.id);
@@ -238,7 +247,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
     const { data, error: sendError } = await client
       .from(MESSAGES_TABLE)
       .insert({ sender_id: currentUser.id, receiver_id: selectedFriendId, body })
-      .select('id, sender_id, receiver_id, body, created_at')
+      .select('id, sender_id, receiver_id, body, created_at, expires_at')
       .single();
 
     if (sendError) {
