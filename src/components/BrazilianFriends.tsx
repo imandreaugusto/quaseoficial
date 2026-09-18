@@ -333,7 +333,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
           </header>
 
           <div className="friends-message-scroll custom-scrollbar">
-            {!selectedFriend && messages.length === 0 && (
+            {!isLoadingMessages && !selectedFriend && messages.length === 0 && (
               <div className="friends-empty-conversation">
                 <MessageCircle size={28} className="mb-3" />
                 <p>Say hi to everyone in Brazilian Friends.</p>
