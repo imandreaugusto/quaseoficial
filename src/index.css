@@ -72,6 +72,180 @@ input, textarea, select {
   box-shadow: 0 25px 60px rgba(0, 0, 0, 0.75);
 }
 
+.friends-shell {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  height: calc(100dvh - 5rem);
+  min-height: 34rem;
+  padding: clamp(0.5rem, 2vw, 1.5rem);
+  overflow: hidden;
+  background: transparent;
+}
+
+.friends-shell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: transparent;
+}
+
+.friends-glass-frame {
+  display: grid;
+  grid-template-columns: minmax(14rem, 17rem) minmax(0, 1fr);
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid rgba(211, 224, 255, 0.3);
+  border-radius: clamp(1.25rem, 3vw, 2rem);
+  background: linear-gradient(120deg, rgba(19, 31, 75, 0.52), rgba(24, 20, 62, 0.3));
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45), inset 0 1px rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(18px) saturate(125%);
+  -webkit-backdrop-filter: blur(18px) saturate(125%);
+}
+
+.friends-people-panel {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  border-right: 1px solid rgba(214, 224, 255, 0.17);
+  background: rgba(6, 13, 38, 0.35);
+}
+
+.friends-people-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-height: 5rem;
+  padding: 1rem 1rem 0.75rem;
+  border-bottom: 1px solid rgba(214, 224, 255, 0.14);
+}
+
+.friends-brand-mark {
+  display: grid;
+  width: 2.45rem;
+  height: 2.45rem;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 1px solid rgba(255, 255, 255, 0.48);
+  border-radius: 0.85rem;
+  color: white;
+  font-size: 1.45rem;
+  font-weight: 800;
+  font-style: italic;
+  background: linear-gradient(135deg, #3c71ff, #6550e8 68%, #e3437c);
+  box-shadow: 0 0 22px rgba(73, 115, 255, 0.5);
+}
+
+.friends-brand-name, .friends-brand-subtitle { margin: 0; }
+.friends-brand-name { color: white; font-size: 0.9rem; font-weight: 700; letter-spacing: -0.02em; }
+.friends-brand-subtitle { color: rgba(226, 233, 255, 0.58); font-size: 0.6rem; }
+
+.friends-online-label {
+  display: flex;
+  align-items: center;
+  gap: 0.42rem;
+  padding: 1rem 1rem 0.45rem;
+  color: rgba(240, 245, 255, 0.86);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.friends-online-dot, .friends-status {
+  display: inline-block;
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 999px;
+  background: #64748b;
+}
+.friends-online-dot, .friends-status-online { background: #4ade80; box-shadow: 0 0 10px rgba(74, 222, 128, 0.9); }
+
+.friends-people-list { min-height: 0; flex: 1; padding: 0.25rem 0.55rem 1rem; }
+.friends-person {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.52rem 0.55rem;
+  border: 1px solid transparent;
+  border-radius: 0.9rem;
+  text-align: left;
+  color: white;
+  background: transparent;
+  transition: background 160ms ease, border 160ms ease;
+}
+.friends-person:hover, .friends-person-selected { border-color: rgba(141, 177, 255, 0.25); background: rgba(98, 124, 235, 0.22); }
+.friends-avatar { position: relative; display: grid; width: 1.72rem; height: 1.72rem; place-items: center; flex: 0 0 auto; border: 1px solid rgba(255,255,255,0.45); border-radius: 50%; color: white; font-size: 0.7rem; font-weight: 700; background: linear-gradient(135deg, var(--avatar-color), #6d4be8); }
+.friends-status { position: absolute; right: -0.06rem; bottom: -0.02rem; width: 0.42rem; height: 0.42rem; border: 2px solid #172150; }
+.friends-person-copy { min-width: 0; display: flex; flex-direction: column; }
+.friends-person-copy strong { overflow: hidden; color: rgba(255,255,255,0.92); font-size: 0.7rem; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.friends-person-copy small { overflow: hidden; color: rgba(214,225,255,0.5); font-size: 0.58rem; text-overflow: ellipsis; white-space: nowrap; }
+.friends-muted-copy { padding: 0.8rem; color: rgba(225,233,255,0.52); font-size: 0.72rem; }
+
+.friends-conversation { display: flex; min-width: 0; min-height: 0; flex-direction: column; }
+.friends-conversation-header { display: flex; min-height: 5rem; align-items: center; gap: 1rem; padding: 0.9rem clamp(1rem, 3vw, 2rem); border-bottom: 1px solid rgba(214,224,255,0.16); }
+.friends-header-title { display: flex; min-width: 0; align-items: center; gap: 0.75rem; }
+.friends-header-icon { display: grid; width: 2.2rem; height: 2.2rem; place-items: center; border-radius: 0.8rem; color: #e8eeff; background: rgba(129, 153, 255, 0.24); }
+.friends-header-title h1, .friends-header-title p { margin: 0; }
+.friends-header-title h1 { color: white; font-size: clamp(0.88rem, 1.4vw, 1rem); font-weight: 700; }
+.friends-header-title p { color: rgba(225,233,255,0.55); font-size: 0.68rem; }
+.friends-selected-chip { margin-left: auto; color: rgba(236,241,255,0.65); font-size: 0.68rem; }
+.friends-mobile-people-button { display: none; margin-left: auto; align-items: center; gap: 0.4rem; border: 1px solid rgba(218, 229, 255, 0.2); border-radius: 999px; padding: 0.45rem 0.65rem; color: rgba(242,246,255,0.82); background: rgba(79, 100, 195, 0.24); font-size: 0.66rem; }
+.friends-message-scroll { min-height: 0; flex: 1; overflow-y: auto; padding: clamp(1rem, 3vw, 2rem); }
+.friends-message-row { display: flex; justify-content: flex-start; margin-bottom: 0.95rem; }
+.friends-message-row-own { justify-content: flex-end; }
+.friends-message-group { max-width: min(78%, 42rem); }
+.friends-message-row-own .friends-message-group { text-align: right; }
+.friends-message-meta { display: flex; align-items: baseline; gap: 0.45rem; padding: 0 0.7rem 0.25rem; color: rgba(229,236,255,0.5); font-size: 0.59rem; }
+.friends-message-meta strong { color: rgba(255,255,255,0.9); font-size: 0.68rem; }
+.friends-message-bubble { display: inline-block; max-width: 100%; border: 1px solid rgba(205, 222, 255, 0.15); border-radius: 1.1rem 1.1rem 1.1rem 0.35rem; padding: 0.65rem 0.8rem 0.45rem; color: rgba(247,249,255,0.9); background: rgba(117, 137, 222, 0.2); box-shadow: inset 0 1px rgba(255,255,255,0.09); text-align: left; }
+.friends-message-bubble-own { border-color: color-mix(in srgb, var(--bubble-accent) 55%, white 10%); border-radius: 1.1rem 1.1rem 0.35rem 1.1rem; background: linear-gradient(135deg, color-mix(in srgb, var(--bubble-accent) 72%, #243c96), rgba(63, 183, 192, 0.72)); }
+.friends-message-bubble p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.82rem; line-height: 1.45; }
+.friends-message-bubble span { display: block; margin-top: 0.22rem; color: rgba(230,237,255,0.48); font-size: 0.56rem; }
+.friends-composer { position: relative; padding: 0.8rem clamp(0.8rem, 2.5vw, 1.75rem) clamp(0.8rem, 2.5vw, 1.4rem); border-top: 1px solid rgba(214,224,255,0.14); }
+.friends-composer-inner { display: flex; align-items: center; gap: 0.35rem; border: 1px solid rgba(218,229,255,0.23); border-radius: 1.1rem; padding: 0.3rem; background: rgba(10, 18, 54, 0.42); box-shadow: inset 0 1px rgba(255,255,255,0.09); }
+.friends-composer-input { min-width: 0; flex: 1; border: 0; outline: 0; padding: 0.65rem 0.6rem; color: white; background: transparent; font: inherit; font-size: 0.78rem; }
+.friends-composer-input::placeholder { color: rgba(220,228,255,0.46); }
+.friends-icon-button, .friends-send-button { display: grid; width: 2.2rem; height: 2.2rem; place-items: center; border: 0; border-radius: 0.8rem; color: rgba(233,239,255,0.72); background: transparent; }
+.friends-icon-button:hover { color: white; background: rgba(255,255,255,0.1); }
+.friends-send-button { color: #08102e; background: linear-gradient(135deg, #90a9ff, #6de2e0); }
+.friends-send-button:hover { filter: brightness(1.1); }
+.friends-composer-icon:disabled, .friends-send-button:disabled { cursor: not-allowed; opacity: 0.35; }
+.friends-emoji-picker { position: absolute; bottom: calc(100% - 0.45rem); left: 1rem; display: grid; grid-template-columns: repeat(8, 1fr); gap: 0.2rem; padding: 0.55rem; border: 1px solid rgba(216,228,255,0.22); border-radius: 1rem; background: rgba(13, 21, 61, 0.92); box-shadow: 0 18px 50px rgba(0,0,0,0.5); backdrop-filter: blur(20px); }
+.friends-emoji-button { display: grid; width: 1.9rem; height: 1.9rem; place-items: center; border: 0; border-radius: 0.45rem; background: transparent; font-size: 1.05rem; }
+.friends-emoji-button:hover { background: rgba(255,255,255,0.1); }
+.friends-error { margin: 0.45rem 0 0; color: #fda4af; font-size: 0.68rem; }
+.friends-empty-state { display: grid; min-height: 100%; place-items: center; padding: 2rem; text-align: center; }
+.friends-empty-conversation { display: grid; min-height: 16rem; place-items: center; color: rgba(225,233,255,0.5); font-size: 0.78rem; text-align: center; }
+.friends-drawer-backdrop { position: fixed; inset: 0; z-index: 4000; display: flex; justify-content: flex-start; background: rgba(2,5,20,0.5); backdrop-filter: blur(10px); }
+.friends-drawer-backdrop > div { width: min(85vw, 20rem); height: 100%; }
+.friends-people-panel-mobile { width: 100%; height: 100%; border: 0; background: rgba(8, 15, 46, 0.88); backdrop-filter: blur(24px); }
+.friends-people-panel-mobile .friends-people-heading { padding-top: max(1rem, env(safe-area-inset-top)); }
+
+@media (max-width: 720px) {
+  .friends-shell { height: calc(100dvh - 4.5rem); min-height: 30rem; padding: 0.35rem; }
+  .friends-glass-frame { display: block; border-radius: 1.25rem; }
+  .friends-glass-frame > .friends-people-panel { display: none; }
+  .friends-conversation-header { min-height: 4.2rem; padding: 0.7rem 0.8rem; }
+  .friends-header-icon { width: 2rem; height: 2rem; }
+  .friends-header-title p { font-size: 0.62rem; }
+  .friends-selected-chip { display: none; }
+  .friends-mobile-people-button { display: flex; }
+  .friends-message-scroll { padding: 1rem 0.75rem; }
+  .friends-message-group { max-width: 88%; }
+  .friends-message-bubble p { font-size: 0.76rem; }
+  .friends-composer { padding-bottom: max(0.7rem, env(safe-area-inset-bottom)); }
+}
+
+@media (min-width: 721px) and (max-width: 1024px) {
+  .friends-glass-frame { grid-template-columns: 13rem minmax(0, 1fr); }
+  .friends-people-heading { padding-inline: 0.75rem; }
+  .friends-brand-subtitle { display: none; }
+}
+
 .menu-cinematic-text {
   text-shadow: none;
 }
