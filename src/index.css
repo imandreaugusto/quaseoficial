@@ -205,16 +205,16 @@ input, textarea, select {
 .friends-selected-chip { margin-left: auto; color: rgba(236,241,255,0.65); font-size: 0.68rem; }
 .friends-mobile-people-button { display: none; margin-left: auto; align-items: center; gap: 0.4rem; border: 1px solid rgba(218, 229, 255, 0.2); border-radius: 999px; padding: 0.45rem 0.65rem; color: rgba(242,246,255,0.82); background: rgba(79, 100, 195, 0.24); font-size: 0.66rem; }
 .friends-message-scroll { min-height: 0; flex: 1; overflow-y: auto; padding: clamp(1rem, 3vw, 2rem); }
-.friends-message-row { display: flex; justify-content: flex-start; margin-bottom: 0.95rem; }
+.friends-message-row { display: flex; justify-content: flex-start; margin-bottom: 0.62rem; }
 .friends-message-row-own { justify-content: flex-end; }
 .friends-message-group { max-width: min(78%, 42rem); }
 .friends-message-row-own .friends-message-group { text-align: right; }
-.friends-message-meta { display: flex; align-items: baseline; gap: 0.45rem; padding: 0 0.7rem 0.25rem; color: rgba(229,236,255,0.5); font-size: 0.59rem; }
-.friends-message-meta strong { color: rgba(255,255,255,0.9); font-size: 0.68rem; }
-.friends-message-bubble { display: inline-block; max-width: 100%; border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 0.9rem 0.9rem 0.9rem 0.25rem; padding: 0.42rem 0.62rem 0.32rem; color: rgba(247,249,255,0.9); background: rgba(255, 255, 255, 0.1); box-shadow: inset 0 1px rgba(255,255,255,0.09); text-align: left; }
+.friends-message-meta { display: flex; align-items: baseline; gap: 0.35rem; padding: 0 0.55rem 0.15rem; color: rgba(229,236,255,0.5); font-size: 0.54rem; }
+.friends-message-meta strong { color: rgba(255,255,255,0.9); font-size: 0.62rem; }
+.friends-message-bubble { display: inline-block; max-width: 100%; border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 0.78rem 0.78rem 0.78rem 0.22rem; padding: 0.3rem 0.52rem 0.22rem; color: rgba(247,249,255,0.9); background: rgba(255, 255, 255, 0.1); box-shadow: inset 0 1px rgba(255,255,255,0.09); text-align: left; }
 .friends-message-bubble-own { border-color: color-mix(in srgb, var(--bubble-accent) 55%, white 10%); border-radius: 1.1rem 1.1rem 0.35rem 1.1rem; background: linear-gradient(135deg, color-mix(in srgb, var(--bubble-accent) 72%, #243c96), rgba(63, 183, 192, 0.72)); }
-.friends-message-bubble p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.76rem; line-height: 1.32; }
-.friends-message-bubble span { display: block; margin-top: 0.14rem; color: rgba(230,237,255,0.48); font-size: 0.52rem; }
+.friends-message-bubble p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.72rem; line-height: 1.24; }
+.friends-message-bubble span { display: block; margin-top: 0.1rem; color: rgba(230,237,255,0.48); font-size: 0.48rem; }
 .friends-composer { position: relative; padding: 0.8rem clamp(0.8rem, 2.5vw, 1.75rem) clamp(0.8rem, 2.5vw, 1.4rem); border-top: 1px solid rgba(214,224,255,0.14); }
 .friends-composer-inner { display: flex; align-items: center; gap: 0.35rem; border: 1px solid rgba(255,255,255,0.18); border-radius: 1.1rem; padding: 0.3rem; background: rgba(18, 18, 22, 0.52); box-shadow: inset 0 1px rgba(255,255,255,0.09); }
 .friends-composer-input { min-width: 0; flex: 1; border: 0; outline: 0; padding: 0.65rem 0.6rem; color: white; background: transparent; font: inherit; font-size: 0.78rem; }
