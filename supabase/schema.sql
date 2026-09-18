@@ -181,9 +181,38 @@ for all using (true) with check (true);
 
 drop policy if exists "trial_coupons_all_access" on bia_trial_coupons;
 create policy "trial_coupons_public_read" on bia_trial_coupons
-for select using (true);
+for select using (false);
 
-revoke insert, update, delete on table bia_trial_coupons from anon, authenticated;
+revoke select, insert, update, delete on table bia_trial_coupons from anon, authenticated;
+
+create or replace function check_trial_coupon(requested_code text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare found_coupon bia_trial_coupons;
+begin
+  select * into found_coupon
+  from bia_trial_coupons
+  where upper(code) = upper(trim(requested_code))
+    and is_used = false
+    and (expires_at is null or expires_at > now())
+  limit 1;
+
+  if found_coupon.id is null then
+    return jsonb_build_object('ok', false);
+  end if;
+
+  return jsonb_build_object(
+    'ok', true,
+    'coupon', jsonb_build_object('code', found_coupon.code, 'days', found_coupon.days)
+  );
+end;
+$$;
+
+revoke all on function check_trial_coupon(text) from public;
+grant execute on function check_trial_coupon(text) to anon, authenticated;
 
 create or replace function redeem_trial_coupon(requested_code text, redeemer_email text)
 returns jsonb

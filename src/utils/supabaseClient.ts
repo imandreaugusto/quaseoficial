@@ -299,15 +299,12 @@ export const fetchCouponFromSupabase = async (code: string) => {
   if (!client || !code) return null;
 
   try {
-    const { data, error } = await client
-      .from('bia_trial_coupons')
-      .select('*')
-      .ilike('code', code.trim().toUpperCase())
-      .limit(1)
-      .maybeSingle();
+    const { data, error } = await client.rpc('check_trial_coupon', {
+      requested_code: code.trim().toUpperCase()
+    });
 
     if (error) throw error;
-    return data;
+    return data?.ok ? data.coupon : null;
   } catch (error) {
     console.warn('Supabase coupon fetch failed:', error);
     return null;
