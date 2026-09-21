@@ -7,10 +7,15 @@ create table if not exists public.brazilian_friends_users (
   email text not null,
   full_name text not null,
   photo_url text,
+  status_message text,
   ip_region text,
   ip_country text,
   updated_at timestamptz not null default now()
 );
+
+-- Adds columns for tables that were created before photo_url/status_message existed.
+alter table public.brazilian_friends_users add column if not exists photo_url text;
+alter table public.brazilian_friends_users add column if not exists status_message text;
 
 create table if not exists public.brazilian_friends_messages (
   id uuid primary key default gen_random_uuid(),
