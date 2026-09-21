@@ -1002,7 +1002,7 @@ export default function App() {
                   )}
 
                   {currentApp === 'biacompare' && (isAdmin || perms.biacompare) && (
-                    <BiaCompare accentColor={settings.accentColor} onNavigate={setCurrentApp} canManageLibrary={effectiveIsAdmin} />
+                    <BiaCompare accentColor={settings.accentColor} onNavigate={setCurrentApp} />
                   )}
 
                   {currentApp === 'conversation' && (isAdmin || perms.conversation) && (

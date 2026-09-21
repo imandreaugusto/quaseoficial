@@ -77,7 +77,7 @@ const DEFAULT_ACTIVITIES: CompareActivity[] = [
   }
 ];
 
-export const BiaCompare: React.FC<{ accentColor: string; onNavigate?: (app: string) => void; canManageLibrary?: boolean }> = ({ accentColor, onNavigate, canManageLibrary = false }) => {
+export const BiaCompare: React.FC<{ accentColor: string; onNavigate?: (app: string) => void }> = ({ accentColor, onNavigate }) => {
   // State for activities
   const [activities, setActivities] = useState<CompareActivity[]>(() => {
     const saved = localStorage.getItem('bia_compare_activities');
@@ -501,7 +501,6 @@ export const BiaCompare: React.FC<{ accentColor: string; onNavigate?: (app: stri
 
   // Create New Empty Activity
   const handleCreateNewActivity = () => {
-    if (!canManageLibrary) return;
     const newAct: CompareActivity = {
       id: String(Date.now()),
       title: 'New Picture Comparison',
@@ -529,7 +528,6 @@ export const BiaCompare: React.FC<{ accentColor: string; onNavigate?: (app: stri
 
   // Update field of current active activity
   const handleUpdateField = (field: keyof CompareActivity, value: any) => {
-    if (!canManageLibrary) return;
     if (!activeActivity) return;
     const nextList = activities.map(a => {
       if (a.id === activeActivity.id) {
@@ -542,7 +540,6 @@ export const BiaCompare: React.FC<{ accentColor: string; onNavigate?: (app: stri
 
   // Duplicate current active activity
   const handleDuplicateActivity = () => {
-    if (!canManageLibrary) return;
     if (!activeActivity) return;
     const dup: CompareActivity = {
       ...activeActivity,
@@ -558,7 +555,6 @@ export const BiaCompare: React.FC<{ accentColor: string; onNavigate?: (app: stri
 
   // Delete activity
   const handleDeleteActivity = (id: string, e?: React.MouseEvent) => {
-    if (!canManageLibrary) return;
     if (e) e.stopPropagation();
     if (activities.length <= 1) {
       alert('Você precisa manter pelo menos uma atividade na biblioteca.');
@@ -1273,15 +1269,13 @@ export const BiaCompare: React.FC<{ accentColor: string; onNavigate?: (app: stri
             <span>Concluir (Done)</span>
           </button>
           
-          {canManageLibrary && (
-            <button
-              onClick={handleCreateNewActivity}
-              className="px-3.5 py-2 bg-blue-600/90 hover:bg-blue-500 text-white font-bold rounded-xl text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-lg shadow-blue-950/30 hover:scale-[1.02] active:scale-95"
-            >
-              <Plus size={15} />
-              <span>Nova Atividade</span>
-            </button>
-          )}
+          <button
+            onClick={handleCreateNewActivity}
+            className="px-3.5 py-2 bg-blue-600/90 hover:bg-blue-500 text-white font-bold rounded-xl text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-lg shadow-blue-950/30 hover:scale-[1.02] active:scale-95"
+          >
+            <Plus size={15} />
+            <span>Nova Atividade</span>
+          </button>
 
           <button
             onClick={() => {
@@ -1507,15 +1501,13 @@ export const BiaCompare: React.FC<{ accentColor: string; onNavigate?: (app: stri
                     {/* Metadata details */}
                     <div className="flex justify-between items-center mt-2.5 pt-2 border-t border-white/5 text-[10px] text-white/40">
                       <span className="font-mono">{act.questions.length} perguntas</span>
-                      {canManageLibrary && (
-                        <button
-                          onClick={(e) => handleDeleteActivity(act.id, e)}
-                          className="opacity-0 group-hover:opacity-100 p-1 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-all cursor-pointer"
-                          title="Deletar atividade"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      )}
+                      <button
+                        onClick={(e) => handleDeleteActivity(act.id, e)}
+                        className="opacity-0 group-hover:opacity-100 p-1 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-all cursor-pointer"
+                        title="Deletar atividade"
+                      >
+                        <Trash2 size={12} />
+                      </button>
                     </div>
                   </div>
                 );
