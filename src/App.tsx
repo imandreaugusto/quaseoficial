@@ -497,15 +497,18 @@ export default function App() {
 
   // Read Club actions
   const handleAddStory = (story: Omit<StoryItem, 'id'>) => {
+    if (!effectiveIsAdmin) return;
     const newStory: StoryItem = { ...story, id: Date.now() };
     handleUpdateLibrary([...library, newStory]);
   };
 
   const handleUpdateStory = (id: number, updated: Partial<StoryItem>) => {
+    if (!effectiveIsAdmin) return;
     handleUpdateLibrary(library.map((item) => (item.id === id ? { ...item, ...updated } : item)));
   };
 
   const handleDeleteStory = (id: number) => {
+    if (!effectiveIsAdmin) return;
     handleUpdateLibrary(library.filter((item) => item.id !== id));
   };
 
@@ -969,6 +972,8 @@ export default function App() {
                   {currentApp === 'readclub' && (isAdmin || perms.readclub) && (
                     <ReadClub
                       library={library}
+                      canManageLibrary={effectiveIsAdmin}
+                      canManageLibrary={effectiveIsAdmin}
                       onAddStory={handleAddStory}
                       onUpdateStory={handleUpdateStory}
                       onDeleteStory={handleDeleteStory}

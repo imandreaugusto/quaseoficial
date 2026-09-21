@@ -886,6 +886,7 @@ export default function App() {
                   {currentApp === 'readclub' && (isAdmin || perms.readclub) && (
                     <ReadClub
                       library={library}
+                      canManageLibrary={effectiveIsAdmin}
                       onAddStory={handleAddStory}
                       onUpdateStory={handleUpdateStory}
                       onDeleteStory={handleDeleteStory}

@@ -9,6 +9,7 @@ import { apiFetch } from '../lib/api';
 
 interface ReadClubProps {
   library: StoryItem[];
+  canManageLibrary?: boolean;
   onAddStory: (story: Omit<StoryItem, 'id'>) => void;
   onUpdateStory: (id: number, updated: Partial<StoryItem>) => void;
   onDeleteStory: (id: number) => void;
@@ -26,6 +27,7 @@ interface ReadClubProps {
 
 export const ReadClub: React.FC<ReadClubProps> = ({
   library,
+  canManageLibrary = false,
   onAddStory,
   onUpdateStory,
   onDeleteStory,
@@ -441,12 +443,14 @@ const COMMON_DICTIONARY: Record<string, string> = {
   const [modalTextValue, setModalTextValue] = useState('');
 
   const handleOpenAddStory = () => {
+    if (!canManageLibrary) return;
     setEditingBook(null);
     setModalTextValue('');
     setEditorModalOpen(true);
   };
 
   const handleOpenEditStory = (book: StoryItem) => {
+    if (!canManageLibrary) return;
     setEditingBook(book);
     setModalTextValue(book.text || '');
     setEditorModalOpen(true);
@@ -454,6 +458,7 @@ const COMMON_DICTIONARY: Record<string, string> = {
 
   const handleSaveBook = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canManageLibrary) return;
     const form = e.target as HTMLFormElement;
     const cat = (form.elements.namedItem('cat') as HTMLInputElement).value.toUpperCase() || 'GERAL';
     const title = (form.elements.namedItem('title') as HTMLInputElement).value;
@@ -675,13 +680,15 @@ const COMMON_DICTIONARY: Record<string, string> = {
             />
           </div>
 
-          <button
-            onClick={handleOpenAddStory}
-            className="w-full py-2 bg-white/5 border border-dashed border-white/10 hover:border-white/30 rounded-lg text-[10px] font-bold uppercase tracking-wider text-white/60 hover:text-white transition-all flex items-center justify-center gap-1.5 mb-4 cursor-pointer"
-          >
-            <Plus size={12} />
-            <span>Adicionar Novo</span>
-          </button>
+          {canManageLibrary && (
+            <button
+              onClick={handleOpenAddStory}
+              className="w-full py-2 bg-white/5 border border-dashed border-white/10 hover:border-white/30 rounded-lg text-[10px] font-bold uppercase tracking-wider text-white/60 hover:text-white transition-all flex items-center justify-center gap-1.5 mb-4 cursor-pointer"
+            >
+              <Plus size={12} />
+              <span>Adicionar Novo</span>
+            </button>
+          )}
 
           {/* Groupings display Accordion */}
           <div className="min-h-0 flex-1 overflow-y-auto flex flex-col gap-2">
@@ -772,26 +779,28 @@ const COMMON_DICTIONARY: Record<string, string> = {
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                              <button
-                                onClick={() => handleOpenEditStory(b)}
-                                className="p-1 rounded text-white/40 hover:text-white hover:bg-white/10 cursor-pointer"
-                                title="Editar"
-                              >
-                                <Edit size={10} />
-                              </button>
-                              <button
-                                onClick={() => {
-                                  if (window.confirm('Deseja excluir este item?')) {
-                                    onDeleteStory(b.id);
-                                  }
-                                }}
-                                className="p-1 rounded text-red-400/50 hover:text-red-400 hover:bg-red-500/10 cursor-pointer"
-                                title="Excluir"
-                              >
-                                <Trash2 size={10} />
-                              </button>
-                            </div>
+                            {canManageLibrary && (
+                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                                <button
+                                  onClick={() => handleOpenEditStory(b)}
+                                  className="p-1 rounded text-white/40 hover:text-white hover:bg-white/10 cursor-pointer"
+                                  title="Editar"
+                                >
+                                  <Edit size={10} />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    if (window.confirm('Deseja excluir este item?')) {
+                                      onDeleteStory(b.id);
+                                    }
+                                  }}
+                                  className="p-1 rounded text-red-400/50 hover:text-red-400 hover:bg-red-500/10 cursor-pointer"
+                                  title="Excluir"
+                                >
+                                  <Trash2 size={10} />
+                                </button>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
