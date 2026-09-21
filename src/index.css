@@ -202,6 +202,23 @@ input, textarea, select {
 .friends-header-title h1, .friends-header-title p { margin: 0; }
 .friends-header-title h1 { color: white; font-size: clamp(0.88rem, 1.4vw, 1rem); font-weight: 700; }
 .friends-header-title p { color: rgba(225,233,255,0.55); font-size: 0.68rem; }
+.friends-header-actions { display: flex; align-items: center; gap: 0.5rem; margin-left: auto; }
+.friends-header-action-button, .friends-header-info-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  color: rgba(242, 246, 255, 0.9);
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+.friends-header-action-button:hover, .friends-header-info-button:hover { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.32); transform: translateY(-1px); }
+.friends-header-whatsapp { padding: 0.48rem 0.72rem; font-size: 0.66rem; font-weight: 600; }
+.friends-header-info-button { width: 1.9rem; height: 1.9rem; font-size: 0.76rem; }
 .friends-selected-chip { margin-left: auto; color: rgba(236,241,255,0.65); font-size: 0.68rem; }
 .friends-mobile-people-button { display: none; margin-left: auto; align-items: center; gap: 0.4rem; border: 1px solid rgba(218, 229, 255, 0.2); border-radius: 999px; padding: 0.45rem 0.65rem; color: rgba(242,246,255,0.82); background: rgba(79, 100, 195, 0.24); font-size: 0.66rem; }
 .friends-message-scroll { min-height: 0; flex: 1; overflow-y: auto; padding: clamp(1rem, 3vw, 2rem); }
