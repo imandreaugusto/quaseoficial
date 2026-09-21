@@ -973,7 +973,6 @@ export default function App() {
                     <ReadClub
                       library={library}
                       canManageLibrary={effectiveIsAdmin}
-                      canManageLibrary={effectiveIsAdmin}
                       onAddStory={handleAddStory}
                       onUpdateStory={handleUpdateStory}
                       onDeleteStory={handleDeleteStory}
