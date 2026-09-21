@@ -484,12 +484,6 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
             <div className="friends-header-title"><div className="friends-header-icon"><Users size={18} /></div><div><h1>{selectedFriend ? selectedFriend.full_name : 'Brazilian Friends'}</h1><p>{selectedFriend ? `Private conversation · ${formatLocation(selectedFriend)}` : `${onlineFriends.length} people online`}</p></div></div>
 
             <div className="friends-header-actions">
-              <label className="friends-header-action-button friends-header-photo" title="Adicionar foto de perfil">
-                <Camera size={15} />
-                <span>Foto</span>
-                <input type="file" accept="image/*" onChange={handleProfilePhotoChange} />
-              </label>
-
               <a
                 href="https://chat.whatsapp.com/DGnejSTzsBKKN02aH0tU8A"
                 target="_blank"
