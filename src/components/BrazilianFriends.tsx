@@ -131,8 +131,8 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
 
       const { error: profileError } = await client.from(USERS_TABLE).upsert(profile, { onConflict: 'id' });
       if (profileError) {
+        console.warn('Brazilian Friends profile sync failed:', profileError);
         if (!cancelled) {
-          setError('O módulo de Brazilian Friends ainda está sendo configurado. Tente novamente em alguns instantes.');
           setIsLoading(false);
         }
         return;
@@ -198,7 +198,6 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
     const client = getSupabaseClient();
     if (!client) {
       setIsLoadingMessages(false);
-      setError('A conexão do Brazilian Friends ainda está sendo configurada.');
       setMessages([]);
       return;
     }
@@ -381,11 +380,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
   if (!configuredUrl || !configuredAnonKey) {
     return (
       <section className="friends-shell">
-        <div className="friends-glass-frame friends-empty-state">
-          <WifiOff className="mx-auto mb-4 text-white/50" size={28} />
-          <h1 className="text-xl font-semibold text-white">Brazilian Friends</h1>
-          <p className="mt-2 text-sm text-white/60">A conexão do Brazilian Friends ainda está sendo configurada.</p>
-        </div>
+        <div className="friends-glass-frame friends-empty-state" />
       </section>
     );
   }
