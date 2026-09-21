@@ -187,13 +187,10 @@ async function startServer() {
           amount: Math.round((Number(amount) || 10) * 100),
           description: description || 'Assinatura Mensal - Brazilian in Action Idiomas',
           expiresIn: 3600,
-          customer: {
-            name: `${firstName || 'Aluno'} ${lastName || 'BIA'}`.trim(),
-            email: email || 'aluno@brazilianinaction.com'
-          },
           metadata: {
             plan: 'brazilian-in-action-monthly',
-            email: email || 'aluno@brazilianinaction.com'
+            email: email || 'aluno@brazilianinaction.com',
+            customerName: `${firstName || 'Aluno'} ${lastName || 'BIA'}`.trim()
           }
         }
       };
@@ -340,6 +337,8 @@ async function startServer() {
         || payload.payment?.customer?.email
         || payload.email
         || payload.data?.email
+        || payload.data?.metadata?.email
+        || payload.metadata?.email
         || '';
 
       if (isApproved && payerEmail) {
