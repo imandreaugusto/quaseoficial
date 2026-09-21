@@ -145,7 +145,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
 
       if (cancelled) return;
       if (profilesError) {
-        setError('Unable to load your friends right now.');
+        setError('Não foi possível carregar os assinantes do Brazilian Friends agora.');
       } else {
         setProfiles((data || []) as FriendProfile[]);
       }
@@ -198,7 +198,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
     const client = getSupabaseClient();
     if (!client) {
       setIsLoadingMessages(false);
-      setError('Supabase connection is waiting to be configured.');
+      setError('A conexão do Brazilian Friends ainda está sendo configurada.');
       setMessages([]);
       return;
     }
@@ -220,7 +220,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
 
       if (cancelled) return;
       if (messagesError) {
-        setError('Unable to load this conversation.');
+        setError('Não foi possível carregar esta conversa no momento.');
       } else {
         setMessages((data || []) as FriendMessage[]);
       }
@@ -277,7 +277,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
 
     if (sendError) {
       setDraft(body);
-      setError('Your message could not be sent.');
+      setError('Sua mensagem não pôde ser enviada. Tente novamente.');
       return;
     }
 
@@ -384,7 +384,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
         <div className="friends-glass-frame friends-empty-state">
           <WifiOff className="mx-auto mb-4 text-white/50" size={28} />
           <h1 className="text-xl font-semibold text-white">Brazilian Friends</h1>
-          <p className="mt-2 text-sm text-white/60">Supabase connection is waiting to be configured.</p>
+          <p className="mt-2 text-sm text-white/60">A conexão do Brazilian Friends ainda está sendo configurada.</p>
         </div>
       </section>
     );
