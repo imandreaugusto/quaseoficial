@@ -435,15 +435,31 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
           const presence = onlineUsers[friend.id];
           const isOnline = Boolean(presence);
           const isSelected = friend.id === selectedFriendId;
+          const isSelf = friend.id === currentUser.id;
           const profileName = presence?.full_name || friend.full_name;
           const profilePhoto = presence?.photo_url || friend.photo_url;
+          const statusLine = presence?.status_message || friend.status_message || formatLocation(presence || friend);
           return (
-            <button key={friend.id} type="button" onClick={() => { setSelectedFriendId(friend.id); setIsPeopleDrawerOpen(false); }} className={`friends-person ${isSelected ? 'friends-person-selected' : ''}`}>
+            <button
+              key={friend.id}
+              type="button"
+              onClick={() => {
+                if (isSelf) {
+                  openProfileEditor();
+                } else {
+                  setSelectedFriendId(friend.id);
+                }
+                setIsPeopleDrawerOpen(false);
+              }}
+              className={`friends-person ${isSelected ? 'friends-person-selected' : ''}`}
+              title={isSelf ? 'Editar sua foto e descrição' : undefined}
+            >
               <span className="friends-avatar-wrap">
                 {renderAvatar(profileName, profilePhoto)}
                 <span className={`friends-status ${isOnline ? 'friends-status-online' : ''}`} />
+                {isSelf && <span className="friends-avatar-edit-badge"><Camera size={9} /></span>}
               </span>
-              <span className="friends-person-copy"><strong>{profileName}</strong><small>{formatLocation(presence || friend)}{friend.id === currentUser.id ? ' · You' : ''}</small></span>
+              <span className="friends-person-copy"><strong>{profileName}</strong><small>{statusLine}{isSelf ? ' · You' : ''}</small></span>
             </button>
           );
         })}
