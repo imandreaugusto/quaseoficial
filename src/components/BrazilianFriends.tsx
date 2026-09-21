@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { RealtimeChannel } from '@supabase/supabase-js';
-import { ArrowLeft, ChevronDown, Info, MessageCircle, MessageCircleMore, Send, Smile, Users, WifiOff, X } from 'lucide-react';
+import { ArrowLeft, Camera, ChevronDown, Info, MessageCircle, MessageCircleMore, Send, Smile, Users, WifiOff, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile } from '../types';
 import { BrazilianLogo } from './BrazilianLogo';
@@ -22,6 +22,7 @@ interface FriendProfile {
   id: string;
   email: string;
   full_name: string;
+  photo_url?: string | null;
   ip_region?: string | null;
   ip_country?: string | null;
 }
@@ -39,6 +40,7 @@ interface PresencePayload {
   user_id: string;
   email: string;
   full_name: string;
+  photo_url?: string | null;
   ip_region?: string | null;
   ip_country?: string | null;
 }
@@ -55,6 +57,13 @@ const formatLocation = (profile: Pick<FriendProfile, 'ip_region' | 'ip_country'>
   const country = profile.ip_country?.trim();
   if (region && country) return `${country} ${region}`;
   return country || region || 'Brasil';
+};
+
+const getInitials = (name: string) => {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return 'B';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
 };
 
 const formatTime = (date: string) =>
@@ -76,8 +85,13 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [error, setError] = useState('');
   const [isPeopleDrawerOpen, setIsPeopleDrawerOpen] = useState(false);
+  const [profilePhoto, setProfilePhoto] = useState<string | undefined>(currentUser.photo_url);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const presenceChannelRef = useRef<RealtimeChannel | null>(null);
+
+  useEffect(() => {
+    setProfilePhoto(currentUser.photo_url);
+  }, [currentUser.photo_url]);
 
   const selectedFriend = profiles.find((profile) => profile.id === selectedFriendId) || null;
   const onlineFriends = useMemo(
@@ -110,6 +124,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
         id: currentUser.id,
         email: currentUser.email,
         full_name: getPublicName(currentUser),
+        photo_url: profilePhoto || currentUser.photo_url || null,
         ip_region: currentUser.ip_region,
         ip_country: currentUser.ip_country
       };
@@ -125,7 +140,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
 
       const { data, error: profilesError } = await client
         .from(USERS_TABLE)
-        .select('id, email, full_name, ip_region, ip_country')
+        .select('id, email, full_name, photo_url, ip_region, ip_country')
         .order('full_name', { ascending: true });
 
       if (cancelled) return;
@@ -160,6 +175,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
               user_id: currentUser.id,
               email: profile.email,
               full_name: profile.full_name,
+              photo_url: profile.photo_url,
               ip_region: profile.ip_region,
               ip_country: profile.ip_country
             });
@@ -273,6 +289,61 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
 
   const { url: configuredUrl, anonKey: configuredAnonKey } = getSupabaseConfig();
   const publicName = getPublicName(currentUser);
+
+  const handleProfilePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const nextPhoto = String(reader.result || '');
+      setProfilePhoto(nextPhoto);
+      const storedUserRaw = localStorage.getItem('bia_current_user');
+      if (storedUserRaw) {
+        try {
+          const storedUser = JSON.parse(storedUserRaw) as UserProfile;
+          const nextUser = { ...storedUser, photo_url: nextPhoto };
+          localStorage.setItem('bia_current_user', JSON.stringify(nextUser));
+        } catch {
+          // ignore invalid storage snapshot
+        }
+      }
+
+      const client = getSupabaseClient();
+      if (client) {
+        await client.from(USERS_TABLE).upsert({
+          id: currentUser.id,
+          email: currentUser.email,
+          full_name: getPublicName(currentUser),
+          photo_url: nextPhoto,
+          ip_region: currentUser.ip_region,
+          ip_country: currentUser.ip_country,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'id' });
+      }
+
+      event.target.value = '';
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const renderAvatar = (name: string, photo?: string | null, sizeClass = 'friends-avatar') => {
+    const hasPhoto = Boolean(photo && photo.trim());
+    if (hasPhoto) {
+      return (
+        <span className={`${sizeClass} friends-avatar-photo`}>
+          <img src={photo || undefined} alt={name} />
+        </span>
+      );
+    }
+
+    return (
+      <span className={sizeClass} style={{ '--avatar-color': accentColor } as React.CSSProperties}>
+        {getInitials(name)}
+      </span>
+    );
+  };
+
   const renderPeople = (mobile = false) => (
     <aside className={mobile ? 'friends-people-panel friends-people-panel-mobile' : 'friends-people-panel'}>
       <div className="friends-people-heading">
@@ -291,10 +362,15 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
           const presence = onlineUsers[friend.id];
           const isOnline = Boolean(presence);
           const isSelected = friend.id === selectedFriendId;
+          const profileName = presence?.full_name || friend.full_name;
+          const profilePhoto = presence?.photo_url || friend.photo_url;
           return (
             <button key={friend.id} type="button" onClick={() => { setSelectedFriendId(friend.id); setIsPeopleDrawerOpen(false); }} className={`friends-person ${isSelected ? 'friends-person-selected' : ''}`}>
-              <span className="friends-avatar" style={{ '--avatar-color': accentColor } as React.CSSProperties}>{(presence?.full_name || friend.full_name).charAt(0).toUpperCase()}<span className={`friends-status ${isOnline ? 'friends-status-online' : ''}`} /></span>
-              <span className="friends-person-copy"><strong>{presence?.full_name || friend.full_name}</strong><small>{formatLocation(presence || friend)}{friend.id === currentUser.id ? ' · You' : ''}</small></span>
+              <span className="friends-avatar-wrap">
+                {renderAvatar(profileName, profilePhoto)}
+                <span className={`friends-status ${isOnline ? 'friends-status-online' : ''}`} />
+              </span>
+              <span className="friends-person-copy"><strong>{profileName}</strong><small>{formatLocation(presence || friend)}{friend.id === currentUser.id ? ' · You' : ''}</small></span>
             </button>
           );
         })}
@@ -323,6 +399,12 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
             <div className="friends-header-title"><div className="friends-header-icon"><Users size={18} /></div><div><h1>{selectedFriend ? selectedFriend.full_name : 'Brazilian Friends'}</h1><p>{selectedFriend ? `Private conversation · ${formatLocation(selectedFriend)}` : `${onlineFriends.length} people online`}</p></div></div>
 
             <div className="friends-header-actions">
+              <label className="friends-header-action-button friends-header-photo" title="Adicionar foto de perfil">
+                <Camera size={15} />
+                <span>Foto</span>
+                <input type="file" accept="image/*" onChange={handleProfilePhotoChange} />
+              </label>
+
               <a
                 href="https://chat.whatsapp.com/DGnejSTzsBKKN02aH0tU8A"
                 target="_blank"
@@ -370,10 +452,9 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
                   className={`friends-message-row ${ownMessage ? 'friends-message-row-own' : ''}`}
                 >
                   <div className="friends-message-group">
-                    <div className="friends-message-meta"><strong>{senderName}</strong><span>{senderLocation} · {formatTime(message.created_at)}</span></div>
+                    <div className="friends-message-meta"><strong>{senderName}</strong><span>{senderLocation}</span></div>
                     <div className={`friends-message-bubble ${ownMessage ? 'friends-message-bubble-own' : ''}`} style={ownMessage ? { '--bubble-accent': accentColor } as React.CSSProperties : undefined}>
                       <p>{message.body}</p>
-                      <span>{formatTime(message.created_at)}</span>
                     </div>
                   </div>
                 </motion.div>

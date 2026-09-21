@@ -164,6 +164,7 @@ export interface UserProfile {
   email: string;
   password?: string;
   full_name?: string;
+  photo_url?: string;
   role: UserRole;
   status: SubscriptionStatus;
   data_expiracao?: string | null;

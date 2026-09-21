@@ -6,6 +6,7 @@ create table if not exists public.brazilian_friends_users (
   id text primary key,
   email text not null,
   full_name text not null,
+  photo_url text,
   ip_region text,
   ip_country text,
   updated_at timestamptz not null default now()
