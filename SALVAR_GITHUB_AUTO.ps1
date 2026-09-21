@@ -11,72 +11,66 @@ if (-not $git) {
 }
 
 function Invoke-Git {
-  param([Parameter(Mandatory = $true)][string[]]$Arguments)
-  & $git @Arguments
-  if ($LASTEXITCODE -ne 0) {
+  param(
+    [Parameter(Mandatory = $true)][string[]]$Arguments,
+    [switch]$AllowFailure
+  )
+
+  & $git @Arguments 2>&1 | ForEach-Object { $_ }
+  $exitCode = $LASTEXITCODE
+  if (-not $AllowFailure -and $exitCode -ne 0) {
     throw "Git falhou: git $($Arguments -join ' ')"
   }
+  return $exitCode
 }
 
 function Save-Project {
   $status = & $git status --porcelain
   if (-not $status) {
+    Write-Host 'Nenhuma alteração pendente para sincronizar.'
     return
   }
 
-  Invoke-Git @('add', '--all')
+  & $git add --all
   $staged = @(& $git diff --cached --name-only)
   if ($staged | Where-Object { $_ -match '(^|[\\/])\.env($|\.)' }) {
     & $git reset -- .env '.env.*' 2>$null
     throw 'O commit foi interrompido porque um arquivo .env foi detectado no stage.'
   }
+
   if (-not $staged) {
     return
   }
 
   $timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
-  Invoke-Git @('commit', '-m', "Auto-save: $timestamp")
-  & $git show-ref --verify --quiet 'refs/remotes/origin/main'
-  if ($LASTEXITCODE -eq 0) {
-    Invoke-Git @('pull', '--rebase', 'origin', 'main')
+  $commitExit = Invoke-Git @('commit', '-m', "Auto-save: $timestamp") -AllowFailure
+  if ($commitExit -ne 0) {
+    Write-Host 'Nada para commitar ou commit não foi necessário.'
+    return
   }
-  Invoke-Git @('push', 'origin', 'main')
+
+  $hasRemote = $false
+  try {
+    & $git show-ref --verify --quiet 'refs/remotes/origin/main'
+    $hasRemote = ($LASTEXITCODE -eq 0)
+  } catch {}
+
+  if ($hasRemote) {
+    Invoke-Git @('pull', '--rebase', 'origin', 'main') -AllowFailure | Out-Null
+  }
+
+  Invoke-Git @('push', 'origin', 'HEAD:main') -AllowFailure | Out-Null
   Write-Host "Projeto salvo no GitHub: $timestamp"
 }
 
 Write-Host 'Salvamento automático ativo. Pressione Ctrl+C para parar.'
-Save-Project
 
-$watcher = New-Object System.IO.FileSystemWatcher
-$watcher.Path = $PSScriptRoot
-$watcher.Filter = '*'
-$watcher.IncludeSubdirectories = $true
-$watcher.NotifyFilter = [System.IO.NotifyFilters]'FileName, LastWrite, DirectoryName'
-$watcher.EnableRaisingEvents = $true
-
-$lastChange = [DateTime]::MinValue
-$action = {
-  $script:lastChange = Get-Date
-}
-
-Register-ObjectEvent $watcher Changed -Action $action | Out-Null
-Register-ObjectEvent $watcher Created -Action $action | Out-Null
-Register-ObjectEvent $watcher Deleted -Action $action | Out-Null
-Register-ObjectEvent $watcher Renamed -Action $action | Out-Null
-
-try {
-  while ($true) {
-    Start-Sleep -Seconds 3
-    if ($lastChange -ne [DateTime]::MinValue -and ((Get-Date) - $lastChange).TotalSeconds -ge 10) {
-      $lastChange = [DateTime]::MinValue
-      try {
-        Save-Project
-      } catch {
-        Write-Error $_
-      }
-    }
+while ($true) {
+  try {
+    Save-Project
+    Start-Sleep -Seconds 10
+  } catch {
+    Write-Warning ("Erro no processo de save: {0}" -f $_.Exception.Message)
+    Start-Sleep -Seconds 10
   }
-} finally {
-  $watcher.Dispose()
-  Get-EventSubscriber | Unregister-Event
 }
