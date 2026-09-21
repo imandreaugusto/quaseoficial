@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { RealtimeChannel } from '@supabase/supabase-js';
-import { ArrowLeft, ChevronDown, MessageCircle, Send, Smile, Users, WifiOff, X } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Info, MessageCircle, MessageCircleMore, Send, Smile, Users, WifiOff, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile } from '../types';
 import { BrazilianLogo } from './BrazilianLogo';
@@ -321,7 +321,28 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
         <main className={`friends-conversation ${selectedFriend ? 'friends-conversation-private' : ''}`}>
           <header className="friends-conversation-header">
             <div className="friends-header-title"><div className="friends-header-icon"><Users size={18} /></div><div><h1>{selectedFriend ? selectedFriend.full_name : 'Brazilian Friends'}</h1><p>{selectedFriend ? `Private conversation · ${formatLocation(selectedFriend)}` : `${onlineFriends.length} people online`}</p></div></div>
-            <button type="button" className="friends-mobile-people-button" onClick={() => setIsPeopleDrawerOpen(true)}><Users size={16} /><span>{onlineFriends.length} online</span></button>
+            <div className="flex items-center gap-2">
+              <a
+                href="https://chat.whatsapp.com/DGnejSTzsBKKN02aH0tU8A"
+                target="_blank"
+                rel="noreferrer"
+                className="friends-mobile-people-button bg-emerald-500/90 hover:bg-emerald-400 text-white border-emerald-300/60"
+                aria-label="Entrar no grupo do Brazilian Friends no WhatsApp"
+                title="Grupo do WhatsApp do Brazilian Friends"
+              >
+                <MessageCircleMore size={15} />
+                <span>WhatsApp</span>
+              </a>
+              <span
+                className="inline-flex items-center justify-center rounded-full border border-white/15 bg-white/5 text-white/80"
+                aria-label="Informação sobre o grupo do WhatsApp"
+                title="Grupo para continuar o assunto fora do chat do app."
+                style={{ width: 22, height: 22 }}
+              >
+                <Info size={12} />
+              </span>
+              <button type="button" className="friends-mobile-people-button" onClick={() => setIsPeopleDrawerOpen(true)}><Users size={16} /><span>{onlineFriends.length} online</span></button>
+            </div>
             {selectedFriend && <button type="button" className="friends-selected-chip" onClick={() => setSelectedFriendId(null)}><ArrowLeft size={13} /> {selectedFriend.full_name}</button>}
           </header>
 
