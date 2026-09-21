@@ -132,7 +132,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
       const { error: profileError } = await client.from(USERS_TABLE).upsert(profile, { onConflict: 'id' });
       if (profileError) {
         if (!cancelled) {
-          setError('Friends is not configured yet. Please try again later.');
+          setError('O módulo de Brazilian Friends ainda está sendo configurado. Tente novamente em alguns instantes.');
           setIsLoading(false);
         }
         return;
@@ -356,8 +356,8 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
       </div>
       <div className="friends-online-label"><span className="friends-online-dot" /> Online ({onlineFriends.length}) <ChevronDown size={14} /></div>
       <div className="friends-people-list custom-scrollbar">
-        {isLoading && <p className="friends-muted-copy">Finding friends...</p>}
-        {!isLoading && allFriends.length === 0 && <p className="friends-muted-copy">No one is online yet.</p>}
+        {isLoading && <p className="friends-muted-copy">Buscando assinantes...</p>}
+        {!isLoading && allFriends.length === 0 && <p className="friends-muted-copy">Nenhum assinante online no momento.</p>}
         {allFriends.map((friend) => {
           const presence = onlineUsers[friend.id];
           const isOnline = Boolean(presence);
@@ -434,10 +434,10 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
             {!isLoadingMessages && !selectedFriend && messages.length === 0 && (
               <div className="friends-empty-conversation">
                 <MessageCircle size={28} className="mb-3" />
-                <p>Say hi to everyone in Brazilian Friends.</p>
+                <p>Diga oi para todos no Brazilian Friends.</p>
               </div>
             )}
-            {isLoadingMessages && <p className="friends-muted-copy">Loading conversation...</p>}
+            {isLoadingMessages && <p className="friends-muted-copy">Carregando conversa...</p>}
             {messages.map((message) => {
               const ownMessage = message.sender_id === currentUser.id;
               const senderProfile = profiles.find((p) => p.id === message.sender_id);
@@ -508,7 +508,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
                 disabled={false}
-                placeholder="Write in English..."
+                placeholder="Escreva em inglês..."
                 className="friends-composer-input"
                 maxLength={2000}
               />
