@@ -1205,27 +1205,29 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                                 )}
                               </div>
 
-                              <div className="flex items-center gap-1 opacity-40 group-hover:opacity-100 transition-opacity shrink-0">
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleOpenModal(item);
-                                  }}
-                                  className="p-1 text-white/60 hover:text-white transition-colors cursor-pointer"
-                                  title="Editar"
-                                >
-                                  <Edit3 size={11} />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={(e) => handleDeleteItem(item.id, e)}
-                                  className="p-1 text-white/60 hover:text-red-400 transition-colors cursor-pointer"
-                                  title="Remover"
-                                >
-                                  <Trash2 size={11} />
-                                </button>
-                              </div>
+                              {canEdit && (
+                                <div className="flex items-center gap-1 opacity-40 group-hover:opacity-100 transition-opacity shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleOpenModal(item);
+                                    }}
+                                    className="p-1 text-white/60 hover:text-white transition-colors cursor-pointer"
+                                    title="Editar"
+                                  >
+                                    <Edit3 size={11} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleDeleteItem(item.id, e)}
+                                    className="p-1 text-white/60 hover:text-red-400 transition-colors cursor-pointer"
+                                    title="Remover"
+                                  >
+                                    <Trash2 size={11} />
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           );
                         })}
@@ -1276,27 +1278,29 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                           PT/EN
                         </span>
                       )}
-                      <div className="flex items-center gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenModal(item);
-                          }}
-                          className="p-1 text-white/60 hover:text-white transition-colors cursor-pointer"
-                          title="Editar"
-                        >
-                          <Edit3 size={11} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => handleDeleteItem(item.id, e)}
-                          className="p-1 text-white/60 hover:text-red-400 transition-colors cursor-pointer"
-                          title="Remover"
-                        >
-                          <Trash2 size={11} />
-                        </button>
-                      </div>
+                      {canEdit && (
+                        <div className="flex items-center gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenModal(item);
+                            }}
+                            className="p-1 text-white/60 hover:text-white transition-colors cursor-pointer"
+                            title="Editar"
+                          >
+                            <Edit3 size={11} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => handleDeleteItem(item.id, e)}
+                            className="p-1 text-white/60 hover:text-red-400 transition-colors cursor-pointer"
+                            title="Remover"
+                          >
+                            <Trash2 size={11} />
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
