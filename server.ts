@@ -173,7 +173,7 @@ async function startServer() {
     try {
       const { email, firstName, lastName, amount, description } = req.body;
       const abatePayToken = process.env.ABATEPAY_TOKEN;
-      const abatePayCreateUrl = process.env.ABATEPAY_CREATE_URL || 'https://api.abatepay.com/v1/billing/create';
+      const abatePayCreateUrl = process.env.ABATEPAY_CREATE_URL || 'https://api.abacatepay.com/v2/transparents/create';
 
       if (!abatePayToken) {
         return res.status(400).json({ 
@@ -182,22 +182,20 @@ async function startServer() {
       }
 
       const paymentData = {
-        frequency: 'MONTHLY',
-        methods: ['PIX'],
-        products: [{
-          externalId: 'brazilian-in-action-monthly',
-          name: description || 'Assinatura Mensal - Brazilian in Action Idiomas',
-          quantity: 1,
-          price: Math.round((Number(amount) || 10) * 100)
-        }],
-        customer: {
-          name: `${firstName || 'Aluno'} ${lastName || 'BIA'}`.trim(),
-          email: email || 'aluno@brazilianinaction.com'
-        },
-        returnUrl: process.env.PUBLIC_APP_URL || undefined,
-        callbackUrl: (process.env.API_PUBLIC_URL || process.env.PUBLIC_API_URL)
-          ? `${(process.env.API_PUBLIC_URL || process.env.PUBLIC_API_URL || '').replace(/\/$/, '')}/api/webhook/payment`
-          : undefined
+        method: 'PIX',
+        data: {
+          amount: Math.round((Number(amount) || 10) * 100),
+          description: description || 'Assinatura Mensal - Brazilian in Action Idiomas',
+          expiresIn: 3600,
+          customer: {
+            name: `${firstName || 'Aluno'} ${lastName || 'BIA'}`.trim(),
+            email: email || 'aluno@brazilianinaction.com'
+          },
+          metadata: {
+            plan: 'brazilian-in-action-monthly',
+            email: email || 'aluno@brazilianinaction.com'
+          }
+        }
       };
 
       const response = await fetch(abatePayCreateUrl, {
@@ -218,13 +216,12 @@ async function startServer() {
       }
 
       const billing = data.data || data;
-      const pix = billing.pix || billing.payment?.pix || billing.qr_code || {};
       return res.status(200).json({
-        id: billing.id || billing.billingId,
+        id: billing.id,
         status: billing.status,
-        qrCode: pix.qrCode || pix.qr_code || billing.pixQrCode || billing.qrCode,
-        qrCodeBase64: pix.qrCodeBase64 || pix.qr_code_base64 || billing.pixQrCodeBase64,
-        ticketUrl: billing.checkoutUrl || billing.paymentUrl
+        qrCode: billing.brCode,
+        qrCodeBase64: billing.brCodeBase64,
+        ticketUrl: billing.url
       });
     } catch (err: any) {
       console.error('❌ Erro interno ao criar Pix na AbatePay:', err);
@@ -237,7 +234,7 @@ async function startServer() {
     try {
       const paymentId = req.params.id;
       const abatePayToken = process.env.ABATEPAY_TOKEN;
-      const statusTemplate = process.env.ABATEPAY_STATUS_URL_TEMPLATE || 'https://api.abatepay.com/v1/billing/{id}';
+      const statusTemplate = process.env.ABATEPAY_STATUS_URL_TEMPLATE || 'https://api.abacatepay.com/v2/transparents/check?id={id}';
 
       if (!abatePayToken) {
         return res.status(400).json({ error: 'ABATEPAY_TOKEN ausente' });
@@ -252,7 +249,7 @@ async function startServer() {
       const data: any = await response.json();
       const payment = data.data || data;
       const status = String(payment.status || payment.paymentStatus || '').toLowerCase();
-      return res.status(200).json({ id: payment.id || paymentId, status, isApproved: ['approved', 'paid', 'completed', 'confirmed'].includes(status), payerEmail: payment.customer?.email || payment.email });
+      return res.status(200).json({ id: payment.id || paymentId, status, isApproved: ['approved', 'paid', 'completed', 'confirmed'].includes(status), payerEmail: payment.customer?.email || payment.email || payment.metadata?.email });
     } catch (err: any) {
       return res.status(500).json({ error: 'Erro ao consultar status do pagamento' });
     }
@@ -332,6 +329,7 @@ async function startServer() {
         'confirmed',
         'payment_received',
         'payment_confirmed',
+        'transparent.completed',
         'billing.paid',
         'checkout.completed'
       ].includes(webhookStatus);
