@@ -255,6 +255,22 @@ input, textarea, select {
 .friends-people-panel-mobile { width: 100%; height: 100%; border: 0; background: rgba(8, 15, 46, 0.88); backdrop-filter: blur(24px); }
 .friends-people-panel-mobile .friends-people-heading { padding-top: max(1rem, env(safe-area-inset-top)); }
 
+.friends-avatar-edit-badge { position: absolute; right: -0.12rem; bottom: -0.12rem; display: grid; width: 0.85rem; height: 0.85rem; place-items: center; border: 1.5px solid #172150; border-radius: 50%; color: #172150; background: #ffd166; }
+.friends-profile-modal-backdrop { position: fixed; inset: 0; z-index: 5000; display: grid; place-items: center; padding: 1rem; background: rgba(2,5,20,0.6); backdrop-filter: blur(12px); }
+.friends-profile-modal { display: flex; width: min(92vw, 22rem); flex-direction: column; gap: 1rem; padding: 1.4rem; border: 1px solid rgba(255,255,255,0.16); border-radius: 1.25rem; background: rgba(15, 18, 40, 0.94); box-shadow: 0 24px 60px rgba(0,0,0,0.5); }
+.friends-profile-modal-header { display: flex; align-items: center; justify-content: space-between; }
+.friends-profile-modal-header h2 { margin: 0; color: white; font-size: 0.92rem; font-weight: 700; }
+.friends-profile-modal-avatar { position: relative; display: grid; place-items: center; margin: 0 auto; cursor: pointer; }
+.friends-profile-modal-avatar input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.friends-profile-modal-avatar-circle { width: 4.5rem !important; height: 4.5rem !important; font-size: 1.35rem !important; }
+.friends-profile-modal-avatar-edit { position: absolute; right: -0.15rem; bottom: -0.15rem; display: grid; width: 1.6rem; height: 1.6rem; place-items: center; border: 2px solid rgba(15, 18, 40, 0.94); border-radius: 50%; color: #172150; background: #ffd166; }
+.friends-profile-modal-field { display: flex; flex-direction: column; gap: 0.4rem; }
+.friends-profile-modal-field span { color: rgba(225,233,255,0.6); font-size: 0.66rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+.friends-profile-modal-field textarea { min-height: 4.5rem; padding: 0.6rem 0.7rem; border: 1px solid rgba(255,255,255,0.18); border-radius: 0.8rem; color: white; background: rgba(255,255,255,0.06); font: inherit; font-size: 0.8rem; resize: none; }
+.friends-profile-modal-field textarea::placeholder { color: rgba(220,228,255,0.4); }
+.friends-profile-modal-save { padding: 0.7rem; border: 0; border-radius: 0.8rem; color: #08102e; font-size: 0.78rem; font-weight: 700; cursor: pointer; }
+.friends-profile-modal-save:disabled { cursor: not-allowed; opacity: 0.6; }
+
 @media (max-width: 720px) {
   .friends-shell { height: calc(100dvh - 4.5rem); min-height: 30rem; padding: 0.35rem; }
   .friends-glass-frame { display: block; border-radius: 1.25rem; }
