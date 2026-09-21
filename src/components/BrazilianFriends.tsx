@@ -336,20 +336,68 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
 
       const client = getSupabaseClient();
       if (client) {
-        await client.from(USERS_TABLE).upsert({
+        await upsertFriendProfile(client, {
           id: currentUser.id,
           email: currentUser.email,
           full_name: getPublicName(currentUser),
           photo_url: nextPhoto,
+          status_message: currentUser.status_message || null,
           ip_region: currentUser.ip_region,
-          ip_country: currentUser.ip_country,
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'id' });
+          ip_country: currentUser.ip_country
+        });
       }
 
       event.target.value = '';
     };
     reader.readAsDataURL(file);
+  };
+
+  const openProfileEditor = () => {
+    const myProfile = profiles.find((profile) => profile.id === currentUser.id);
+    setStatusDraft(myProfile?.status_message || currentUser.status_message || '');
+    setIsProfileEditorOpen(true);
+  };
+
+  const handleSaveStatus = async () => {
+    const client = getSupabaseClient();
+    if (!client) {
+      setIsProfileEditorOpen(false);
+      return;
+    }
+
+    setIsSavingStatus(true);
+    const nextStatus = statusDraft.trim();
+    const { error: saveError } = await upsertFriendProfile(client, {
+      id: currentUser.id,
+      email: currentUser.email,
+      full_name: getPublicName(currentUser),
+      photo_url: profilePhoto || currentUser.photo_url || null,
+      status_message: nextStatus || null,
+      ip_region: currentUser.ip_region,
+      ip_country: currentUser.ip_country
+    });
+    setIsSavingStatus(false);
+
+    if (saveError) {
+      setError('Não foi possível salvar sua descrição agora.');
+      return;
+    }
+
+    setProfiles((current) => current.map((profile) => (
+      profile.id === currentUser.id ? { ...profile, status_message: nextStatus || null } : profile
+    )));
+
+    const storedUserRaw = localStorage.getItem('bia_current_user');
+    if (storedUserRaw) {
+      try {
+        const storedUser = JSON.parse(storedUserRaw) as UserProfile;
+        localStorage.setItem('bia_current_user', JSON.stringify({ ...storedUser, status_message: nextStatus || undefined }));
+      } catch {
+        // ignore invalid storage snapshot
+      }
+    }
+
+    setIsProfileEditorOpen(false);
   };
 
   const renderAvatar = (name: string, photo?: string | null, sizeClass = 'friends-avatar') => {
