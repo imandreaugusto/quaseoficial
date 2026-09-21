@@ -141,6 +141,7 @@ export const BrazilianTradutor: React.FC<BrazilianTradutorProps> = ({
 }) => {
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
+  const [validationError, setValidationError] = useState('');
   const [currentResult, setCurrentResult] = useState<TranslationData | null>(null);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
 
@@ -284,6 +285,7 @@ export const BrazilianTradutor: React.FC<BrazilianTradutorProps> = ({
     if (!inputText.trim()) return;
 
     setLoading(true);
+    setValidationError('');
     try {
       const res = await apiFetch('/api/cultural-translate', {
         method: 'POST',
@@ -292,6 +294,12 @@ export const BrazilianTradutor: React.FC<BrazilianTradutorProps> = ({
           text: inputText
         })
       });
+
+      if (res.status === 422) {
+        const data = await res.json().catch(() => null);
+        setValidationError(data?.error || 'Não conseguimos entender essa frase. Revise antes de traduzir.');
+        return;
+      }
 
       if (!res.ok) {
         throw new Error(`Erro na tradução (${res.status})`);
@@ -408,6 +416,12 @@ export const BrazilianTradutor: React.FC<BrazilianTradutorProps> = ({
                     className="w-full p-4 rounded-2xl bg-black/40 border border-amber-500/30 text-white placeholder-white/30 text-sm sm:text-base focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 shadow-[0_0_15px_rgba(245,158,11,0.1)] leading-relaxed resize-none transition-all"
                   />
                 </div>
+
+                {validationError && (
+                  <p className="text-xs font-semibold text-red-400 bg-red-500/10 border border-red-500/30 rounded-xl px-3.5 py-2.5">
+                    {validationError}
+                  </p>
+                )}
 
                 {/* SUBMIT BUTTON */}
                 <button
