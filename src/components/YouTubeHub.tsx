@@ -32,11 +32,12 @@ import {
 import { apiFetch } from '../lib/api';
 import { translateText, lookupPtToEnDictionary, lookupDictionary } from '../lib/translator';
 import { listenToAuth, syncToCloud } from '../lib/cloudSync';
-import { subscribeToUserDataFromCloud } from '../lib/firebase';
+import { loadPlatformDataFromCloud, savePlatformDataToCloud, subscribeToUserDataFromCloud } from '../lib/firebase';
 import { User } from 'firebase/auth';
 
 interface YouTubeHubProps {
   accentColor?: string;
+  canEdit?: boolean;
 }
 
 export interface YouTubeLibraryItem {
@@ -146,7 +147,7 @@ That the new always arrives`,
   },
 ];
 
-export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6' }) => {
+export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6', canEdit = false }) => {
   const channelUrl = 'https://www.youtube.com/@brazilianinaction';
 
   // Library & Cloud Sync State
@@ -250,7 +251,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6' 
     setIsEditingLyrics(false);
   }, [activeItem]);
 
-  // Initial Load from LocalStorage & Cloud Sync
+  // Initial Load from LocalStorage & Global CEO-managed cloud sync
   useEffect(() => {
     const stored = localStorage.getItem('bia_youtube_library');
     if (stored) {
@@ -264,6 +265,15 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6' 
         console.error('Error loading local YouTube library:', e);
       }
     }
+
+    void (async () => {
+      const shared = await loadPlatformDataFromCloud('youtube_library');
+      if (Array.isArray(shared) && shared.length > 0) {
+        setLibrary(shared);
+        setActiveItem((current) => current && shared.some((item) => item.id === current.id) ? current : shared[0]);
+        localStorage.setItem('bia_youtube_library', JSON.stringify(shared));
+      }
+    })();
 
     const unsubAuth = listenToAuth((user) => {
       setCloudUser(user);
@@ -297,6 +307,9 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6' 
   const saveLibraryState = (updatedList: YouTubeLibraryItem[]) => {
     setLibrary(updatedList);
     localStorage.setItem('bia_youtube_library', JSON.stringify(updatedList));
+    if (canEdit) {
+      savePlatformDataToCloud('youtube_library', updatedList);
+    }
     if (cloudUser) {
       syncToCloud(cloudUser.uid, 'bia_youtube_library', updatedList);
     }
@@ -310,7 +323,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6' 
 
   const handleLoadCustomUrl = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customVideoUrl) return;
+    if (!customVideoUrl || !canEdit) return;
 
     const embedId = extractEmbedId(customVideoUrl);
     if (!embedId) return;
@@ -336,6 +349,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6' 
 
   // Open Modal for Create or Edit
   const handleOpenModal = (itemToEdit?: YouTubeLibraryItem) => {
+    if (!canEdit) return;
     if (itemToEdit) {
       setEditingItem(itemToEdit);
       setFormTitle(itemToEdit.title);
@@ -360,7 +374,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6' 
 
   const handleSaveItemModal = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formTitle || !formUrl) return;
+    if (!canEdit || !formTitle || !formUrl) return;
 
     const embedId = extractEmbedId(formUrl);
 
@@ -417,6 +431,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6' 
 
   const handleDeleteItem = (idToDelete: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!canEdit) return;
     if (confirm('Deseja remover este item da biblioteca?')) {
       const updated = library.filter((item) => item.id !== idToDelete);
       saveLibraryState(updated);
@@ -630,6 +645,17 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6' 
                   <ExternalLink size={12} />
                 </a>
 
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={() => handleOpenModal()}
+                    className="px-3 py-2 rounded-xl bg-amber-500/90 hover:bg-amber-400 text-black font-semibold text-xs transition-all flex items-center gap-1.5 shadow-sm"
+                  >
+                    <Plus size={13} />
+                    <span>Novo item</span>
+                  </button>
+                )}
+
                 <button
                   type="button"
                   onClick={handleCopyChannelLink}
@@ -736,7 +762,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6' 
               </form>
 
               {/* Discrete button to open/add lyrics if not editing */}
-              {!isEditingLyrics && (
+              {!isEditingLyrics && canEdit && (
                 <button
                   type="button"
                   onClick={() => setIsEditingLyrics(true)}

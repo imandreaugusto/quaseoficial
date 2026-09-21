@@ -62,7 +62,13 @@ export const loadUserDataFromCloud = async (userId: string, key: string) => {
 export const savePlatformDataToCloud = async (key: string, data: any) => {
   if (!key) return;
   try {
-    await setDoc(doc(db, 'system', key), { payload: data, updatedAt: new Date().toISOString() }, { merge: true });
+    const payload = {
+      payload: data,
+      updatedAt: new Date().toISOString(),
+      version: Date.now(),
+      owner: 'ceo'
+    };
+    await setDoc(doc(db, 'system', key), payload, { merge: true });
   } catch (err) {
     console.error(`Error saving system/${key} to Firestore:`, err);
     window.dispatchEvent(new CustomEvent('bia_cloud_sync_error', {
@@ -75,7 +81,10 @@ export const loadPlatformDataFromCloud = async (key: string) => {
   if (!key) return null;
   try {
     const snapshot = await getDoc(doc(db, 'system', key));
-    return snapshot.exists() ? snapshot.data()?.payload ?? null : null;
+    if (!snapshot.exists()) return null;
+    const value = snapshot.data();
+    if (!value || value.payload === undefined) return null;
+    return { ...value.payload, __meta: { updatedAt: value.updatedAt, version: value.version, owner: value.owner } };
   } catch (err) {
     console.error(`Error loading system/${key} from Firestore:`, err);
     return null;

@@ -193,16 +193,9 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
     const loadConversation = async () => {
       setIsLoadingMessages(true);
       setError('');
-      const now = new Date().toISOString();
-      if (selectedFriendId) await client
-        .from(MESSAGES_TABLE)
-        .delete()
-        .lte('expires_at', now)
-        .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${selectedFriendId}),and(sender_id.eq.${selectedFriendId},receiver_id.eq.${currentUser.id})`);
       let query = client
         .from(MESSAGES_TABLE)
         .select('id, sender_id, receiver_id, body, created_at, expires_at')
-        .gt('expires_at', now)
         .order('created_at', { ascending: true });
       query = selectedFriendId
         ? query.or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${selectedFriendId}),and(sender_id.eq.${selectedFriendId},receiver_id.eq.${currentUser.id})`)

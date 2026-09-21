@@ -14,48 +14,14 @@ create table if not exists public.brazilian_friends_users (
 create table if not exists public.brazilian_friends_messages (
   id uuid primary key default gen_random_uuid(),
   sender_id text not null references public.brazilian_friends_users(id) on delete cascade,
-    receiver_id text references public.brazilian_friends_users(id) on delete cascade,
+  receiver_id text references public.brazilian_friends_users(id) on delete cascade,
   body text not null check (char_length(trim(body)) between 1 and 2000),
   created_at timestamptz not null default now(),
-  expires_at timestamptz not null default (now() + interval '7 days'),
-    constraint brazilian_friends_messages_distinct_users check (receiver_id is null or sender_id <> receiver_id)
+  expires_at timestamptz,
+  constraint brazilian_friends_messages_distinct_users check (receiver_id is null or sender_id <> receiver_id)
 );
 
-  alter table public.brazilian_friends_messages alter column receiver_id drop not null;
-
 alter table public.brazilian_friends_messages alter column receiver_id drop not null;
-
-alter table public.brazilian_friends_messages
-  add column if not exists expires_at timestamptz;
-
-update public.brazilian_friends_messages
-set expires_at = created_at + interval '7 days'
-where expires_at is null;
-
-update public.brazilian_friends_messages
-set expires_at = created_at + interval '7 days'
-where expires_at > created_at + interval '7 days';
-
-create or replace function public.purge_expired_brazilian_friend_messages()
-returns trigger as $$
-begin
-  delete from public.brazilian_friends_messages where expires_at <= now();
-  return new;
-end;
-$$ language plpgsql;
-
-drop trigger if exists purge_expired_brazilian_friend_messages on public.brazilian_friends_messages;
-create trigger purge_expired_brazilian_friend_messages
-before insert on public.brazilian_friends_messages
-for each row execute function public.purge_expired_brazilian_friend_messages();
-
--- Run this function daily with Supabase Cron when pg_cron is enabled.
-create or replace function public.cleanup_expired_brazilian_friend_messages()
-returns void as $$
-begin
-  delete from public.brazilian_friends_messages where expires_at <= now();
-end;
-$$ language plpgsql;
 
 create index if not exists brazilian_friends_messages_conversation_idx
   on public.brazilian_friends_messages (sender_id, receiver_id, created_at);

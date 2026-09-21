@@ -196,6 +196,7 @@ const ALL_ADMIN_ITEMS = [
   { id: 'biacompare', label: 'BIA Compare', icon: Sparkles },
   { id: 'conversation', label: 'Brazilian Conversation', icon: Mic },
   { id: 'tradutor', label: 'Brazilian Tradutor', icon: Languages },
+  { id: 'youtube', label: 'Brazilian Music', icon: Music },
   { id: 'settings', label: 'Configurações', icon: SettingsIcon },
 ];
 
@@ -214,7 +215,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [appConfig, setAppConfig] = useState<GlobalAppConfig>({
     studentAppOrder: ['home', 'brazilianfriends', 'stories', 'practice', 'readclub', 'board', 'quiz', 'biacompare', 'conversation', 'tradutor', 'youtube'],
-    adminAppOrder: ['home', 'work', 'brazilianfriends', 'stories', 'practice', 'dashboard', 'admin_settings', 'readclub', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'biacompare', 'conversation', 'tradutor', 'settings'],
+    adminAppOrder: ['home', 'work', 'brazilianfriends', 'stories', 'practice', 'dashboard', 'admin_settings', 'readclub', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'biacompare', 'conversation', 'tradutor', 'youtube', 'settings'],
     studentGlobalEnabled: {
       brazilianfriends: true,
       stories: true,

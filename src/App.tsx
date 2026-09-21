@@ -1006,7 +1006,7 @@ export default function App() {
                   )}
 
                   {currentApp === 'youtube' && (isAdmin || perms.youtube) && (
-                    <YouTubeHub accentColor={settings.accentColor} />
+                    <YouTubeHub accentColor={settings.accentColor} canEdit={effectiveIsAdmin} />
                   )}
 
                   {currentApp === 'practice' && (isAdmin || perms.practice !== false) && (
