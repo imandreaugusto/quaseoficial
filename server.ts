@@ -6,6 +6,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type } from '@google/genai';
 import dotenv from 'dotenv';
+import { validatePortuguesePhrase } from './src/lib/jevValidator';
 
 // Load environment variables
 dotenv.config();
