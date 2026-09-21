@@ -201,6 +201,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
               email: profile.email,
               full_name: profile.full_name,
               photo_url: profile.photo_url,
+              status_message: profile.status_message,
               ip_region: profile.ip_region,
               ip_country: profile.ip_country
             });
