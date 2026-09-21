@@ -1203,6 +1203,16 @@ Return ONLY a valid JSON object following the schema provided.`;
         return;
       }
 
+      // Cheap Jev gate: blocks nonsensical/garbled input before the expensive Gemini call.
+      const validation = await validatePortuguesePhrase(cleanText);
+      if (!validation.isValid) {
+        res.status(422).json({
+          error: 'Não conseguimos entender essa frase. Revise a ortografia e o sentido antes de traduzir.',
+          probability: validation.probability,
+        });
+        return;
+      }
+
       const apiKey = process.env.GEMINI_API_KEY;
 
       if (apiKey) {
