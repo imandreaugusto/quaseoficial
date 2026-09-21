@@ -607,6 +607,44 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
         </main>
       </div>
       {isPeopleDrawerOpen && <div className="friends-drawer-backdrop" onClick={() => setIsPeopleDrawerOpen(false)}><div onClick={(event) => event.stopPropagation()}>{renderPeople(true)}</div></div>}
+      {isProfileEditorOpen && (
+        <div className="friends-profile-modal-backdrop" onClick={() => setIsProfileEditorOpen(false)}>
+          <div className="friends-profile-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="friends-profile-modal-header">
+              <h2>Meu Perfil</h2>
+              <button type="button" className="friends-icon-button" onClick={() => setIsProfileEditorOpen(false)} aria-label="Fechar">
+                <X size={16} />
+              </button>
+            </div>
+
+            <label className="friends-profile-modal-avatar" title="Alterar foto de perfil">
+              {renderAvatar(publicName, profilePhoto, 'friends-profile-modal-avatar-circle')}
+              <span className="friends-profile-modal-avatar-edit"><Camera size={14} /></span>
+              <input type="file" accept="image/*" onChange={handleProfilePhotoChange} />
+            </label>
+
+            <label className="friends-profile-modal-field">
+              <span>Descrição (recado)</span>
+              <textarea
+                value={statusDraft}
+                onChange={(event) => setStatusDraft(event.target.value)}
+                maxLength={140}
+                placeholder="Diga algo sobre você..."
+              />
+            </label>
+
+            <button
+              type="button"
+              className="friends-profile-modal-save"
+              style={{ backgroundColor: accentColor }}
+              onClick={handleSaveStatus}
+              disabled={isSavingStatus}
+            >
+              {isSavingStatus ? 'Salvando...' : 'Salvar'}
+            </button>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
