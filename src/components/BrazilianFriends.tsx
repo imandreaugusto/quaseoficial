@@ -76,6 +76,32 @@ const getPublicName = (user: Pick<UserProfile, 'email' | 'full_name'>) =>
     ? 'André Augusto'
     : user.full_name?.trim() || user.email.split('@')[0];
 
+type SupabaseClientLike = NonNullable<ReturnType<typeof getSupabaseClient>>;
+
+// Falls back to the base columns when photo_url/status_message aren't provisioned yet on the remote table.
+const upsertFriendProfile = async (client: SupabaseClientLike, profile: FriendProfile) => {
+  const { error } = await client.from(USERS_TABLE).upsert(profile, { onConflict: 'id' });
+  if (!error) return { error: null };
+  console.warn('Brazilian Friends profile sync failed, retrying with base columns:', error);
+  const { id, email, full_name, ip_region, ip_country } = profile;
+  const fallback = await client
+    .from(USERS_TABLE)
+    .upsert({ id, email, full_name, ip_region, ip_country }, { onConflict: 'id' });
+  return { error: fallback.error };
+};
+
+const selectFriendProfiles = async (client: SupabaseClientLike) => {
+  const full = await client
+    .from(USERS_TABLE)
+    .select('id, email, full_name, photo_url, status_message, ip_region, ip_country')
+    .order('full_name', { ascending: true });
+  if (!full.error) return full;
+  return client
+    .from(USERS_TABLE)
+    .select('id, email, full_name, ip_region, ip_country')
+    .order('full_name', { ascending: true });
+};
+
 export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsProps) {
   const [profiles, setProfiles] = useState<FriendProfile[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<Record<string, PresencePayload>>({});
