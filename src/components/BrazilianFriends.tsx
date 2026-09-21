@@ -23,6 +23,7 @@ interface FriendProfile {
   email: string;
   full_name: string;
   photo_url?: string | null;
+  status_message?: string | null;
   ip_region?: string | null;
   ip_country?: string | null;
 }
@@ -41,6 +42,7 @@ interface PresencePayload {
   email: string;
   full_name: string;
   photo_url?: string | null;
+  status_message?: string | null;
   ip_region?: string | null;
   ip_country?: string | null;
 }
