@@ -221,8 +221,6 @@ input, textarea, select {
 }
 .friends-header-action-button:hover, .friends-header-info-button:hover { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.32); transform: translateY(-1px); }
 .friends-header-whatsapp { padding: 0.48rem 0.72rem; font-size: 0.66rem; font-weight: 600; }
-.friends-header-photo { position: relative; overflow: hidden; padding: 0.48rem 0.72rem; font-size: 0.66rem; font-weight: 600; }
-.friends-header-photo input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .friends-header-info-button { width: 1.9rem; height: 1.9rem; font-size: 0.76rem; }
 .friends-selected-chip { margin-left: auto; color: rgba(236,241,255,0.65); font-size: 0.68rem; }
 .friends-mobile-people-button { display: none; margin-left: auto; align-items: center; gap: 0.4rem; border: 1px solid rgba(218, 229, 255, 0.2); border-radius: 999px; padding: 0.45rem 0.65rem; color: rgba(242,246,255,0.82); background: rgba(79, 100, 195, 0.24); font-size: 0.66rem; }
