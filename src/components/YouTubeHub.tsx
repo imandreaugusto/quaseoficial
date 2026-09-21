@@ -1091,14 +1091,16 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                 <span>{groupByArtist ? 'Cantor' : 'Lista'}</span>
               </button>
 
-              <button
-                type="button"
-                onClick={() => handleOpenModal()}
-                className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/15 text-white border border-white/10 text-xs font-medium flex items-center gap-1 transition-all cursor-pointer"
-              >
-                <Plus size={13} />
-                <span>Novo</span>
-              </button>
+              {canEdit && (
+                <button
+                  type="button"
+                  onClick={() => handleOpenModal()}
+                  className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/15 text-white border border-white/10 text-xs font-medium flex items-center gap-1 transition-all cursor-pointer"
+                >
+                  <Plus size={13} />
+                  <span>Novo</span>
+                </button>
+              )}
             </div>
           </div>
 
