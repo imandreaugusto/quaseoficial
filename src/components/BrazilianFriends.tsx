@@ -114,6 +114,9 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
   const [error, setError] = useState('');
   const [isPeopleDrawerOpen, setIsPeopleDrawerOpen] = useState(false);
   const [profilePhoto, setProfilePhoto] = useState<string | undefined>(currentUser.photo_url);
+  const [isProfileEditorOpen, setIsProfileEditorOpen] = useState(false);
+  const [statusDraft, setStatusDraft] = useState(currentUser.status_message || '');
+  const [isSavingStatus, setIsSavingStatus] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const presenceChannelRef = useRef<RealtimeChannel | null>(null);
 
@@ -153,23 +156,17 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
         email: currentUser.email,
         full_name: getPublicName(currentUser),
         photo_url: profilePhoto || currentUser.photo_url || null,
+        status_message: currentUser.status_message || null,
         ip_region: currentUser.ip_region,
         ip_country: currentUser.ip_country
       };
 
-      const { error: profileError } = await client.from(USERS_TABLE).upsert(profile, { onConflict: 'id' });
+      const { error: profileError } = await upsertFriendProfile(client, profile);
       if (profileError) {
         console.warn('Brazilian Friends profile sync failed:', profileError);
-        if (!cancelled) {
-          setIsLoading(false);
-        }
-        return;
       }
 
-      const { data, error: profilesError } = await client
-        .from(USERS_TABLE)
-        .select('id, email, full_name, photo_url, ip_region, ip_country')
-        .order('full_name', { ascending: true });
+      const { data, error: profilesError } = await selectFriendProfiles(client);
 
       if (cancelled) return;
       if (profilesError) {
