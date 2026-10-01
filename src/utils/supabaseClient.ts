@@ -31,8 +31,28 @@ export const getSupabaseClient = () => {
   const { url, anonKey } = getSupabaseConfig();
   if (!url || !anonKey) return null;
   return createClient(url, anonKey, {
-    auth: { persistSession: false, autoRefreshToken: false }
+    // Session persistence + URL detection are required for the Google OAuth
+    // redirect flow (signInWithGoogle) to resolve into a session on return.
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
   });
+};
+
+// Redirects the browser to Google via Supabase Auth. On return, the session
+// can be read with getSupabaseClient()?.auth.getSession().
+export const signInWithGoogle = async () => {
+  const client = getSupabaseClient();
+  if (!client) return { ok: false, reason: 'offline' as const };
+
+  const { error } = await client.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.origin }
+  });
+
+  if (error) {
+    console.warn('Supabase Google sign-in failed:', error);
+    return { ok: false, reason: 'error' as const, message: error.message };
+  }
+  return { ok: true as const };
 };
 
 export const deleteExpiredBrazilianFriendMessages = async () => {
@@ -69,6 +89,9 @@ export const syncUserProfileToSupabase = async (profile: UserProfile) => {
         status: profile.status,
         data_expiracao: profile.data_expiracao || null,
         permissions: profile.permissions,
+        ip_country: profile.ip_country || null,
+        ip_region: profile.ip_region || null,
+        ip_city: profile.ip_city || null,
         created_at: profile.created_at,
         updated_at: new Date().toISOString()
       }, { onConflict: 'id' })

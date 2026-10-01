@@ -26,8 +26,27 @@ import { BrazilianLogo } from './BrazilianLogo';
 import { SubscriptionInfoModal } from './SubscriptionInfoModal';
 import { Clock } from './Clock';
 import { SocialLinksBar } from './SocialLinksBar';
-import { findUserProfileByEmail, syncUserProfileToSupabase, fetchCouponFromSupabase, redeemCouponInSupabase, getSupabaseConfig } from '../utils/supabaseClient';
+import { findUserProfileByEmail, syncUserProfileToSupabase, fetchCouponFromSupabase, redeemCouponInSupabase, getSupabaseConfig, getSupabaseClient, signInWithGoogle } from '../utils/supabaseClient';
 import { SiteLegalFooter } from './SiteLegalFooter';
+
+// Isolated geolocation lookup (country/region) used by every sign-up/login path,
+// including the Google OAuth flow. Falls back to safe defaults on any failure.
+const fetchIpGeolocation = async (): Promise<{ country: string; regionName: string; city: string }> => {
+  const fallback = { country: 'Brasil', regionName: 'São Paulo', city: 'São Paulo' };
+  try {
+    const geoRes = await fetch('https://ipapi.co/json/').then((res) => res.json());
+    if (geoRes && geoRes.country_name) {
+      return {
+        country: geoRes.country_name,
+        regionName: geoRes.region || '',
+        city: geoRes.city || ''
+      };
+    }
+  } catch (e) {
+    // ignore, fallback below
+  }
+  return fallback;
+};
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -118,6 +137,103 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       }
     } catch (e) {}
   }, []);
+
+  // Completes the login once Supabase reports a Google session (either right after
+  // the OAuth redirect back, or from an already-active session on mount).
+  useEffect(() => {
+    const client = getSupabaseClient();
+    if (!client) return;
+
+    const completeGoogleSignIn = async (sessionUser: { id: string; email?: string; user_metadata?: Record<string, any> }) => {
+      const cleanEmail = (sessionUser.email || '').trim().toLowerCase();
+      if (!cleanEmail) return;
+
+      setLoading(true);
+      setErrorMsg('');
+      try {
+        const storedUsersRaw = localStorage.getItem('bia_users_database');
+        let usersList: UserProfile[] = storedUsersRaw ? JSON.parse(storedUsersRaw) : [];
+
+        let existingUser = usersList.find((u) => u.email.toLowerCase() === cleanEmail);
+        if (!existingUser) {
+          const remoteProfile = await findUserProfileByEmail(cleanEmail);
+          if (remoteProfile) existingUser = remoteProfile as UserProfile;
+        }
+
+        const geo = await fetchIpGeolocation();
+
+        if (!existingUser) {
+          const expirationDate = new Date();
+          expirationDate.setDate(expirationDate.getDate() + 30);
+
+          existingUser = {
+            id: sessionUser.id,
+            email: cleanEmail,
+            full_name: sessionUser.user_metadata?.full_name || sessionUser.user_metadata?.name || cleanEmail.split('@')[0],
+            photo_url: sessionUser.user_metadata?.avatar_url,
+            role: 'student',
+            status: 'pending',
+            data_expiracao: expirationDate.toISOString(),
+            email_verified: true,
+            ip_country: geo.country,
+            ip_region: geo.regionName,
+            ip_city: geo.city,
+            permissions: {
+              friends: true,
+              readclub: true,
+              board: true,
+              quiz: true,
+              biacompare: true,
+              conversation: true,
+              tradutor: true,
+              youtube: true,
+              practice: true,
+              stories: true
+            },
+            created_at: new Date().toISOString()
+          };
+          usersList.push(existingUser);
+        } else {
+          existingUser = { ...existingUser, ip_country: geo.country, ip_region: geo.regionName, ip_city: geo.city };
+          usersList = usersList.map((u) => (u.id === existingUser?.id ? existingUser as UserProfile : u));
+        }
+
+        localStorage.setItem('bia_users_database', JSON.stringify(usersList));
+        localStorage.setItem('bia_current_user', JSON.stringify(existingUser));
+        void syncUserProfileToSupabase(existingUser);
+
+        setSuccessMsg(`Bem-vindo, ${existingUser.full_name || existingUser.email}.`);
+        onAuthSuccess(existingUser);
+      } catch (err: any) {
+        setErrorMsg(err.message || 'Falha ao concluir o login com Google.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    client.auth.getSession().then(({ data }) => {
+      if (data.session?.user) void completeGoogleSignIn(data.session.user);
+    });
+
+    const { data: authListener } = client.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) void completeGoogleSignIn(session.user);
+    });
+
+    return () => authListener.subscription.unsubscribe();
+  }, []);
+
+  // Redirects to Google via Supabase OAuth; completeGoogleSignIn (above) picks up the result on return.
+  const handleGoogleSignIn = async () => {
+    setErrorMsg('');
+    const result = await signInWithGoogle();
+    if (!result.ok) {
+      setErrorMsg(
+        result.reason === 'offline'
+          ? 'Login com Google indisponível no momento.'
+          : result.message || 'Não foi possível iniciar o login com Google.'
+      );
+    }
+  };
 
   // Validates a coupon against the shared database first (so a code that was
   // already redeemed on another device/browser is correctly rejected here too).
@@ -239,18 +355,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       const storedUsersRaw = localStorage.getItem('bia_users_database');
       let usersList: UserProfile[] = storedUsersRaw ? JSON.parse(storedUsersRaw) : [];
 
-      // Geolocation lookup
-      let geo = { country: 'Brasil', regionName: 'São Paulo', city: 'São Paulo' };
-      try {
-        const geoRes = await fetch('https://ipapi.co/json/').then((res) => res.json());
-        if (geoRes && geoRes.country_name) {
-          geo = {
-            country: geoRes.country_name,
-            regionName: geoRes.region || '',
-            city: geoRes.city || ''
-          };
-        }
-      } catch (e) {}
+      // Geolocation lookup (isolated helper shared by every sign-in path)
+      const geo = await fetchIpGeolocation();
 
       if (isSignUp) {
         // Direct Student Signup (No email delivery roadblock)
@@ -718,6 +824,31 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </button>
           </div>
         </form>
+
+        {/* Google Sign-In via Supabase OAuth (hidden in CEO admin mode) */}
+        {!isAdminMode && getSupabaseConfig().url && getSupabaseConfig().anonKey && (
+          <div className="mt-3 flex w-full flex-col items-center gap-2.5 pointer-events-auto">
+            <div className="flex w-full items-center gap-2 text-[10px] uppercase tracking-widest text-white/40">
+              <span className="h-px flex-1 bg-white/15" />
+              <span>ou</span>
+              <span className="h-px flex-1 bg-white/15" />
+            </div>
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={loading}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/25 bg-white/[0.08] py-2.5 text-[11px] sm:text-sm font-bold text-white shadow-lg shadow-black/10 backdrop-blur-xl transition-all hover:border-white/40 hover:bg-white/[0.14] active:scale-95 disabled:opacity-50 cursor-pointer"
+            >
+              <svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true">
+                <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.9 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 6.1 29.6 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z" />
+                <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 16 18.9 13 24 13c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 6.1 29.6 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
+                <path fill="#4CAF50" d="M24 44c5.5 0 10.5-2.1 14.3-5.6l-6.6-5.4C29.6 34.9 26.9 36 24 36c-5.3 0-9.7-3.1-11.3-7.6l-6.6 5.1C9.6 39.6 16.2 44 24 44z" />
+                <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.2 5.7l6.6 5.4C39.9 37.4 44 31.6 44 24c0-1.3-.1-2.7-.4-3.5z" />
+              </svg>
+              <span>Entrar com o Google</span>
+            </button>
+          </div>
+        )}
 
         {/* Bottom Mode Switcher Link */}
         <div className="mt-3.5 flex w-full items-center justify-center text-center">
