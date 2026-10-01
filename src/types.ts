@@ -161,6 +161,7 @@ export interface PixPaymentRecord {
 
 export interface UserProfile {
   id: string;
+  auth_user_id?: string;
   email: string;
   password?: string;
   full_name?: string;
@@ -173,6 +174,7 @@ export interface UserProfile {
   ip_country?: string;
   ip_region?: string;
   ip_city?: string;
+  location_consent?: boolean;
   cupom_usado?: string;
   last_pix_tx_id?: string;
   last_pix_receipt?: string;

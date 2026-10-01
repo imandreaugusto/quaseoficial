@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import QRCode from 'qrcode';
-import { UserProfile, PixPaymentRecord, TrialCoupon } from '../types';
-import { useGatewaySettings } from '../hooks/useGatewaySettings';
-import { generatePixBRCode } from '../utils/pixPayload';
+import { UserProfile, PixPaymentRecord } from '../types';
 import { 
   QrCode, 
   Copy, 
@@ -21,7 +19,7 @@ import {
 } from 'lucide-react';
 import { BrazilianLogo } from './BrazilianLogo';
 import { SocialLinksBar } from './SocialLinksBar';
-import { getSupabaseClient } from '../utils/supabaseClient';
+import { getSupabaseClient, redeemGoogleTrialCoupon } from '../utils/supabaseClient';
 import { SiteLegalFooter } from './SiteLegalFooter';
 import { apiFetch } from '../lib/api';
 
@@ -48,6 +46,7 @@ export const PixPaymentScreen: React.FC<PixPaymentScreenProps> = ({
     qrCode?: string;
     qrCodeBase64?: string;
     ticketUrl?: string;
+    amountCents: number;
   } | null>(null);
   const [abatePayLoading, setAbatePayLoading] = useState(false);
   const [abatePayError, setAbatePayError] = useState('');
@@ -56,20 +55,11 @@ export const PixPaymentScreen: React.FC<PixPaymentScreenProps> = ({
   const [showVipTokenModal, setShowVipTokenModal] = useState(false);
   const [vipTokenInput, setVipTokenInput] = useState('');
   const [vipTokenError, setVipTokenError] = useState('');
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
 
-  const [settings] = useGatewaySettings();
   const qrCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Official Pix Key & Payload
-  const activePixKey = (settings.pixKey && settings.pixKey.trim()) || 'brazilianinaction@gmail.com';
-  const activePixPayload = generatePixBRCode({
-    pixKey: activePixKey,
-    beneficiaryName: settings.beneficiaryName || 'Brazilian in Action Idiomas',
-    city: settings.city || 'SAO PAULO',
-    amount: settings.subscriptionPrice || 10.0,
-    txId: `BIA${user.id.slice(-6).toUpperCase()}`
-  });
-  const copyablePixValue = abatePayPix?.qrCode || activePixPayload;
+  const copyablePixValue = abatePayPix?.qrCode || '';
 
   useEffect(() => {
     let cancelled = false;
@@ -77,17 +67,16 @@ export const PixPaymentScreen: React.FC<PixPaymentScreenProps> = ({
       setAbatePayLoading(true);
       setAbatePayError('');
       try {
-        const nameParts = (user.full_name || 'Aluno BIA').trim().split(/\s+/);
+        const client = getSupabaseClient();
+        if (!client) throw new Error('Login Google indisponível. Entre novamente.');
+        const { data: sessionData } = await client.auth.getSession();
+        const accessToken = sessionData.session?.access_token;
+        if (!accessToken) throw new Error('Entre com o Google novamente para gerar sua cobrança.');
+
         const response = await apiFetch('/api/payments/create-pix', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: user.email,
-            firstName: nameParts[0] || 'Aluno',
-            lastName: nameParts.slice(1).join(' ') || 'BIA',
-            amount: settings.subscriptionPrice || 10,
-            description: 'Assinatura Mensal - Brazilian in Action Idiomas'
-          })
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+          body: JSON.stringify({})
         });
         const data = await response.json();
         if (!response.ok || !data.id) {
@@ -105,7 +94,7 @@ export const PixPaymentScreen: React.FC<PixPaymentScreenProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [settings.subscriptionPrice, user.email, user.full_name]);
+  }, [user.email]);
 
   useEffect(() => {
     const client = getSupabaseClient();
@@ -135,10 +124,10 @@ export const PixPaymentScreen: React.FC<PixPaymentScreenProps> = ({
 
   // Render High Resolution Scannable QR Code Canvas
   useEffect(() => {
-    if (activeTab === 'checkout' && qrCanvasRef.current && activePixPayload) {
+    if (activeTab === 'checkout' && qrCanvasRef.current && abatePayPix?.qrCode) {
       QRCode.toCanvas(
         qrCanvasRef.current,
-        activePixPayload,
+        abatePayPix.qrCode,
         {
           width: 220,
           margin: 2,
@@ -153,7 +142,7 @@ export const PixPaymentScreen: React.FC<PixPaymentScreenProps> = ({
         }
       );
     }
-  }, [activeTab, activePixPayload]);
+  }, [activeTab, abatePayPix?.qrCode]);
 
   // Load User Payment History and Listen for Instant/Webhook/Live Approval
   useEffect(() => {
@@ -179,36 +168,26 @@ export const PixPaymentScreen: React.FC<PixPaymentScreenProps> = ({
       window.removeEventListener('bia_users_changed', handleStorageChange);
       window.removeEventListener('bia_pix_approved', handleStorageChange);
     };
-  }, [user.id, user.email, settings.subscriptionPrice]);
+  }, [user.id, user.email, abatePayPix?.id]);
 
   const checkLiveStatus = async () => {
-    if (abatePayPix?.id) {
-      try {
-        const response = await fetch(`/api/payments/status/${abatePayPix.id}`);
-        const statusData = await response.json();
-        if (response.ok && statusData.isApproved) {
-          onPaymentSuccess();
-          return;
-        }
-      } catch (error) {
-        console.warn('AbatePay status check failed:', error);
-      }
-    }
+    if (!abatePayPix?.id) return;
 
     try {
-      const storedUsersRaw = localStorage.getItem('bia_users_database');
-      if (storedUsersRaw) {
-        const usersList: UserProfile[] = JSON.parse(storedUsersRaw);
-        const currentUserInDb = usersList.find((u) => u.id === user.id || u.email.toLowerCase() === user.email.toLowerCase());
-        if (currentUserInDb && currentUserInDb.status === 'active') {
-          // Check expiration
-          if (!currentUserInDb.data_expiracao || new Date(currentUserInDb.data_expiracao) > new Date()) {
-            localStorage.setItem('bia_current_user', JSON.stringify(currentUserInDb));
-            onPaymentSuccess();
-          }
-        }
-      }
-    } catch (e) {}
+      const client = getSupabaseClient();
+      if (!client) return;
+      const { data } = await client.auth.getSession();
+      const accessToken = data.session?.access_token;
+      if (!accessToken) return;
+
+      const response = await apiFetch(`/api/payments/status/${encodeURIComponent(abatePayPix.id)}`, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      const statusData = await response.json();
+      if (response.ok && statusData.isApproved) onPaymentSuccess();
+    } catch (error) {
+      console.warn('AbatePay status check failed:', error);
+    }
   };
 
   const handleManualCheck = () => {
@@ -236,110 +215,34 @@ export const PixPaymentScreen: React.FC<PixPaymentScreenProps> = ({
   };
 
   const handleCopyPix = () => {
+    if (!copyablePixValue) return;
     navigator.clipboard.writeText(copyablePixValue);
     setCopied(true);
     setTimeout(() => setCopied(false), 3000);
   };
 
-  // Immediate VIP Token Validation (Instant Direct Approval via VIP Token or Trial Coupon)
-  const handleValidateVipToken = () => {
+  const handleValidateVipToken = async () => {
     setVipTokenError('');
     const cleanToken = vipTokenInput.trim().toUpperCase();
-
     if (!cleanToken) {
-      setVipTokenError('Por favor, informe o código do cupom ou token VIP.');
+      setVipTokenError('Informe seu cupom de teste.');
       return;
     }
 
-    const validTokens = ['BIA-VIP-2025', '170493', 'ANDRE-CEO', 'BIA-VIP', 'ACTION2025'];
-    const universalCoupons = ['BIA-5DIAS', 'DEGUSTA5', 'BRAZILIAN5', '5DIAS', 'TRIAL5', 'BIA5', 'DEGUSTACAO'];
-
-    // Check in single-use coupons database
-    let trialDays = 30; // default for VIP tokens
-    let isTrialCoupon = false;
-
-    let storedCoupons: TrialCoupon[] = [];
+    setValidatingCoupon(true);
     try {
-      const raw = localStorage.getItem('bia_trial_coupons');
-      if (raw) storedCoupons = JSON.parse(raw);
-    } catch (e) {}
-
-    const foundCoupon = storedCoupons.find((c) => c.code.toUpperCase() === cleanToken);
-
-    if (foundCoupon) {
-      if (foundCoupon.isUsed) {
-        setVipTokenError('Este cupom já foi utilizado anteriormente.');
-        return;
+      const result = await redeemGoogleTrialCoupon(cleanToken);
+      if (!result.ok) {
+        throw new Error(result.reason === 'invalid_or_used' ? 'Cupom inválido, expirado ou já utilizado.' : 'Não foi possível resgatar o cupom.');
       }
-      trialDays = foundCoupon.days || 5;
-      isTrialCoupon = true;
-    } else if (universalCoupons.includes(cleanToken) || cleanToken.startsWith('BIA-TRIAL') || cleanToken.startsWith('BIA-')) {
-      trialDays = 5;
-      isTrialCoupon = true;
-    } else if (!validTokens.includes(cleanToken)) {
-      setVipTokenError('Código de liberação ou cupom inválido.');
-      return;
+      setVipTokenInput('');
+      setShowVipTokenModal(false);
+      onPaymentSuccess();
+    } catch (error: any) {
+      setVipTokenError(error.message || 'Não foi possível validar o cupom.');
+    } finally {
+      setValidatingCoupon(false);
     }
-
-    // Approve user immediately
-    const storedUsersRaw = localStorage.getItem('bia_users_database');
-    let usersList: UserProfile[] = storedUsersRaw ? JSON.parse(storedUsersRaw) : [];
-
-    const expiration = new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000).toISOString();
-    const updatedUser: UserProfile = {
-      ...user,
-      status: 'active',
-      email_verified: true,
-      data_expiracao: expiration,
-      cupom_usado: cleanToken,
-      last_pix_tx_id: isTrialCoupon ? `CUPOM-${cleanToken}` : `VIP-TOKEN-${cleanToken}`
-    };
-
-    // Mark coupon as used if found
-    if (foundCoupon) {
-      try {
-        const updatedCoupons = storedCoupons.map((c) => {
-          if (c.code.toUpperCase() === cleanToken) {
-            return {
-              ...c,
-              isUsed: true,
-              usedBy: user.email,
-              usedAt: new Date().toISOString()
-            };
-          }
-          return c;
-        });
-        localStorage.setItem('bia_trial_coupons', JSON.stringify(updatedCoupons));
-      } catch (e) {}
-    }
-
-    const idx = usersList.findIndex((u) => u.id === user.id || u.email.toLowerCase() === user.email.toLowerCase());
-    if (idx >= 0) usersList[idx] = updatedUser;
-    else usersList.push(updatedUser);
-
-    localStorage.setItem('bia_users_database', JSON.stringify(usersList));
-    localStorage.setItem('bia_current_user', JSON.stringify(updatedUser));
-
-    // Record approved entry
-    const rawPayments = localStorage.getItem('bia_pix_payments');
-    let allPayments: PixPaymentRecord[] = rawPayments ? JSON.parse(rawPayments) : [];
-    allPayments.push({
-      id: `PIX-PROMO-${Date.now().toString().slice(-6)}`,
-      userId: user.id,
-      userEmail: user.email,
-      amount: isTrialCoupon ? 0.0 : (settings.subscriptionPrice || 10.0),
-      paidAt: new Date().toISOString(),
-      expiresAt: expiration,
-      status: 'approved',
-      method: 'pix',
-      transactionId: isTrialCoupon ? `CUPOM-${cleanToken}` : `TOKEN-${cleanToken}`,
-      planName: isTrialCoupon ? `Degustação Gratuita (${trialDays} Dias)` : 'Plano Mensal - Brazilian in Action (Liberação VIP)'
-    });
-    localStorage.setItem('bia_pix_payments', JSON.stringify(allPayments));
-
-    window.dispatchEvent(new Event('bia_users_changed'));
-    setShowVipTokenModal(false);
-    onPaymentSuccess();
   };
 
   const isExpired = user.status === 'expired';
@@ -407,7 +310,7 @@ export const PixPaymentScreen: React.FC<PixPaymentScreenProps> = ({
               </h2>
               <p className="text-xs text-white/70 max-w-sm mt-1">
                 {isExpired
-                  ? 'Seu período de 30 dias expirou. Efetue seu Pix de R$ 10,00 para renovar o acesso completo!'
+                  ? 'Seu período de acesso expirou. Gere uma nova cobrança para renovar o acesso completo.'
                   : 'Escaneie o QR Code ou use o Pix Copia e Cola no app do seu banco. A liberação ocorre automaticamente após o pagamento.'}
               </p>
             </div>
@@ -416,7 +319,9 @@ export const PixPaymentScreen: React.FC<PixPaymentScreenProps> = ({
             <div className="my-1.5 p-3 px-6 rounded-2xl bg-neutral-900/90 border border-white/15 backdrop-blur-md flex items-baseline gap-1 shadow-inner">
               <span className="text-xs text-white/50 font-bold uppercase">Valor da Assinatura:</span>
               <span className="text-2xl sm:text-3xl font-black text-emerald-400 font-mono ml-1">
-                R$ {(settings.subscriptionPrice || 10.0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {abatePayPix
+                  ? `R$ ${(abatePayPix.amountCents / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                  : abatePayLoading ? 'Consultando...' : 'Indisponível'}
               </span>
               <span className="text-xs text-white/50 font-bold">/mês</span>
             </div>
@@ -436,22 +341,26 @@ export const PixPaymentScreen: React.FC<PixPaymentScreenProps> = ({
                     alt="AbatePay Pix QR Code"
                     className="block h-[220px] w-[220px] rounded-lg"
                   />
-                ) : (
+                ) : abatePayPix?.qrCode ? (
                   <canvas ref={qrCanvasRef} className="block mx-auto rounded-lg" />
+                ) : (
+                  <div className="flex h-[220px] w-[220px] items-center justify-center rounded-lg bg-neutral-100 px-5 text-center text-xs font-semibold text-neutral-600">
+                    {abatePayLoading ? 'Gerando cobrança segura...' : 'QR Pix indisponível no momento.'}
+                  </div>
                 )}
               </div>
 
               {/* Beneficiary and Key info */}
-              <div className="w-full text-xs text-white/80 bg-neutral-900/80 p-2.5 rounded-xl border border-white/10 mb-3 text-left font-mono">
+              {abatePayPix && <div className="w-full text-xs text-white/80 bg-neutral-900/80 p-2.5 rounded-xl border border-white/10 mb-3 text-left font-mono">
                 <div className="flex justify-between border-b border-white/10 pb-1">
                   <span className="text-white/50">Chave Pix:</span>
-                  <strong className="text-amber-300 select-all">{abatePayPix ? 'AbatePay Pix' : activePixKey}</strong>
+                  <strong className="text-amber-300 select-all">AbatePay Pix</strong>
                 </div>
                 <div className="flex justify-between pt-1 text-[11px]">
                   <span className="text-white/50">Favorecido:</span>
-                  <span className="text-white/90 truncate">{settings.beneficiaryName || 'Brazilian in Action Idiomas'}</span>
+                  <span className="text-white/90 truncate">Brazilian in Action</span>
                 </div>
-              </div>
+              </div>}
 
               {/* Pix Copia e Cola Code Box */}
               <div className="w-full flex items-center gap-2 bg-neutral-900 border border-white/20 rounded-xl p-2 mb-3">
@@ -464,6 +373,7 @@ export const PixPaymentScreen: React.FC<PixPaymentScreenProps> = ({
                 <button
                   type="button"
                   onClick={handleCopyPix}
+                  disabled={!copyablePixValue}
                   className={`px-3.5 py-2 rounded-lg text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
                     copied
                       ? 'bg-emerald-500 text-black shadow-md shadow-emerald-500/30'
@@ -512,7 +422,7 @@ export const PixPaymentScreen: React.FC<PixPaymentScreenProps> = ({
                 <span>O sistema monitora pagamentos via Pix e libera seu login em tempo real.</span>
               </div>
               {abatePayLoading && <p className="mt-2 text-[11px] text-amber-200/80">Criando sua cobrança segura pela AbatePay...</p>}
-              {abatePayError && <p className="mt-2 text-[11px] text-rose-300">{abatePayError} A chave Pix direta continua disponível.</p>}
+              {abatePayError && <p className="mt-2 text-[11px] text-rose-300">{abatePayError}</p>}
             </div>
             <SiteLegalFooter />
 
@@ -524,7 +434,7 @@ export const PixPaymentScreen: React.FC<PixPaymentScreenProps> = ({
                 className="text-[11px] text-amber-300/80 hover:text-amber-200 underline cursor-pointer font-bold flex items-center gap-1 mx-auto"
               >
                 <KeyRound size={12} />
-                <span>Possui um Código VIP de Liberação do CEO?</span>
+                <span>Possui um cupom de teste?</span>
               </button>
             </div>
           </>
@@ -659,8 +569,8 @@ export const PixPaymentScreen: React.FC<PixPaymentScreenProps> = ({
                   <KeyRound size={18} />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-white">Código VIP de Liberação</h3>
-                  <p className="text-[11px] text-white/50">Acesso fornecido pelo CEO André Augusto</p>
+                  <h3 className="text-base font-black text-white">Resgatar cupom de teste</h3>
+                  <p className="text-[11px] text-white/50">Cada cupom pode ser usado uma única vez.</p>
                 </div>
               </div>
 
@@ -673,11 +583,11 @@ export const PixPaymentScreen: React.FC<PixPaymentScreenProps> = ({
               <div className="space-y-3">
                 <div>
                   <label className="text-xs text-white/80 font-bold block mb-1">
-                    Digite o Código de Liberação:
+                    Digite seu cupom:
                   </label>
                   <input
                     type="text"
-                    placeholder="BIA-VIP-..."
+                    placeholder="CUPOM-..."
                     value={vipTokenInput}
                     onChange={(e) => setVipTokenInput(e.target.value.toUpperCase())}
                     className="w-full bg-black/60 border border-amber-400/50 focus:border-amber-400 rounded-xl px-3 py-2.5 text-sm text-white font-mono uppercase tracking-wider outline-none"
@@ -687,9 +597,10 @@ export const PixPaymentScreen: React.FC<PixPaymentScreenProps> = ({
                 <button
                   type="button"
                   onClick={handleValidateVipToken}
-                  className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-lg shadow-amber-500/20 active:scale-95"
+                  disabled={validatingCoupon}
+                  className="w-full py-3 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-lg shadow-amber-500/20 active:scale-95"
                 >
-                  Validar Código & Desbloquear
+                  {validatingCoupon ? 'Validando no servidor...' : 'Validar cupom'}
                 </button>
               </div>
             </motion.div>

@@ -392,7 +392,7 @@ export const BrazilianStories: React.FC<BrazilianStoriesProps> = ({
     
     const newSubmission: StorySubmission = {
       id: 'story-' + Date.now(),
-      studentId: currentUser?.id || 'temp-id',
+      studentId: currentUser?.auth_user_id || currentUser?.id || 'temp-id',
       studentName,
       title: selectedPrompt.title,
       category: selectedPrompt.category,

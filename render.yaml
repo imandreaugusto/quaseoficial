@@ -14,6 +14,10 @@ services:
         value: https://imandreaugusto.github.io/quaseoficial/
       - key: ABATEPAY_TOKEN
         sync: false
+      - key: ABACATEPAY_WEBHOOK_SECRET
+        sync: false
+      - key: SUBSCRIPTION_PRICE_REAIS
+        value: "10"
       - key: SUPABASE_URL
         sync: false
       - key: VITE_SUPABASE_URL

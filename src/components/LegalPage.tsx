@@ -19,8 +19,8 @@ const sections = {
     ['7. Contato empresarial', 'Brazilian in Action · CNPJ 65.698.927/0001-92 · brazilianinaction@gmail.com.'],
   ],
   privacy: [
-    ['1. Dados coletados', 'Podemos coletar nome, e-mail, dados de cadastro, situação da assinatura, registros de pagamento fornecidos pelo provedor, preferências de uso, localização aproximada quando informada pelo navegador e mensagens do Brazilian Friends.'],
-    ['2. Para que usamos os dados', 'Os dados são usados para criar e proteger contas, liberar módulos, confirmar assinaturas, processar suporte, manter o Brazilian Friends, prevenir abuso, melhorar a experiência e cumprir obrigações legais.'],
+    ['1. Dados coletados', 'Podemos coletar nome, e-mail, dados de cadastro, situação da assinatura, registros de pagamento fornecidos pelo provedor e preferências de uso. País, estado/região e cidade são estimativas derivadas do IP e só são coletados após consentimento opcional; ficam no perfil privado e não são exibidos no diretório ou na presença do Brazilian Friends.'],
+    ['2. Para que usamos os dados', 'Os dados são usados para criar e proteger contas, liberar módulos, confirmar assinaturas, processar suporte, manter o Brazilian Friends, prevenir abuso, melhorar a experiência e cumprir obrigações legais. A localização aproximada é usada apenas para personalizar o perfil quando você autoriza.'],
     ['3. Pagamentos', 'Os dados de pagamento são processados pela Abacate Pay. A Brazilian in Action não solicita nem armazena senha bancária ou dados completos de cartão. O provedor pode tratar dados conforme seus próprios termos e política de privacidade.'],
     ['4. Retenção', 'Mensagens do Brazilian Friends são mantidas por até 7 dias. Dados de conta, assinatura, cobrança e registros necessários podem ser mantidos pelo período necessário à prestação do serviço, segurança, atendimento e cumprimento de obrigações legais.'],
     ['5. Compartilhamento', 'Não vendemos dados pessoais. Podemos compartilhar somente o necessário com provedores que sustentam autenticação, hospedagem, pagamentos, banco de dados e segurança, sempre para operar o serviço.'],

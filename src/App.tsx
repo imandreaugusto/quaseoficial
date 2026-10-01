@@ -32,8 +32,8 @@ import { LayoutPositionProvider } from './lib/LayoutPositionContext';
 import { loadPlatformDataFromCloud, loadUserDataFromCloud, savePlatformDataToCloud, saveUserDataToCloud } from './lib/firebase';
 import { Eye, EyeOff, MapPin } from 'lucide-react';
 import {
+  getSupabaseClient,
   getSubscriptionStatusFromSupabase,
-  syncSubscriptionToSupabase
 } from './utils/supabaseClient';
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -618,24 +618,41 @@ export default function App() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const client = getSupabaseClient();
+    if (client) await client.auth.signOut();
     localStorage.removeItem('bia_current_user');
     setCurrentUser(null);
     setIsAuthModalOpen(true);
   };
 
   const hydrateUserWithCloudSubscription = async (profile: UserProfile): Promise<UserProfile> => {
+    if (profile.role !== 'admin' && !profile.auth_user_id) {
+      return { ...profile, status: 'pending', data_expiracao: null };
+    }
+
+    if (profile.auth_user_id) {
+      const client = getSupabaseClient();
+      if (!client) return { ...profile, status: 'pending', data_expiracao: null };
+      const { data: authData, error: authError } = await client.auth.getUser();
+      if (authError || authData.user?.id !== profile.auth_user_id) {
+        return { ...profile, status: 'pending', data_expiracao: null };
+      }
+    }
+
     const subscription = await getSubscriptionStatusFromSupabase(profile.email);
-    if (!subscription) return profile;
+    if (!subscription) {
+      return profile.auth_user_id ? { ...profile, status: 'pending', data_expiracao: null } : profile;
+    }
 
     const nextUser: UserProfile = {
       ...profile,
-      status: subscription.status === 'active' ? 'active' : profile.status,
-      data_expiracao: subscription.subscription_expires_at || profile.data_expiracao || null,
+      status: subscription.status,
+      data_expiracao: subscription.subscription_expires_at || null,
       updated_at: new Date().toISOString()
     };
 
-    if (nextUser.status === 'active' && nextUser.data_expiracao && new Date(nextUser.data_expiracao) < new Date()) {
+    if (nextUser.status === 'active' && (!nextUser.data_expiracao || new Date(nextUser.data_expiracao) <= new Date())) {
       nextUser.status = 'expired';
     }
 
@@ -651,21 +668,16 @@ export default function App() {
   };
 
   const handlePaymentSuccess = async () => {
-    if (currentUser) {
-      const updated: UserProfile = {
-        ...currentUser,
-        status: 'active',
-        data_expiracao: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-      };
-      setCurrentUser(updated);
-      localStorage.setItem('bia_current_user', JSON.stringify(updated));
-      await syncSubscriptionToSupabase(updated.email, 'active', updated.data_expiracao || null);
-    }
+    if (!currentUser?.auth_user_id) return;
+    const verified = await hydrateUserWithCloudSubscription(currentUser);
+    if (verified.status !== 'active') return;
+    setCurrentUser(verified);
+    localStorage.setItem('bia_current_user', JSON.stringify(verified));
   };
 
   const handleRealtimeSubscriptionUpdate = (subscription: { status: string; subscription_expires_at?: string | null }) => {
-    if (subscription.status !== 'active') return;
-    const expiration = subscription.subscription_expires_at || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    if (subscription.status !== 'active' || !subscription.subscription_expires_at || new Date(subscription.subscription_expires_at) <= new Date()) return;
+    const expiration = subscription.subscription_expires_at;
     setCurrentUser((previous) => {
       if (!previous) return previous;
       const updated = { ...previous, status: 'active' as const, data_expiracao: expiration };

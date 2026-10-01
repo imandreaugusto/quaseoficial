@@ -2,20 +2,26 @@
 create table if not exists public.bia_subscription_profiles (
   id uuid primary key default gen_random_uuid(),
   email text not null unique,
+  user_id text,
+  user_id text,
   status text not null default 'pending' check (status in ('pending', 'active', 'expired')),
   subscription_expires_at timestamptz,
   last_payment_id text,
   updated_at timestamptz not null default now()
 );
 
+alter table public.bia_subscription_profiles add column if not exists user_id text;
+
 alter table public.bia_subscription_profiles enable row level security;
 
--- The current app authenticates users with Firebase, not Supabase Auth. This read
--- policy is the temporary compatibility bridge; configure Supabase third-party
--- Firebase JWTs and replace it with an auth.uid()/email-bound policy before production.
 drop policy if exists "Read subscription status" on public.bia_subscription_profiles;
-create policy "Read subscription status"
+drop policy if exists "subscription_all_access" on public.bia_subscription_profiles;
+drop policy if exists "subscription_select_own" on public.bia_subscription_profiles;
+create policy "subscription_select_own"
   on public.bia_subscription_profiles for select
-  using (true);
+  to authenticated using (user_id = auth.uid()::text);
+
+revoke all on public.bia_subscription_profiles from anon, authenticated;
+grant select on public.bia_subscription_profiles to authenticated;
 
 alter publication supabase_realtime add table public.bia_subscription_profiles;

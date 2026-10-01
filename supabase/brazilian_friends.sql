@@ -35,26 +35,74 @@ create index if not exists brazilian_friends_messages_conversation_idx
 alter table public.brazilian_friends_users enable row level security;
 alter table public.brazilian_friends_messages enable row level security;
 
--- Auth is handled by Firebase on the frontend (not Supabase Auth), so auth.uid()
--- is always null here. Policies are permissive at the DB layer, matching the
--- rest of this project's tables (see schema.sql), and access is gated by the app.
-drop policy if exists "Friends can read profiles" on public.brazilian_friends_users;
-drop policy if exists "brazilian_friends_users_all_access" on public.brazilian_friends_users;
-create policy "brazilian_friends_users_all_access"
-  on public.brazilian_friends_users for all
-  using (true)
-  with check (true);
+create or replace function public.cleanup_expired_brazilian_friend_messages_count()
+returns integer
+language sql
+security definer
+set search_path = public
+as $$
+  with deleted as (
+    delete from public.brazilian_friends_messages
+    where expires_at is not null and expires_at <= now()
+    returning 1
+  )
+  select count(*)::integer from deleted;
+$$;
+revoke all on function public.cleanup_expired_brazilian_friend_messages_count() from public;
+grant execute on function public.cleanup_expired_brazilian_friend_messages_count() to anon, authenticated;
 
+update public.brazilian_friends_users set ip_region = null, ip_country = null
+where ip_region is not null or ip_country is not null;
+
+drop policy if exists "Friends can read profiles" on public.brazilian_friends_users;
 drop policy if exists "Users can create their own profile" on public.brazilian_friends_users;
 drop policy if exists "Users can update their own profile" on public.brazilian_friends_users;
+drop policy if exists "brazilian_friends_users_all_access" on public.brazilian_friends_users;
+drop policy if exists "friends_profiles_authenticated_read" on public.brazilian_friends_users;
+create policy "friends_profiles_authenticated_read"
+  on public.brazilian_friends_users for select to authenticated
+  using (true);
+drop policy if exists "friends_profile_insert_own" on public.brazilian_friends_users;
+create policy "friends_profile_insert_own"
+  on public.brazilian_friends_users for insert to authenticated
+  with check (id = auth.uid()::text);
+drop policy if exists "friends_profile_update_own" on public.brazilian_friends_users;
+create policy "friends_profile_update_own"
+  on public.brazilian_friends_users for update to authenticated
+  using (id = auth.uid()::text)
+  with check (id = auth.uid()::text);
+drop policy if exists "friends_profile_delete_own" on public.brazilian_friends_users;
+create policy "friends_profile_delete_own"
+  on public.brazilian_friends_users for delete to authenticated
+  using (id = auth.uid()::text);
 
 drop policy if exists "Participants can read messages" on public.brazilian_friends_messages;
-drop policy if exists "brazilian_friends_messages_all_access" on public.brazilian_friends_messages;
-create policy "brazilian_friends_messages_all_access"
-  on public.brazilian_friends_messages for all
-  using (true)
-  with check (true);
-
 drop policy if exists "Users can send as themselves" on public.brazilian_friends_messages;
+drop policy if exists "brazilian_friends_messages_all_access" on public.brazilian_friends_messages;
+drop policy if exists "friends_messages_participant_read" on public.brazilian_friends_messages;
+create policy "friends_messages_participant_read"
+  on public.brazilian_friends_messages for select to authenticated
+  using (sender_id = auth.uid()::text or receiver_id = auth.uid()::text or receiver_id is null);
+drop policy if exists "friends_messages_sender_insert" on public.brazilian_friends_messages;
+create policy "friends_messages_sender_insert"
+  on public.brazilian_friends_messages for insert to authenticated
+  with check (sender_id = auth.uid()::text);
+drop policy if exists "friends_messages_sender_update" on public.brazilian_friends_messages;
+create policy "friends_messages_sender_update"
+  on public.brazilian_friends_messages for update to authenticated
+  using (sender_id = auth.uid()::text)
+  with check (sender_id = auth.uid()::text);
+drop policy if exists "friends_messages_sender_delete" on public.brazilian_friends_messages;
+create policy "friends_messages_sender_delete"
+  on public.brazilian_friends_messages for delete to authenticated
+  using (sender_id = auth.uid()::text);
+
+revoke all on public.brazilian_friends_users, public.brazilian_friends_messages from anon, authenticated;
+grant select (id, full_name, photo_url, status_message, updated_at)
+  on public.brazilian_friends_users to authenticated;
+grant insert (id, email, full_name, photo_url, status_message),
+  update (email, full_name, photo_url, status_message, updated_at)
+  on public.brazilian_friends_users to authenticated;
+grant select, insert, update, delete on public.brazilian_friends_messages to authenticated;
 
 alter publication supabase_realtime add table public.brazilian_friends_messages;

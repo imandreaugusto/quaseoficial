@@ -5,8 +5,15 @@ import { spawn } from 'child_process';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type } from '@google/genai';
+import { randomUUID } from 'node:crypto';
 import dotenv from 'dotenv';
 import { validatePortuguesePhrase } from './src/lib/jevValidator';
+import {
+  normalizeEmail,
+  subscriptionPriceCents,
+  verifyAbacatePaySignature,
+  verifyWebhookSecret
+} from './src/lib/paymentSecurity';
 
 // Load environment variables
 dotenv.config();
@@ -128,8 +135,99 @@ async function startServer() {
     });
   });
 
-  // JSON parser for API requests
-  app.use(express.json());
+  // Keep the signed bytes available while retaining parsed JSON for handlers.
+  app.use(express.json({
+    verify: (req, _res, buffer) => {
+      (req as typeof req & { rawBody?: Buffer }).rawBody = Buffer.from(buffer);
+    }
+  }));
+
+  const getSupabaseServiceConfig = () => {
+    const url = process.env.SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!url || !serviceRoleKey) throw new Error('Supabase server credentials are not configured.');
+    return { url: url.replace(/\/$/, ''), serviceRoleKey };
+  };
+
+  const supabaseServiceRequest = async (resource: string, init: RequestInit = {}) => {
+    const { url, serviceRoleKey } = getSupabaseServiceConfig();
+    const headers = new Headers(init.headers);
+    headers.set('apikey', serviceRoleKey);
+    headers.set('Authorization', `Bearer ${serviceRoleKey}`);
+    if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+    return fetch(`${url}/rest/v1/${resource}`, { ...init, headers });
+  };
+
+  const getSupabaseUserFromRequest = async (request: express.Request) => {
+    const token = request.header('Authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const anonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+    if (!token || !supabaseUrl || !anonKey) return null;
+
+    const response = await fetch(`${supabaseUrl.replace(/\/$/, '')}/auth/v1/user`, {
+      headers: { apikey: anonKey, Authorization: `Bearer ${token}` }
+    });
+    if (!response.ok) return null;
+    return await response.json() as {
+      id: string;
+      email?: string;
+      email_confirmed_at?: string | null;
+      user_metadata?: Record<string, unknown>;
+    };
+  };
+
+  const getGoogleProfileByAuthId = async (authUserId: string) => {
+    const response = await supabaseServiceRequest(
+      `profiles?auth_user_id=eq.${encodeURIComponent(authUserId)}&select=id,auth_user_id,email,full_name,photo_url,role,status,data_expiracao,permissions,ip_country,ip_region,ip_city,location_consent&limit=1`
+    );
+    if (!response.ok) throw new Error(`Supabase profile read failed (${response.status}).`);
+    const profiles = await response.json() as Record<string, unknown>[];
+    return profiles[0] || null;
+  };
+
+  const rateLimitBuckets = new Map<string, { startedAt: number; count: number }>();
+  const isRateLimited = (key: string, limit: number, windowMs: number) => {
+    const now = Date.now();
+    const bucket = rateLimitBuckets.get(key);
+    if (!bucket || now - bucket.startedAt >= windowMs) {
+      rateLimitBuckets.set(key, { startedAt: now, count: 1 });
+      return false;
+    }
+    if (bucket.count >= limit) return true;
+    bucket.count += 1;
+    return false;
+  };
+
+  const activateRegisteredPayment = async (paymentId: string, eventId?: string | null) => {
+    const response = await supabaseServiceRequest('rpc/activate_bia_payment', {
+      method: 'POST',
+      body: JSON.stringify({ p_payment_id: paymentId, p_event_id: eventId || null })
+    });
+    if (!response.ok) throw new Error(`Supabase payment activation failed (${response.status}).`);
+    return await response.json() as { ok: boolean; duplicate?: boolean; reason?: string; subscription_expires_at?: string };
+  };
+
+  const getAbatePayPaymentStatus = async (paymentId: string) => {
+    const abatePayToken = process.env.ABACATEPAY_API_KEY || process.env.ABATEPAY_TOKEN;
+    const apiBaseUrl = (process.env.ABACATEPAY_API_URL || 'https://api.abacatepay.com').replace(/\/$/, '');
+    const statusTemplate = process.env.ABATEPAY_STATUS_URL_TEMPLATE || `${apiBaseUrl}/v2/transparents/check?id={id}`;
+    if (!abatePayToken) throw new Error('ABATEPAY_TOKEN is not configured.');
+
+    const response = await fetch(statusTemplate.replace('{id}', encodeURIComponent(paymentId)), {
+      headers: { Authorization: `Bearer ${abatePayToken}` }
+    });
+    if (!response.ok) throw new Error(`AbatePay status check failed (${response.status}).`);
+
+    const responseData = await response.json() as any;
+    const payment = responseData.data || responseData;
+    const status = String(payment.status || payment.paymentStatus || '').toLowerCase();
+    return {
+      id: String(payment.id || paymentId),
+      status,
+      isApproved: ['approved', 'paid', 'completed', 'confirmed'].includes(status),
+      eventId: String(payment.eventId || payment.event_id || '') || null
+    };
+  };
 
   const allowedOrigins = new Set([
     'https://imandreaugusto.github.io',
@@ -165,33 +263,117 @@ async function startServer() {
       status: 'ok', 
       time: new Date().toISOString(),
       supabaseConfigured: Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY),
-      abatePayConfigured: Boolean(process.env.ABATEPAY_TOKEN)
+      abatePayConfigured: Boolean(process.env.ABACATEPAY_API_KEY || process.env.ABATEPAY_TOKEN)
     });
   });
 
-  // 1.1 Endpoint para Criar Cobrança Pix pela AbatePay.
-  app.post('/api/payments/create-pix', async (req, res) => {
+  app.post('/api/auth/google/profile', async (req, res) => {
     try {
-      const { email, firstName, lastName, amount, description } = req.body;
-      const abatePayToken = process.env.ABATEPAY_TOKEN;
-      const abatePayCreateUrl = process.env.ABATEPAY_CREATE_URL || 'https://api.abacatepay.com/v2/transparents/create';
-
-      if (!abatePayToken) {
-        return res.status(400).json({ 
-          error: 'ABATEPAY_TOKEN não configurado no ambiente do servidor.'
-        });
+      const authUser = await getSupabaseUserFromRequest(req);
+      const email = normalizeEmail(authUser?.email);
+      if (!authUser?.id || !email || !authUser.email_confirmed_at) {
+        return res.status(401).json({ error: 'Sessão Google inválida ou e-mail não confirmado.' });
+      }
+      if (isRateLimited(`google-profile:${authUser.id}`, 10, 60_000)) {
+        return res.status(429).json({ error: 'Muitas tentativas. Aguarde e tente novamente.' });
       }
 
+      const metadata = authUser.user_metadata || {};
+      const locationConsent = req.body?.locationConsent === true;
+      const profileResponse = await supabaseServiceRequest('rpc/register_google_profile', {
+        method: 'POST',
+        body: JSON.stringify({
+          p_id: authUser.id,
+          p_email: email,
+          p_full_name: metadata.full_name || metadata.name || email.split('@')[0],
+          p_photo_url: metadata.avatar_url || metadata.picture || null,
+          p_location_consent: locationConsent,
+          p_ip_country: locationConsent ? req.body?.ip_country || null : null,
+          p_ip_region: locationConsent ? req.body?.ip_region || null : null,
+          p_ip_city: locationConsent ? req.body?.ip_city || null : null
+        })
+      });
+      if (!profileResponse.ok) {
+        const details = await profileResponse.text();
+        console.error('Google profile registration failed:', profileResponse.status, details);
+        return res.status(502).json({ error: 'Não foi possível salvar seu perfil no Supabase.' });
+      }
+
+      const result = await profileResponse.json() as Record<string, unknown>[];
+      const profile = Array.isArray(result) ? result[0] : result;
+      if (!profile) return res.status(502).json({ error: 'Supabase não retornou o perfil criado.' });
+      return res.status(200).json({ profile });
+    } catch (error: any) {
+      console.error('Google profile registration failed:', error.message);
+      return res.status(500).json({ error: 'Falha ao registrar o perfil Google.' });
+    }
+  });
+
+  app.post('/api/auth/google/redeem-coupon', async (req, res) => {
+    try {
+      const authUser = await getSupabaseUserFromRequest(req);
+      const email = normalizeEmail(authUser?.email);
+      const code = typeof req.body?.code === 'string' ? req.body.code.trim().toUpperCase() : '';
+      if (!authUser?.id || !email || !authUser.email_confirmed_at) {
+        return res.status(401).json({ error: 'Sessão Google inválida.' });
+      }
+      if (isRateLimited(`google-coupon:${authUser.id}`, 8, 60_000)) {
+        return res.status(429).json({ error: 'Muitas tentativas de cupom. Aguarde e tente novamente.' });
+      }
+      if (!code || code.length > 100) return res.status(400).json({ error: 'Cupom inválido.' });
+
+      const response = await supabaseServiceRequest('rpc/redeem_google_trial_coupon', {
+        method: 'POST',
+        body: JSON.stringify({ p_code: code, p_email: email, p_user_id: authUser.id })
+      });
+      if (!response.ok) {
+        console.error('Google coupon redemption failed:', response.status, await response.text());
+        return res.status(502).json({ error: 'Não foi possível validar o cupom no servidor.' });
+      }
+      return res.status(200).json(await response.json());
+    } catch (error: any) {
+      console.error('Google coupon redemption failed:', error.message);
+      return res.status(500).json({ error: 'Falha ao resgatar o cupom.' });
+    }
+  });
+
+  // Pix is created only for the authenticated Google profile and at the server price.
+  app.post('/api/payments/create-pix', async (req, res) => {
+    try {
+      const authUser = await getSupabaseUserFromRequest(req);
+      const email = normalizeEmail(authUser?.email);
+      if (!authUser?.id || !email || !authUser.email_confirmed_at) {
+        return res.status(401).json({ error: 'Entre com o Google antes de criar uma cobrança.' });
+      }
+      if (isRateLimited(`pix-create:${authUser.id}`, 5, 60_000)) {
+        return res.status(429).json({ error: 'Muitas cobranças solicitadas. Aguarde um minuto.' });
+      }
+
+      const profile = await getGoogleProfileByAuthId(authUser.id);
+      if (!profile || normalizeEmail(profile.email) !== email) {
+        return res.status(403).json({ error: 'Perfil Google não encontrado para esta sessão.' });
+      }
+
+      const abatePayToken = process.env.ABACATEPAY_API_KEY || process.env.ABATEPAY_TOKEN;
+      const apiBaseUrl = (process.env.ABACATEPAY_API_URL || 'https://api.abacatepay.com').replace(/\/$/, '');
+      const abatePayCreateUrl = process.env.ABATEPAY_CREATE_URL || `${apiBaseUrl}/v2/transparents/create`;
+      const amountCents = subscriptionPriceCents(process.env.SUBSCRIPTION_PRICE_REAIS);
+
+      if (!abatePayToken) {
+        return res.status(503).json({ error: 'AbatePay não está configurado no servidor.' });
+      }
+
+      const fullName = String(profile.full_name || authUser.user_metadata?.full_name || authUser.user_metadata?.name || email.split('@')[0]);
       const paymentData = {
         method: 'PIX',
         data: {
-          amount: Math.round((Number(amount) || 10) * 100),
-          description: description || 'Assinatura Mensal - Brazilian in Action Idiomas',
+          amount: amountCents,
+          description: 'Assinatura Mensal - Brazilian in Action Idiomas',
           expiresIn: 3600,
           metadata: {
             plan: 'brazilian-in-action-monthly',
-            email: email || 'aluno@brazilianinaction.com',
-            customerName: `${firstName || 'Aluno'} ${lastName || 'BIA'}`.trim()
+            email,
+            customerName: fullName
           }
         }
       };
@@ -201,7 +383,7 @@ async function startServer() {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${abatePayToken}`,
-          'X-Idempotency-Key': `bia-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+          'X-Idempotency-Key': `bia-${randomUUID()}`
         },
         body: JSON.stringify(paymentData)
       });
@@ -214,12 +396,31 @@ async function startServer() {
       }
 
       const billing = data.data || data;
+      if (!billing.id) return res.status(502).json({ error: 'AbatePay não retornou o identificador da cobrança.' });
+
+      const intentResponse = await supabaseServiceRequest('bia_payment_intents', {
+        method: 'POST',
+        headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify({
+          payment_id: billing.id,
+          user_id: authUser.id,
+          email,
+          amount_cents: amountCents,
+          status: 'pending'
+        })
+      });
+      if (!intentResponse.ok) {
+        console.error('Payment intent persistence failed:', intentResponse.status, await intentResponse.text());
+        return res.status(502).json({ error: 'A cobrança foi criada, mas não pôde ser vinculada à conta. Contate o suporte antes de pagar.' });
+      }
+
       return res.status(200).json({
         id: billing.id,
         status: billing.status,
         qrCode: billing.brCode,
         qrCodeBase64: billing.brCodeBase64,
-        ticketUrl: billing.url
+        ticketUrl: billing.url,
+        amountCents
       });
     } catch (err: any) {
       console.error('❌ Erro interno ao criar Pix na AbatePay:', err);
@@ -227,145 +428,78 @@ async function startServer() {
     }
   });
 
-  // 1.2 Endpoint para Verificar Status do Pagamento na AbatePay
+  // Payment status is scoped to the signed-in owner of the stored payment intent.
   app.get('/api/payments/status/:id', async (req, res) => {
     try {
-      const paymentId = req.params.id;
-      const abatePayToken = process.env.ABATEPAY_TOKEN;
-      const statusTemplate = process.env.ABATEPAY_STATUS_URL_TEMPLATE || 'https://api.abacatepay.com/v2/transparents/check?id={id}';
-
-      if (!abatePayToken) {
-        return res.status(400).json({ error: 'ABATEPAY_TOKEN ausente' });
+      const authUser = await getSupabaseUserFromRequest(req);
+      const email = normalizeEmail(authUser?.email);
+      if (!authUser?.id || !email) return res.status(401).json({ error: 'Sessão Google inválida.' });
+      if (isRateLimited(`pix-status:${authUser.id}`, 30, 60_000)) {
+        return res.status(429).json({ error: 'Muitas consultas de pagamento. Aguarde alguns segundos.' });
       }
 
-      const response = await fetch(statusTemplate.replace('{id}', encodeURIComponent(paymentId)), {
-        headers: {
-          'Authorization': `Bearer ${abatePayToken}`
-        }
-      });
+      const paymentId = req.params.id;
+      if (!paymentId || paymentId.length > 200) return res.status(400).json({ error: 'Identificador de cobrança inválido.' });
 
-      const data: any = await response.json();
-      const payment = data.data || data;
-      const status = String(payment.status || payment.paymentStatus || '').toLowerCase();
-      return res.status(200).json({ id: payment.id || paymentId, status, isApproved: ['approved', 'paid', 'completed', 'confirmed'].includes(status), payerEmail: payment.customer?.email || payment.email || payment.metadata?.email });
+      const intentResponse = await supabaseServiceRequest(
+        `bia_payment_intents?payment_id=eq.${encodeURIComponent(paymentId)}&select=payment_id,user_id,email,status&limit=1`
+      );
+      if (!intentResponse.ok) throw new Error('Payment intent lookup failed.');
+      const intents = await intentResponse.json() as { payment_id: string; user_id: string; email: string; status: string }[];
+      const intent = intents[0];
+      if (!intent || intent.user_id !== authUser.id || normalizeEmail(intent.email) !== email) {
+        return res.status(404).json({ error: 'Cobrança não encontrada para esta conta.' });
+      }
+
+      const paymentStatus = await getAbatePayPaymentStatus(paymentId);
+      if (paymentStatus.isApproved && intent.status !== 'active') {
+        const activation = await activateRegisteredPayment(paymentId, paymentStatus.eventId);
+        if (!activation.ok) return res.status(502).json({ error: 'Pagamento aprovado, mas a assinatura ainda não foi ativada.' });
+        return res.status(200).json({ ...paymentStatus, subscriptionExpiresAt: activation.subscription_expires_at });
+      }
+      return res.status(200).json(paymentStatus);
     } catch (err: any) {
-      return res.status(500).json({ error: 'Erro ao consultar status do pagamento' });
+      console.error('AbatePay status check failed:', err.message);
+      return res.status(502).json({ error: 'Não foi possível verificar a cobrança agora.' });
     }
   });
 
-  const syncSubscriptionToSupabase = async (email: string, paymentId: string, expiresAt: string) => {
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!supabaseUrl || !serviceRoleKey) {
-      throw new Error('SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY não configurado');
-    }
-
-    const response = await fetch(`${supabaseUrl}/rest/v1/bia_subscription_profiles?on_conflict=email`, {
-      method: 'POST',
-      headers: {
-        apikey: serviceRoleKey,
-        Authorization: `Bearer ${serviceRoleKey}`,
-        'Content-Type': 'application/json',
-        Prefer: 'resolution=merge-duplicates,return=minimal'
-      },
-      body: JSON.stringify({
-        email: email.toLowerCase(),
-        status: 'active',
-        subscription_expires_at: expiresAt,
-        last_payment_id: paymentId || null,
-        updated_at: new Date().toISOString()
-      })
-    });
-
-    if (!response.ok) {
-      const details = await response.text();
-      throw new Error(`Supabase respondeu ${response.status}: ${details}`);
-    }
-
-    const profileResponse = await fetch(
-      `${supabaseUrl}/rest/v1/profiles?email=eq.${encodeURIComponent(email.toLowerCase())}`,
-      {
-        method: 'PATCH',
-        headers: {
-          apikey: serviceRoleKey,
-          Authorization: `Bearer ${serviceRoleKey}`,
-          'Content-Type': 'application/json',
-          Prefer: 'return=minimal'
-        },
-        body: JSON.stringify({
-          status: 'active',
-          data_expiracao: expiresAt,
-          updated_at: new Date().toISOString()
-        })
-      }
-    );
-
-    if (!profileResponse.ok) {
-      const details = await profileResponse.text();
-      throw new Error(`Perfil não foi atualizado (${profileResponse.status}): ${details}`);
-    }
-  };
-
-  // 1.3 Webhook de Pagamento Pix Automático (AbatePay / Asaas)
+  // A webhook must pass both the configured URL secret and provider signature.
   app.post('/api/webhook/payment', async (req, res) => {
     try {
       const payload = req.body;
-      console.log('💳 Webhook de Pagamento Pix Recebido:', JSON.stringify(payload, null, 2));
-
-      let isApproved = false;
-      let payerEmail = '';
-      let paymentId = '';
-
-      paymentId = payload.data?.id || payload.payment?.id || payload.id || '';
-      const webhookStatus = String(
-        payload.status || payload.event || payload.data?.status || payload.payment?.status || ''
-      ).toLowerCase();
-      isApproved = [
-        'approved',
-        'paid',
-        'completed',
-        'confirmed',
-        'payment_received',
-        'payment_confirmed',
-        'transparent.completed',
-        'billing.paid',
-        'checkout.completed'
-      ].includes(webhookStatus);
-      payerEmail = payload.customer?.email
-        || payload.data?.customer?.email
-        || payload.data?.billing?.customer?.email
-        || payload.payment?.customerEmail
-        || payload.payment?.customer?.email
-        || payload.email
-        || payload.data?.email
-        || payload.data?.metadata?.email
-        || payload.metadata?.email
-        || '';
-
-      if (isApproved && payerEmail) {
-        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-        try {
-          await syncSubscriptionToSupabase(payerEmail, paymentId, expiresAt);
-          console.log(`✅ Pagamento aprovado e assinatura sincronizada no Supabase: ${payerEmail}`);
-        } catch (syncError: any) {
-          console.error('❌ Pagamento aprovado, mas falhou a sincronização no Supabase:', syncError.message);
-          return res.status(502).json({
-            received: true,
-            success: false,
-            isApproved: true,
-            error: 'Pagamento aprovado, mas a assinatura ainda não foi sincronizada'
-          });
-        }
+      const providedWebhookSecret = req.query.webhookSecret ?? req.query.secret;
+      const webhookSecretValid = [process.env.ABATEPAY_WEBHOOK_SECRET, process.env.ABACATEPAY_WEBHOOK_SECRET]
+        .some((secret) => verifyWebhookSecret(providedWebhookSecret, secret));
+      const rawBody = (req as express.Request & { rawBody?: Buffer }).rawBody;
+      if (!webhookSecretValid
+        || !verifyAbacatePaySignature(rawBody, req.header('X-Webhook-Signature'))) {
+        return res.status(401).json({ error: 'Assinatura do webhook inválida.' });
       }
 
+      const paymentId = String(payload.data?.id || payload.payment?.id || payload.id || '');
+      if (!paymentId) return res.status(400).json({ error: 'Webhook sem identificador de cobrança.' });
+
+      const intentResponse = await supabaseServiceRequest(
+        `bia_payment_intents?payment_id=eq.${encodeURIComponent(paymentId)}&select=payment_id,status&limit=1`
+      );
+      if (!intentResponse.ok) throw new Error('Payment intent lookup failed.');
+      const intents = await intentResponse.json() as { payment_id: string; status: string }[];
+      if (!intents[0]) return res.status(404).json({ error: 'Cobrança não registrada.' });
+
+      const paymentStatus = await getAbatePayPaymentStatus(paymentId);
+      if (paymentStatus.isApproved) {
+        const eventId = String(payload.eventId || payload.event_id || payload.event?.id || '') || null;
+        const activation = await activateRegisteredPayment(paymentId, eventId);
+        if (!activation.ok) throw new Error(activation.reason || 'Payment activation failed.');
+      }
       return res.status(200).json({
         received: true,
         success: true,
-        isApproved,
-        message: 'Webhook processado com sucesso'
+        isApproved: paymentStatus.isApproved
       });
     } catch (error: any) {
-      console.error('❌ Erro no processamento do Webhook de Pagamento:', error);
+      console.error('Payment webhook processing failed:', error.message);
       return res.status(500).json({ error: 'Erro interno ao processar webhook' });
     }
   });

@@ -3,8 +3,11 @@
 
 create table if not exists profiles (
   id text primary key,
+  auth_user_id text,
   email text not null unique,
   full_name text,
+  photo_url text,
+  location_consent boolean not null default false,
   role text not null default 'student' check (role in ('student', 'admin')),
   status text not null default 'pending' check (status in ('pending', 'active', 'expired', 'trial')),
   data_expiracao timestamptz,
@@ -25,6 +28,9 @@ create table if not exists profiles (
 );
 
 alter table profiles add column if not exists full_name text;
+alter table profiles add column if not exists auth_user_id text;
+alter table profiles add column if not exists photo_url text;
+alter table profiles add column if not exists location_consent boolean not null default false;
 alter table profiles add column if not exists role text not null default 'student';
 alter table profiles add column if not exists status text not null default 'pending';
 alter table profiles add column if not exists data_expiracao timestamptz;
@@ -81,9 +87,23 @@ create table if not exists stories (
 
 create table if not exists bia_subscription_profiles (
   email text primary key,
+  user_id text,
   status text not null default 'pending' check (status in ('pending', 'active', 'expired', 'trial')),
   subscription_expires_at timestamptz,
   last_payment_id text,
+  updated_at timestamptz not null default now()
+);
+
+alter table bia_subscription_profiles add column if not exists user_id text;
+
+create table if not exists bia_payment_intents (
+  payment_id text primary key,
+  user_id text,
+  email text not null,
+  amount_cents integer not null check (amount_cents > 0),
+  status text not null default 'pending' check (status in ('pending', 'active')),
+  provider_event_id text,
+  created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
@@ -135,8 +155,10 @@ create index if not exists idx_shared_content_updated_at on bia_shared_content (
 create index if not exists idx_student_progress_updated_at on bia_student_progress (updated_at desc);
 create index if not exists idx_friend_messages_expires_at on bia_ceo_friend_messages (expires_at);
 create index if not exists idx_trial_coupons_code on bia_trial_coupons (code);
+create index if not exists idx_payment_intents_email on bia_payment_intents (email);
 
 create index if not exists idx_profiles_email on profiles (email);
+create unique index if not exists idx_profiles_auth_user_id on profiles (auth_user_id) where auth_user_id is not null;
 create index if not exists idx_stories_created_at on stories (created_at desc);
 create index if not exists idx_stories_status on stories (status);
 create index if not exists idx_subscription_email on bia_subscription_profiles (email);
@@ -148,40 +170,74 @@ alter table bia_shared_content enable row level security;
 alter table bia_student_progress enable row level security;
 alter table bia_ceo_friend_messages enable row level security;
 alter table bia_trial_coupons enable row level security;
+alter table bia_payment_intents enable row level security;
 
 drop policy if exists "profiles_all_access" on profiles;
-create policy "profiles_all_access" on profiles
-for all
-using (true)
-with check (true);
+drop policy if exists "profiles_select_own" on profiles;
+create policy "profiles_select_own" on profiles
+for select to authenticated using (auth_user_id = auth.uid()::text);
 
 drop policy if exists "stories_all_access" on stories;
-create policy "stories_all_access" on stories
-for all
-using (true)
-with check (true);
+drop policy if exists "stories_public_read_approved" on stories;
+create policy "stories_public_read_approved" on stories
+for select to anon, authenticated using (status in ('approved', 'featured'));
+drop policy if exists "stories_insert_own_pending" on stories;
+create policy "stories_insert_own_pending" on stories
+for insert to authenticated with check (student_id = auth.uid()::text and status = 'pending');
+drop policy if exists "stories_update_own_pending" on stories;
+create policy "stories_update_own_pending" on stories
+for update to authenticated using (student_id = auth.uid()::text and status = 'pending')
+with check (student_id = auth.uid()::text and status = 'pending');
+drop policy if exists "stories_delete_own_pending" on stories;
+create policy "stories_delete_own_pending" on stories
+for delete to authenticated using (student_id = auth.uid()::text and status = 'pending');
 
 drop policy if exists "subscription_all_access" on bia_subscription_profiles;
-create policy "subscription_all_access" on bia_subscription_profiles
-for all
-using (true)
-with check (true);
+drop policy if exists "Read subscription status" on bia_subscription_profiles;
+drop policy if exists "subscription_select_own" on bia_subscription_profiles;
+create policy "subscription_select_own" on bia_subscription_profiles
+for select to authenticated using (user_id = auth.uid()::text);
 
 drop policy if exists "shared_content_all_access" on bia_shared_content;
-create policy "shared_content_all_access" on bia_shared_content
-for all using (true) with check (true);
+drop policy if exists "shared_content_public_read" on bia_shared_content;
 
 drop policy if exists "student_progress_all_access" on bia_student_progress;
-create policy "student_progress_all_access" on bia_student_progress
-for all using (true) with check (true);
+drop policy if exists "student_progress_own" on bia_student_progress;
+create policy "student_progress_own" on bia_student_progress
+for all to authenticated using (user_id = auth.uid()::text) with check (user_id = auth.uid()::text);
 
 drop policy if exists "ceo_friend_messages_all_access" on bia_ceo_friend_messages;
-create policy "ceo_friend_messages_all_access" on bia_ceo_friend_messages
-for all using (true) with check (true);
+drop policy if exists "ceo_friend_messages_participant_read" on bia_ceo_friend_messages;
+create policy "ceo_friend_messages_participant_read" on bia_ceo_friend_messages
+for select to authenticated using (sender_id = auth.uid()::text or receiver_id = auth.uid()::text);
+drop policy if exists "ceo_friend_messages_sender_insert" on bia_ceo_friend_messages;
+create policy "ceo_friend_messages_sender_insert" on bia_ceo_friend_messages
+for insert to authenticated with check (sender_id = auth.uid()::text);
+drop policy if exists "ceo_friend_messages_sender_delete" on bia_ceo_friend_messages;
+create policy "ceo_friend_messages_sender_delete" on bia_ceo_friend_messages
+for delete to authenticated using (sender_id = auth.uid()::text);
 
 drop policy if exists "trial_coupons_all_access" on bia_trial_coupons;
+drop policy if exists "trial_coupons_public_read" on bia_trial_coupons;
 create policy "trial_coupons_public_read" on bia_trial_coupons
 for select using (false);
+
+drop policy if exists "payment_intents_select_own" on bia_payment_intents;
+create policy "payment_intents_select_own" on bia_payment_intents
+for select to authenticated using (user_id = auth.uid()::text);
+
+revoke all on public.profiles, public.bia_subscription_profiles, public.bia_trial_coupons from anon, authenticated;
+grant select on public.profiles, public.bia_subscription_profiles to authenticated;
+revoke all on public.bia_payment_intents from anon, authenticated;
+grant select on public.bia_payment_intents to authenticated;
+grant all on public.bia_payment_intents to service_role;
+grant select on public.bia_trial_coupons to anon, authenticated;
+revoke all on public.stories from anon, authenticated;
+grant select on public.stories to anon, authenticated;
+grant insert, update, delete on public.stories to authenticated;
+revoke all on public.bia_shared_content from anon, authenticated;
+revoke all on public.bia_student_progress, public.bia_ceo_friend_messages from anon, authenticated;
+grant select, insert, update, delete on public.bia_student_progress, public.bia_ceo_friend_messages to authenticated;
 
 revoke select, insert, update, delete on table bia_trial_coupons from anon, authenticated;
 

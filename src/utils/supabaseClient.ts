@@ -3,6 +3,7 @@
 // Supports process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY and client-side fallbacks
 import { createClient } from '@supabase/supabase-js';
 import type { UserProfile } from '../types';
+import { apiFetch } from '../lib/api';
 
 export const getSupabaseConfig = () => {
   let storedConfig: { url?: string; anonKey?: string } = {};
@@ -55,19 +56,69 @@ export const signInWithGoogle = async () => {
   return { ok: true as const };
 };
 
+export const registerGoogleProfile = async (
+  locationConsent: boolean,
+  geolocation?: { country: string; regionName: string; city: string }
+): Promise<UserProfile> => {
+  const client = getSupabaseClient();
+  if (!client) throw new Error('Login Google indisponível: Supabase não configurado.');
+
+  const { data } = await client.auth.getSession();
+  const accessToken = data.session?.access_token;
+  if (!accessToken) throw new Error('Sessão Google não encontrada. Entre novamente.');
+
+  const response = await apiFetch('/api/auth/google/profile', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`
+    },
+    body: JSON.stringify({
+      locationConsent,
+      ip_country: locationConsent ? geolocation?.country || null : null,
+      ip_region: locationConsent ? geolocation?.regionName || null : null,
+      ip_city: locationConsent ? geolocation?.city || null : null
+    })
+  });
+
+  const result = await response.json();
+  if (!response.ok || !result.profile) {
+    throw new Error(result.error || 'Não foi possível salvar seu perfil no Supabase.');
+  }
+
+  return result.profile as UserProfile;
+};
+
+export const redeemGoogleTrialCoupon = async (code: string) => {
+  const client = getSupabaseClient();
+  if (!client) throw new Error('Supabase não está configurado.');
+
+  const { data } = await client.auth.getSession();
+  const accessToken = data.session?.access_token;
+  if (!accessToken) throw new Error('Entre com o Google antes de resgatar um cupom.');
+
+  const response = await apiFetch('/api/auth/google/redeem-coupon', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`
+    },
+    body: JSON.stringify({ code })
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || 'Não foi possível validar o cupom.');
+  return result as { ok: boolean; reason?: string; coupon?: { code: string; days: number }; expires_at?: string };
+};
+
 export const deleteExpiredBrazilianFriendMessages = async () => {
   const client = getSupabaseClient();
   if (!client) return { ok: false, deleted: 0 };
 
   try {
-    const { data, error } = await client
-      .from('brazilian_friends_messages')
-      .delete()
-      .lte('expires_at', new Date().toISOString())
-      .select('id');
+    const { data, error } = await client.rpc('cleanup_expired_brazilian_friend_messages_count');
 
     if (error) throw error;
-    return { ok: true, deleted: data?.length || 0 };
+    return { ok: true, deleted: Number(data) || 0 };
   } catch (error) {
     console.warn('Expired Brazilian Friends messages cleanup failed:', error);
     return { ok: false, deleted: 0 };
@@ -135,7 +186,7 @@ export const getSubscriptionStatusFromSupabase = async (email: string) => {
   try {
     const { data, error } = await client
       .from('bia_subscription_profiles')
-      .select('*')
+      .select('status, subscription_expires_at')
       .ilike('email', email.trim().toLowerCase())
       .limit(1)
       .maybeSingle();
@@ -153,9 +204,17 @@ export const syncStoriesToSupabase = async (stories: any[]) => {
   if (!client || !Array.isArray(stories) || stories.length === 0) return [];
 
   try {
-    const rows = stories.map((story) => ({
+    const { data: authData, error: authError } = await client.auth.getUser();
+    if (authError || !authData.user) return [];
+
+    const ownPendingStories = stories.filter((story) =>
+      story.studentId === authData.user.id && (!story.status || story.status === 'pending')
+    );
+    if (ownPendingStories.length === 0) return [];
+
+    const rows = ownPendingStories.map((story) => ({
       id: String(story.id),
-      student_id: story.studentId || 'system',
+      student_id: authData.user.id,
       student_name: story.studentName || 'Aluno BIA',
       title: story.title || 'Story',
       category: story.category || 'challenge',
@@ -163,7 +222,7 @@ export const syncStoriesToSupabase = async (stories: any[]) => {
       video_url: story.videoUrl || null,
       thumbnail_url: story.thumbnailUrl || null,
       created_at: story.createdAt || new Date().toISOString(),
-      status: story.status || 'pending',
+      status: 'pending',
       likes_count: Number(story.likesCount || 0),
       instagram_handle: story.instagramHandle || null
     }));

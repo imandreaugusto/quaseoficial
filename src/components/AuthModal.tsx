@@ -26,13 +26,11 @@ import { BrazilianLogo } from './BrazilianLogo';
 import { SubscriptionInfoModal } from './SubscriptionInfoModal';
 import { Clock } from './Clock';
 import { SocialLinksBar } from './SocialLinksBar';
-import { findUserProfileByEmail, syncUserProfileToSupabase, fetchCouponFromSupabase, redeemCouponInSupabase, getSupabaseConfig, getSupabaseClient, signInWithGoogle } from '../utils/supabaseClient';
+import { findUserProfileByEmail, syncUserProfileToSupabase, fetchCouponFromSupabase, redeemCouponInSupabase, getSupabaseConfig, getSupabaseClient, signInWithGoogle, registerGoogleProfile } from '../utils/supabaseClient';
 import { SiteLegalFooter } from './SiteLegalFooter';
 
-// Isolated geolocation lookup (country/region) used by every sign-up/login path,
-// including the Google OAuth flow. Falls back to safe defaults on any failure.
+// Location is approximate IP-derived data and is only fetched after consent.
 const fetchIpGeolocation = async (): Promise<{ country: string; regionName: string; city: string }> => {
-  const fallback = { country: 'Brasil', regionName: 'São Paulo', city: 'São Paulo' };
   try {
     const geoRes = await fetch('https://ipapi.co/json/').then((res) => res.json());
     if (geoRes && geoRes.country_name) {
@@ -43,9 +41,9 @@ const fetchIpGeolocation = async (): Promise<{ country: string; regionName: stri
       };
     }
   } catch (e) {
-    // ignore, fallback below
+    // Keep location empty when the provider is unavailable.
   }
-  return fallback;
+  return { country: '', regionName: '', city: '' };
 };
 
 interface AuthModalProps {
@@ -66,6 +64,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [fullName, setFullName] = useState('');
+  const [locationConsent, setLocationConsent] = useState(false);
   const [couponCode, setCouponCode] = useState('');
   const [couponState, setCouponState] = useState<{
     status: 'idle' | 'valid' | 'used' | 'invalid';
@@ -145,66 +144,33 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     if (!client) return;
 
     const completeGoogleSignIn = async (sessionUser: { id: string; email?: string; user_metadata?: Record<string, any> }) => {
-      const cleanEmail = (sessionUser.email || '').trim().toLowerCase();
-      if (!cleanEmail) return;
+      if (!sessionUser.email) return;
 
       setLoading(true);
       setErrorMsg('');
       try {
+        const savedConsent = localStorage.getItem('bia_google_location_consent') === 'true';
+        localStorage.removeItem('bia_google_location_consent');
+        const geo = savedConsent ? await fetchIpGeolocation() : undefined;
+        const profile = await registerGoogleProfile(savedConsent, geo);
         const storedUsersRaw = localStorage.getItem('bia_users_database');
         let usersList: UserProfile[] = storedUsersRaw ? JSON.parse(storedUsersRaw) : [];
-
-        let existingUser = usersList.find((u) => u.email.toLowerCase() === cleanEmail);
-        if (!existingUser) {
-          const remoteProfile = await findUserProfileByEmail(cleanEmail);
-          if (remoteProfile) existingUser = remoteProfile as UserProfile;
-        }
-
-        const geo = await fetchIpGeolocation();
-
-        if (!existingUser) {
-          const expirationDate = new Date();
-          expirationDate.setDate(expirationDate.getDate() + 30);
-
-          existingUser = {
-            id: sessionUser.id,
-            email: cleanEmail,
-            full_name: sessionUser.user_metadata?.full_name || sessionUser.user_metadata?.name || cleanEmail.split('@')[0],
-            photo_url: sessionUser.user_metadata?.avatar_url,
-            role: 'student',
-            status: 'pending',
-            data_expiracao: expirationDate.toISOString(),
-            email_verified: true,
-            ip_country: geo.country,
-            ip_region: geo.regionName,
-            ip_city: geo.city,
-            permissions: {
-              friends: true,
-              readclub: true,
-              board: true,
-              quiz: true,
-              biacompare: true,
-              conversation: true,
-              tradutor: true,
-              youtube: true,
-              practice: true,
-              stories: true
-            },
-            created_at: new Date().toISOString()
-          };
-          usersList.push(existingUser);
-        } else {
-          existingUser = { ...existingUser, ip_country: geo.country, ip_region: geo.regionName, ip_city: geo.city };
-          usersList = usersList.map((u) => (u.id === existingUser?.id ? existingUser as UserProfile : u));
-        }
+        const existingIndex = usersList.findIndex((user) => user.email.toLowerCase() === profile.email.toLowerCase());
+        const existingUser = {
+          ...(existingIndex >= 0 ? usersList[existingIndex] : {}),
+          ...profile,
+          password: existingIndex >= 0 ? usersList[existingIndex].password : undefined
+        } as UserProfile;
+        if (existingIndex >= 0) usersList[existingIndex] = existingUser;
+        else usersList.push(existingUser);
 
         localStorage.setItem('bia_users_database', JSON.stringify(usersList));
         localStorage.setItem('bia_current_user', JSON.stringify(existingUser));
-        void syncUserProfileToSupabase(existingUser);
 
         setSuccessMsg(`Bem-vindo, ${existingUser.full_name || existingUser.email}.`);
         onAuthSuccess(existingUser);
       } catch (err: any) {
+        localStorage.removeItem('bia_google_location_consent');
         setErrorMsg(err.message || 'Falha ao concluir o login com Google.');
       } finally {
         setLoading(false);
@@ -225,8 +191,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   // Redirects to Google via Supabase OAuth; completeGoogleSignIn (above) picks up the result on return.
   const handleGoogleSignIn = async () => {
     setErrorMsg('');
+    localStorage.setItem('bia_google_location_consent', String(locationConsent));
     const result = await signInWithGoogle();
     if (!result.ok) {
+      localStorage.removeItem('bia_google_location_consent');
       setErrorMsg(
         result.reason === 'offline'
           ? 'Login com Google indisponível no momento.'
@@ -342,6 +310,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
+
+    if (isSignUp && !isAdminMode) {
+      setLoading(true);
+      localStorage.setItem('bia_google_location_consent', String(locationConsent));
+      const googleResult = await signInWithGoogle();
+      if (!googleResult.ok) {
+        localStorage.removeItem('bia_google_location_consent');
+        setErrorMsg(googleResult.reason === 'offline'
+          ? 'Login com Google indisponível no momento.'
+          : googleResult.message || 'Não foi possível iniciar o login com Google.');
+      }
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -355,8 +338,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       const storedUsersRaw = localStorage.getItem('bia_users_database');
       let usersList: UserProfile[] = storedUsersRaw ? JSON.parse(storedUsersRaw) : [];
 
-      // Geolocation lookup (isolated helper shared by every sign-in path)
-      const geo = await fetchIpGeolocation();
+      const geo = locationConsent
+        ? await fetchIpGeolocation()
+        : { country: '', regionName: '', city: '' };
 
       if (isSignUp) {
         // Direct Student Signup (No email delivery roadblock)
@@ -420,9 +404,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           status: couponGranted ? 'active' : 'pending',
           data_expiracao: expirationDate.toISOString(),
           email_verified: true,
-          ip_country: geo.country,
-          ip_region: geo.regionName,
-          ip_city: geo.city,
+          location_consent: locationConsent,
+          ip_country: geo.country || undefined,
+          ip_region: geo.regionName || undefined,
+          ip_city: geo.city || undefined,
           cupom_usado: couponGranted ? couponCode.trim().toUpperCase() : undefined,
           permissions: {
             friends: true,
@@ -498,7 +483,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           }
         }
 
-        // Student Login
+        if (!isCeoCandidate) {
+          throw new Error('Para proteger e confirmar sua assinatura, entre com Google usando o mesmo e-mail da conta.');
+        }
+
+        // Student Login is only reachable for the CEO candidate path above.
         let existingUser = usersList.find((u) => u.email.toLowerCase() === cleanEmail);
         const remoteProfile = await findUserProfileByEmail(cleanEmail);
         if (remoteProfile && !existingUser) {
@@ -824,6 +813,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </button>
           </div>
         </form>
+
+        {!isAdminMode && (
+          <label className="mt-2 flex w-full cursor-pointer items-start gap-2 px-1 text-[10px] leading-relaxed text-white/65 sm:text-[11px]">
+            <input
+              type="checkbox"
+              checked={locationConsent}
+              onChange={(event) => setLocationConsent(event.target.checked)}
+              className="mt-0.5 accent-amber-400"
+            />
+            <span>Opcional: aceito registrar país, estado/região e cidade aproximados pelo IP para personalizar meu perfil. Posso continuar sem compartilhar.</span>
+          </label>
+        )}
 
         {/* Google Sign-In via Supabase OAuth (hidden in CEO admin mode) */}
         {!isAdminMode && getSupabaseConfig().url && getSupabaseConfig().anonKey && (

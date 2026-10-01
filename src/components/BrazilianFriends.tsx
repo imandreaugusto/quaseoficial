@@ -20,7 +20,7 @@ interface BrazilianFriendsProps {
 
 interface FriendProfile {
   id: string;
-  email: string;
+  email?: string;
   full_name: string;
   photo_url?: string | null;
   status_message?: string | null;
@@ -39,7 +39,6 @@ interface FriendMessage {
 
 interface PresencePayload {
   user_id: string;
-  email: string;
   full_name: string;
   photo_url?: string | null;
   status_message?: string | null;
@@ -54,12 +53,7 @@ const PRESENCE_CHANNEL = 'online-users';
 const getConversationKey = (firstId: string, secondId: string) =>
   [firstId, secondId].sort().join(':');
 
-const formatLocation = (profile: Pick<FriendProfile, 'ip_region' | 'ip_country'>) => {
-  const region = profile.ip_region?.trim();
-  const country = profile.ip_country?.trim();
-  if (region && country) return `${country} ${region}`;
-  return country || region || 'Brasil';
-};
+const formatLocation = (_profile: Pick<FriendProfile, 'ip_region' | 'ip_country'>) => 'Localização não compartilhada';
 
 const getInitials = (name: string) => {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -83,26 +77,27 @@ const upsertFriendProfile = async (client: SupabaseClientLike, profile: FriendPr
   const { error } = await client.from(USERS_TABLE).upsert(profile, { onConflict: 'id' });
   if (!error) return { error: null };
   console.warn('Brazilian Friends profile sync failed, retrying with base columns:', error);
-  const { id, email, full_name, ip_region, ip_country } = profile;
+  const { id, email, full_name } = profile;
   const fallback = await client
     .from(USERS_TABLE)
-    .upsert({ id, email, full_name, ip_region, ip_country }, { onConflict: 'id' });
+    .upsert({ id, email, full_name }, { onConflict: 'id' });
   return { error: fallback.error };
 };
 
 const selectFriendProfiles = async (client: SupabaseClientLike) => {
   const full = await client
     .from(USERS_TABLE)
-    .select('id, email, full_name, photo_url, status_message, ip_region, ip_country')
+    .select('id, full_name, photo_url, status_message')
     .order('full_name', { ascending: true });
   if (!full.error) return full;
   return client
     .from(USERS_TABLE)
-    .select('id, email, full_name, ip_region, ip_country')
+    .select('id, full_name')
     .order('full_name', { ascending: true });
 };
 
 export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsProps) {
+  const socialUserId = currentUser.auth_user_id || currentUser.id;
   const [profiles, setProfiles] = useState<FriendProfile[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<Record<string, PresencePayload>>({});
   const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
@@ -138,7 +133,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
         if (aOnline !== bOnline) return bOnline - aOnline;
         return a.full_name.localeCompare(b.full_name);
       }),
-    [currentUser.id, onlineUsers, profiles]
+    [socialUserId, onlineUsers, profiles]
   );
 
   useEffect(() => {
@@ -152,13 +147,11 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
     const syncProfileAndPresence = async () => {
       setError('');
       const profile: FriendProfile = {
-        id: currentUser.id,
+        id: socialUserId,
         email: currentUser.email,
         full_name: getPublicName(currentUser),
         photo_url: profilePhoto || currentUser.photo_url || null,
-        status_message: currentUser.status_message || null,
-        ip_region: currentUser.ip_region,
-        ip_country: currentUser.ip_country
+        status_message: currentUser.status_message || null
       };
 
       const { error: profileError } = await upsertFriendProfile(client, profile);
@@ -177,7 +170,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
       setIsLoading(false);
 
       const channel = client.channel(PRESENCE_CHANNEL, {
-        config: { presence: { key: currentUser.id } }
+        config: { presence: { key: socialUserId } }
       });
       presenceChannelRef.current = channel;
 
@@ -197,13 +190,10 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
         .subscribe(async (status) => {
           if (status === 'SUBSCRIBED') {
             await channel.track({
-              user_id: currentUser.id,
-              email: profile.email,
+              user_id: socialUserId,
               full_name: profile.full_name,
               photo_url: profile.photo_url,
-              status_message: profile.status_message,
-              ip_region: profile.ip_region,
-              ip_country: profile.ip_country
+              status_message: profile.status_message
             });
             updatePresence();
           }
@@ -229,7 +219,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
     }
     let cancelled = false;
     const conversationKey = selectedFriendId
-      ? getConversationKey(currentUser.id, selectedFriendId)
+      ? getConversationKey(socialUserId, selectedFriendId)
       : 'public';
     const loadConversation = async () => {
       setIsLoadingMessages(true);
@@ -239,7 +229,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
         .select('id, sender_id, receiver_id, body, created_at, expires_at')
         .order('created_at', { ascending: true });
       query = selectedFriendId
-        ? query.or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${selectedFriendId}),and(sender_id.eq.${selectedFriendId},receiver_id.eq.${currentUser.id})`)
+        ? query.or(`and(sender_id.eq.${socialUserId},receiver_id.eq.${selectedFriendId}),and(sender_id.eq.${selectedFriendId},receiver_id.eq.${socialUserId})`)
         : query.is('receiver_id', null);
       const { data, error: messagesError } = await query;
 
@@ -261,8 +251,8 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
           const nextMessage = payload.new as FriendMessage;
           if (new Date(nextMessage.expires_at).getTime() <= Date.now()) return;
           const isThisConversation = selectedFriendId
-            ? ((nextMessage.sender_id === currentUser.id && nextMessage.receiver_id === selectedFriendId) ||
-              (nextMessage.sender_id === selectedFriendId && nextMessage.receiver_id === currentUser.id))
+            ? ((nextMessage.sender_id === socialUserId && nextMessage.receiver_id === selectedFriendId) ||
+              (nextMessage.sender_id === selectedFriendId && nextMessage.receiver_id === socialUserId))
             : nextMessage.receiver_id === null;
           if (isThisConversation) {
             setMessages((current) => current.some((message) => message.id === nextMessage.id)
@@ -278,7 +268,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
       cancelled = true;
       void client.removeChannel(messageChannel);
     };
-  }, [currentUser.id, selectedFriendId]);
+  }, [socialUserId, selectedFriendId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -296,7 +286,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
     setDraft('');
     const { data, error: sendError } = await client
       .from(MESSAGES_TABLE)
-      .insert({ sender_id: currentUser.id, receiver_id: selectedFriendId, body })
+      .insert({ sender_id: socialUserId, receiver_id: selectedFriendId, body })
       .select('id, sender_id, receiver_id, body, created_at, expires_at')
       .single();
 
@@ -337,13 +327,11 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
       const client = getSupabaseClient();
       if (client) {
         await upsertFriendProfile(client, {
-          id: currentUser.id,
+          id: socialUserId,
           email: currentUser.email,
           full_name: getPublicName(currentUser),
           photo_url: nextPhoto,
-          status_message: currentUser.status_message || null,
-          ip_region: currentUser.ip_region,
-          ip_country: currentUser.ip_country
+          status_message: currentUser.status_message || null
         });
       }
 
@@ -353,7 +341,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
   };
 
   const openProfileEditor = () => {
-    const myProfile = profiles.find((profile) => profile.id === currentUser.id);
+    const myProfile = profiles.find((profile) => profile.id === socialUserId);
     setStatusDraft(myProfile?.status_message || currentUser.status_message || '');
     setIsProfileEditorOpen(true);
   };
@@ -368,13 +356,11 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
     setIsSavingStatus(true);
     const nextStatus = statusDraft.trim();
     const { error: saveError } = await upsertFriendProfile(client, {
-      id: currentUser.id,
+      id: socialUserId,
       email: currentUser.email,
       full_name: getPublicName(currentUser),
       photo_url: profilePhoto || currentUser.photo_url || null,
-      status_message: nextStatus || null,
-      ip_region: currentUser.ip_region,
-      ip_country: currentUser.ip_country
+      status_message: nextStatus || null
     });
     setIsSavingStatus(false);
 
@@ -384,7 +370,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
     }
 
     setProfiles((current) => current.map((profile) => (
-      profile.id === currentUser.id ? { ...profile, status_message: nextStatus || null } : profile
+      profile.id === socialUserId ? { ...profile, status_message: nextStatus || null } : profile
     )));
 
     const storedUserRaw = localStorage.getItem('bia_current_user');
@@ -435,7 +421,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
           const presence = onlineUsers[friend.id];
           const isOnline = Boolean(presence);
           const isSelected = friend.id === selectedFriendId;
-          const isSelf = friend.id === currentUser.id;
+          const isSelf = friend.id === socialUserId;
           const profileName = presence?.full_name || friend.full_name;
           const profilePhoto = presence?.photo_url || friend.photo_url;
           const statusLine = presence?.status_message || friend.status_message || formatLocation(presence || friend);
@@ -518,7 +504,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
             )}
             {isLoadingMessages && <p className="friends-muted-copy">Carregando conversa...</p>}
             {messages.map((message) => {
-              const ownMessage = message.sender_id === currentUser.id;
+              const ownMessage = message.sender_id === socialUserId;
               const senderProfile = profiles.find((p) => p.id === message.sender_id);
               const senderName = ownMessage ? publicName : (senderProfile?.full_name || selectedFriend?.full_name || 'User');
               const senderLocation = ownMessage ? formatLocation(currentUser) : (senderProfile ? formatLocation(senderProfile) : 'Brasil');
