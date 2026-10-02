@@ -62,7 +62,8 @@ import {
   UserCheck,
   UserX,
   Clock3,
-  Layers
+  Layers,
+  Gamepad2
 } from 'lucide-react';
 import { BrazilianLogo } from './BrazilianLogo';
 import { deleteExpiredBrazilianFriendMessages, getSupabaseClient, getSupabaseConfig } from '../utils/supabaseClient';
@@ -82,6 +83,7 @@ const ALL_STUDENT_APPS = [
   { id: 'readclub', label: 'Read Club', icon: BookOpen, desc: 'Biblioteca imersiva e histórias com áudio' },
   { id: 'board', label: 'Blackboard', icon: Presentation, desc: 'Lousa digital interativa de estudos' },
   { id: 'quiz', label: 'Brazilian Quiz', icon: HelpCircle, desc: 'Desafios de vocabulário e gramática' },
+  { id: 'braziliangames', label: 'Brazilian Games', icon: Gamepad2, desc: 'Jogos de inglês executados no navegador' },
   { id: 'biacompare', label: 'BIA Compare', icon: Sparkles, desc: 'Comparador de pronúncia e frases' },
   { id: 'conversation', label: 'Conversação IA', icon: Mic, desc: 'Diálogos dinâmicos com a inteligência artificial' },
   { id: 'tradutor', label: 'Tradutor Cultural', icon: Languages, desc: 'Tradução com contexto de gírias e expressões' },
@@ -101,6 +103,7 @@ const ALL_ADMIN_APPS = [
   { id: 'classroom', label: 'Google Classroom', icon: GraduationCap, desc: 'Integração de turmas Google' },
   { id: 'meet', label: 'Google Meet', icon: Video, desc: 'Salas virtuais de videoconferência' },
   { id: 'quiz', label: 'Brazilian Quiz', icon: HelpCircle, desc: 'Testes interativos e quizzes' },
+  { id: 'braziliangames', label: 'Brazilian Games', icon: Gamepad2, desc: 'Jogos educativos executados localmente' },
   { id: 'biacompare', label: 'BIA Compare', icon: Sparkles, desc: 'Laboratório de comparação' },
   { id: 'conversation', label: 'Brazilian Conversation', icon: Mic, desc: 'Conversação com IA avançada' },
   { id: 'tradutor', label: 'Brazilian Tradutor', icon: Languages, desc: 'Dicionário e tradutor cultural' },
@@ -165,8 +168,8 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
 
   // App Order and Global Availability Configuration
   const [appConfig, setAppConfig] = useState<GlobalAppConfig>({
-    studentAppOrder: ['brazilianfriends', 'stories', 'practice', 'readclub', 'board', 'quiz', 'biacompare', 'conversation', 'tradutor', 'youtube'],
-    adminAppOrder: ['home', 'work', 'brazilianfriends', 'stories', 'practice', 'dashboard', 'admin_settings', 'readclub', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'biacompare', 'conversation', 'tradutor', 'settings'],
+    studentAppOrder: ['brazilianfriends', 'stories', 'practice', 'readclub', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube'],
+    adminAppOrder: ['home', 'work', 'brazilianfriends', 'stories', 'practice', 'dashboard', 'admin_settings', 'readclub', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'settings'],
     studentGlobalEnabled: {
       brazilianfriends: true,
       stories: true,
@@ -174,6 +177,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
       readclub: true,
       board: true,
       quiz: true,
+      braziliangames: true,
       biacompare: true,
       conversation: true,
       tradutor: true,
@@ -292,16 +296,23 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
     if (savedConfig) {
       try {
         const parsed = JSON.parse(savedConfig) as GlobalAppConfig;
+        const studentAppOrder = parsed.studentAppOrder.includes('braziliangames')
+          ? parsed.studentAppOrder
+          : [...parsed.studentAppOrder, 'braziliangames'];
+        const adminAppOrder = parsed.adminAppOrder.includes('braziliangames')
+          ? parsed.adminAppOrder
+          : [...parsed.adminAppOrder, 'braziliangames'];
         setAppConfig({
           ...parsed,
-          studentAppOrder: parsed.studentAppOrder.includes('brazilianfriends')
-            ? parsed.studentAppOrder
-            : ['brazilianfriends', ...parsed.studentAppOrder],
-          adminAppOrder: parsed.adminAppOrder.includes('work')
-            ? parsed.adminAppOrder
-            : ['work', ...parsed.adminAppOrder],
+          studentAppOrder: studentAppOrder.includes('brazilianfriends')
+            ? studentAppOrder
+            : ['brazilianfriends', ...studentAppOrder],
+          adminAppOrder: adminAppOrder.includes('work')
+            ? adminAppOrder
+            : ['work', ...adminAppOrder],
           studentGlobalEnabled: {
             brazilianfriends: true,
+            braziliangames: true,
             ...parsed.studentGlobalEnabled
           }
         });
@@ -627,13 +638,14 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   // Reset to Default Order
   const handleResetAppOrder = () => {
     const defaultConfig: GlobalAppConfig = {
-      studentAppOrder: ['brazilianfriends', 'readclub', 'board', 'quiz', 'biacompare', 'conversation', 'tradutor', 'youtube'],
-      adminAppOrder: ['home', 'work', 'brazilianfriends', 'dashboard', 'admin_settings', 'readclub', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'biacompare', 'conversation', 'tradutor', 'settings'],
+      studentAppOrder: ['brazilianfriends', 'readclub', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube'],
+      adminAppOrder: ['home', 'work', 'brazilianfriends', 'dashboard', 'admin_settings', 'readclub', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'settings'],
       studentGlobalEnabled: {
         brazilianfriends: true,
         readclub: true,
         board: true,
         quiz: true,
+        braziliangames: true,
         biacompare: true,
         conversation: true,
         tradutor: true,

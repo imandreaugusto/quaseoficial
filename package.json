@@ -9,7 +9,8 @@
     "start": "node dist/server.cjs",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "test:security": "tsx --test scripts/payment-security.test.ts"
+    "test:security": "tsx --test scripts/payment-security.test.ts",
+    "test:games": "tsx --test scripts/brazilian-games.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
@@ -18,6 +19,7 @@
     "@types/qrcode": "^1.5.6",
     "@typesafe-ai/sdk": "^0.6.0",
     "@vitejs/plugin-react": "^5.0.4",
+    "canvas-confetti": "^1.9.4",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
     "firebase": "^12.16.0",

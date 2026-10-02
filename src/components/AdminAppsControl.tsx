@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { GlobalAppConfig, AppDefinition } from '../types';
 
-// TODOS OS 10 MÓDULOS DO ALUNO TOTALMENTE CONTROLADOS PELO CEO
+// TODOS OS 11 MÓDULOS DO ALUNO TOTALMENTE CONTROLADOS PELO CEO
 export const ALL_STUDENT_APPS: AppDefinition[] = [
   { id: 'friends', label: 'Brazilian Friends', desc: 'Messenger e chat estilo MSN para prática de conversação com alunos, salas e IA', category: 'Conversação & Chat', targetRole: 'both' },
   { id: 'stories', label: 'Brazilian Post', desc: 'Gravação de stories com teleprompter inteligente e mural de destaques no Instagram', category: 'Prática & Mídia', targetRole: 'both' },
@@ -32,6 +32,7 @@ export const ALL_STUDENT_APPS: AppDefinition[] = [
   { id: 'readclub', label: 'Read Club', desc: 'Biblioteca de leitura com contos graduados, áudio nativo e vocabulário inteligente', category: 'Leitura & Compreensão', targetRole: 'both' },
   { id: 'board', label: 'Brazilian Board', desc: 'Lousa interativa de anotações gramaticais, estruturas e frases-chave', category: 'Gramática & Estrutura', targetRole: 'both' },
   { id: 'quiz', label: 'Brazilian Quiz', desc: 'Desafios dinâmicos, simulados de fixação e ranqueamento de alunos', category: 'Avaliação & Jogos', targetRole: 'both' },
+    { id: 'braziliangames', label: 'Brazilian Games', desc: 'Jogos educativos de inglês com lógica local no navegador', category: 'Avaliação & Jogos', targetRole: 'both' },
   { id: 'biacompare', label: 'BIA Compare', desc: 'Comparador de frases em tempo real para destravar vícios de tradução', category: 'Comparação & Precisão', targetRole: 'both' },
   { id: 'conversation', label: 'Brazilian Conversation', desc: 'Simulações de diálogo e roleplay com a assistente BIA', category: 'Conversação IA', targetRole: 'both' },
   { id: 'tradutor', label: 'Brazilian Tradutor', desc: 'Tradutor com notas culturais, gírias e contextualização de pronúncia', category: 'Vocabulário & Tradução', targetRole: 'both' },

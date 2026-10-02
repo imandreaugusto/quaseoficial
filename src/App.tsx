@@ -9,6 +9,7 @@ import { BrazilianBoard } from './components/BrazilianBoard';
 import { Settings } from './components/Settings';
 import { BrazilianConversation } from './components/BrazilianConversation';
 import { BrazilianQuiz } from './components/BrazilianQuiz';
+import { BrazilianGames } from './components/BrazilianGames';
 import { BrazilianTradutor } from './components/BrazilianTradutor';
 import { BiaCompare } from './components/BiaCompare';
 import { YouTubeHub } from './components/YouTubeHub';
@@ -708,6 +709,7 @@ export default function App() {
     readclub: true,
     board: true,
     quiz: true,
+    braziliangames: true,
     biacompare: true,
     conversation: true,
     tradutor: true,
@@ -1007,6 +1009,10 @@ export default function App() {
 
                   {currentApp === 'quiz' && (isAdmin || perms.quiz) && (
                     <BrazilianQuiz accentColor={settings.accentColor} />
+                  )}
+
+                  {currentApp === 'braziliangames' && (isAdmin || perms.braziliangames !== false) && (
+                    <BrazilianGames />
                   )}
 
                   {currentApp === 'tradutor' && (isAdmin || perms.tradutor) && (

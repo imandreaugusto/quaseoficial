@@ -104,6 +104,7 @@ export interface StudentPermissions {
   readclub: boolean;
   board: boolean;
   quiz: boolean;
+  braziliangames?: boolean;
   biacompare: boolean;
   conversation: boolean;
   tradutor: boolean;

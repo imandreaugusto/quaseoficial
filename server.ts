@@ -337,6 +337,131 @@ async function startServer() {
     }
   });
 
+  const getBrazilianGamesWeekStart = (date = new Date()) => {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Sao_Paulo',
+      weekday: 'short',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).formatToParts(date);
+    const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+    const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const localDate = new Date(Date.UTC(Number(values.year), Number(values.month) - 1, Number(values.day)));
+    localDate.setUTCDate(localDate.getUTCDate() - weekdays.indexOf(values.weekday));
+    return localDate.toISOString().slice(0, 10);
+  };
+
+  const isEligibleForBrazilianGames = (profile: Record<string, unknown> | null) => {
+    if (!profile) return false;
+    if (profile.role === 'admin') return true;
+    return profile.status === 'active' || profile.status === 'trial';
+  };
+
+  const brazilianGamePointLimits: Record<string, number> = {
+    crossword: 50,
+    'hex-words': 50,
+    'word-search': 40,
+    memory: 40,
+    'picture-match': 50,
+    'audio-quiz': 50,
+    'sentence-scramble': 100,
+    'visual-vocabulary': 50,
+    'idiom-blocks': 110,
+    flashcards: 50,
+    'context-quest': 50,
+    'word-rush': 110,
+    'yes-no-speed': 50,
+    'custom-quiz': 50,
+    hangman: 10
+  };
+
+  app.post('/api/games/score', async (req, res) => {
+    try {
+      const authUser = await getSupabaseUserFromRequest(req);
+      if (!authUser?.id || !authUser.email_confirmed_at) {
+        return res.status(401).json({ error: 'Para registrar pontos, vincule sua conta a uma sessão Google/Supabase confirmada. Você ainda pode jogar sem sincronizar o placar.' });
+      }
+      if (isRateLimited(`games-score:${authUser.id}`, 12, 60_000)) {
+        return res.status(429).json({ error: 'Muitas partidas enviadas. Aguarde um minuto.' });
+      }
+
+      const gameId = typeof req.body?.gameId === 'string' ? req.body.gameId : '';
+      const sessionId = typeof req.body?.sessionId === 'string' ? req.body.sessionId : '';
+      const points = Number(req.body?.points);
+      const maxPoints = brazilianGamePointLimits[gameId];
+      if (!maxPoints || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(sessionId)) {
+        return res.status(400).json({ error: 'Partida inválida.' });
+      }
+      if (!Number.isInteger(points) || points < 1 || points > maxPoints) {
+        return res.status(400).json({ error: 'Pontuação fora do limite permitido.' });
+      }
+
+      const profile = await getGoogleProfileByAuthId(authUser.id);
+      if (!isEligibleForBrazilianGames(profile)) {
+        return res.status(403).json({ error: 'Perfil sem acesso ao ranking semanal.' });
+      }
+
+      const displayName = String(
+        profile?.full_name || authUser.user_metadata?.full_name || authUser.user_metadata?.name || 'Aluno'
+      ).slice(0, 80);
+      const response = await supabaseServiceRequest('bia_game_scores?on_conflict=auth_user_id,session_id', {
+        method: 'POST',
+        headers: { Prefer: 'resolution=ignore-duplicates,return=representation' },
+        body: JSON.stringify({
+          auth_user_id: authUser.id,
+          session_id: sessionId,
+          game_id: gameId,
+          display_name: displayName,
+          points,
+          week_start: getBrazilianGamesWeekStart()
+        })
+      });
+      if (!response.ok) {
+        console.error('Brazilian Games score insert failed:', response.status, await response.text());
+        return res.status(502).json({ error: 'Não foi possível registrar os pontos.' });
+      }
+
+      const inserted = await response.json() as unknown[];
+      return res.status(200).json({ saved: inserted.length > 0, duplicate: inserted.length === 0 });
+    } catch (error: any) {
+      console.error('Brazilian Games score endpoint failed:', error.message);
+      return res.status(500).json({ error: 'Falha ao registrar a pontuação.' });
+    }
+  });
+
+  app.get('/api/games/leaderboard', async (req, res) => {
+    try {
+      const authUser = await getSupabaseUserFromRequest(req);
+      if (!authUser?.id || !authUser.email_confirmed_at) {
+        return res.status(401).json({ error: 'Para participar do ranking, vincule sua conta a uma sessão Google/Supabase confirmada.' });
+      }
+      if (isRateLimited(`games-leaderboard:${authUser.id}`, 60, 60_000)) {
+        return res.status(429).json({ error: 'Muitas consultas ao ranking. Aguarde um minuto.' });
+      }
+
+      const profile = await getGoogleProfileByAuthId(authUser.id);
+      if (!isEligibleForBrazilianGames(profile)) {
+        return res.status(403).json({ error: 'Perfil sem acesso ao ranking semanal.' });
+      }
+
+      const weekStart = getBrazilianGamesWeekStart();
+      const response = await supabaseServiceRequest('rpc/bia_get_weekly_game_leaderboard', {
+        method: 'POST',
+        body: JSON.stringify({ p_week_start: weekStart, p_auth_user_id: authUser.id })
+      });
+      if (!response.ok) {
+        console.error('Brazilian Games leaderboard read failed:', response.status, await response.text());
+        return res.status(502).json({ error: 'Não foi possível carregar o ranking.' });
+      }
+
+      return res.json({ weekStart, ...await response.json() });
+    } catch (error: any) {
+      console.error('Brazilian Games leaderboard endpoint failed:', error.message);
+      return res.status(500).json({ error: 'Falha ao carregar o ranking semanal.' });
+    }
+  });
+
   // Pix is created only for the authenticated Google profile and at the server price.
   app.post('/api/payments/create-pix', async (req, res) => {
     try {

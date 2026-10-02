@@ -24,7 +24,8 @@ import {
   Eye,
   EyeOff,
   Globe,
-  Instagram
+  Instagram,
+  Gamepad2
 } from 'lucide-react';
 import { UserProfile, GlobalAppConfig } from '../types';
 import { BrazilianLogo } from './BrazilianLogo';
@@ -51,6 +52,7 @@ const ALL_STUDENT_ITEMS = [
   { id: 'readclub', label: 'Read Club', icon: BookOpen, permKey: 'readclub' as const },
   { id: 'board', label: 'Blackboard', icon: Presentation, permKey: 'board' as const },
   { id: 'quiz', label: 'Brazilian Quiz', icon: HelpCircle, permKey: 'quiz' as const },
+  { id: 'braziliangames', label: 'Brazilian Games', icon: Gamepad2, permKey: 'braziliangames' as const },
   { id: 'biacompare', label: 'BIA Compare', icon: Sparkles, permKey: 'biacompare' as const },
   { id: 'conversation', label: 'Conversação IA', icon: Mic, permKey: 'conversation' as const },
   { id: 'tradutor', label: 'Tradutor Cultural', icon: Languages, permKey: 'tradutor' as const },
@@ -193,6 +195,7 @@ const ALL_ADMIN_ITEMS = [
   { id: 'classroom', label: 'Google Classroom', icon: GraduationCap },
   { id: 'meet', label: 'Google Meet', icon: Video },
   { id: 'quiz', label: 'Brazilian Quiz', icon: HelpCircle },
+  { id: 'braziliangames', label: 'Brazilian Games', icon: Gamepad2 },
   { id: 'biacompare', label: 'BIA Compare', icon: Sparkles },
   { id: 'conversation', label: 'Brazilian Conversation', icon: Mic },
   { id: 'tradutor', label: 'Brazilian Tradutor', icon: Languages },
@@ -214,8 +217,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [appConfig, setAppConfig] = useState<GlobalAppConfig>({
-    studentAppOrder: ['home', 'brazilianfriends', 'stories', 'practice', 'readclub', 'board', 'quiz', 'biacompare', 'conversation', 'tradutor', 'youtube'],
-    adminAppOrder: ['home', 'work', 'brazilianfriends', 'stories', 'practice', 'dashboard', 'admin_settings', 'readclub', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'biacompare', 'conversation', 'tradutor', 'youtube', 'settings'],
+    studentAppOrder: ['home', 'brazilianfriends', 'stories', 'practice', 'readclub', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube'],
+    adminAppOrder: ['home', 'work', 'brazilianfriends', 'stories', 'practice', 'dashboard', 'admin_settings', 'readclub', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'settings'],
     studentGlobalEnabled: {
       brazilianfriends: true,
       stories: true,
@@ -223,6 +226,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       readclub: true,
       board: true,
       quiz: true,
+      braziliangames: true,
       biacompare: true,
       conversation: true,
       tradutor: true,
@@ -243,12 +247,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
           const adminAppOrder = parsed.adminAppOrder.includes('brazilianfriends')
             ? parsed.adminAppOrder
             : ['brazilianfriends', ...parsed.adminAppOrder];
+          if (!studentAppOrder.includes('braziliangames')) studentAppOrder.push('braziliangames');
+          if (!adminAppOrder.includes('braziliangames')) adminAppOrder.push('braziliangames');
           setAppConfig({
             ...parsed,
             studentAppOrder,
             adminAppOrder,
             studentGlobalEnabled: {
               brazilianfriends: true,
+              braziliangames: true,
               ...parsed.studentGlobalEnabled
             }
           });
@@ -269,6 +276,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     readclub: true,
     board: true,
     quiz: true,
+    braziliangames: true,
     biacompare: true,
     conversation: true,
     tradutor: true,
