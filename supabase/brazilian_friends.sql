@@ -23,11 +23,17 @@ create table if not exists public.brazilian_friends_messages (
   receiver_id text references public.brazilian_friends_users(id) on delete cascade,
   body text not null check (char_length(trim(body)) between 1 and 2000),
   created_at timestamptz not null default now(),
-  expires_at timestamptz,
+  expires_at timestamptz not null default (now() + interval '5 days'),
   constraint brazilian_friends_messages_distinct_users check (receiver_id is null or sender_id <> receiver_id)
 );
 
 alter table public.brazilian_friends_messages alter column receiver_id drop not null;
+update public.brazilian_friends_messages
+set expires_at = created_at + interval '5 days'
+where expires_at is null;
+alter table public.brazilian_friends_messages
+  alter column expires_at set default (now() + interval '5 days'),
+  alter column expires_at set not null;
 
 create index if not exists brazilian_friends_messages_conversation_idx
   on public.brazilian_friends_messages (sender_id, receiver_id, created_at);

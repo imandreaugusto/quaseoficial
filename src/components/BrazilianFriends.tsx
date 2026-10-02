@@ -34,7 +34,7 @@ interface FriendMessage {
   receiver_id: string | null;
   body: string;
   created_at: string;
-  expires_at: string;
+  expires_at: string | null;
 }
 
 interface PresencePayload {
@@ -237,7 +237,9 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
       if (messagesError) {
         setError('Não foi possível carregar esta conversa no momento.');
       } else {
-        setMessages((data || []) as FriendMessage[]);
+        setMessages(((data || []) as FriendMessage[]).filter((message) =>
+          !message.expires_at || Date.parse(message.expires_at) > Date.now()
+        ));
       }
       setIsLoadingMessages(false);
     };
@@ -249,7 +251,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
         { event: 'INSERT', schema: 'public', table: MESSAGES_TABLE },
         (payload) => {
           const nextMessage = payload.new as FriendMessage;
-          if (new Date(nextMessage.expires_at).getTime() <= Date.now()) return;
+          if (nextMessage.expires_at && Date.parse(nextMessage.expires_at) <= Date.now()) return;
           const isThisConversation = selectedFriendId
             ? ((nextMessage.sender_id === socialUserId && nextMessage.receiver_id === selectedFriendId) ||
               (nextMessage.sender_id === selectedFriendId && nextMessage.receiver_id === socialUserId))
@@ -283,16 +285,29 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
     const client = getSupabaseClient();
     if (!client || !body) return;
 
+    const { data: sessionData } = await client.auth.getSession();
+    if (!sessionData.session?.user?.id || sessionData.session.user.id !== socialUserId) {
+      setError('Sua sessão expirou ou não corresponde a esta conta. Entre novamente para enviar mensagens.');
+      return;
+    }
+
     setDraft('');
     const { data, error: sendError } = await client
       .from(MESSAGES_TABLE)
-      .insert({ sender_id: socialUserId, receiver_id: selectedFriendId, body })
+      .insert({
+        sender_id: socialUserId,
+        receiver_id: selectedFriendId,
+        body,
+        expires_at: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString()
+      })
       .select('id, sender_id, receiver_id, body, created_at, expires_at')
       .single();
 
     if (sendError) {
       setDraft(body);
-      setError('Sua mensagem não pôde ser enviada. Tente novamente.');
+      setError(sendError.code === '42501'
+        ? 'Sua conta não tem permissão para enviar esta mensagem. Entre novamente e tente de novo.'
+        : 'Sua mensagem não pôde ser enviada. Tente novamente.');
       return;
     }
 
