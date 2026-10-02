@@ -9,6 +9,7 @@ import { randomUUID } from 'node:crypto';
 import dotenv from 'dotenv';
 import { validatePortuguesePhrase } from './src/lib/jevValidator';
 import {
+  abacatePayApiEndpoint,
   normalizeEmail,
   subscriptionPriceCents,
   verifyAbacatePaySignature,
@@ -210,7 +211,7 @@ async function startServer() {
   const getAbatePayPaymentStatus = async (paymentId: string) => {
     const abatePayToken = process.env.ABACATEPAY_API_KEY || process.env.ABATEPAY_TOKEN;
     const apiBaseUrl = (process.env.ABACATEPAY_API_URL || 'https://api.abacatepay.com').replace(/\/$/, '');
-    const statusTemplate = process.env.ABATEPAY_STATUS_URL_TEMPLATE || `${apiBaseUrl}/v2/transparents/check?id={id}`;
+    const statusTemplate = process.env.ABATEPAY_STATUS_URL_TEMPLATE || `${abacatePayApiEndpoint(apiBaseUrl, 'transparents/check')}?id={id}`;
     if (!abatePayToken) throw new Error('ABATEPAY_TOKEN is not configured.');
 
     const response = await fetch(statusTemplate.replace('{id}', encodeURIComponent(paymentId)), {
@@ -481,7 +482,7 @@ async function startServer() {
 
       const abatePayToken = process.env.ABACATEPAY_API_KEY || process.env.ABATEPAY_TOKEN;
       const apiBaseUrl = (process.env.ABACATEPAY_API_URL || 'https://api.abacatepay.com').replace(/\/$/, '');
-      const abatePayCreateUrl = process.env.ABATEPAY_CREATE_URL || `${apiBaseUrl}/v2/transparents/create`;
+      const abatePayCreateUrl = process.env.ABATEPAY_CREATE_URL || abacatePayApiEndpoint(apiBaseUrl, 'transparents/create');
       const amountCents = subscriptionPriceCents(process.env.SUBSCRIPTION_PRICE_REAIS);
 
       if (!abatePayToken) {

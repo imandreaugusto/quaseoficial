@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
 import test from 'node:test';
 import {
+  abacatePayApiEndpoint,
   normalizeEmail,
   subscriptionPriceCents,
   verifyAbacatePaySignature,
@@ -33,4 +34,15 @@ test('validates the AbacatePay HMAC against the exact raw body', () => {
   assert.equal(verifyAbacatePaySignature(body, signature, 'test-public-key'), true);
   assert.equal(verifyAbacatePaySignature(Buffer.from(`${body.toString()} `), signature, 'test-public-key'), false);
   assert.equal(verifyAbacatePaySignature(body, undefined, 'test-public-key'), false);
+});
+
+test('builds AbacatePay v2 endpoints without duplicating the version prefix', () => {
+  assert.equal(
+    abacatePayApiEndpoint('https://api.abacatepay.com/v2/', 'transparents/create'),
+    'https://api.abacatepay.com/v2/transparents/create'
+  );
+  assert.equal(
+    abacatePayApiEndpoint('https://api.abacatepay.com', 'transparents/check'),
+    'https://api.abacatepay.com/v2/transparents/check'
+  );
 });

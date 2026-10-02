@@ -33,3 +33,12 @@ export const verifyAbacatePaySignature = (
   const received = Buffer.from(signature.trim(), 'base64');
   return received.length === expected.length && timingSafeEqual(received, expected);
 };
+
+export const abacatePayApiEndpoint = (
+  configuredBase: string | undefined,
+  resource: 'transparents/create' | 'transparents/check'
+): string => {
+  const base = (configuredBase?.trim() || 'https://api.abacatepay.com').replace(/\/+$/, '');
+  const versionedBase = base.endsWith('/v2') ? base : `${base}/v2`;
+  return `${versionedBase}/${resource}`;
+};

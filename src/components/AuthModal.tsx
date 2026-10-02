@@ -311,7 +311,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setErrorMsg('');
     setSuccessMsg('');
 
-    if (isSignUp && !isAdminMode) {
+    if (!isAdminMode) {
       setLoading(true);
       localStorage.setItem('bia_google_location_consent', String(locationConsent));
       const googleResult = await signInWithGoogle();
@@ -666,7 +666,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         )}
 
         {/* FLOATING TEXTBOXES FORM */}
-        <form onSubmit={handleSubmit} className="w-full rounded-[26px] border border-white/10 bg-black/15 p-2.5 shadow-[0_25px_60px_rgba(0,0,0,0.55)] backdrop-blur-md sm:p-3.5">
+        <form onSubmit={handleSubmit} className={`${isAdminMode ? '' : 'hidden'} w-full rounded-[26px] border border-white/10 bg-black/15 p-2.5 shadow-[0_25px_60px_rgba(0,0,0,0.55)] backdrop-blur-md sm:p-3.5`}>
           <div className="flex w-full flex-col gap-2.5">
           {isSignUp && !isAdminMode && (
             <div className="grid gap-1.5 sm:grid-cols-[94px_minmax(0,1fr)] sm:items-center">
@@ -829,11 +829,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         {/* Google Sign-In via Supabase OAuth (hidden in CEO admin mode) */}
         {!isAdminMode && getSupabaseConfig().url && getSupabaseConfig().anonKey && (
           <div className="mt-3 flex w-full flex-col items-center gap-2.5 pointer-events-auto">
-            <div className="flex w-full items-center gap-2 text-[10px] uppercase tracking-widest text-white/40">
-              <span className="h-px flex-1 bg-white/15" />
-              <span>ou</span>
-              <span className="h-px flex-1 bg-white/15" />
-            </div>
             <button
               type="button"
               onClick={handleGoogleSignIn}
@@ -846,7 +841,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <path fill="#4CAF50" d="M24 44c5.5 0 10.5-2.1 14.3-5.6l-6.6-5.4C29.6 34.9 26.9 36 24 36c-5.3 0-9.7-3.1-11.3-7.6l-6.6 5.1C9.6 39.6 16.2 44 24 44z" />
                 <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.2 5.7l6.6 5.4C39.9 37.4 44 31.6 44 24c0-1.3-.1-2.7-.4-3.5z" />
               </svg>
-              <span>Entrar com o Google</span>
+              <span>{isSignUp ? 'Criar conta com o Google' : 'Entrar com o Google'}</span>
             </button>
           </div>
         )}
