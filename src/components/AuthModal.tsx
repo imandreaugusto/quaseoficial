@@ -861,7 +861,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               onChange={(event) => setLocationConsent(event.target.checked)}
               className="mt-0.5 accent-amber-400"
             />
-            <span>Opcional: aceito registrar país, estado/região e cidade aproximados pelo IP para personalizar meu perfil. Posso continuar sem compartilhar.</span>
+            <span>Opcional: aceito registrar país, estado/região e cidade aproximados pelo IP. Minha região/país poderão aparecer para assinantes enquanto eu estiver online no Brazilian Friends. Posso continuar sem compartilhar.</span>
           </label>
         )}
 

@@ -224,6 +224,9 @@ input, textarea, select {
 .friends-header-info-button { width: 1.9rem; height: 1.9rem; font-size: 0.76rem; }
 .friends-selected-chip { margin-left: auto; color: rgba(236,241,255,0.65); font-size: 0.68rem; }
 .friends-mobile-people-button { display: none; margin-left: auto; align-items: center; gap: 0.4rem; border: 1px solid rgba(218, 229, 255, 0.2); border-radius: 999px; padding: 0.45rem 0.65rem; color: rgba(242,246,255,0.82); background: rgba(79, 100, 195, 0.24); font-size: 0.66rem; }
+.friends-mobile-back-button { display: none; }
+.friends-list-status-dot { display: block; width: 0.52rem; height: 0.52rem; flex: 0 0 auto; border-radius: 50%; background: #64748b; }
+.friends-list-status-online { background: #4ade80; box-shadow: 0 0 10px rgba(74, 222, 128, 0.75); }
 .friends-message-scroll { min-height: 0; flex: 1; overflow-y: auto; padding: clamp(1rem, 3vw, 2rem); }
 .friends-message-row { display: flex; justify-content: flex-start; margin-bottom: 0.62rem; }
 .friends-message-row-own { justify-content: flex-end; }
@@ -254,6 +257,7 @@ input, textarea, select {
 .friends-drawer-backdrop > div { width: min(85vw, 20rem); height: 100%; }
 .friends-people-panel-mobile { width: 100%; height: 100%; border: 0; background: rgba(8, 15, 46, 0.88); backdrop-filter: blur(24px); }
 .friends-people-panel-mobile .friends-people-heading { padding-top: max(1rem, env(safe-area-inset-top)); }
+.friends-profile-preview-backdrop { display: none; }
 
 .friends-avatar-edit-badge { position: absolute; right: -0.12rem; bottom: -0.12rem; display: grid; width: 0.85rem; height: 0.85rem; place-items: center; border: 1.5px solid #172150; border-radius: 50%; color: #172150; background: #ffd166; }
 .friends-profile-modal-backdrop { position: fixed; inset: 0; z-index: 5000; display: grid; place-items: center; padding: 1rem; background: rgba(2,5,20,0.6); backdrop-filter: blur(12px); }
@@ -272,25 +276,48 @@ input, textarea, select {
 .friends-profile-modal-save:disabled { cursor: not-allowed; opacity: 0.6; }
 
 @media (max-width: 720px) {
-  .friends-shell { height: calc(100dvh - 4.5rem); min-height: 30rem; padding: 0.35rem; }
+  .friends-shell { height: calc(100dvh - 4.5rem); min-height: 0; padding: 0.35rem; }
   .friends-glass-frame { display: block; border-radius: 1.25rem; }
   .friends-glass-frame > .friends-people-panel { display: none; }
   .friends-conversation-header { min-height: 4.2rem; padding: 0.7rem 0.8rem; }
   .friends-header-icon { width: 2rem; height: 2rem; }
   .friends-header-title p { font-size: 0.62rem; }
+  .friends-public-online-count { display: none; }
   .friends-selected-chip { display: none; }
-  .friends-mobile-people-button { display: flex; }
+  .friends-header-actions { display: none; }
+  .friends-mobile-people-button { display: flex; min-height: 2.65rem; flex: 0 0 auto; padding-inline: 0.8rem; color: rgba(239,248,255,0.95); background: rgba(50, 91, 151, 0.42); white-space: nowrap; }
+  .friends-mobile-back-button { display: inline-flex; min-height: 2.65rem; align-items: center; gap: 0.35rem; margin-left: auto; padding: 0 0.7rem; border: 1px solid rgba(218, 229, 255, 0.2); border-radius: 999px; color: rgba(242,246,255,0.9); background: rgba(79, 100, 195, 0.24); font-size: 0.68rem; }
   .friends-message-scroll { padding: 1rem 0.75rem; }
   .friends-message-group { max-width: 88%; }
   .friends-message-bubble p { font-size: 0.76rem; }
   .friends-composer { padding-bottom: max(0.7rem, env(safe-area-inset-bottom)); }
   .friends-conversation-private { inset: 0.35rem; border-radius: 1.1rem; }
+  .friends-drawer-backdrop { align-items: flex-end; justify-content: center; }
+  .friends-drawer-backdrop > div { width: 100%; height: min(72dvh, 38rem); }
+  .friends-people-panel-mobile { border: 1px solid rgba(218, 229, 255, 0.22); border-bottom: 0; border-radius: 1.4rem 1.4rem 0 0; background: rgba(8, 15, 46, 0.9); }
+  .friends-people-panel-mobile .friends-people-heading { min-height: 4.2rem; padding: 0.8rem 1rem; }
+  .friends-people-panel-mobile .friends-online-label { padding-top: 0.75rem; }
+  .friends-people-panel-mobile .friends-person { min-height: 3.25rem; gap: 0.75rem; padding-inline: 0.8rem; }
+  .friends-people-panel-mobile .friends-person-copy strong { font-size: 0.76rem; }
+  .friends-people-panel-mobile .friends-person-copy small { color: rgba(214,225,255,0.64); font-size: 0.64rem; }
+  .friends-profile-preview-backdrop { position: fixed; inset: 0; z-index: 5001; display: grid; align-items: end; justify-items: center; padding: 1rem 0 0; background: rgba(2,5,20,0.56); backdrop-filter: blur(12px); }
+  .friends-profile-preview { position: relative; display: flex; width: min(100%, 32rem); max-height: min(78dvh, 42rem); flex-direction: column; align-items: center; gap: 0.7rem; overflow-y: auto; padding: 2.1rem 1.4rem calc(1.25rem + env(safe-area-inset-bottom)); border: 1px solid rgba(218,229,255,0.24); border-bottom: 0; border-radius: 1.5rem 1.5rem 0 0; color: white; text-align: center; background: linear-gradient(150deg, rgba(18,34,73,0.94), rgba(21,19,47,0.96) 62%, rgba(26,28,51,0.96)); box-shadow: 0 -18px 60px rgba(1,5,21,0.55); backdrop-filter: blur(24px); }
+  .friends-profile-preview-close { position: absolute; top: 0.65rem; right: 0.7rem; }
+  .friends-profile-preview-avatar-wrap { position: relative; display: grid; place-items: center; margin-bottom: 0.3rem; }
+  .friends-profile-preview-avatar { width: 5.2rem !important; height: 5.2rem !important; font-size: 1.4rem !important; }
+  .friends-profile-preview-status { position: absolute; right: 0.12rem; bottom: 0.12rem; width: 0.85rem; height: 0.85rem; border: 2px solid #152044; border-radius: 50%; background: #4ade80; box-shadow: 0 0 12px rgba(74,222,128,0.8); }
+  .friends-profile-preview h2 { margin: 0; font-size: 1.1rem; font-weight: 700; }
+  .friends-profile-preview-location { display: flex; align-items: center; gap: 0.45rem; margin: 0; color: rgba(221,231,255,0.72); font-size: 0.72rem; }
+  .friends-profile-preview-bio { width: min(100%, 24rem); margin: 0.55rem 0 0.75rem; color: rgba(243,246,255,0.84); font-size: 0.84rem; line-height: 1.55; }
+  .friends-profile-preview-message { display: flex; width: min(100%, 22rem); min-height: 2.9rem; align-items: center; justify-content: center; gap: 0.55rem; padding: 0.6rem 1rem; border: 0; border-radius: 999px; color: #08102e; font-size: 0.8rem; font-weight: 700; overflow-wrap: anywhere; box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
+  .friends-profile-preview-message span { min-width: 0; }
 }
 
 @media (min-width: 721px) and (max-width: 1024px) {
   .friends-glass-frame { grid-template-columns: 13rem minmax(0, 1fr); }
   .friends-people-heading { padding-inline: 0.75rem; }
   .friends-brand-subtitle { display: none; }
+  .friends-conversation-private { inset: 6% 2% 6% 19%; }
 }
 
 .menu-cinematic-text {

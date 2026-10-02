@@ -55,6 +55,9 @@ const getConversationKey = (firstId: string, secondId: string) =>
 
 const formatLocation = (_profile: Pick<FriendProfile, 'ip_region' | 'ip_country'>) => 'Localização não compartilhada';
 
+const formatMobileLocation = (profile: Pick<FriendProfile, 'ip_region' | 'ip_country'>) =>
+  [profile.ip_region, profile.ip_country].filter(Boolean).join(', ') || 'Localização não compartilhada';
+
 const getInitials = (name: string) => {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return 'B';
@@ -101,6 +104,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
   const [profiles, setProfiles] = useState<FriendProfile[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<Record<string, PresencePayload>>({});
   const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
+  const [profilePreviewId, setProfilePreviewId] = useState<string | null>(null);
   const [messages, setMessages] = useState<FriendMessage[]>([]);
   const [draft, setDraft] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -120,6 +124,9 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
   }, [currentUser.photo_url]);
 
   const selectedFriend = profiles.find((profile) => profile.id === selectedFriendId) || null;
+  const profilePreview = profiles.find((profile) => profile.id === profilePreviewId) || null;
+  const profilePreviewPresence = profilePreviewId ? onlineUsers[profilePreviewId] : undefined;
+  const isProfilePreviewOnline = Boolean(profilePreviewPresence);
   const onlineFriends = useMemo(
     () => profiles.filter((profile) => onlineUsers[profile.id]),
     [onlineUsers, profiles]
@@ -193,7 +200,9 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
               user_id: socialUserId,
               full_name: profile.full_name,
               photo_url: profile.photo_url,
-              status_message: profile.status_message
+              status_message: profile.status_message,
+              ip_region: currentUser.location_consent ? currentUser.ip_region || null : null,
+              ip_country: currentUser.location_consent ? currentUser.ip_country || null : null
             });
             updatePresence();
           }
@@ -439,7 +448,9 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
           const isSelf = friend.id === socialUserId;
           const profileName = presence?.full_name || friend.full_name;
           const profilePhoto = presence?.photo_url || friend.photo_url;
-          const statusLine = presence?.status_message || friend.status_message || formatLocation(presence || friend);
+          const statusLine = mobile
+            ? formatMobileLocation(presence || friend)
+            : presence?.status_message || friend.status_message || formatLocation(presence || friend);
           return (
             <button
               key={friend.id}
@@ -447,6 +458,8 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
               onClick={() => {
                 if (isSelf) {
                   openProfileEditor();
+                } else if (mobile) {
+                  setProfilePreviewId(friend.id);
                 } else {
                   setSelectedFriendId(friend.id);
                 }
@@ -455,11 +468,15 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
               className={`friends-person ${isSelected ? 'friends-person-selected' : ''}`}
               title={isSelf ? 'Editar sua foto e descrição' : undefined}
             >
-              <span className="friends-avatar-wrap">
-                {renderAvatar(profileName, profilePhoto)}
-                <span className={`friends-status ${isOnline ? 'friends-status-online' : ''}`} />
-                {isSelf && <span className="friends-avatar-edit-badge"><Camera size={9} /></span>}
-              </span>
+              {mobile ? (
+                <span className={`friends-list-status-dot ${isOnline ? 'friends-list-status-online' : ''}`} />
+              ) : (
+                <span className="friends-avatar-wrap">
+                  {renderAvatar(profileName, profilePhoto)}
+                  <span className={`friends-status ${isOnline ? 'friends-status-online' : ''}`} />
+                  {isSelf && <span className="friends-avatar-edit-badge"><Camera size={9} /></span>}
+                </span>
+              )}
               <span className="friends-person-copy"><strong>{profileName}</strong><small>{statusLine}{isSelf ? ' · You' : ''}</small></span>
             </button>
           );
@@ -482,7 +499,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
         {renderPeople()}
         <main className={`friends-conversation ${selectedFriend ? 'friends-conversation-private' : ''}`}>
           <header className="friends-conversation-header">
-            <div className="friends-header-title"><div className="friends-header-icon"><Users size={18} /></div><div><h1>{selectedFriend ? selectedFriend.full_name : 'Brazilian Friends'}</h1><p>{selectedFriend ? `Private conversation · ${formatLocation(selectedFriend)}` : `${onlineFriends.length} people online`}</p></div></div>
+            <div className="friends-header-title"><div className="friends-header-icon"><Users size={18} /></div><div><h1>{selectedFriend ? selectedFriend.full_name : 'Brazilian Friends'}</h1><p className={selectedFriend ? 'friends-private-subtitle' : 'friends-public-online-count'}>{selectedFriend ? `Private conversation · ${formatLocation(selectedFriend)}` : `${onlineFriends.length} people online`}</p></div></div>
 
             <div className="friends-header-actions">
               <a
@@ -506,7 +523,8 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
               </span>
             </div>
 
-            <button type="button" className="friends-mobile-people-button" onClick={() => setIsPeopleDrawerOpen(true)}><Users size={16} /><span>{onlineFriends.length} online</span></button>
+            {!selectedFriend && <button type="button" className="friends-mobile-people-button" onClick={() => setIsPeopleDrawerOpen(true)}><Users size={16} /><span>{onlineFriends.length} people online</span></button>}
+            {selectedFriend && <button type="button" className="friends-mobile-back-button" onClick={() => setSelectedFriendId(null)}><ArrowLeft size={15} /><span>Public chat</span></button>}
             {selectedFriend && <button type="button" className="friends-selected-chip" onClick={() => setSelectedFriendId(null)}><ArrowLeft size={13} /> {selectedFriend.full_name}</button>}
           </header>
 
@@ -608,6 +626,39 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
         </main>
       </div>
       {isPeopleDrawerOpen && <div className="friends-drawer-backdrop" onClick={() => setIsPeopleDrawerOpen(false)}><div onClick={(event) => event.stopPropagation()}>{renderPeople(true)}</div></div>}
+      {profilePreview && (
+        <div className="friends-profile-preview-backdrop" onClick={() => setProfilePreviewId(null)}>
+          <section className="friends-profile-preview" role="dialog" aria-modal="true" aria-labelledby="friends-profile-preview-name" onClick={(event) => event.stopPropagation()}>
+            <button type="button" className="friends-icon-button friends-profile-preview-close" onClick={() => setProfilePreviewId(null)} aria-label="Fechar perfil">
+              <X size={17} />
+            </button>
+            <div className="friends-profile-preview-avatar-wrap">
+              {renderAvatar(profilePreviewPresence?.full_name || profilePreview.full_name, profilePreviewPresence?.photo_url || profilePreview.photo_url, 'friends-profile-preview-avatar')}
+              {isProfilePreviewOnline && <span className="friends-profile-preview-status" />}
+            </div>
+            <h2 id="friends-profile-preview-name">{profilePreviewPresence?.full_name || profilePreview.full_name}</h2>
+            <p className="friends-profile-preview-location">
+              <span className={`friends-list-status-dot ${isProfilePreviewOnline ? 'friends-list-status-online' : ''}`} />
+              {isProfilePreviewOnline ? 'Online' : 'Offline'} · {formatMobileLocation(profilePreviewPresence || profilePreview)}
+            </p>
+            <p className="friends-profile-preview-bio">
+              {profilePreviewPresence?.status_message || profilePreview.status_message || 'Ainda não adicionou uma descrição.'}
+            </p>
+            <button
+              type="button"
+              className="friends-profile-preview-message"
+              style={{ backgroundColor: accentColor }}
+              onClick={() => {
+                setSelectedFriendId(profilePreview.id);
+                setProfilePreviewId(null);
+              }}
+            >
+              <MessageCircle size={16} />
+              <span>Message {profilePreviewPresence?.full_name || profilePreview.full_name}</span>
+            </button>
+          </section>
+        </div>
+      )}
       {isProfileEditorOpen && (
         <div className="friends-profile-modal-backdrop" onClick={() => setIsProfileEditorOpen(false)}>
           <div className="friends-profile-modal" onClick={(event) => event.stopPropagation()}>
