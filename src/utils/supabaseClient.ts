@@ -1,7 +1,7 @@
 // Supabase Client Helper
 // Reads environment variables safely configured in the hosting environment (Netlify / Server / Vite)
 // Supports process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY and client-side fallbacks
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { UserProfile } from '../types';
 import { apiFetch } from '../lib/api';
 
@@ -28,14 +28,22 @@ export const getSupabaseConfig = () => {
   return { url, anonKey };
 };
 
+let cachedClient: SupabaseClient | null = null;
+let cachedConfigKey = '';
+
 export const getSupabaseClient = () => {
   const { url, anonKey } = getSupabaseConfig();
   if (!url || !anonKey) return null;
-  return createClient(url, anonKey, {
+  const configKey = `${url}\n${anonKey}`;
+  if (cachedClient && cachedConfigKey === configKey) return cachedClient;
+
+  cachedConfigKey = configKey;
+  cachedClient = createClient(url, anonKey, {
     // Session persistence + URL detection are required for the Google OAuth
     // redirect flow (signInWithGoogle) to resolve into a session on return.
     auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
   });
+  return cachedClient;
 };
 
 // Redirects the browser to Google via Supabase Auth. On return, the session
