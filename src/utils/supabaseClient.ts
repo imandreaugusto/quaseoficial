@@ -69,11 +69,11 @@ export const registerGoogleProfile = async (
   geolocation?: { country: string; regionName: string; city: string }
 ): Promise<UserProfile> => {
   const client = getSupabaseClient();
-  if (!client) throw new Error('Login Google indisponível: Supabase não configurado.');
+  if (!client) throw new Error('Autenticação indisponível: Supabase não configurado.');
 
   const { data } = await client.auth.getSession();
   const accessToken = data.session?.access_token;
-  if (!accessToken) throw new Error('Sessão Google não encontrada. Entre novamente.');
+  if (!accessToken) throw new Error('Sessão não encontrada. Entre novamente.');
 
   const response = await apiFetch('/api/auth/google/profile', {
     method: 'POST',
@@ -91,7 +91,7 @@ export const registerGoogleProfile = async (
 
   const result = await response.json();
   if (!response.ok || !result.profile) {
-    throw new Error(result.error || 'Não foi possível salvar seu perfil no Supabase.');
+    throw new Error(result.error || 'Não foi possível salvar seu perfil de acesso.');
   }
 
   return result.profile as UserProfile;

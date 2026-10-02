@@ -137,13 +137,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     } catch (e) {}
   }, []);
 
-  // Completes the login once Supabase reports a Google session (either right after
-  // the OAuth redirect back, or from an already-active session on mount).
+  // Completes login after Supabase reports an authenticated session.
   useEffect(() => {
     const client = getSupabaseClient();
     if (!client) return;
 
-    const completeGoogleSignIn = async (sessionUser: { id: string; email?: string; user_metadata?: Record<string, any> }) => {
+    const completeAuthenticatedSignIn = async (sessionUser: { id: string; email?: string; user_metadata?: Record<string, any> }) => {
       if (!sessionUser.email) return;
 
       setLoading(true);
@@ -178,11 +177,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     };
 
     client.auth.getSession().then(({ data }) => {
-      if (data.session?.user) void completeGoogleSignIn(data.session.user);
+      if (data.session?.user) void completeAuthenticatedSignIn(data.session.user);
     });
 
     const { data: authListener } = client.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) void completeGoogleSignIn(session.user);
+      if (event === 'SIGNED_IN' && session?.user) void completeAuthenticatedSignIn(session.user);
     });
 
     return () => authListener.subscription.unsubscribe();
@@ -305,11 +304,79 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
-  // Sign-up with direct Pix generation OR Login flow
+  const completeCeoLogin = (cleanEmail: string) => {
+    const ceoAuth = validateCeoCredentials(cleanEmail, password);
+    if (!ceoAuth.isValid) {
+      throw new Error(ceoAuth.message || 'Acesso restrito ao CEO autorizado.');
+    }
+
+    const adminUser: UserProfile = {
+      id: 'admin_master_ceo',
+      email: cleanEmail,
+      full_name: 'CEO André Augusto',
+      role: 'admin',
+      status: 'active',
+      data_expiracao: null,
+      email_verified: true,
+      permissions: {
+        friends: true,
+        readclub: true,
+        board: true,
+        quiz: true,
+        biacompare: true,
+        conversation: true,
+        tradutor: true,
+        youtube: true,
+        practice: true,
+        stories: true
+      },
+      created_at: new Date().toISOString()
+    };
+
+    localStorage.setItem('bia_current_user', JSON.stringify(adminUser));
+    setSuccessMsg('Bem-vindo, CEO André Augusto.');
+    setTimeout(() => onAuthSuccess(adminUser), 500);
+  };
+
+  // Google remains available as a shortcut; password login uses Supabase Auth.
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
+
+    if (!isAdminMode && !isSignUp) {
+      setLoading(true);
+      try {
+        const cleanEmail = email.trim().toLowerCase();
+        if (!isValidEmailFormat(cleanEmail)) {
+          throw new Error('Por favor, informe um endereço de e-mail válido.');
+        }
+
+        if (isAuthorizedCeoEmail(cleanEmail)) {
+          completeCeoLogin(cleanEmail);
+          return;
+        }
+
+        const client = getSupabaseClient();
+        if (!client) throw new Error('Login por e-mail indisponível: Supabase não configurado.');
+
+        localStorage.setItem('bia_google_location_consent', String(locationConsent));
+        const { error: signInError } = await client.auth.signInWithPassword({
+          email: cleanEmail,
+          password
+        });
+        if (signInError) {
+          localStorage.removeItem('bia_google_location_consent');
+          throw new Error('E-mail ou senha inválidos, ou conta ainda não confirmada. Confira os dados ou entre com o Google.');
+        }
+        setSuccessMsg('Login confirmado. Carregando seu perfil...');
+      } catch (err: any) {
+        setErrorMsg(err.message || 'Falha ao autenticar.');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
 
     if (!isAdminMode) {
       setLoading(true);
@@ -333,6 +400,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       // Basic email validation
       if (!isValidEmailFormat(cleanEmail)) {
         throw new Error('Por favor, informe um endereço de e-mail válido (ex: seu.nome@gmail.com).');
+      }
+
+      if (isAdminMode && isSignUp) {
+        throw new Error('O modo CEO não cria contas de estudante.');
       }
 
       const storedUsersRaw = localStorage.getItem('bia_users_database');
@@ -443,43 +514,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         const isCeoCandidate = isAdminMode || isAuthorizedCeoEmail(cleanEmail);
 
         if (isCeoCandidate) {
-          // STRICT CEO VERIFICATION: Both email and password MUST match CEO credentials
-          const ceoAuth = validateCeoCredentials(cleanEmail, password);
-          if (ceoAuth.isValid) {
-            const adminUser: UserProfile = {
-              id: 'admin_master_ceo',
-              email: cleanEmail,
-              full_name: 'CEO André Augusto',
-              role: 'admin',
-              status: 'active',
-              data_expiracao: null,
-              email_verified: true,
-              ip_country: geo.country,
-              ip_region: geo.regionName,
-              ip_city: geo.city,
-              permissions: {
-                friends: true,
-                readclub: true,
-                board: true,
-                quiz: true,
-                biacompare: true,
-                conversation: true,
-                tradutor: true,
-                youtube: true,
-                practice: true,
-                stories: true
-              },
-              created_at: new Date().toISOString()
-            };
-
-            localStorage.setItem('bia_current_user', JSON.stringify(adminUser));
-            setSuccessMsg('Bem-vindo, CEO André Augusto.');
-            setTimeout(() => {
-              onAuthSuccess(adminUser);
-            }, 500);
+          try {
+            completeCeoLogin(cleanEmail);
             return;
-          } else if (isAdminMode) {
-            throw new Error(ceoAuth.message || 'Acesso restrito apenas ao CEO André Augusto.');
+          } catch (error: any) {
+            throw new Error(error.message || 'Acesso restrito apenas ao CEO André Augusto.');
           }
         }
 
@@ -487,7 +526,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           throw new Error('Para proteger e confirmar sua assinatura, entre com Google usando o mesmo e-mail da conta.');
         }
 
-        // Student Login is only reachable for the CEO candidate path above.
+        // The normal student password login is handled by Supabase Auth above.
         let existingUser = usersList.find((u) => u.email.toLowerCase() === cleanEmail);
         const remoteProfile = await findUserProfileByEmail(cleanEmail);
         if (remoteProfile && !existingUser) {
@@ -666,7 +705,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         )}
 
         {/* FLOATING TEXTBOXES FORM */}
-        <form onSubmit={handleSubmit} className={`${isAdminMode ? '' : 'hidden'} w-full rounded-[26px] border border-white/10 bg-black/15 p-2.5 shadow-[0_25px_60px_rgba(0,0,0,0.55)] backdrop-blur-md sm:p-3.5`}>
+        <form onSubmit={handleSubmit} className={`${isAdminMode || !isSignUp ? '' : 'hidden'} w-full rounded-[26px] border border-white/10 bg-black/15 p-2.5 shadow-[0_25px_60px_rgba(0,0,0,0.55)] backdrop-blur-md sm:p-3.5`}>
           <div className="flex w-full flex-col gap-2.5">
           {isSignUp && !isAdminMode && (
             <div className="grid gap-1.5 sm:grid-cols-[94px_minmax(0,1fr)] sm:items-center">
@@ -807,7 +846,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             ) : (
               <>
                 <ArrowRight size={14} />
-                <span className="whitespace-nowrap">{isAdminMode ? 'Acessar CEO' : 'Entrar na plataforma'}</span>
+                <span className="whitespace-nowrap">{isAdminMode ? 'Acessar CEO' : 'Entrar com e-mail e senha'}</span>
               </>
             )}
           </button>

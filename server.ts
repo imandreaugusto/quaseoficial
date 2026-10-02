@@ -273,7 +273,7 @@ async function startServer() {
       const authUser = await getSupabaseUserFromRequest(req);
       const email = normalizeEmail(authUser?.email);
       if (!authUser?.id || !email || !authUser.email_confirmed_at) {
-        return res.status(401).json({ error: 'Sessão Google inválida ou e-mail não confirmado.' });
+        return res.status(401).json({ error: 'Sessão inválida ou e-mail não confirmado.' });
       }
       if (isRateLimited(`google-profile:${authUser.id}`, 10, 60_000)) {
         return res.status(429).json({ error: 'Muitas tentativas. Aguarde e tente novamente.' });
