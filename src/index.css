@@ -6,6 +6,46 @@
   --font-serif: "Crimson Pro", "Lora", serif;
 }
 
+html, body, #root {
+  min-width: 0;
+  min-height: 100%;
+}
+
+body {
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+img, video, canvas, svg {
+  max-width: 100%;
+}
+
+button, input, textarea, select {
+  max-width: 100%;
+}
+
+.pix-payment-shell {
+  min-height: 100dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: max(0.5rem, env(safe-area-inset-top)) max(0.5rem, env(safe-area-inset-right)) max(0.5rem, env(safe-area-inset-bottom)) max(0.5rem, env(safe-area-inset-left));
+}
+
+.pix-payment-card {
+  margin-block: auto;
+}
+
+.pix-payment-qr-frame {
+  width: min(100%, 15rem);
+}
+
+.pix-payment-qr {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+}
+
 /* Scrollbars completely hidden across all elements */
 * {
   scrollbar-width: none !important;
@@ -77,7 +117,7 @@ input, textarea, select {
   isolation: isolate;
   width: 100%;
   height: calc(100dvh - 5rem);
-  min-height: 34rem;
+  min-height: min(34rem, calc(100dvh - 5rem));
   padding: clamp(0.5rem, 2vw, 1.5rem);
   overflow: hidden;
   background: transparent;
@@ -187,19 +227,20 @@ input, textarea, select {
 .friends-person-copy small { overflow: hidden; color: rgba(214,225,255,0.5); font-size: 0.58rem; text-overflow: ellipsis; white-space: nowrap; }
 .friends-muted-copy { padding: 0.8rem; color: rgba(225,233,255,0.52); font-size: 0.72rem; }
 
-.friends-conversation { display: flex; min-width: 0; min-height: 0; flex-direction: column; }
+.friends-conversation { display: flex; min-width: 0; min-height: 0; height: 100%; flex-direction: column; }
 .friends-conversation-private {
-  position: absolute;
-  inset: 8% 4% 8% 31%;
-  z-index: 5;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 1.35rem;
+  position: relative;
+  inset: auto;
+  z-index: auto;
+  border: 0;
+  border-left: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 0;
   background: rgba(18, 18, 22, 0.82);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.48);
+  box-shadow: none;
   backdrop-filter: blur(22px);
   -webkit-backdrop-filter: blur(22px);
 }
-.friends-conversation-header { display: flex; min-height: 5rem; align-items: center; gap: 1rem; padding: 0.9rem clamp(1rem, 3vw, 2rem); border-bottom: 1px solid rgba(214,224,255,0.16); }
+.friends-conversation-header { display: flex; min-height: 5rem; flex: 0 0 auto; align-items: center; gap: 1rem; padding: 0.9rem clamp(1rem, 3vw, 2rem); border-bottom: 1px solid rgba(214,224,255,0.16); }
 .friends-header-title { display: flex; min-width: 0; align-items: center; gap: 0.75rem; }
 .friends-header-icon { display: grid; width: 2.2rem; height: 2.2rem; place-items: center; border-radius: 0.8rem; color: #e8eeff; background: rgba(129, 153, 255, 0.24); }
 .friends-header-title h1, .friends-header-title p { margin: 0; }
@@ -227,7 +268,7 @@ input, textarea, select {
 .friends-mobile-back-button { display: none; }
 .friends-list-status-dot { display: block; width: 0.52rem; height: 0.52rem; flex: 0 0 auto; border-radius: 50%; background: #64748b; }
 .friends-list-status-online { background: #4ade80; box-shadow: 0 0 10px rgba(74, 222, 128, 0.75); }
-.friends-message-scroll { min-height: 0; flex: 1; overflow-y: auto; padding: clamp(1rem, 3vw, 2rem); }
+.friends-message-scroll { min-height: 0; flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: clamp(1rem, 3vw, 2rem); }
 .friends-message-row { display: flex; justify-content: flex-start; margin-bottom: 0.62rem; }
 .friends-message-row-own { justify-content: flex-end; }
 .friends-message-group { max-width: min(76%, 38rem); }
@@ -238,8 +279,10 @@ input, textarea, select {
 .friends-message-bubble { display: inline-block; max-width: 100%; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 0.75rem; padding: 0.42rem 0.7rem 0.44rem; color: rgba(247,249,255,0.9); background: rgba(255, 255, 255, 0.08); box-shadow: inset 0 1px rgba(255,255,255,0.07); text-align: left; }
 .friends-message-bubble-own { border-color: color-mix(in srgb, var(--bubble-accent) 55%, white 10%); border-radius: 1rem 1rem 0.35rem 1rem; background: linear-gradient(135deg, color-mix(in srgb, var(--bubble-accent) 72%, #243c96), rgba(63, 183, 192, 0.72)); }
 .friends-message-bubble p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.7rem; line-height: 1.3; }
-.friends-composer { position: relative; padding: 0.8rem clamp(0.8rem, 2.5vw, 1.75rem) clamp(0.8rem, 2.5vw, 1.4rem); border-top: 1px solid rgba(214,224,255,0.14); }
+.friends-composer { position: relative; flex: 0 0 auto; padding: 0.8rem clamp(0.8rem, 2.5vw, 1.75rem) clamp(0.8rem, 2.5vw, 1.4rem); border-top: 1px solid rgba(214,224,255,0.14); }
 .friends-composer-inner { display: flex; align-items: center; gap: 0.35rem; border: 1px solid rgba(255,255,255,0.18); border-radius: 1.1rem; padding: 0.3rem; background: rgba(18, 18, 22, 0.52); box-shadow: inset 0 1px rgba(255,255,255,0.09); }
+.friends-auth-button { display: flex; width: 100%; min-height: 2.8rem; align-items: center; justify-content: center; gap: 0.55rem; border: 1px solid rgba(144, 169, 255, 0.55); border-radius: 1rem; color: #f4f7ff; background: rgba(79, 100, 195, 0.3); font-size: 0.78rem; font-weight: 700; }
+.friends-auth-button:disabled { cursor: wait; opacity: 0.65; }
 .friends-composer-input { min-width: 0; flex: 1; border: 0; outline: 0; padding: 0.65rem 0.6rem; color: white; background: transparent; font: inherit; font-size: 0.78rem; }
 .friends-composer-input::placeholder { color: rgba(220,228,255,0.46); }
 .friends-icon-button, .friends-send-button { display: grid; width: 2.2rem; height: 2.2rem; place-items: center; border: 0; border-radius: 0.8rem; color: rgba(233,239,255,0.72); background: transparent; }
@@ -276,7 +319,7 @@ input, textarea, select {
 .friends-profile-modal-save:disabled { cursor: not-allowed; opacity: 0.6; }
 
 @media (max-width: 720px) {
-  .friends-shell { height: calc(100dvh - 4.5rem); min-height: 0; padding: 0.35rem; }
+  .friends-shell { height: calc(100dvh - 4.5rem); min-height: 0; padding: max(0.35rem, env(safe-area-inset-top)) max(0.35rem, env(safe-area-inset-right)) max(0.35rem, env(safe-area-inset-bottom)) max(0.35rem, env(safe-area-inset-left)); }
   .friends-glass-frame { display: block; border-radius: 1.25rem; }
   .friends-glass-frame > .friends-people-panel { display: none; }
   .friends-conversation-header { min-height: 4.2rem; padding: 0.7rem 0.8rem; }
@@ -291,7 +334,7 @@ input, textarea, select {
   .friends-message-group { max-width: 88%; }
   .friends-message-bubble p { font-size: 0.76rem; }
   .friends-composer { padding-bottom: max(0.7rem, env(safe-area-inset-bottom)); }
-  .friends-conversation-private { inset: 0.35rem; border-radius: 1.1rem; }
+  .friends-conversation-private { border-left: 0; }
   .friends-drawer-backdrop { align-items: flex-end; justify-content: center; }
   .friends-drawer-backdrop > div { width: 100%; height: min(72dvh, 38rem); }
   .friends-people-panel-mobile { border: 1px solid rgba(218, 229, 255, 0.22); border-bottom: 0; border-radius: 1.4rem 1.4rem 0 0; background: rgba(8, 15, 46, 0.9); }

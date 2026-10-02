@@ -3998,8 +3998,16 @@ export const StreamStudio: React.FC<StreamStudioProps> = ({
       </AnimatePresence>
       {/* REAL-TIME POPOUT CLEAN STAGE WINDOW PORTAL (STUDENT VIEW FOR YOUTUBE / OBS SHARE) */}
       {popoutWindow && createPortal(
-        <div className="w-screen h-screen bg-neutral-950 flex flex-col items-center justify-center relative overflow-hidden select-none p-0 m-0 text-white">
-          <div className="relative w-full h-full bg-neutral-950 overflow-hidden flex flex-col justify-between p-6">
+        <div className="w-full min-h-dvh bg-neutral-950 flex flex-col items-center justify-center relative overflow-hidden select-none p-0 m-0 text-white">
+          <div
+            className="relative w-full min-h-dvh bg-neutral-950 overflow-hidden flex flex-col justify-between"
+            style={{
+              paddingTop: 'max(1.5rem, env(safe-area-inset-top))',
+              paddingRight: 'max(1.5rem, env(safe-area-inset-right))',
+              paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))',
+              paddingLeft: 'max(1.5rem, env(safe-area-inset-left))'
+            }}
+          >
             {/* 1. SCREEN CAPTURE VIDEO STREAM */}
             {isScreenCapturing && (streamSource === 'screen' || streamSource === 'pip') && (
               <video

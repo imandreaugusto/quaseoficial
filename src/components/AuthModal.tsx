@@ -589,8 +589,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex h-screen min-h-screen flex-col overflow-hidden p-3 sm:p-4 md:p-6 select-none">
-      <div className="relative flex h-full w-full flex-col overflow-hidden">
+    <div className="fixed inset-0 z-[9999] flex h-dvh flex-col overflow-y-auto overscroll-contain p-3 sm:p-4 md:p-6 select-none">
+      <div className="relative flex min-h-full w-full flex-col">
         {/* TOP BAR: Exact Internal Clock component on Upper Left | Right "Como funciona?" Button */}
         <div className="z-20 flex w-full shrink-0 items-start justify-between pointer-events-auto">
           

@@ -248,11 +248,11 @@ export const PixPaymentScreen: React.FC<PixPaymentScreenProps> = ({
   const isExpired = user.status === 'expired';
 
   return (
-    <div className="min-h-[90vh] flex items-center justify-center p-3 sm:p-6 select-none">
+    <div className="pix-payment-shell flex items-start justify-center select-none sm:items-center">
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 15 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        className="glass-card max-w-xl w-full p-5 sm:p-7 rounded-3xl flex flex-col items-center text-center relative overflow-hidden shadow-2xl border border-white/15 backdrop-blur-xl bg-neutral-950/90"
+        className="pix-payment-card glass-card max-w-xl w-full p-4 sm:p-7 rounded-3xl flex flex-col items-center text-center relative overflow-hidden shadow-2xl border border-white/15 backdrop-blur-xl bg-neutral-950/90"
       >
         {/* Glow Background Elements */}
         <div className="absolute -top-20 -right-20 w-48 h-48 bg-amber-500/20 rounded-full blur-3xl pointer-events-none" />
@@ -327,24 +327,24 @@ export const PixPaymentScreen: React.FC<PixPaymentScreenProps> = ({
             </div>
 
             {/* OFFICIAL PIX QR CODE & COPIA E COLA */}
-            <div className="w-full bg-black/40 border border-white/15 rounded-3xl p-4 sm:p-5 my-2 flex flex-col items-center">
+            <div className="w-full bg-black/40 border border-white/15 rounded-3xl p-2.5 sm:p-5 my-2 flex flex-col items-center">
               <div className="text-[11px] font-bold text-white/80 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                 <Sparkles size={14} className="text-amber-400" />
                 <span>Pague no aplicativo do seu banco:</span>
               </div>
 
               {/* QR Code Canvas */}
-              <div className="p-3 bg-white rounded-2xl shadow-xl border-4 border-amber-400/80 mb-3 transition-transform hover:scale-102">
+              <div className="pix-payment-qr-frame p-2 sm:p-3 bg-white rounded-2xl shadow-xl border-4 border-amber-400/80 mb-3 transition-transform hover:scale-102">
                 {abatePayPix?.qrCodeBase64 ? (
                   <img
                     src={abatePayPix.qrCodeBase64.startsWith('data:') ? abatePayPix.qrCodeBase64 : `data:image/png;base64,${abatePayPix.qrCodeBase64}`}
                     alt="AbatePay Pix QR Code"
-                    className="block h-[220px] w-[220px] rounded-lg"
+                    className="pix-payment-qr block rounded-lg"
                   />
                 ) : abatePayPix?.qrCode ? (
-                  <canvas ref={qrCanvasRef} className="block mx-auto rounded-lg" />
+                  <canvas ref={qrCanvasRef} className="pix-payment-qr block mx-auto rounded-lg" />
                 ) : (
-                  <div className="flex h-[220px] w-[220px] items-center justify-center rounded-lg bg-neutral-100 px-5 text-center text-xs font-semibold text-neutral-600">
+                  <div className="pix-payment-qr flex items-center justify-center rounded-lg bg-neutral-100 px-5 text-center text-xs font-semibold text-neutral-600">
                     {abatePayLoading ? 'Gerando cobrança segura...' : 'QR Pix indisponível no momento.'}
                   </div>
                 )}

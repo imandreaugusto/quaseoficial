@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { RealtimeChannel } from '@supabase/supabase-js';
+import type { RealtimeChannel, Session } from '@supabase/supabase-js';
 import { ArrowLeft, Camera, ChevronDown, Info, MessageCircle, MessageCircleMore, Send, Smile, Users, WifiOff, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile } from '../types';
 import { BrazilianLogo } from './BrazilianLogo';
-import { getSupabaseClient, getSupabaseConfig } from '../utils/supabaseClient';
+import { getSupabaseClient, getSupabaseConfig, signInWithGoogle } from '../utils/supabaseClient';
 import { CEO_EMAIL } from '../utils/security';
 
 const QUICK_EMOJIS = [
@@ -100,7 +100,9 @@ const selectFriendProfiles = async (client: SupabaseClientLike) => {
 };
 
 export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsProps) {
-  const socialUserId = currentUser.auth_user_id || currentUser.id;
+  const [sessionUserId, setSessionUserId] = useState<string | null>(null);
+  const [isSessionReady, setIsSessionReady] = useState(false);
+  const socialUserId = sessionUserId || '';
   const [profiles, setProfiles] = useState<FriendProfile[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<Record<string, PresencePayload>>({});
   const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
@@ -118,6 +120,29 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
   const [isSavingStatus, setIsSavingStatus] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const presenceChannelRef = useRef<RealtimeChannel | null>(null);
+
+  useEffect(() => {
+    const client = getSupabaseClient();
+    if (!client) {
+      setIsSessionReady(true);
+      return;
+    }
+
+    let cancelled = false;
+    const updateSession = (session: Session | null) => {
+      if (cancelled) return;
+      setSessionUserId(session?.user.id || null);
+      setIsSessionReady(true);
+    };
+
+    void client.auth.getSession().then(({ data }) => updateSession(data.session));
+    const { data: listener } = client.auth.onAuthStateChange((_event, session) => updateSession(session));
+
+    return () => {
+      cancelled = true;
+      listener.subscription.unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     setProfilePhoto(currentUser.photo_url);
@@ -146,6 +171,12 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
   useEffect(() => {
     const client = getSupabaseClient();
     if (!client) {
+      setIsLoading(false);
+      return;
+    }
+    if (!isSessionReady) return;
+    if (!socialUserId) {
+      setError('Entre novamente para usar o Brazilian Friends.');
       setIsLoading(false);
       return;
     }
@@ -217,11 +248,17 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
         presenceChannelRef.current = null;
       }
     };
-  }, [currentUser]);
+  }, [currentUser, isSessionReady, socialUserId]);
 
   useEffect(() => {
     const client = getSupabaseClient();
     if (!client) {
+      setIsLoadingMessages(false);
+      setMessages([]);
+      return;
+    }
+    if (!isSessionReady) return;
+    if (!socialUserId) {
       setIsLoadingMessages(false);
       setMessages([]);
       return;
@@ -279,7 +316,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
       cancelled = true;
       void client.removeChannel(messageChannel);
     };
-  }, [socialUserId, selectedFriendId]);
+  }, [isSessionReady, socialUserId, selectedFriendId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -295,16 +332,18 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
     if (!client || !body) return;
 
     const { data: sessionData } = await client.auth.getSession();
-    if (!sessionData.session?.user?.id || sessionData.session.user.id !== socialUserId) {
-      setError('Sua sessão expirou ou não corresponde a esta conta. Entre novamente para enviar mensagens.');
+    const senderId = sessionData.session?.user?.id;
+    if (!senderId) {
+      setError('Sua sessão expirou. Entre novamente para enviar mensagens.');
       return;
     }
+    if (senderId !== socialUserId) setSessionUserId(senderId);
 
     setDraft('');
     const { data, error: sendError } = await client
       .from(MESSAGES_TABLE)
       .insert({
-        sender_id: socialUserId,
+        sender_id: senderId,
         receiver_id: selectedFriendId,
         body,
         expires_at: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString()
@@ -324,6 +363,16 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
     setMessages((current) => current.some((message) => message.id === sentMessage.id)
       ? current
       : [...current, sentMessage]);
+  };
+
+  const handleFriendsSignIn = async () => {
+    setError('');
+    const result = await signInWithGoogle();
+    if (!result.ok) {
+      setError(result.reason === 'offline'
+        ? 'O login para o chat não está disponível agora.'
+        : result.message || 'Não foi possível iniciar o login para o chat.');
+    }
   };
 
   const { url: configuredUrl, anonKey: configuredAnonKey } = getSupabaseConfig();
@@ -591,36 +640,46 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
                 </motion.div>
               )}
             </AnimatePresence>
-            <div className="friends-composer-inner">
+            {socialUserId ? (
+              <div className="friends-composer-inner">
+                <button
+                  type="button"
+                  onClick={() => setShowEmojiPicker((current) => !current)}
+                  className="friends-icon-button friends-composer-icon"
+                  aria-label="Insert emoji"
+                  title="Insert emoji"
+                >
+                  <Smile size={19} />
+                </button>
+                <input
+                  value={draft}
+                  onChange={(event) => setDraft(event.target.value)}
+                  placeholder="Escreva em inglês..."
+                  className="friends-composer-input"
+                  maxLength={2000}
+                />
+                <button
+                  type="submit"
+                  disabled={!draft.trim()}
+                  className="friends-send-button"
+                  style={{ backgroundColor: accentColor }}
+                  aria-label="Send message"
+                  title="Send message"
+                >
+                  <Send size={17} />
+                </button>
+              </div>
+            ) : (
               <button
                 type="button"
-                onClick={() => setShowEmojiPicker((current) => !current)}
-                disabled={false}
-                className="friends-icon-button friends-composer-icon"
-                aria-label="Insert emoji"
-                title="Insert emoji"
+                className="friends-auth-button"
+                onClick={() => void handleFriendsSignIn()}
+                disabled={!isSessionReady}
               >
-                <Smile size={19} />
+                <MessageCircle size={17} />
+                <span>{isSessionReady ? 'Entrar com Google para conversar' : 'Verificando sessão do chat...'}</span>
               </button>
-              <input
-                value={draft}
-                onChange={(event) => setDraft(event.target.value)}
-                disabled={false}
-                placeholder="Escreva em inglês..."
-                className="friends-composer-input"
-                maxLength={2000}
-              />
-              <button
-                type="submit"
-                disabled={!draft.trim()}
-                className="friends-send-button"
-                style={{ backgroundColor: accentColor }}
-                aria-label="Send message"
-                title="Send message"
-              >
-                <Send size={17} />
-              </button>
-            </div>
+            )}
             {error && <p className="friends-error">{error}</p>}
           </form>
         </main>
