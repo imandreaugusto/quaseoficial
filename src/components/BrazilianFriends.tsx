@@ -176,7 +176,6 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
     }
     if (!isSessionReady) return;
     if (!socialUserId) {
-      setError('Entre novamente para usar o Brazilian Friends.');
       setIsLoading(false);
       return;
     }
@@ -677,7 +676,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
                 disabled={!isSessionReady}
               >
                 <MessageCircle size={17} />
-                <span>{isSessionReady ? 'Entrar com Google para conversar' : 'Verificando sessão do chat...'}</span>
+                <span>{isSessionReady ? 'Conectar chat com Google' : 'Verificando conexão do chat...'}</span>
               </button>
             )}
             {error && <p className="friends-error">{error}</p>}
