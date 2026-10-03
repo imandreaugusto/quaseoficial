@@ -45,6 +45,19 @@ interface PinnedMessage {
   pinned_at: string;
 }
 
+interface PrivateNotification {
+  id: string;
+  sender_id: string;
+  created_at: string;
+}
+
+interface PrivateNotificationState {
+  userId: string;
+  cursor: string;
+  unreadIdsBySender: Record<string, string[]>;
+  readAtBySender: Record<string, string>;
+}
+
 interface PresencePayload {
   user_id: string;
   full_name: string;
@@ -155,6 +168,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
   const [profilePreviewId, setProfilePreviewId] = useState<string | null>(null);
   const [messages, setMessages] = useState<FriendMessage[]>([]);
   const [pinnedMessages, setPinnedMessages] = useState<PinnedMessage[]>([]);
+  const [unreadPrivateBySender, setUnreadPrivateBySender] = useState<Record<string, number>>({});
   const [draft, setDraft] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -170,6 +184,13 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
   const messageScrollRef = useRef<HTMLDivElement>(null);
   const composerInputRef = useRef<HTMLInputElement>(null);
   const shouldStickToBottomRef = useRef(true);
+  const activePrivateFriendRef = useRef<string | null>(null);
+  const privateNotificationStateRef = useRef<PrivateNotificationState>({
+    userId: '',
+    cursor: '',
+    unreadIdsBySender: {},
+    readAtBySender: {}
+  });
   const presenceChannelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
@@ -221,6 +242,104 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
   }, []);
 
   useEffect(() => {
+    activePrivateFriendRef.current = selectedFriendId;
+    if (!socialUserId) return;
+
+    const state = privateNotificationStateRef.current;
+    if (state.userId !== socialUserId || !selectedFriendId) return;
+
+    const nextState: PrivateNotificationState = {
+      ...state,
+      unreadIdsBySender: { ...state.unreadIdsBySender, [selectedFriendId]: [] },
+      readAtBySender: { ...state.readAtBySender, [selectedFriendId]: new Date().toISOString() }
+    };
+    privateNotificationStateRef.current = nextState;
+    localStorage.setItem(`bia_friends_private_${socialUserId}`, JSON.stringify(nextState));
+    setUnreadPrivateBySender((current) => ({ ...current, [selectedFriendId]: 0 }));
+  }, [selectedFriendId, socialUserId]);
+
+  useEffect(() => {
+    if (!socialUserId) {
+      privateNotificationStateRef.current = { userId: '', cursor: '', unreadIdsBySender: {}, readAtBySender: {} };
+      setUnreadPrivateBySender({});
+      return;
+    }
+
+    let savedState: Partial<PrivateNotificationState> = {};
+    try {
+      savedState = JSON.parse(localStorage.getItem(`bia_friends_private_${socialUserId}`) || '{}');
+    } catch {
+      savedState = {};
+    }
+    const sameUserState = savedState.userId === socialUserId;
+    const nextState: PrivateNotificationState = {
+      userId: socialUserId,
+      cursor: sameUserState && savedState.cursor ? savedState.cursor : new Date().toISOString(),
+      unreadIdsBySender: sameUserState && savedState.unreadIdsBySender ? savedState.unreadIdsBySender : {},
+      readAtBySender: sameUserState && savedState.readAtBySender ? savedState.readAtBySender : {}
+    };
+    privateNotificationStateRef.current = nextState;
+    localStorage.setItem(`bia_friends_private_${socialUserId}`, JSON.stringify(nextState));
+    setUnreadPrivateBySender(Object.fromEntries(
+      Object.entries(nextState.unreadIdsBySender).map(([senderId, ids]) => [senderId, ids.length])
+    ));
+  }, [socialUserId]);
+
+  useEffect(() => {
+    const client = getSupabaseClient();
+    if (!client || !isSessionReady || !socialUserId) return;
+    if (privateNotificationStateRef.current.userId !== socialUserId) return;
+
+    let cancelled = false;
+    const pollPrivateNotifications = async () => {
+      const state = privateNotificationStateRef.current;
+      if (state.userId !== socialUserId || !state.cursor) return;
+
+      const result = await requestFriendsApi<{ messages: PrivateNotification[] }>(
+        client,
+        `/api/friends/private-notifications?since=${encodeURIComponent(state.cursor)}`
+      );
+      if (cancelled || result.error || !result.data) return;
+
+      const nextState: PrivateNotificationState = {
+        ...state,
+        unreadIdsBySender: { ...state.unreadIdsBySender },
+        readAtBySender: { ...state.readAtBySender }
+      };
+      let latestCreatedAt = nextState.cursor;
+
+      for (const message of result.data.messages || []) {
+        if (!message.id || !message.sender_id || !message.created_at) continue;
+        if (Date.parse(message.created_at) > Date.parse(latestCreatedAt)) latestCreatedAt = message.created_at;
+
+        const readAt = nextState.readAtBySender[message.sender_id];
+        if (activePrivateFriendRef.current === message.sender_id || (readAt && Date.parse(message.created_at) <= Date.parse(readAt))) {
+          continue;
+        }
+
+        const unreadIds = nextState.unreadIdsBySender[message.sender_id] || [];
+        if (!unreadIds.includes(message.id)) {
+          nextState.unreadIdsBySender[message.sender_id] = [...unreadIds, message.id].slice(-100);
+        }
+      }
+
+      nextState.cursor = latestCreatedAt;
+      privateNotificationStateRef.current = nextState;
+      localStorage.setItem(`bia_friends_private_${socialUserId}`, JSON.stringify(nextState));
+      setUnreadPrivateBySender(Object.fromEntries(
+        Object.entries(nextState.unreadIdsBySender).map(([senderId, ids]) => [senderId, ids.length])
+      ));
+    };
+
+    void pollPrivateNotifications();
+    const intervalId = window.setInterval(() => void pollPrivateNotifications(), 5_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [isSessionReady, socialUserId]);
+
+  useEffect(() => {
     setProfilePhoto(currentUser.photo_url);
   }, [currentUser.photo_url]);
 
@@ -235,16 +354,20 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
     () => profiles.filter((profile) => onlineUsers[profile.id]),
     [onlineUsers, profiles]
   );
+  const totalUnreadPrivateCount = Object.values(unreadPrivateBySender).reduce((total, count) => total + count, 0);
   const allFriends = useMemo(
     () => profiles
-      .filter((profile) => Boolean(onlineUsers[profile.id]))
+      .filter((profile) => Boolean(onlineUsers[profile.id]) || Boolean(unreadPrivateBySender[profile.id]))
       .sort((a, b) => {
+        const aUnread = unreadPrivateBySender[a.id] || 0;
+        const bUnread = unreadPrivateBySender[b.id] || 0;
+        if (aUnread !== bUnread) return bUnread - aUnread;
         const aOnline = onlineUsers[a.id] ? 1 : 0;
         const bOnline = onlineUsers[b.id] ? 1 : 0;
         if (aOnline !== bOnline) return bOnline - aOnline;
         return a.full_name.localeCompare(b.full_name);
       }),
-    [socialUserId, onlineUsers, profiles]
+    [onlineUsers, profiles, unreadPrivateBySender]
   );
 
   useEffect(() => {
@@ -607,6 +730,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
           const profileName = presence?.full_name || friend.full_name;
           const profileLocation = presence || friend;
           const statusLine = formatMobileLocation(profileLocation);
+          const unreadCount = unreadPrivateBySender[friend.id] || 0;
           return (
             <button
               key={friend.id}
@@ -619,12 +743,19 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
                 }
                 setIsPeopleDrawerOpen(false);
               }}
-              className="friends-person"
+              className={`friends-person ${selectedFriendId === friend.id ? 'friends-person-selected' : ''}`}
               title={isSelf ? 'Editar sua foto e descrição' : undefined}
             >
               <span className={`friends-list-status-dot ${isOnline ? 'friends-list-status-online' : ''}`} />
               <span className="friends-person-copy">
-                <strong>{profileName}</strong>
+                <span className="friends-person-name-row">
+                  <strong>{profileName}</strong>
+                  {unreadCount > 0 && (
+                    <span className="friends-private-unread-badge" aria-label={`${unreadCount} mensagens privadas não lidas`}>
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </span>
                 <small>{getCountryFlag(profileLocation.ip_country)} {statusLine}{isSelf ? ' · You' : ''}</small>
               </span>
             </button>
@@ -690,10 +821,22 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
               </span>
             </div>
 
-            {!selectedFriend && <button type="button" className="friends-online-trigger" onClick={() => socialUserId ? setIsPeopleDrawerOpen(true) : void handleFriendsSignIn()} disabled={!isSessionReady || isConnectingToChat}><Users size={16} /><span>{socialUserId ? `${onlineFriends.length} people online` : isConnectingToChat ? 'Abrindo Google...' : 'Conectar para ficar online'}</span><ChevronDown size={14} /></button>}
+            {!selectedFriend && <button type="button" className="friends-online-trigger" onClick={() => socialUserId ? setIsPeopleDrawerOpen(true) : void handleFriendsSignIn()} disabled={!isSessionReady || isConnectingToChat} aria-label={totalUnreadPrivateCount ? `${onlineFriends.length} pessoas online, ${totalUnreadPrivateCount} mensagens privadas não lidas` : `${onlineFriends.length} pessoas online`}><Users size={16} /><span>{socialUserId ? `${onlineFriends.length} people online` : isConnectingToChat ? 'Abrindo Google...' : 'Conectar para ficar online'}</span>{totalUnreadPrivateCount > 0 && <span className="friends-private-total-badge">{totalUnreadPrivateCount > 9 ? '9+' : totalUnreadPrivateCount}</span>}<ChevronDown size={14} /></button>}
             {selectedFriend && <button type="button" className="friends-mobile-back-button" onClick={() => setSelectedFriendId(null)}><ArrowLeft size={15} /><span>Public chat</span></button>}
             {selectedFriend && <button type="button" className="friends-selected-chip" onClick={() => setSelectedFriendId(null)}><ArrowLeft size={13} /> {selectedFriend.full_name}</button>}
           </header>
+
+          {!selectedFriend && pinnedMessages.length > 0 && (
+            <section className="friends-pinned-messages" aria-label="Mensagens fixadas">
+              {pinnedMessages.map((message) => (
+                <article key={message.id} className="friends-pinned-message">
+                  <Pin size={14} />
+                  <p>{message.body}</p>
+                  {canManagePinnedMessages && <button type="button" className="friends-pinned-remove" onClick={() => void unpinMessage(message.id)} aria-label="Desafixar mensagem"><PinOff size={14} /></button>}
+                </article>
+              ))}
+            </section>
+          )}
 
           <div
             className="friends-message-scroll custom-scrollbar"
@@ -703,17 +846,6 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
               shouldStickToBottomRef.current = element.scrollHeight - element.scrollTop - element.clientHeight < 80;
             }}
           >
-            {!selectedFriend && pinnedMessages.length > 0 && (
-              <section className="friends-pinned-messages" aria-label="Mensagens fixadas">
-                {pinnedMessages.map((message) => (
-                  <article key={message.id} className="friends-pinned-message">
-                    <Pin size={14} />
-                    <p>{message.body}</p>
-                    {canManagePinnedMessages && <button type="button" className="friends-pinned-remove" onClick={() => void unpinMessage(message.id)} aria-label="Desafixar mensagem"><PinOff size={14} /></button>}
-                  </article>
-                ))}
-              </section>
-            )}
             {!isLoadingMessages && !selectedFriend && messages.length === 0 && (
               <div className="friends-empty-conversation">
                 <MessageCircle size={28} className="mb-3" />

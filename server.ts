@@ -451,6 +451,43 @@ async function startServer() {
     }
   });
 
+  app.get('/api/friends/private-notifications', async (req, res) => {
+    try {
+      const authUser = await getSupabaseUserFromRequest(req);
+      if (!authUser?.id || !authUser.email_confirmed_at) {
+        return res.status(401).json({ error: 'Conecte sua conta Google para usar o chat.' });
+      }
+      if (isRateLimited(`friends-private-notifications:${authUser.id}`, 30, 60_000)) {
+        return res.status(429).json({ error: 'Muitas consultas de mensagens privadas. Aguarde um momento.' });
+      }
+
+      const since = typeof req.query.since === 'string' ? req.query.since : '';
+      const sinceTimestamp = Date.parse(since);
+      if (!Number.isFinite(sinceTimestamp)) {
+        return res.status(400).json({ error: 'Cursor de notificações inválido.' });
+      }
+
+      const query = new URLSearchParams({
+        select: 'id,sender_id,created_at',
+        receiver_id: `eq.${authUser.id}`,
+        sender_id: `neq.${authUser.id}`,
+        created_at: `gt.${since}`,
+        expires_at: `gt.${new Date().toISOString()}`,
+        order: 'created_at.asc',
+        limit: '100'
+      });
+      const response = await supabaseServiceRequest(`brazilian_friends_messages?${query.toString()}`);
+      if (!response.ok) {
+        console.error('Brazilian Friends private notifications failed:', response.status, await response.text());
+        return res.status(502).json({ error: 'Não foi possível verificar novas mensagens privadas.' });
+      }
+      return res.json({ messages: await response.json() });
+    } catch (error: any) {
+      console.error('Brazilian Friends private notifications endpoint failed:', error.message);
+      return res.status(500).json({ error: 'Falha ao verificar mensagens privadas.' });
+    }
+  });
+
   app.post('/api/friends/messages', async (req, res) => {
     try {
       const authUser = await getSupabaseUserFromRequest(req);
