@@ -47,7 +47,6 @@ interface PresencePayload {
   ip_country?: string | null;
 }
 
-const USERS_TABLE = 'brazilian_friends_users';
 const PRESENCE_CHANNEL = 'online-users';
 
 const COUNTRY_CODES: Record<string, string> = {
