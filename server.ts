@@ -160,6 +160,161 @@ async function startServer() {
     return fetch(`${url}/rest/v1/${resource}`, { ...init, headers });
   };
 
+  const registerAuthenticatedProfileDirectly = async (profileData: {
+    id: string;
+    email: string;
+    fullName: string;
+    photoUrl: string | null;
+    locationConsent: boolean;
+    ipCountry: string | null;
+    ipRegion: string | null;
+    ipCity: string | null;
+  }) => {
+    const select = 'id,auth_user_id,email,full_name,photo_url,role,status,data_expiracao,email_verified,permissions,ip_country,ip_region,ip_city,location_consent,created_at,updated_at';
+    const findProfile = async (filter: string) => {
+      const response = await supabaseServiceRequest(`profiles?${filter}&select=${select}&limit=1`);
+      if (!response.ok) throw new Error(`Supabase profile lookup failed (${response.status}): ${await response.text()}`);
+      const profiles = await response.json() as Record<string, unknown>[];
+      return profiles[0] || null;
+    };
+
+    let savedProfile = await findProfile(`auth_user_id=eq.${encodeURIComponent(profileData.id)}`);
+    if (!savedProfile) {
+      savedProfile = await findProfile(`email=ilike.${encodeURIComponent(profileData.email)}`);
+    }
+    if (
+      savedProfile &&
+      typeof savedProfile.email === 'string' &&
+      savedProfile.email.trim().toLowerCase() !== profileData.email
+    ) {
+      throw new Error('Supabase returned a profile that does not match the authenticated email.');
+    }
+
+    if (savedProfile?.auth_user_id && savedProfile.auth_user_id !== profileData.id) {
+      throw new Error('The email is already linked to a different authenticated account.');
+    }
+
+    const profileChanges = {
+      auth_user_id: profileData.id,
+      email: profileData.email,
+      full_name: profileData.fullName || savedProfile?.full_name || profileData.email.split('@')[0],
+      photo_url: profileData.photoUrl || savedProfile?.photo_url || null,
+      email_verified: true,
+      location_consent: Boolean(savedProfile?.location_consent || profileData.locationConsent),
+      ...(profileData.locationConsent ? {
+        ip_country: profileData.ipCountry || savedProfile?.ip_country || null,
+        ip_region: profileData.ipRegion || savedProfile?.ip_region || null,
+        ip_city: profileData.ipCity || savedProfile?.ip_city || null
+      } : {})
+    };
+
+    if (savedProfile) {
+      const response = await supabaseServiceRequest(`profiles?id=eq.${encodeURIComponent(String(savedProfile.id))}`, {
+        method: 'PATCH',
+        headers: { Prefer: 'return=representation' },
+        body: JSON.stringify(profileChanges)
+      });
+      if (!response.ok) throw new Error(`Supabase profile update failed (${response.status}): ${await response.text()}`);
+      const profiles = await response.json() as Record<string, unknown>[];
+      savedProfile = profiles[0];
+    } else {
+      const response = await supabaseServiceRequest('profiles', {
+        method: 'POST',
+        headers: { Prefer: 'return=representation' },
+        body: JSON.stringify({
+          id: profileData.id,
+          ...profileChanges,
+          role: 'student',
+          status: 'pending'
+        })
+      });
+      if (!response.ok) {
+        const details = await response.text();
+        if (response.status === 409) {
+          const concurrentProfile = await findProfile(`auth_user_id=eq.${encodeURIComponent(profileData.id)}`)
+            || await findProfile(`email=ilike.${encodeURIComponent(profileData.email)}`);
+          if (
+            concurrentProfile &&
+            (!concurrentProfile.auth_user_id || concurrentProfile.auth_user_id === profileData.id) &&
+            typeof concurrentProfile.email === 'string' &&
+            concurrentProfile.email.trim().toLowerCase() === profileData.email
+          ) {
+            savedProfile = concurrentProfile;
+          } else {
+            throw new Error(`Supabase profile insert conflict (${response.status}): ${details}`);
+          }
+        } else {
+          throw new Error(`Supabase profile insert failed (${response.status}): ${details}`);
+        }
+      } else {
+        const profiles = await response.json() as Record<string, unknown>[];
+        savedProfile = profiles[0];
+      }
+
+      if (response.status === 409 && savedProfile) {
+        const updateResponse = await supabaseServiceRequest(`profiles?id=eq.${encodeURIComponent(String(savedProfile.id))}`, {
+          method: 'PATCH',
+          headers: { Prefer: 'return=representation' },
+          body: JSON.stringify(profileChanges)
+        });
+        if (!updateResponse.ok) {
+          throw new Error(`Supabase concurrent profile update failed (${updateResponse.status}): ${await updateResponse.text()}`);
+        }
+        const profiles = await updateResponse.json() as Record<string, unknown>[];
+        savedProfile = profiles[0];
+      }
+    }
+
+    if (!savedProfile) throw new Error('Supabase did not return the saved profile.');
+
+    const subscriptionLookup = await supabaseServiceRequest(
+      `bia_subscription_profiles?email=ilike.${encodeURIComponent(profileData.email)}&select=email,user_id,status,subscription_expires_at&limit=1`
+    );
+    if (!subscriptionLookup.ok) {
+      throw new Error(`Supabase subscription lookup failed (${subscriptionLookup.status}): ${await subscriptionLookup.text()}`);
+    }
+    const subscriptions = await subscriptionLookup.json() as Record<string, unknown>[];
+    const savedSubscription = subscriptions.find((subscription) =>
+      typeof subscription.email === 'string' &&
+      subscription.email.trim().toLowerCase() === profileData.email
+    );
+    if (savedSubscription) {
+      const subscriptionUpdate = await supabaseServiceRequest(
+        `bia_subscription_profiles?email=eq.${encodeURIComponent(String(savedSubscription.email))}`,
+        {
+          method: 'PATCH',
+          headers: { Prefer: 'return=minimal' },
+          body: JSON.stringify({
+            email: profileData.email,
+            user_id: profileData.id,
+            updated_at: new Date().toISOString()
+          })
+        }
+      );
+      if (!subscriptionUpdate.ok) {
+        throw new Error(`Supabase subscription link failed (${subscriptionUpdate.status}): ${await subscriptionUpdate.text()}`);
+      }
+    } else {
+      const expiresAt = typeof savedProfile.data_expiracao === 'string' ? savedProfile.data_expiracao : null;
+      const isActive = savedProfile.status === 'active' && expiresAt !== null && Date.parse(expiresAt) > Date.now();
+      const subscriptionInsert = await supabaseServiceRequest('bia_subscription_profiles', {
+        method: 'POST',
+        headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({
+          email: profileData.email,
+          user_id: profileData.id,
+          status: isActive ? 'active' : 'pending',
+          subscription_expires_at: isActive ? expiresAt : null
+        })
+      });
+      if (!subscriptionInsert.ok && subscriptionInsert.status !== 409) {
+        throw new Error(`Supabase subscription insert failed (${subscriptionInsert.status}): ${await subscriptionInsert.text()}`);
+      }
+    }
+
+    return savedProfile;
+  };
+
   const getSupabaseUserFromRequest = async (request: express.Request) => {
     const token = request.header('Authorization')?.match(/^Bearer\s+(.+)$/i)?.[1];
     const supabaseUrl = process.env.SUPABASE_URL;
@@ -297,23 +452,34 @@ async function startServer() {
       const metadataName = typeof metadata.full_name === 'string'
         ? metadata.full_name
         : typeof metadata.name === 'string' ? metadata.name : '';
+      const profilePayload = {
+        p_id: authUser.id,
+        p_email: email,
+        p_full_name: submittedName || metadataName || null,
+        p_photo_url: metadata.avatar_url || metadata.picture || null,
+        p_location_consent: locationConsent,
+        p_ip_country: locationConsent ? req.body?.ip_country || null : null,
+        p_ip_region: locationConsent ? req.body?.ip_region || null : null,
+        p_ip_city: locationConsent ? req.body?.ip_city || null : null
+      };
       const profileResponse = await supabaseServiceRequest('rpc/register_google_profile', {
         method: 'POST',
-        body: JSON.stringify({
-          p_id: authUser.id,
-          p_email: email,
-          p_full_name: submittedName || metadataName || null,
-          p_photo_url: metadata.avatar_url || metadata.picture || null,
-          p_location_consent: locationConsent,
-          p_ip_country: locationConsent ? req.body?.ip_country || null : null,
-          p_ip_region: locationConsent ? req.body?.ip_region || null : null,
-          p_ip_city: locationConsent ? req.body?.ip_city || null : null
-        })
+        body: JSON.stringify(profilePayload)
       });
       if (!profileResponse.ok) {
         const details = await profileResponse.text();
-        console.error('Authenticated profile registration failed:', profileResponse.status, details);
-        return res.status(502).json({ error: 'Não foi possível salvar seu perfil no Supabase.' });
+        console.warn('Supabase profile registration RPC failed; attempting direct profile registration:', profileResponse.status, details);
+        const profile = await registerAuthenticatedProfileDirectly({
+          id: authUser.id,
+          email,
+          fullName: submittedName || metadataName,
+          photoUrl: typeof (metadata.avatar_url || metadata.picture) === 'string' ? String(metadata.avatar_url || metadata.picture) : null,
+          locationConsent,
+          ipCountry: locationConsent && typeof req.body?.ip_country === 'string' ? req.body.ip_country : null,
+          ipRegion: locationConsent && typeof req.body?.ip_region === 'string' ? req.body.ip_region : null,
+          ipCity: locationConsent && typeof req.body?.ip_city === 'string' ? req.body.ip_city : null
+        });
+        return res.status(200).json({ profile });
       }
 
       const result = await profileResponse.json() as Record<string, unknown>[];
@@ -322,7 +488,9 @@ async function startServer() {
       return res.status(200).json({ profile });
     } catch (error: any) {
       console.error('Authenticated profile registration failed:', error.message);
-      return res.status(500).json({ error: 'Falha ao registrar o perfil da conta.' });
+      return res.status(502).json({
+        error: 'Sua conta Google foi autenticada, mas não foi possível salvar o perfil agora. Tente novamente; você não precisa criar outra conta.'
+      });
     }
   };
   app.post('/api/auth/profile', registerAuthenticatedProfile);

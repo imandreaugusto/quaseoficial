@@ -60,8 +60,8 @@ const getAuthenticatedAccessToken = async () => {
   return accessToken;
 };
 
-// Redirects the browser to Google via Supabase Auth. On return, the session
-// can be read with getSupabaseClient()?.auth.getSession().
+// Google OAuth creates a Supabase account for new identities and signs in
+// existing identities. The server then creates or refreshes the app profile.
 export const signInWithGoogle = async () => {
   const client = getSupabaseClient();
   if (!client) return { ok: false, reason: 'offline' as const };
