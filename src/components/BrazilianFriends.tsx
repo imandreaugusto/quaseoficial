@@ -102,7 +102,7 @@ const getPublicName = (user: Pick<UserProfile, 'email' | 'full_name'>) =>
 
 type SupabaseClientLike = NonNullable<ReturnType<typeof getSupabaseClient>>;
 
-const requestFriendsApi = async <T>(client: SupabaseClientLike, path: string, init?: RequestInit) => {
+const requestFriendsApi = async <T,>(client: SupabaseClientLike, path: string, init?: RequestInit) => {
   const { data: sessionData } = await client.auth.getSession();
   const accessToken = sessionData.session?.access_token;
   if (!accessToken) return { data: null, error: 'Sua sessão expirou. Entre novamente para usar o chat.' };
