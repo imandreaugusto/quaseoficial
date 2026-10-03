@@ -6,6 +6,7 @@ import { UserProfile } from '../types';
 import { BrazilianLogo } from './BrazilianLogo';
 import { getSupabaseClient, getSupabaseConfig, signInWithGoogle } from '../utils/supabaseClient';
 import { CEO_EMAIL } from '../utils/security';
+import { apiFetch } from '../lib/api';
 
 const QUICK_EMOJIS = [
   '😀', '😂', '😍', '😊', '😉', '😎', '🥳', '😢',
@@ -47,11 +48,7 @@ interface PresencePayload {
 }
 
 const USERS_TABLE = 'brazilian_friends_users';
-const MESSAGES_TABLE = 'brazilian_friends_messages';
 const PRESENCE_CHANNEL = 'online-users';
-
-const getConversationKey = (firstId: string, secondId: string) =>
-  [firstId, secondId].sort().join(':');
 
 const COUNTRY_CODES: Record<string, string> = {
   argentina: 'AR', australia: 'AU', austria: 'AT', belgium: 'BE', bolivia: 'BO', brazil: 'BR', brasil: 'BR',
@@ -99,28 +96,39 @@ const getPublicName = (user: Pick<UserProfile, 'email' | 'full_name'>) =>
 
 type SupabaseClientLike = NonNullable<ReturnType<typeof getSupabaseClient>>;
 
-// Falls back to the base columns when photo_url/status_message aren't provisioned yet on the remote table.
+const requestFriendsApi = async <T>(client: SupabaseClientLike, path: string, init?: RequestInit) => {
+  const { data: sessionData } = await client.auth.getSession();
+  const accessToken = sessionData.session?.access_token;
+  if (!accessToken) return { data: null, error: 'Sua sessão expirou. Entre novamente para usar o chat.' };
+
+  try {
+    const response = await apiFetch(path, {
+      ...init,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+        ...init?.headers
+      }
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) return { data: null, error: payload.error || 'O chat não está disponível agora.' };
+    return { data: payload as T, error: null };
+  } catch {
+    return { data: null, error: 'Não foi possível conectar ao servidor do chat.' };
+  }
+};
+
 const upsertFriendProfile = async (client: SupabaseClientLike, profile: FriendProfile) => {
-  const { error } = await client.from(USERS_TABLE).upsert(profile, { onConflict: 'id' });
-  if (!error) return { error: null };
-  console.warn('Brazilian Friends profile sync failed, retrying with base columns:', error);
-  const { id, email, full_name } = profile;
-  const fallback = await client
-    .from(USERS_TABLE)
-    .upsert({ id, email, full_name }, { onConflict: 'id' });
-  return { error: fallback.error };
+  const result = await requestFriendsApi(client, '/api/friends/profile', {
+    method: 'POST',
+    body: JSON.stringify(profile)
+  });
+  return { error: result.error };
 };
 
 const selectFriendProfiles = async (client: SupabaseClientLike) => {
-  const full = await client
-    .from(USERS_TABLE)
-    .select('id, full_name, photo_url, status_message')
-    .order('full_name', { ascending: true });
-  if (!full.error) return full;
-  return client
-    .from(USERS_TABLE)
-    .select('id, full_name')
-    .order('full_name', { ascending: true });
+  const result = await requestFriendsApi<{ profiles: FriendProfile[] }>(client, '/api/friends/profiles');
+  return { data: result.data?.profiles || [], error: result.error };
 };
 
 export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsProps) {
@@ -290,57 +298,29 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
       return;
     }
     let cancelled = false;
-    const conversationKey = selectedFriendId
-      ? getConversationKey(socialUserId, selectedFriendId)
-      : 'public';
-    const loadConversation = async () => {
-      setIsLoadingMessages(true);
-      setError('');
-      let query = client
-        .from(MESSAGES_TABLE)
-        .select('id, sender_id, receiver_id, body, created_at, expires_at')
-        .order('created_at', { ascending: true });
-      query = selectedFriendId
-        ? query.or(`and(sender_id.eq.${socialUserId},receiver_id.eq.${selectedFriendId}),and(sender_id.eq.${selectedFriendId},receiver_id.eq.${socialUserId})`)
-        : query.is('receiver_id', null);
-      const { data, error: messagesError } = await query;
+    const loadConversation = async (showLoading = false) => {
+      if (showLoading) setIsLoadingMessages(true);
+      const path = selectedFriendId
+        ? `/api/friends/messages?recipientId=${encodeURIComponent(selectedFriendId)}`
+        : '/api/friends/messages';
+      const { data, error: messagesError } = await requestFriendsApi<{ messages: FriendMessage[] }>(client, path);
 
       if (cancelled) return;
       if (messagesError) {
         setError('Não foi possível carregar esta conversa no momento.');
       } else {
-        setMessages(((data || []) as FriendMessage[]).filter((message) =>
+        setMessages((data?.messages || []).filter((message) =>
           !message.expires_at || Date.parse(message.expires_at) > Date.now()
         ));
       }
       setIsLoadingMessages(false);
     };
 
-    const messageChannel = client
-      .channel(`brazilian-friends:${conversationKey}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: MESSAGES_TABLE },
-        (payload) => {
-          const nextMessage = payload.new as FriendMessage;
-          if (nextMessage.expires_at && Date.parse(nextMessage.expires_at) <= Date.now()) return;
-          const isThisConversation = selectedFriendId
-            ? ((nextMessage.sender_id === socialUserId && nextMessage.receiver_id === selectedFriendId) ||
-              (nextMessage.sender_id === selectedFriendId && nextMessage.receiver_id === socialUserId))
-            : nextMessage.receiver_id === null;
-          if (isThisConversation) {
-            setMessages((current) => current.some((message) => message.id === nextMessage.id)
-              ? current
-              : [...current, nextMessage]);
-          }
-        }
-      )
-      .subscribe();
-
-    void loadConversation();
+    void loadConversation(true);
+    const pollingId = window.setInterval(() => void loadConversation(), 5_000);
     return () => {
       cancelled = true;
-      void client.removeChannel(messageChannel);
+      window.clearInterval(pollingId);
     };
   }, [isSessionReady, socialUserId, selectedFriendId]);
 
@@ -366,26 +346,23 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
     if (senderId !== socialUserId) setSessionUserId(senderId);
 
     setDraft('');
-    const { data, error: sendError } = await client
-      .from(MESSAGES_TABLE)
-      .insert({
-        sender_id: senderId,
-        receiver_id: selectedFriendId,
-        body,
-        expires_at: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString()
-      })
-      .select('id, sender_id, receiver_id, body, created_at, expires_at')
-      .single();
+    const { data, error: sendError } = await requestFriendsApi<{ message: FriendMessage }>(client, '/api/friends/messages', {
+      method: 'POST',
+      body: JSON.stringify({ receiver_id: selectedFriendId, body })
+    });
 
     if (sendError) {
       setDraft(body);
-      setError(sendError.code === '42501'
-        ? 'Sua conta não tem permissão para enviar esta mensagem. Entre novamente e tente de novo.'
-        : 'Sua mensagem não pôde ser enviada. Tente novamente.');
+      setError(sendError);
       return;
     }
 
-    const sentMessage = data as FriendMessage;
+    const sentMessage = data?.message;
+    if (!sentMessage) {
+      setDraft(body);
+      setError('Sua mensagem não pôde ser enviada. Tente novamente.');
+      return;
+    }
     setMessages((current) => current.some((message) => message.id === sentMessage.id)
       ? current
       : [...current, sentMessage]);

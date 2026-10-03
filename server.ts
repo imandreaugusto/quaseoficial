@@ -338,6 +338,147 @@ async function startServer() {
     }
   });
 
+  const friendsProfileFields = 'id,full_name,photo_url,status_message';
+  const friendsMessageFields = 'id,sender_id,receiver_id,body,created_at,expires_at';
+  const isFriendUserId = (value: unknown): value is string =>
+    typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+
+  app.post('/api/friends/profile', async (req, res) => {
+    try {
+      const authUser = await getSupabaseUserFromRequest(req);
+      const email = normalizeEmail(authUser?.email);
+      if (!authUser?.id || !email || !authUser.email_confirmed_at) {
+        return res.status(401).json({ error: 'Conecte sua conta Google para usar o chat.' });
+      }
+      if (isRateLimited(`friends-profile:${authUser.id}`, 30, 60_000)) {
+        return res.status(429).json({ error: 'Muitas atualizações de perfil. Aguarde um momento.' });
+      }
+
+      const fullName = typeof req.body?.full_name === 'string'
+        ? req.body.full_name.trim().slice(0, 80)
+        : '';
+      const photoUrl = typeof req.body?.photo_url === 'string' && req.body.photo_url.length <= 2_000_000
+        ? req.body.photo_url
+        : null;
+      const statusMessage = typeof req.body?.status_message === 'string'
+        ? req.body.status_message.trim().slice(0, 140) || null
+        : null;
+      if (!fullName) return res.status(400).json({ error: 'Nome de perfil inválido.' });
+
+      const profileResponse = await supabaseServiceRequest('brazilian_friends_users?on_conflict=id', {
+        method: 'POST',
+        headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
+        body: JSON.stringify({
+          id: authUser.id,
+          email,
+          full_name: fullName,
+          photo_url: photoUrl,
+          status_message: statusMessage,
+          updated_at: new Date().toISOString()
+        })
+      });
+      if (!profileResponse.ok) {
+        console.error('Brazilian Friends profile persistence failed:', profileResponse.status, await profileResponse.text());
+        return res.status(502).json({ error: 'Não foi possível salvar seu perfil do chat.' });
+      }
+      const profiles = await profileResponse.json() as Record<string, unknown>[];
+      return res.json({ profile: profiles[0] || null });
+    } catch (error: any) {
+      console.error('Brazilian Friends profile endpoint failed:', error.message);
+      return res.status(500).json({ error: 'Falha ao salvar o perfil do chat.' });
+    }
+  });
+
+  app.get('/api/friends/profiles', async (req, res) => {
+    try {
+      const authUser = await getSupabaseUserFromRequest(req);
+      if (!authUser?.id || !authUser.email_confirmed_at) {
+        return res.status(401).json({ error: 'Conecte sua conta Google para usar o chat.' });
+      }
+      if (isRateLimited(`friends-profiles:${authUser.id}`, 60, 60_000)) {
+        return res.status(429).json({ error: 'Muitas consultas de perfis. Aguarde um momento.' });
+      }
+
+      const profilesResponse = await supabaseServiceRequest(
+        `brazilian_friends_users?select=${friendsProfileFields}&order=full_name.asc`
+      );
+      if (!profilesResponse.ok) {
+        console.error('Brazilian Friends profile read failed:', profilesResponse.status, await profilesResponse.text());
+        return res.status(502).json({ error: 'Não foi possível carregar os perfis do chat.' });
+      }
+      return res.json({ profiles: await profilesResponse.json() });
+    } catch (error: any) {
+      console.error('Brazilian Friends profiles endpoint failed:', error.message);
+      return res.status(500).json({ error: 'Falha ao carregar os perfis do chat.' });
+    }
+  });
+
+  app.get('/api/friends/messages', async (req, res) => {
+    try {
+      const authUser = await getSupabaseUserFromRequest(req);
+      if (!authUser?.id || !authUser.email_confirmed_at) {
+        return res.status(401).json({ error: 'Conecte sua conta Google para usar o chat.' });
+      }
+      if (isRateLimited(`friends-messages-read:${authUser.id}`, 90, 60_000)) {
+        return res.status(429).json({ error: 'Muitas consultas de mensagens. Aguarde um momento.' });
+      }
+
+      const recipientId = req.query.recipientId;
+      const resource = isFriendUserId(recipientId)
+        ? `brazilian_friends_messages?select=${friendsMessageFields}&or=(and(sender_id.eq.${authUser.id},receiver_id.eq.${recipientId}),and(sender_id.eq.${recipientId},receiver_id.eq.${authUser.id}))&order=created_at.asc&limit=200`
+        : 'brazilian_friends_messages?select=id,sender_id,receiver_id,body,created_at,expires_at&receiver_id=is.null&order=created_at.asc&limit=200';
+      const messagesResponse = await supabaseServiceRequest(resource);
+      if (!messagesResponse.ok) {
+        console.error('Brazilian Friends message read failed:', messagesResponse.status, await messagesResponse.text());
+        return res.status(502).json({ error: 'Não foi possível carregar a conversa.' });
+      }
+      return res.json({ messages: await messagesResponse.json() });
+    } catch (error: any) {
+      console.error('Brazilian Friends messages endpoint failed:', error.message);
+      return res.status(500).json({ error: 'Falha ao carregar a conversa.' });
+    }
+  });
+
+  app.post('/api/friends/messages', async (req, res) => {
+    try {
+      const authUser = await getSupabaseUserFromRequest(req);
+      if (!authUser?.id || !authUser.email_confirmed_at) {
+        return res.status(401).json({ error: 'Conecte sua conta Google para usar o chat.' });
+      }
+      if (isRateLimited(`friends-messages-send:${authUser.id}`, 20, 60_000)) {
+        return res.status(429).json({ error: 'Muitas mensagens enviadas. Aguarde um momento.' });
+      }
+
+      const body = typeof req.body?.body === 'string' ? req.body.body.trim() : '';
+      const receiverId = req.body?.receiver_id === null || req.body?.receiver_id === undefined
+        ? null
+        : req.body.receiver_id;
+      if (!body || body.length > 2000 || (receiverId !== null && (!isFriendUserId(receiverId) || receiverId === authUser.id))) {
+        return res.status(400).json({ error: 'Mensagem inválida.' });
+      }
+
+      const messageResponse = await supabaseServiceRequest('brazilian_friends_messages', {
+        method: 'POST',
+        headers: { Prefer: 'return=representation' },
+        body: JSON.stringify({
+          sender_id: authUser.id,
+          receiver_id: receiverId,
+          body,
+          expires_at: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString()
+        })
+      });
+      if (!messageResponse.ok) {
+        console.error('Brazilian Friends message insert failed:', messageResponse.status, await messageResponse.text());
+        return res.status(502).json({ error: 'Não foi possível enviar a mensagem.' });
+      }
+      const messages = await messageResponse.json() as Record<string, unknown>[];
+      return res.status(201).json({ message: messages[0] || null });
+    } catch (error: any) {
+      console.error('Brazilian Friends message endpoint failed:', error.message);
+      return res.status(500).json({ error: 'Falha ao enviar a mensagem.' });
+    }
+  });
+
   const getBrazilianGamesWeekStart = (date = new Date()) => {
     const parts = new Intl.DateTimeFormat('en-US', {
       timeZone: 'America/Sao_Paulo',
