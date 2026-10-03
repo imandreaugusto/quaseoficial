@@ -63,7 +63,11 @@ import {
   UserX,
   Clock3,
   Layers,
-  Gamepad2
+  Gamepad2,
+  BarChart3,
+  UserPlus,
+  Wallet,
+  ArrowUpRight
 } from 'lucide-react';
 import { BrazilianLogo } from './BrazilianLogo';
 import { deleteExpiredBrazilianFriendMessages, getSupabaseClient, getSupabaseConfig } from '../utils/supabaseClient';
@@ -126,7 +130,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   onRefreshUsers,
   currentUser
 }) => {
-  const [activeTab, setActiveTab] = useState<'students' | 'apps_order' | 'revenue' | 'gateway' | 'promotions' | 'pix_approvals' | 'ceo_security' | 'friends_cleanup'>('students');
+  const [activeTab, setActiveTab] = useState<'overview' | 'students' | 'apps_order' | 'revenue' | 'gateway' | 'promotions' | 'pix_approvals' | 'ceo_security' | 'friends_cleanup'>('overview');
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [coupons, setCoupons] = useState<TrialCoupon[]>([]);
   const [pixPayments, setPixPayments] = useState<PixPaymentRecord[]>([]);
@@ -720,6 +724,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   // Helper for receipt written text (por extenso)
   const valorPorExtenso = (valor: number): string => {
     if (valor === 0) return 'zero reais';
+  const studentUsers = users.filter((u) => u.role === 'student');
     const unidades = ['', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove'];
     const dezAonove = ['dez', 'onze', 'doze', 'treze', 'quatorze', 'quinze', 'dezesseis', 'dezessete', 'dezoito', 'dezenove'];
     const dezenas = ['', '', 'vinte', 'trinta', 'quarenta', 'cinquenta', 'sessenta', 'setenta', 'oitenta', 'noventa'];
@@ -770,6 +775,55 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
     let numAulas = 0;
     let desc = '';
 
+  const dashboardMonths = Array.from({ length: 8 }, (_, index) => {
+    const month = new Date();
+    month.setDate(1);
+    month.setHours(0, 0, 0, 0);
+    month.setMonth(month.getMonth() - (7 - index));
+    return month;
+  });
+  const subscribersByMonth = dashboardMonths.map((month) => {
+    const monthEnd = new Date(month.getFullYear(), month.getMonth() + 1, 0, 23, 59, 59, 999).getTime();
+    return studentUsers.filter((user) => {
+      const createdAt = Date.parse(user.created_at);
+      return Number.isFinite(createdAt) && createdAt <= monthEnd;
+    }).length;
+  });
+  const paymentsByMonth = dashboardMonths.map((month) => {
+    const monthStart = month.getTime();
+    const monthEnd = new Date(month.getFullYear(), month.getMonth() + 1, 0, 23, 59, 59, 999).getTime();
+    return pixPayments
+      .filter((payment) => {
+        const paidAt = Date.parse(payment.paidAt);
+        return payment.status === 'approved' && Number.isFinite(paidAt) && paidAt >= monthStart && paidAt <= monthEnd;
+      })
+      .reduce((total, payment) => total + payment.amount, 0);
+  });
+  const subscriberChartMax = Math.max(1, ...subscribersByMonth);
+  const subscriberChartPoints = subscribersByMonth
+    .map((count, index) => `${(index / Math.max(1, subscribersByMonth.length - 1)) * 100},${88 - (count / subscriberChartMax) * 70}`)
+    .join(' ');
+  const paymentChartMax = Math.max(1, ...paymentsByMonth);
+  const recentStudents = [...studentUsers]
+    .filter((user) => Number.isFinite(Date.parse(user.created_at)))
+    .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
+    .slice(0, 5);
+  const pendingDashboardPayments = pixPayments
+    .filter((payment) => payment.status === 'pending')
+    .slice(0, 4);
+  const expiringStudents = studentUsers
+    .filter((user) => user.status === 'active' && user.data_expiracao && Date.parse(user.data_expiracao) >= Date.now())
+    .sort((a, b) => Date.parse(a.data_expiracao!) - Date.parse(b.data_expiracao!))
+    .slice(0, 4);
+  const activePaidShare = activeStudentsCount
+    ? Math.round((payingActiveStudentsCount / activeStudentsCount) * 100)
+    : 0;
+  const formatMoney = (value: number) =>
+    value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const formatShortDate = (value?: string | null) => {
+    if (!value || !Number.isFinite(Date.parse(value))) return '—';
+    return new Date(value).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+  };
     if (tipo === 'bia') {
       totalVal = gatewaySettings.subscriptionPrice || 20;
       desc = 'Referente à taxa de assinatura mensal do aplicativo Brazilian in Action (Acesso Completo)';
@@ -800,7 +854,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-3 sm:px-6 py-6 pb-28 select-none">
+    <div className="max-w-[1600px] mx-auto px-3 sm:px-6 py-6 pb-28 select-none">
       {/* Top Header & Perfectly Aligned CEO Badge */}
       <div className="flex flex-col gap-4 mb-6">
         <div className="flex flex-col gap-1.5">
@@ -810,15 +864,15 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
               <span>Painel do CEO André Augusto</span>
             </span>
             <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-              Central de Gestão & Faturamento
+            Painel executivo
             </h1>
           </div>
           <p className="text-xs text-white/60">
-            Controle de alunos, faturamento semanal/mensal, ordem de apps e manutenção global.
+            Acompanhe assinaturas, pagamentos e desempenho do Brazilian in Action.
           </p>
         </div>
 
-        {/* Tab Navigation: Floating Individual Glassmorphism Pills (Wrap automatically so all 7 options are 100% visible) */}
+        {/* Tab Navigation: Floating Individual Glassmorphism Pills */}
         <nav aria-label="Abas de Administração" className="w-full">
           <div className="flex flex-wrap items-center gap-2">
             {/* 1. Alunos */}
@@ -875,6 +929,18 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
               className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer backdrop-blur-xl shadow-lg border active:scale-95 ${
                 activeTab === 'revenue'
                   ? 'bg-amber-500 text-black border-amber-400 font-black shadow-amber-500/30'
+            <button
+              type="button"
+              onClick={() => setActiveTab('overview')}
+              className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer backdrop-blur-xl shadow-lg border active:scale-95 ${
+                activeTab === 'overview'
+                  ? 'bg-amber-500 text-black border-amber-400 font-black shadow-amber-500/30'
+                  : 'bg-neutral-900/80 hover:bg-neutral-800 text-white/80 hover:text-white border-white/15 hover:border-white/30'
+              }`}
+            >
+              <LayoutDashboard size={14} className={activeTab === 'overview' ? 'text-black' : 'text-cyan-300'} />
+              <span>Visão geral</span>
+            </button>
                   : 'bg-neutral-900/80 hover:bg-neutral-800 text-white/80 hover:text-white border-white/15 hover:border-white/30'
               }`}
             >
@@ -1015,6 +1081,242 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                 <div
                   key={student.id}
                   className="glass-card p-3.5 sm:p-4 rounded-2xl border border-white/10 flex flex-col gap-3 transition-all hover:border-white/20 bg-neutral-900/60"
+      {activeTab === 'overview' && (
+        <section className="space-y-4" aria-label="Visão geral do Painel do CEO">
+          <div className="flex flex-col gap-3 rounded-3xl border border-white/10 bg-slate-950/55 p-4 shadow-2xl backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:p-5">
+            <div className="flex items-center gap-3">
+              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-cyan-300/20 bg-cyan-300/10 text-cyan-200">
+                <BarChart3 size={21} />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-white">Visão geral da plataforma</h2>
+                <p className="mt-0.5 text-xs text-white/50">
+                  Indicadores atualizados com os dados de assinantes e pagamentos cadastrados.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                loadData();
+                onRefreshUsers?.();
+              }}
+              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-xs font-semibold text-white/70 transition hover:border-cyan-200/30 hover:text-white"
+            >
+              <RefreshCw size={14} />
+              Atualizar dados
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {[
+              { label: 'Assinantes cadastrados', value: studentUsers.length, detail: `${studentUsers.filter((user) => user.created_at?.startsWith(new Date().toISOString().slice(0, 7))).length} novos este mês`, icon: Users, tone: 'cyan' },
+              { label: 'Acessos ativos', value: activeStudentsCount, detail: `${payingActiveStudentsCount} assinaturas pagantes`, icon: CheckCircle, tone: 'emerald' },
+              { label: 'Previsão mensal', value: formatMoney(totalMonthlyRevenue), detail: `Lucro estimado ${formatMoney(totalMonthlyProfit)}`, icon: TrendingUp, tone: 'violet' },
+              { label: 'Pagamentos pendentes', value: pendingStudentsCount, detail: `${pixPayments.filter((payment) => payment.status === 'pending').length} comprovantes aguardando análise`, icon: CreditCard, tone: 'amber' }
+            ].map((metric) => {
+              const Icon = metric.icon;
+              const toneClasses = {
+                cyan: 'border-cyan-300/20 bg-cyan-300/10 text-cyan-200',
+                emerald: 'border-emerald-300/20 bg-emerald-300/10 text-emerald-200',
+                violet: 'border-violet-300/20 bg-violet-300/10 text-violet-200',
+                amber: 'border-amber-300/20 bg-amber-300/10 text-amber-200'
+              }[metric.tone];
+              return (
+                <article key={metric.label} className="rounded-2xl border border-white/10 bg-slate-950/55 p-4 shadow-xl backdrop-blur-xl">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-white/45">{metric.label}</p>
+                      <p className="mt-2 text-2xl font-black tabular-nums text-white">{metric.value}</p>
+                    </div>
+                    <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl border ${toneClasses}`}>
+                      <Icon size={18} />
+                    </span>
+                  </div>
+                  <p className="mt-2 truncate text-[11px] text-white/45">{metric.detail}</p>
+                </article>
+              );
+            })}
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+            <article className="rounded-2xl border border-white/10 bg-slate-950/55 p-4 shadow-xl backdrop-blur-xl xl:col-span-2">
+              <header className="mb-4 flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="flex items-center gap-2 text-sm font-bold text-white">
+                    <UserPlus size={16} className="text-cyan-200" />
+                    Crescimento de assinantes
+                  </h3>
+                  <p className="mt-1 text-[11px] text-white/45">Total de cadastros até cada mês, nos últimos 8 meses</p>
+                </div>
+                <span className="rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] text-white/55">8 meses</span>
+              </header>
+              <div className="h-40 w-full">
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="Gráfico de crescimento de assinantes" className="h-full w-full overflow-visible">
+                  <defs>
+                    <linearGradient id="subscriber-area" x1="0" x2="0" y1="0" y2="1">
+                      <stop offset="0%" stopColor="#22d3ee" stopOpacity="0.3" />
+                      <stop offset="100%" stopColor="#22d3ee" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  {[18, 42, 66, 90].map((y) => <line key={y} x1="0" x2="100" y1={y} y2={y} stroke="rgba(255,255,255,0.08)" strokeWidth="0.5" />)}
+                  <polygon points={`0,92 ${subscriberChartPoints} 100,92`} fill="url(#subscriber-area)" />
+                  <polyline points={subscriberChartPoints} fill="none" stroke="#67e8f9" strokeWidth="1.8" vectorEffect="non-scaling-stroke" />
+                  {subscribersByMonth.map((count, index) => (
+                    <circle key={`${dashboardMonths[index].toISOString()}-subscriber`} cx={(index / Math.max(1, subscribersByMonth.length - 1)) * 100} cy={88 - (count / subscriberChartMax) * 70} r="1.6" fill="#a5f3fc" />
+                  ))}
+                </svg>
+              </div>
+              <div className="mt-2 grid grid-cols-8 text-center text-[9px] capitalize text-white/40">
+                {dashboardMonths.map((month) => <span key={month.toISOString()}>{month.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}</span>)}
+              </div>
+            </article>
+
+            <article className="rounded-2xl border border-white/10 bg-slate-950/55 p-4 shadow-xl backdrop-blur-xl">
+              <header className="mb-4">
+                <h3 className="flex items-center gap-2 text-sm font-bold text-white">
+                  <Wallet size={16} className="text-emerald-200" />
+                  Recebimentos via Pix
+                </h3>
+                <p className="mt-1 text-[11px] text-white/45">Pagamentos aprovados por mês</p>
+              </header>
+              <div className="flex h-40 items-end gap-2 border-b border-white/10 pb-1">
+                {paymentsByMonth.map((amount, index) => (
+                  <div key={`${dashboardMonths[index].toISOString()}-payment`} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1">
+                    <span className="text-[8px] tabular-nums text-white/45">{amount > 0 ? formatMoney(amount).replace('R$', '').trim() : ''}</span>
+                    <div
+                      className="w-full max-w-7 rounded-t-md bg-gradient-to-t from-cyan-600 to-cyan-300 transition-all"
+                      style={{ height: `${Math.max(amount > 0 ? 8 : 2, (amount / paymentChartMax) * 75)}%` }}
+                      title={`${dashboardMonths[index].toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}: ${formatMoney(amount)}`}
+                    />
+                    <span className="text-[9px] text-white/40">{dashboardMonths[index].toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-3 text-[10px] leading-relaxed text-white/40">
+                A receita mensal prevista também considera o valor dos planos ativos e das aulas cadastradas.
+              </p>
+            </article>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <article className="rounded-2xl border border-white/10 bg-slate-950/55 p-4 shadow-xl backdrop-blur-xl">
+              <h3 className="flex items-center gap-2 text-sm font-bold text-white">
+                <Users size={15} className="text-violet-200" />
+                Situação das assinaturas
+              </h3>
+              <div className="mt-4 flex items-center gap-4">
+                <div
+                  className="grid h-28 w-28 shrink-0 place-items-center rounded-full"
+                  style={{ background: `conic-gradient(#34d399 0 ${activePaidShare}%, #a78bfa ${activePaidShare}% ${activeStudentsCount ? 100 : 0}%, #fbbf24 ${activeStudentsCount ? 100 : 0}% ${activeStudentsCount ? 100 + Math.round((pendingStudentsCount / Math.max(1, studentUsers.length)) * 100) : 35}%, #fb7185 0)` }}
+                  role="img"
+                  aria-label={`${activeStudentsCount} assinaturas ativas, ${pendingStudentsCount} pendentes e ${expiredStudentsCount} expiradas`}
+                >
+                  <div className="grid h-[4.5rem] w-[4.5rem] place-items-center rounded-full bg-slate-950 text-center">
+                    <span><strong className="block text-xl text-white">{studentUsers.length}</strong><small className="text-[9px] text-white/45">alunos</small></span>
+                  </div>
+                </div>
+                <div className="min-w-0 space-y-2 text-[11px]">
+                  <p className="flex items-center justify-between gap-3 text-white/65"><span className="flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-emerald-300" />Pagantes ativos</span><strong className="text-white">{payingActiveStudentsCount}</strong></p>
+                  <p className="flex items-center justify-between gap-3 text-white/65"><span className="flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-violet-300" />Ativos com cupom</span><strong className="text-white">{couponActiveStudentsCount}</strong></p>
+                  <p className="flex items-center justify-between gap-3 text-white/65"><span className="flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-amber-300" />Aguardando Pix</span><strong className="text-white">{pendingStudentsCount}</strong></p>
+                  <p className="flex items-center justify-between gap-3 text-white/65"><span className="flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-rose-300" />Expirados</span><strong className="text-white">{expiredStudentsCount}</strong></p>
+                </div>
+              </div>
+            </article>
+
+            <article className="rounded-2xl border border-white/10 bg-slate-950/55 p-4 shadow-xl backdrop-blur-xl">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <h3 className="flex items-center gap-2 text-sm font-bold text-white"><Clock size={15} className="text-amber-200" />Próximos vencimentos</h3>
+                <span className="text-[10px] text-white/40">Assinaturas ativas</span>
+              </div>
+              {expiringStudents.length ? (
+                <ul className="space-y-2">
+                  {expiringStudents.map((student) => (
+                    <li key={student.id} className="flex min-w-0 items-center justify-between gap-2 rounded-xl border border-white/[0.06] bg-white/[0.025] px-3 py-2">
+                      <span className="truncate text-[11px] text-white/75">{student.full_name || student.email}</span>
+                      <span className="shrink-0 text-[10px] text-amber-200">{formatShortDate(student.data_expiracao)}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : <p className="rounded-xl border border-white/[0.06] p-3 text-[11px] text-white/45">Nenhum vencimento futuro cadastrado.</p>}
+              <button type="button" onClick={() => setActiveTab('students')} className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold text-cyan-200 hover:text-cyan-100">
+                Gerenciar assinantes <ArrowUpRight size={13} />
+              </button>
+            </article>
+
+            <article className="rounded-2xl border border-white/10 bg-slate-950/55 p-4 shadow-xl backdrop-blur-xl">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <h3 className="flex items-center gap-2 text-sm font-bold text-white"><CreditCard size={15} className="text-cyan-200" />Pix aguardando análise</h3>
+                <button type="button" onClick={() => setActiveTab('pix_approvals')} className="text-[10px] font-semibold text-cyan-200 hover:text-cyan-100">Ver todos</button>
+              </div>
+              {pendingDashboardPayments.length ? (
+                <ul className="space-y-2">
+                  {pendingDashboardPayments.map((payment) => (
+                    <li key={payment.id} className="flex min-w-0 items-center justify-between gap-2 rounded-xl border border-white/[0.06] bg-white/[0.025] px-3 py-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-[11px] text-white/75">{payment.userEmail}</p>
+                        <p className="text-[9px] text-white/40">{formatShortDate(payment.paidAt)}</p>
+                      </div>
+                      <span className="shrink-0 text-[11px] font-bold text-white">{formatMoney(payment.amount)}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : <p className="rounded-xl border border-white/[0.06] p-3 text-[11px] text-white/45">Nenhum pagamento pendente no momento.</p>}
+            </article>
+          </div>
+
+          <article className="overflow-hidden rounded-2xl border border-white/10 bg-slate-950/55 shadow-xl backdrop-blur-xl">
+            <header className="flex flex-col gap-2 border-b border-white/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="flex items-center gap-2 text-sm font-bold text-white"><UserPlus size={15} className="text-cyan-200" />Assinantes recentes</h3>
+                <p className="mt-1 text-[10px] text-white/40">Cadastros mais recentes na plataforma</p>
+              </div>
+              <button type="button" onClick={() => setActiveTab('students')} className="inline-flex items-center gap-1 self-start text-[11px] font-semibold text-cyan-200 hover:text-cyan-100 sm:self-auto">
+                Ver todos os assinantes <ArrowUpRight size={13} />
+              </button>
+            </header>
+            {recentStudents.length ? (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[650px] text-left text-[11px]">
+                  <thead className="text-[9px] uppercase tracking-wide text-white/35">
+                    <tr>
+                      <th className="px-4 py-2.5 font-semibold">Assinante</th>
+                      <th className="px-4 py-2.5 font-semibold">Localização</th>
+                      <th className="px-4 py-2.5 font-semibold">Plano</th>
+                      <th className="px-4 py-2.5 font-semibold">Cadastro</th>
+                      <th className="px-4 py-2.5 font-semibold">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/[0.06]">
+                    {recentStudents.map((student) => (
+                      <tr key={student.id} className="text-white/70">
+                        <td className="px-4 py-3">
+                          <p className="font-semibold text-white">{student.full_name || student.email.split('@')[0]}</p>
+                          <p className="mt-0.5 text-[10px] text-white/40">{student.email}</p>
+                        </td>
+                        <td className="px-4 py-3">{[student.ip_city, student.ip_region].filter(Boolean).join(', ') || 'Não informado'}</td>
+                        <td className="px-4 py-3">{student.cupom_usado ? 'Acesso por cupom' : 'Assinatura mensal'}</td>
+                        <td className="px-4 py-3">{formatShortDate(student.created_at)}</td>
+                        <td className="px-4 py-3">
+                          <span className={`rounded-full border px-2 py-1 text-[9px] font-semibold ${
+                            student.status === 'active' ? 'border-emerald-300/20 bg-emerald-300/10 text-emerald-200'
+                              : student.status === 'pending' ? 'border-amber-300/20 bg-amber-300/10 text-amber-200'
+                                : 'border-rose-300/20 bg-rose-300/10 text-rose-200'
+                          }`}>
+                            {student.status === 'active' ? 'Ativo' : student.status === 'pending' ? 'Pendente' : 'Expirado'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : <p className="p-5 text-center text-xs text-white/45">Nenhum assinante cadastrado para exibir.</p>}
+          </article>
+        </section>
+      )}
+
                 >
                   {/* Header Row: Info & Telemetry */}
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
