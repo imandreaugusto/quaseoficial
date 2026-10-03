@@ -52,9 +52,11 @@ export const signInWithGoogle = async () => {
   const client = getSupabaseClient();
   if (!client) return { ok: false, reason: 'offline' as const };
 
+  const redirectTo = new URL(import.meta.env.BASE_URL, window.location.origin).toString();
+
   const { error } = await client.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo: window.location.origin }
+    options: { redirectTo }
   });
 
   if (error) {
