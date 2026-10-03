@@ -187,11 +187,17 @@ input, textarea, select {
   display: flex;
   align-items: center;
   gap: 0.42rem;
+  width: 100%;
   padding: 1rem 1rem 0.45rem;
+  border: 0;
   color: rgba(240, 245, 255, 0.86);
   font-size: 0.7rem;
   font-weight: 700;
+  text-align: left;
+  background: transparent;
+  cursor: pointer;
 }
+.friends-online-label:hover { color: white; }
 
 .friends-online-dot, .friends-status {
   display: inline-block;
@@ -243,6 +249,7 @@ input, textarea, select {
 .friends-conversation-header { display: flex; min-height: 5rem; flex: 0 0 auto; align-items: center; gap: 1rem; padding: 0.9rem clamp(1rem, 3vw, 2rem); border-bottom: 1px solid rgba(214,224,255,0.16); }
 .friends-header-title { display: flex; min-width: 0; align-items: center; gap: 0.75rem; }
 .friends-header-icon { display: grid; width: 2.2rem; height: 2.2rem; place-items: center; border-radius: 0.8rem; color: #e8eeff; background: rgba(129, 153, 255, 0.24); }
+.friends-header-avatar { width: 2.35rem !important; height: 2.35rem !important; font-size: 0.76rem !important; }
 .friends-header-title h1, .friends-header-title p { margin: 0; }
 .friends-header-title h1 { color: white; font-size: clamp(0.88rem, 1.4vw, 1rem); font-weight: 700; }
 .friends-header-title p { color: rgba(225,233,255,0.55); font-size: 0.68rem; }
@@ -264,6 +271,8 @@ input, textarea, select {
 .friends-header-whatsapp { padding: 0.48rem 0.72rem; font-size: 0.66rem; font-weight: 600; }
 .friends-header-info-button { width: 1.9rem; height: 1.9rem; font-size: 0.76rem; }
 .friends-selected-chip { margin-left: auto; color: rgba(236,241,255,0.65); font-size: 0.68rem; }
+.friends-online-trigger { display: inline-flex; min-height: 2.2rem; align-items: center; gap: 0.4rem; margin-left: auto; padding: 0.42rem 0.65rem; border: 1px solid rgba(218, 229, 255, 0.2); border-radius: 999px; color: rgba(242,246,255,0.9); background: rgba(79, 100, 195, 0.24); font-size: 0.66rem; white-space: nowrap; }
+.friends-online-trigger:hover { background: rgba(79, 100, 195, 0.42); }
 .friends-mobile-people-button { display: none; margin-left: auto; align-items: center; gap: 0.4rem; border: 1px solid rgba(218, 229, 255, 0.2); border-radius: 999px; padding: 0.45rem 0.65rem; color: rgba(242,246,255,0.82); background: rgba(79, 100, 195, 0.24); font-size: 0.66rem; }
 .friends-mobile-back-button { display: none; }
 .friends-list-status-dot { display: block; width: 0.52rem; height: 0.52rem; flex: 0 0 auto; border-radius: 50%; background: #64748b; }
@@ -300,7 +309,17 @@ input, textarea, select {
 .friends-drawer-backdrop > div { width: min(85vw, 20rem); height: 100%; }
 .friends-people-panel-mobile { width: 100%; height: 100%; border: 0; background: rgba(8, 15, 46, 0.88); backdrop-filter: blur(24px); }
 .friends-people-panel-mobile .friends-people-heading { padding-top: max(1rem, env(safe-area-inset-top)); }
-.friends-profile-preview-backdrop { display: none; }
+.friends-profile-preview-backdrop { position: fixed; inset: 0; z-index: 5001; display: grid; place-items: center; padding: clamp(1rem, 4vw, 2rem); background: rgba(2,5,20,0.62); backdrop-filter: blur(12px); }
+.friends-profile-preview { position: relative; display: flex; width: min(100%, 28rem); max-height: min(82dvh, 42rem); flex-direction: column; align-items: center; gap: 0.75rem; overflow-y: auto; padding: 2.4rem 1.8rem 1.8rem; border: 1px solid rgba(218,229,255,0.24); border-radius: 1.5rem; color: white; text-align: center; background: linear-gradient(150deg, rgba(18,34,73,0.96), rgba(21,19,47,0.97) 62%, rgba(26,28,51,0.97)); box-shadow: 0 24px 70px rgba(1,5,21,0.58); backdrop-filter: blur(24px); }
+.friends-profile-preview-close { position: absolute; top: 0.7rem; right: 0.75rem; }
+.friends-profile-preview-avatar-wrap { position: relative; display: grid; place-items: center; margin-bottom: 0.35rem; }
+.friends-profile-preview-avatar { width: 5.6rem !important; height: 5.6rem !important; font-size: 1.5rem !important; }
+.friends-profile-preview-status { position: absolute; right: 0.12rem; bottom: 0.12rem; width: 0.9rem; height: 0.9rem; border: 2px solid #152044; border-radius: 50%; background: #4ade80; box-shadow: 0 0 12px rgba(74,222,128,0.8); }
+.friends-profile-preview h2 { margin: 0; font-size: 1.16rem; font-weight: 700; }
+.friends-profile-preview-location { display: flex; align-items: center; gap: 0.45rem; margin: 0; color: rgba(221,231,255,0.72); font-size: 0.76rem; }
+.friends-profile-preview-bio { width: min(100%, 24rem); margin: 0.55rem 0 0.75rem; color: rgba(243,246,255,0.84); font-size: 0.86rem; line-height: 1.55; }
+.friends-profile-preview-message { display: flex; width: min(100%, 22rem); min-height: 2.9rem; align-items: center; justify-content: center; gap: 0.55rem; padding: 0.6rem 1rem; border: 0; border-radius: 999px; color: #08102e; font-size: 0.8rem; font-weight: 700; overflow-wrap: anywhere; box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
+.friends-profile-preview-message span { min-width: 0; }
 
 .friends-avatar-edit-badge { position: absolute; right: -0.12rem; bottom: -0.12rem; display: grid; width: 0.85rem; height: 0.85rem; place-items: center; border: 1.5px solid #172150; border-radius: 50%; color: #172150; background: #ffd166; }
 .friends-profile-modal-backdrop { position: fixed; inset: 0; z-index: 5000; display: grid; place-items: center; padding: 1rem; background: rgba(2,5,20,0.6); backdrop-filter: blur(12px); }
@@ -328,6 +347,7 @@ input, textarea, select {
   .friends-public-online-count { display: none; }
   .friends-selected-chip { display: none; }
   .friends-header-actions { display: none; }
+  .friends-online-trigger { min-height: 2.65rem; padding-inline: 0.8rem; color: rgba(239,248,255,0.95); background: rgba(50, 91, 151, 0.42); }
   .friends-mobile-people-button { display: flex; min-height: 2.65rem; flex: 0 0 auto; padding-inline: 0.8rem; color: rgba(239,248,255,0.95); background: rgba(50, 91, 151, 0.42); white-space: nowrap; }
   .friends-mobile-back-button { display: inline-flex; min-height: 2.65rem; align-items: center; gap: 0.35rem; margin-left: auto; padding: 0 0.7rem; border: 1px solid rgba(218, 229, 255, 0.2); border-radius: 999px; color: rgba(242,246,255,0.9); background: rgba(79, 100, 195, 0.24); font-size: 0.68rem; }
   .friends-message-scroll { padding: 1rem 0.75rem; }
