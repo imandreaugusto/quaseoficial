@@ -6,7 +6,7 @@ import type { UserProfile } from '../types';
 import { apiFetch } from '../lib/api';
 
 export const getSupabaseConfig = () => {
-  let storedConfig: { url?: string; anonKey?: string } = {};
+  let storedConfig: { url?: string; anonKey?: string; appUrl?: string } = {};
   try {
     if (typeof localStorage !== 'undefined') {
       storedConfig = JSON.parse(localStorage.getItem('bia_supabase_public_config') || '{}');
@@ -25,7 +25,11 @@ export const getSupabaseConfig = () => {
     (typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env.VITE_SUPABASE_ANON_KEY) ||
     '';
 
-  return { url, anonKey };
+  const appUrl = storedConfig.appUrl ||
+    (typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env.VITE_PUBLIC_APP_URL) ||
+    '';
+
+  return { url, anonKey, appUrl };
 };
 
 let cachedClient: SupabaseClient | null = null;

@@ -2,8 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { UserProfile, TrialCoupon } from '../types';
 import { useGatewaySettings } from '../hooks/useGatewaySettings';
 import { 
-  validateCeoCredentials, 
-  isAuthorizedCeoEmail, 
+  CEO_EMAIL,
   isValidEmailFormat 
 } from '../utils/security';
 import { 
@@ -291,7 +290,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           setEmail('andrejrcardoso93@gmail.com');
           setPassword('');
           setErrorMsg('');
-          setSuccessMsg('Modo CEO & Administrador Master ativado. Insira sua Senha Executiva.');
+          setSuccessMsg('Modo CEO ativado. Confirme sua sessão pelo Google para continuar.');
         } else {
           setEmail('');
           setPassword('');
@@ -302,40 +301,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       clickTimestamps.current = [];
       setEggCounter(0);
     }
-  };
-
-  const completeCeoLogin = (cleanEmail: string) => {
-    const ceoAuth = validateCeoCredentials(cleanEmail, password);
-    if (!ceoAuth.isValid) {
-      throw new Error(ceoAuth.message || 'Acesso restrito ao CEO autorizado.');
-    }
-
-    const adminUser: UserProfile = {
-      id: 'admin_master_ceo',
-      email: cleanEmail,
-      full_name: 'CEO André Augusto',
-      role: 'admin',
-      status: 'active',
-      data_expiracao: null,
-      email_verified: true,
-      permissions: {
-        friends: true,
-        readclub: true,
-        board: true,
-        quiz: true,
-        biacompare: true,
-        conversation: true,
-        tradutor: true,
-        youtube: true,
-        practice: true,
-        stories: true
-      },
-      created_at: new Date().toISOString()
-    };
-
-    localStorage.setItem('bia_current_user', JSON.stringify(adminUser));
-    setSuccessMsg('Bem-vindo, CEO André Augusto.');
-    setTimeout(() => onAuthSuccess(adminUser), 500);
   };
 
   // Google remains available as a shortcut; password login uses Supabase Auth.
@@ -352,9 +317,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           throw new Error('Por favor, informe um endereço de e-mail válido.');
         }
 
-        if (isAuthorizedCeoEmail(cleanEmail)) {
-          completeCeoLogin(cleanEmail);
-          return;
+        if (cleanEmail === CEO_EMAIL) {
+          throw new Error('A conta CEO usa somente o botão "Entrar com Google" para manter a sessão protegida.');
         }
 
         const client = getSupabaseClient();
@@ -389,6 +353,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           : googleResult.message || 'Não foi possível iniciar o login com Google.');
       }
       setLoading(false);
+      return;
+    }
+
+    if (isAdminMode) {
+      await handleGoogleSignIn();
       return;
     }
 
@@ -510,74 +479,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           onAuthSuccess(newUser);
         }, 600);
       } else {
-        // Login Flow (Admin or Student)
-        const isCeoCandidate = isAdminMode || isAuthorizedCeoEmail(cleanEmail);
-
-        if (isCeoCandidate) {
-          try {
-            completeCeoLogin(cleanEmail);
-            return;
-          } catch (error: any) {
-            throw new Error(error.message || 'Acesso restrito apenas ao CEO André Augusto.');
-          }
-        }
-
-        if (!isCeoCandidate) {
-          throw new Error('Para proteger e confirmar sua assinatura, entre com Google usando o mesmo e-mail da conta.');
-        }
-
-        // The normal student password login is handled by Supabase Auth above.
-        let existingUser = usersList.find((u) => u.email.toLowerCase() === cleanEmail);
-        const remoteProfile = await findUserProfileByEmail(cleanEmail);
-        if (remoteProfile && !existingUser) {
-          existingUser = {
-            id: remoteProfile.id,
-            email: remoteProfile.email,
-            full_name: remoteProfile.full_name || remoteProfile.email.split('@')[0],
-            role: remoteProfile.role || 'student',
-            status: remoteProfile.status || 'pending',
-            data_expiracao: remoteProfile.data_expiracao || null,
-            permissions: remoteProfile.permissions || {
-              friends: true,
-              readclub: true,
-              board: true,
-              quiz: true,
-              biacompare: true,
-              conversation: true,
-              tradutor: true,
-              youtube: true,
-              practice: true,
-              stories: true
-            },
-            created_at: remoteProfile.created_at || new Date().toISOString(),
-            updated_at: remoteProfile.updated_at || new Date().toISOString()
-          } as UserProfile;
-          usersList.push(existingUser);
-          localStorage.setItem('bia_users_database', JSON.stringify(usersList));
-        }
-
-        if (!existingUser) {
-          throw new Error('E-mail não cadastrado. Clique em "Criar Conta" para começar.');
-        }
-
-        // Validate student password
-        if (existingUser.password && existingUser.password !== password) {
-          throw new Error('Senha incorreta. Verifique os dados digitados e tente novamente.');
-        }
-
-        if (existingUser.data_expiracao && new Date(existingUser.data_expiracao) < new Date()) {
-          existingUser.status = 'expired';
-          const idx = usersList.findIndex((u) => u.id === existingUser?.id);
-          if (idx >= 0) usersList[idx].status = 'expired';
-          localStorage.setItem('bia_users_database', JSON.stringify(usersList));
-        }
-
-        localStorage.setItem('bia_current_user', JSON.stringify(existingUser));
-        void syncUserProfileToSupabase(existingUser);
-        setSuccessMsg(`Bem-vindo de volta, ${existingUser.full_name || existingUser.email}.`);
-        setTimeout(() => {
-          if (existingUser) onAuthSuccess(existingUser);
-        }, 500);
+        if (cleanEmail === CEO_EMAIL) throw new Error('A conta CEO usa somente o botão "Entrar com Google".');
+        throw new Error('Para proteger e confirmar sua assinatura, entre com Google usando o mesmo e-mail da conta.');
       }
     } catch (err: any) {
       setErrorMsg(err.message || 'Falha ao autenticar.');
@@ -589,7 +492,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex h-dvh flex-col overflow-y-auto overscroll-contain p-3 sm:p-4 md:p-6 select-none">
+    <div className="app-auth-layer fixed inset-0 flex h-dvh flex-col overflow-y-auto overscroll-contain p-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] select-none sm:p-4 md:p-6">
       <div className="relative flex min-h-full w-full flex-col">
         {/* TOP BAR: Exact Internal Clock component on Upper Left | Right "Como funciona?" Button */}
         <div className="z-20 flex w-full shrink-0 items-start justify-between pointer-events-auto">
@@ -705,7 +608,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         )}
 
         {/* FLOATING TEXTBOXES FORM */}
-        <form onSubmit={handleSubmit} className={`${isAdminMode || !isSignUp ? '' : 'hidden'} w-full rounded-[26px] border border-white/10 bg-black/15 p-2.5 shadow-[0_25px_60px_rgba(0,0,0,0.55)] backdrop-blur-md sm:p-3.5`}>
+        <form onSubmit={handleSubmit} className={`${!isAdminMode && !isSignUp ? '' : 'hidden'} w-full rounded-[26px] border border-white/10 bg-black/15 p-2.5 shadow-[0_25px_60px_rgba(0,0,0,0.55)] backdrop-blur-md sm:p-3.5`}>
           <div className="flex w-full flex-col gap-2.5">
           {isSignUp && !isAdminMode && (
             <div className="grid gap-1.5 sm:grid-cols-[94px_minmax(0,1fr)] sm:items-center">
@@ -865,8 +768,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </label>
         )}
 
-        {/* Google Sign-In via Supabase OAuth (hidden in CEO admin mode) */}
-        {!isAdminMode && getSupabaseConfig().url && getSupabaseConfig().anonKey && (
+        {/* Google Sign-In via Supabase OAuth */}
+        {getSupabaseConfig().url && getSupabaseConfig().anonKey && (
           <div className="mt-3 flex w-full flex-col items-center gap-2.5 pointer-events-auto">
             <button
               type="button"
@@ -880,7 +783,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <path fill="#4CAF50" d="M24 44c5.5 0 10.5-2.1 14.3-5.6l-6.6-5.4C29.6 34.9 26.9 36 24 36c-5.3 0-9.7-3.1-11.3-7.6l-6.6 5.1C9.6 39.6 16.2 44 24 44z" />
                 <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.2 5.7l6.6 5.4C39.9 37.4 44 31.6 44 24c0-1.3-.1-2.7-.4-3.5z" />
               </svg>
-              <span>{isSignUp ? 'Criar conta com o Google' : 'Entrar com o Google'}</span>
+              <span>{isAdminMode ? 'Confirmar CEO com Google' : isSignUp ? 'Criar conta com o Google' : 'Entrar com o Google'}</span>
             </button>
           </div>
         )}

@@ -106,7 +106,7 @@ export const GlobalFloatingCamera: React.FC<GlobalFloatingCameraProps> = ({ isAc
       initial={{ opacity: 0, scale: 0.8, x: 20, y: -20 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.8 }}
-      className="fixed z-[9999] select-none cursor-grab active:cursor-grabbing group"
+      className="app-floating-camera-layer fixed select-none cursor-grab active:cursor-grabbing group"
       style={{ top: '80px', right: '30px' }}
     >
       <div className={`relative rounded-full border-4 border-amber-400 bg-neutral-950 shadow-[0_15px_40px_rgba(0,0,0,0.85)] overflow-hidden transition-all duration-300 ${sizeClasses[size]}`}>

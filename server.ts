@@ -269,6 +269,17 @@ async function startServer() {
     });
   });
 
+  app.get('/api/public-config', (_req, res) => {
+    const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+    const anonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+    res.setHeader('Cache-Control', 'public, max-age=300');
+    return res.json({
+      url: url?.replace(/\/$/, '') || null,
+      anonKey: anonKey || null,
+      appUrl: process.env.PUBLIC_APP_URL || null
+    });
+  });
+
   app.post('/api/auth/google/profile', async (req, res) => {
     try {
       const authUser = await getSupabaseUserFromRequest(req);

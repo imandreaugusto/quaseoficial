@@ -9,13 +9,6 @@ export const DEFAULT_CEO_EMAILS = [
   'brazilianinactionidiomas@gmail.com'
 ];
 
-export const DEFAULT_CEO_MASTER_PASSWORDS = [
-  '#5455Ajcardoso',
-  '170493',
-  'BIA@Ceo2025!',
-  'admin17'
-];
-
 // Interface for Tracking Admin / CEO Access Attempts (Audit Log System)
 export interface AdminAccessAuditLog {
   id: string;
@@ -92,71 +85,6 @@ export function isAuthorizedCeoEmail(rawEmail: string): boolean {
   } catch (e) {
     return DEFAULT_CEO_EMAILS.map(e => e.toLowerCase()).includes(clean);
   }
-}
-
-// Strictly validate CEO login credentials (Email + Master Password)
-export function validateCeoCredentials(rawEmail: string, rawPassword: string): { isValid: boolean; message?: string } {
-  const clean = rawEmail.trim().toLowerCase();
-  const pass = rawPassword.trim();
-
-  if (!isAuthorizedCeoEmail(clean)) {
-    logAdminAccessAttempt({
-      email: clean,
-      userRole: 'student',
-      action: 'ACCESS_BLOCKED',
-      details: `Tentativa de login administrativo por e-mail não autorizado: ${clean}`,
-      success: false
-    });
-    return {
-      isValid: false,
-      message: 'Acesso Negado: Apenas o CEO André Augusto (andrejrcardoso93@gmail.com) e administradores autorizados possuem permissão executiva.'
-    };
-  }
-
-  try {
-    const customPassRaw = localStorage.getItem('bia_ceo_master_password');
-    const validPasswords = customPassRaw 
-      ? [...DEFAULT_CEO_MASTER_PASSWORDS, customPassRaw]
-      : DEFAULT_CEO_MASTER_PASSWORDS;
-
-    if (!validPasswords.includes(pass)) {
-      logAdminAccessAttempt({
-        email: clean,
-        userRole: 'student',
-        action: 'INVALID_CEO_LOGIN',
-        details: `Tentativa com senha master incorreta para o e-mail CEO: ${clean}`,
-        success: false
-      });
-      return {
-        isValid: false,
-        message: 'Senha Master do CEO incorreta.'
-      };
-    }
-  } catch (e) {
-    if (!DEFAULT_CEO_MASTER_PASSWORDS.includes(pass)) {
-      logAdminAccessAttempt({
-        email: clean,
-        userRole: 'student',
-        action: 'INVALID_CEO_LOGIN',
-        details: `Tentativa com senha master incorreta para o e-mail CEO: ${clean}`,
-        success: false
-      });
-      return {
-        isValid: false,
-        message: 'Senha Master do CEO incorreta.'
-      };
-    }
-  }
-
-  logAdminAccessAttempt({
-    email: clean,
-    userRole: 'admin',
-    action: 'ACCESS_GRANTED',
-    details: `Autenticação executiva bem-sucedida para o CEO: ${clean}`,
-    success: true
-  });
-
-  return { isValid: true };
 }
 
 // Get full list of authorized CEO emails

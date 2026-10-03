@@ -187,6 +187,12 @@ export default function App() {
 
         void hydrateUserWithCloudSubscription(user)
           .then((hydratedUser) => {
+            if (user.email.trim().toLowerCase() === CEO_EMAIL && hydratedUser.status !== 'active') {
+              localStorage.removeItem('bia_current_user');
+              setCurrentUser(null);
+              setIsAuthModalOpen(true);
+              return;
+            }
             setCurrentUser(hydratedUser);
             setCurrentApp('home');
           })
@@ -628,6 +634,30 @@ export default function App() {
   };
 
   const hydrateUserWithCloudSubscription = async (profile: UserProfile): Promise<UserProfile> => {
+    const normalizedEmail = profile.email.trim().toLowerCase();
+    if (normalizedEmail === CEO_EMAIL) {
+      const client = getSupabaseClient();
+      if (!client) return { ...profile, status: 'pending', data_expiracao: null };
+      const { data: authData, error: authError } = await client.auth.getUser();
+      if (authError || authData.user?.email?.trim().toLowerCase() !== CEO_EMAIL) {
+        return { ...profile, status: 'pending', data_expiracao: null };
+      }
+
+      const ceoProfile: UserProfile = {
+        ...profile,
+        email: CEO_EMAIL,
+        auth_user_id: authData.user.id,
+        full_name: 'CEO André Augusto',
+        role: 'admin',
+        status: 'active',
+        data_expiracao: null,
+        email_verified: true,
+        updated_at: new Date().toISOString()
+      };
+      localStorage.setItem('bia_current_user', JSON.stringify(ceoProfile));
+      return ceoProfile;
+    }
+
     if (profile.role !== 'admin' && !profile.auth_user_id) {
       return { ...profile, status: 'pending', data_expiracao: null };
     }
@@ -663,6 +693,11 @@ export default function App() {
 
   const handleAuthSuccess = async (profile: UserProfile) => {
     const hydrated = await hydrateUserWithCloudSubscription(profile);
+    if (profile.email.trim().toLowerCase() === CEO_EMAIL && hydrated.status !== 'active') {
+      setCurrentUser(null);
+      setIsAuthModalOpen(true);
+      return;
+    }
     setCurrentUser(hydrated);
     setIsAuthModalOpen(false);
     setCurrentApp('home');
@@ -1117,7 +1152,7 @@ export default function App() {
 
         {/* Global Floating Camera Bubble (Strictly Admin / CEO Only) */}
         <GlobalFloatingCamera
-          isActive={isFloatingCamActive && effectiveIsAdmin}
+          isActive={isFloatingCamActive && effectiveIsAdmin && !isAuthModalOpen && Boolean(currentUser)}
           onClose={() => setIsFloatingCamActive(false)}
         />
       </div>
