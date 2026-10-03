@@ -104,18 +104,26 @@ type SupabaseClientLike = NonNullable<ReturnType<typeof getSupabaseClient>>;
 
 const requestFriendsApi = async <T,>(client: SupabaseClientLike, path: string, init?: RequestInit) => {
   const { data: sessionData } = await client.auth.getSession();
-  const accessToken = sessionData.session?.access_token;
+  let accessToken = sessionData.session?.access_token;
   if (!accessToken) return { data: null, error: 'Sua sessão expirou. Entre novamente para usar o chat.' };
 
   try {
-    const response = await apiFetch(path, {
+    const sendRequest = (token: string) => apiFetch(path, {
       ...init,
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`,
+        Authorization: `Bearer ${token}`,
         ...init?.headers
       }
     });
+    let response = await sendRequest(accessToken);
+    if (response.status === 401) {
+      const { data: refreshedData, error: refreshError } = await client.auth.refreshSession();
+      if (!refreshError && refreshedData.session?.access_token) {
+        accessToken = refreshedData.session.access_token;
+        response = await sendRequest(accessToken);
+      }
+    }
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) return { data: null, error: payload.error || 'O chat não está disponível agora.' };
     return { data: payload as T, error: null };
@@ -157,8 +165,37 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
   const [isProfileEditorOpen, setIsProfileEditorOpen] = useState(false);
   const [statusDraft, setStatusDraft] = useState(currentUser.status_message || '');
   const [isSavingStatus, setIsSavingStatus] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [isConnectingToChat, setIsConnectingToChat] = useState(false);
+  const friendsShellRef = useRef<HTMLElement>(null);
+  const messageScrollRef = useRef<HTMLDivElement>(null);
+  const composerInputRef = useRef<HTMLInputElement>(null);
+  const shouldStickToBottomRef = useRef(true);
   const presenceChannelRef = useRef<RealtimeChannel | null>(null);
+
+  useEffect(() => {
+    const shell = friendsShellRef.current;
+    const viewport = window.visualViewport;
+    if (!shell || !viewport) return;
+
+    const syncViewportHeight = () => {
+      shell.style.setProperty('--friends-viewport-height', `${viewport.height}px`);
+      if (document.activeElement === composerInputRef.current) {
+        window.requestAnimationFrame(() => {
+          const messageScroll = messageScrollRef.current;
+          messageScroll?.scrollTo({ top: messageScroll.scrollHeight, behavior: 'smooth' });
+        });
+      }
+    };
+
+    syncViewportHeight();
+    viewport.addEventListener('resize', syncViewportHeight);
+    viewport.addEventListener('scroll', syncViewportHeight);
+    return () => {
+      viewport.removeEventListener('resize', syncViewportHeight);
+      viewport.removeEventListener('scroll', syncViewportHeight);
+      shell.style.removeProperty('--friends-viewport-height');
+    };
+  }, []);
 
   useEffect(() => {
     const client = getSupabaseClient();
@@ -316,9 +353,16 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
       if (messagesError) {
         setError('Não foi possível carregar esta conversa no momento.');
       } else {
-        setMessages((data?.messages || []).filter((message) =>
+        const nextMessages = (data?.messages || []).filter((message) =>
           !message.expires_at || Date.parse(message.expires_at) > Date.now()
-        ));
+        );
+        setMessages((current) => {
+          const unchanged = current.length === nextMessages.length && current.every((message, index) => {
+            const nextMessage = nextMessages[index];
+            return message.id === nextMessage.id && message.body === nextMessage.body;
+          });
+          return unchanged ? current : nextMessages;
+        });
       }
       setIsLoadingMessages(false);
     };
@@ -332,7 +376,11 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
   }, [isSessionReady, socialUserId, selectedFriendId]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (!shouldStickToBottomRef.current) return;
+    window.requestAnimationFrame(() => {
+      const messageScroll = messageScrollRef.current;
+      messageScroll?.scrollTo({ top: messageScroll.scrollHeight, behavior: 'smooth' });
+    });
   }, [messages]);
 
   useEffect(() => {
@@ -376,9 +424,12 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
   };
 
   const handleFriendsSignIn = async () => {
+    if (isConnectingToChat) return;
     setError('');
+    setIsConnectingToChat(true);
     const result = await signInWithGoogle();
     if (!result.ok) {
+      setIsConnectingToChat(false);
       setError(result.reason === 'offline'
         ? 'O login para o chat não está disponível agora.'
         : result.message || 'Não foi possível iniciar o login para o chat.');
@@ -541,10 +592,10 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
       <button
         type="button"
         className="friends-online-label"
-        onClick={() => !mobile && setIsPeopleDrawerOpen(true)}
-        aria-label={`${onlineFriends.length} pessoas online`}
+        onClick={() => !mobile && (socialUserId ? setIsPeopleDrawerOpen(true) : void handleFriendsSignIn())}
+        aria-label={socialUserId ? `${onlineFriends.length} pessoas online` : 'Entrar com Google para aparecer online'}
       >
-        <span className="friends-online-dot" /> Online ({onlineFriends.length}) <ChevronDown size={14} />
+        <span className="friends-online-dot" /> {socialUserId ? `Online (${onlineFriends.length})` : isSessionReady ? 'Entrar para aparecer online' : 'Verificando conexão...'} <ChevronDown size={14} />
       </button>
       <div className="friends-people-list custom-scrollbar">
         {isLoading && <p className="friends-muted-copy">Buscando assinantes...</p>}
@@ -592,7 +643,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
   }
 
   return (
-    <section className="friends-shell">
+    <section className="friends-shell" ref={friendsShellRef}>
       <div className="friends-glass-frame">
         {renderPeople()}
         <main className={`friends-conversation ${selectedFriend ? 'friends-conversation-private' : ''}`}>
@@ -639,12 +690,19 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
               </span>
             </div>
 
-            {!selectedFriend && <button type="button" className="friends-online-trigger" onClick={() => setIsPeopleDrawerOpen(true)}><Users size={16} /><span>{onlineFriends.length} people online</span><ChevronDown size={14} /></button>}
+            {!selectedFriend && <button type="button" className="friends-online-trigger" onClick={() => socialUserId ? setIsPeopleDrawerOpen(true) : void handleFriendsSignIn()} disabled={!isSessionReady || isConnectingToChat}><Users size={16} /><span>{socialUserId ? `${onlineFriends.length} people online` : isConnectingToChat ? 'Abrindo Google...' : 'Conectar para ficar online'}</span><ChevronDown size={14} /></button>}
             {selectedFriend && <button type="button" className="friends-mobile-back-button" onClick={() => setSelectedFriendId(null)}><ArrowLeft size={15} /><span>Public chat</span></button>}
             {selectedFriend && <button type="button" className="friends-selected-chip" onClick={() => setSelectedFriendId(null)}><ArrowLeft size={13} /> {selectedFriend.full_name}</button>}
           </header>
 
-          <div className="friends-message-scroll custom-scrollbar">
+          <div
+            className="friends-message-scroll custom-scrollbar"
+            ref={messageScrollRef}
+            onScroll={(event) => {
+              const element = event.currentTarget;
+              shouldStickToBottomRef.current = element.scrollHeight - element.scrollTop - element.clientHeight < 80;
+            }}
+          >
             {!selectedFriend && pinnedMessages.length > 0 && (
               <section className="friends-pinned-messages" aria-label="Mensagens fixadas">
                 {pinnedMessages.map((message) => (
@@ -686,7 +744,6 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
                 </motion.div>
               );
             })}
-            <div ref={messagesEndRef} />
           </div>
 
           <form
@@ -731,8 +788,16 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
                   <Smile size={19} />
                 </button>
                 <input
+                  ref={composerInputRef}
                   value={draft}
                   onChange={(event) => setDraft(event.target.value)}
+                  onFocus={() => {
+                    shouldStickToBottomRef.current = true;
+                    window.requestAnimationFrame(() => {
+                      const messageScroll = messageScrollRef.current;
+                      messageScroll?.scrollTo({ top: messageScroll.scrollHeight, behavior: 'smooth' });
+                    });
+                  }}
                   placeholder="Escreva em inglês..."
                   className="friends-composer-input"
                   maxLength={2000}
@@ -753,10 +818,11 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
                 type="button"
                 className="friends-auth-button"
                 onClick={() => void handleFriendsSignIn()}
-                disabled={!isSessionReady}
+                disabled={!isSessionReady || isConnectingToChat}
+                aria-busy={isConnectingToChat}
               >
                 <MessageCircle size={17} />
-                <span>{isSessionReady ? 'Conectar chat com Google' : 'Verificando conexão do chat...'}</span>
+                <span>{!isSessionReady ? 'Verificando conexão do chat...' : isConnectingToChat ? 'Abrindo login do Google...' : 'Entrar com Google para ficar online e enviar mensagens'}</span>
               </button>
             )}
             {error && <p className="friends-error">{error}</p>}

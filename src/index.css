@@ -6,6 +6,33 @@
   --font-serif: "Crimson Pro", "Lora", serif;
 }
 
+:root {
+  --layer-content: 1;
+  --layer-controls: 2500;
+  --layer-stream: 3100;
+  --layer-navigation: 3400;
+  --layer-drawer: 4000;
+  --layer-modal: 5000;
+  --layer-auth: 6000;
+}
+
+.app-auth-layer {
+  z-index: var(--layer-auth);
+}
+
+.app-floating-camera-layer {
+  z-index: var(--layer-controls);
+  max-width: calc(100vw - max(1rem, env(safe-area-inset-left)) - max(1rem, env(safe-area-inset-right)));
+  max-height: calc(100dvh - max(1rem, env(safe-area-inset-top)) - max(1rem, env(safe-area-inset-bottom)));
+}
+
+@media (max-width: 640px) {
+  .app-floating-camera-layer {
+    top: max(4.5rem, calc(env(safe-area-inset-top) + 3.5rem)) !important;
+    right: max(0.75rem, env(safe-area-inset-right)) !important;
+  }
+}
+
 html, body, #root {
   min-width: 0;
   min-height: 100%;
@@ -116,8 +143,8 @@ input, textarea, select {
   position: relative;
   isolation: isolate;
   width: 100%;
-  height: calc(100dvh - 5rem);
-  min-height: min(34rem, calc(100dvh - 5rem));
+  height: calc(var(--friends-viewport-height, 100dvh) - 5rem);
+  min-height: min(34rem, calc(var(--friends-viewport-height, 100dvh) - 5rem));
   padding: clamp(0.5rem, 2vw, 1.5rem);
   overflow: hidden;
   background: transparent;
@@ -312,11 +339,11 @@ input, textarea, select {
 .friends-error { margin: 0.45rem 0 0; color: #fda4af; font-size: 0.68rem; }
 .friends-empty-state { display: grid; min-height: 100%; place-items: center; padding: 2rem; text-align: center; }
 .friends-empty-conversation { display: grid; min-height: 16rem; place-items: center; color: rgba(225,233,255,0.5); font-size: 0.78rem; text-align: center; }
-.friends-drawer-backdrop { position: fixed; inset: 0; z-index: 4000; display: flex; justify-content: flex-start; background: rgba(2,5,20,0.5); backdrop-filter: blur(10px); }
+.friends-drawer-backdrop { position: fixed; inset: 0; z-index: var(--layer-drawer); display: flex; justify-content: flex-start; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); background: rgba(2,5,20,0.5); backdrop-filter: blur(10px); }
 .friends-drawer-backdrop > div { width: min(85vw, 20rem); height: 100%; }
 .friends-people-panel-mobile { width: 100%; height: 100%; border: 0; background: rgba(8, 15, 46, 0.88); backdrop-filter: blur(24px); }
 .friends-people-panel-mobile .friends-people-heading { padding-top: max(1rem, env(safe-area-inset-top)); }
-.friends-profile-preview-backdrop { position: fixed; inset: 0; z-index: 5001; display: grid; place-items: center; padding: clamp(1rem, 4vw, 2rem); background: rgba(2,5,20,0.62); backdrop-filter: blur(12px); }
+.friends-profile-preview-backdrop { position: fixed; inset: 0; z-index: var(--layer-modal); display: grid; place-items: center; padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left)); background: rgba(2,5,20,0.62); backdrop-filter: blur(12px); }
 .friends-profile-preview { position: relative; display: flex; width: min(100%, 28rem); max-height: min(82dvh, 42rem); flex-direction: column; align-items: center; gap: 0.75rem; overflow-y: auto; padding: 2.4rem 1.8rem 1.8rem; border: 1px solid rgba(218,229,255,0.24); border-radius: 1.5rem; color: white; text-align: center; background: linear-gradient(150deg, rgba(18,34,73,0.96), rgba(21,19,47,0.97) 62%, rgba(26,28,51,0.97)); box-shadow: 0 24px 70px rgba(1,5,21,0.58); backdrop-filter: blur(24px); }
 .friends-profile-preview-close { position: absolute; top: 0.7rem; right: 0.75rem; }
 .friends-profile-preview-avatar-wrap { position: relative; display: grid; place-items: center; margin-bottom: 0.35rem; }
@@ -329,7 +356,7 @@ input, textarea, select {
 .friends-profile-preview-message span { min-width: 0; }
 
 .friends-avatar-edit-badge { position: absolute; right: -0.12rem; bottom: -0.12rem; display: grid; width: 0.85rem; height: 0.85rem; place-items: center; border: 1.5px solid #172150; border-radius: 50%; color: #172150; background: #ffd166; }
-.friends-profile-modal-backdrop { position: fixed; inset: 0; z-index: 5000; display: grid; place-items: center; padding: 1rem; background: rgba(2,5,20,0.6); backdrop-filter: blur(12px); }
+.friends-profile-modal-backdrop { position: fixed; inset: 0; z-index: var(--layer-modal); display: grid; place-items: center; padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left)); background: rgba(2,5,20,0.6); backdrop-filter: blur(12px); }
 .friends-profile-modal { display: flex; width: min(92vw, 22rem); flex-direction: column; gap: 1rem; padding: 1.4rem; border: 1px solid rgba(255,255,255,0.16); border-radius: 1.25rem; background: rgba(15, 18, 40, 0.94); box-shadow: 0 24px 60px rgba(0,0,0,0.5); }
 .friends-profile-modal-header { display: flex; align-items: center; justify-content: space-between; }
 .friends-profile-modal-header h2 { margin: 0; color: white; font-size: 0.92rem; font-weight: 700; }
@@ -345,7 +372,7 @@ input, textarea, select {
 .friends-profile-modal-save:disabled { cursor: not-allowed; opacity: 0.6; }
 
 @media (max-width: 720px) {
-  .friends-shell { height: calc(100dvh - 4.5rem); min-height: 0; padding: max(0.35rem, env(safe-area-inset-top)) max(0.35rem, env(safe-area-inset-right)) max(0.35rem, env(safe-area-inset-bottom)) max(0.35rem, env(safe-area-inset-left)); }
+  .friends-shell { height: calc(var(--friends-viewport-height, 100dvh) - 4.5rem); min-height: 0; padding: max(0.35rem, env(safe-area-inset-top)) max(0.35rem, env(safe-area-inset-right)) max(0.35rem, env(safe-area-inset-bottom)) max(0.35rem, env(safe-area-inset-left)); }
   .friends-glass-frame { display: block; border-radius: 1.25rem; }
   .friends-glass-frame > .friends-people-panel { display: none; }
   .friends-conversation-header { min-height: 4.2rem; padding: 0.7rem 0.8rem; }
@@ -370,7 +397,7 @@ input, textarea, select {
   .friends-people-panel-mobile .friends-person { min-height: 3.25rem; gap: 0.75rem; padding-inline: 0.8rem; }
   .friends-people-panel-mobile .friends-person-copy strong { font-size: 0.76rem; }
   .friends-people-panel-mobile .friends-person-copy small { color: rgba(214,225,255,0.64); font-size: 0.64rem; }
-  .friends-profile-preview-backdrop { position: fixed; inset: 0; z-index: 5001; display: grid; align-items: end; justify-items: center; padding: 1rem 0 0; background: rgba(2,5,20,0.56); backdrop-filter: blur(12px); }
+  .friends-profile-preview-backdrop { position: fixed; inset: 0; z-index: var(--layer-modal); display: grid; align-items: end; justify-items: center; padding: max(1rem, env(safe-area-inset-top)) 0 0; background: rgba(2,5,20,0.56); backdrop-filter: blur(12px); }
   .friends-profile-preview { position: relative; display: flex; width: min(100%, 32rem); max-height: min(78dvh, 42rem); flex-direction: column; align-items: center; gap: 0.7rem; overflow-y: auto; padding: 2.1rem 1.4rem calc(1.25rem + env(safe-area-inset-bottom)); border: 1px solid rgba(218,229,255,0.24); border-bottom: 0; border-radius: 1.5rem 1.5rem 0 0; color: white; text-align: center; background: linear-gradient(150deg, rgba(18,34,73,0.94), rgba(21,19,47,0.96) 62%, rgba(26,28,51,0.96)); box-shadow: 0 -18px 60px rgba(1,5,21,0.55); backdrop-filter: blur(24px); }
   .friends-profile-preview-close { position: absolute; top: 0.65rem; right: 0.7rem; }
   .friends-profile-preview-avatar-wrap { position: relative; display: grid; place-items: center; margin-bottom: 0.3rem; }
