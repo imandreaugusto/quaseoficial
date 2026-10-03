@@ -38,8 +38,20 @@ alter table public.brazilian_friends_messages
 create index if not exists brazilian_friends_messages_conversation_idx
   on public.brazilian_friends_messages (sender_id, receiver_id, created_at);
 
+create table if not exists public.brazilian_friends_pinned_messages (
+  id uuid primary key default gen_random_uuid(),
+  body text not null check (char_length(trim(body)) between 1 and 2000),
+  pinned_by text not null,
+  pinned_at timestamptz not null default now(),
+  is_active boolean not null default true
+);
+
+create index if not exists brazilian_friends_pinned_messages_active_idx
+  on public.brazilian_friends_pinned_messages (is_active, pinned_at desc);
+
 alter table public.brazilian_friends_users enable row level security;
 alter table public.brazilian_friends_messages enable row level security;
+alter table public.brazilian_friends_pinned_messages enable row level security;
 
 create or replace function public.cleanup_expired_brazilian_friend_messages_count()
 returns integer
@@ -110,5 +122,8 @@ grant insert (id, email, full_name, photo_url, status_message),
   update (email, full_name, photo_url, status_message, updated_at)
   on public.brazilian_friends_users to authenticated;
 grant select, insert, update, delete on public.brazilian_friends_messages to authenticated;
+
+revoke all on public.brazilian_friends_pinned_messages from anon, authenticated;
+grant select on public.brazilian_friends_pinned_messages to authenticated;
 
 alter publication supabase_realtime add table public.brazilian_friends_messages;

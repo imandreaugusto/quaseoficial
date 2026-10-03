@@ -15,6 +15,7 @@ import {
   verifyAbacatePaySignature,
   verifyWebhookSecret
 } from './src/lib/paymentSecurity';
+import { CEO_EMAIL } from './src/utils/security';
 
 // Load environment variables
 dotenv.config();
@@ -476,6 +477,64 @@ async function startServer() {
     } catch (error: any) {
       console.error('Brazilian Friends message endpoint failed:', error.message);
       return res.status(500).json({ error: 'Falha ao enviar a mensagem.' });
+    }
+  });
+
+  app.get('/api/friends/pinned-messages', async (req, res) => {
+    try {
+      const authUser = await getSupabaseUserFromRequest(req);
+      if (!authUser?.id || !authUser.email_confirmed_at) {
+        return res.status(401).json({ error: 'Conecte sua conta Google para usar o chat.' });
+      }
+      const response = await supabaseServiceRequest(
+        'brazilian_friends_pinned_messages?select=id,body,pinned_by,pinned_at&is_active=eq.true&order=pinned_at.desc&limit=3'
+      );
+      if (!response.ok) return res.status(502).json({ error: 'Não foi possível carregar as mensagens fixadas.' });
+      return res.json({ pinnedMessages: await response.json() });
+    } catch (error: any) {
+      console.error('Brazilian Friends pinned message read failed:', error.message);
+      return res.status(500).json({ error: 'Falha ao carregar as mensagens fixadas.' });
+    }
+  });
+
+  app.post('/api/friends/pinned-messages', async (req, res) => {
+    try {
+      const authUser = await getSupabaseUserFromRequest(req);
+      if (!authUser?.id || !authUser.email_confirmed_at) return res.status(401).json({ error: 'Sessão inválida.' });
+      if (normalizeEmail(authUser.email) !== CEO_EMAIL) return res.status(403).json({ error: 'Somente André Augusto pode fixar mensagens.' });
+      if (isRateLimited(`friends-pin:${authUser.id}`, 5, 60_000)) return res.status(429).json({ error: 'Muitas mensagens fixadas. Aguarde um momento.' });
+      const body = typeof req.body?.body === 'string' ? req.body.body.trim() : '';
+      if (!body || body.length > 2000) return res.status(400).json({ error: 'Mensagem fixada inválida.' });
+      const response = await supabaseServiceRequest('brazilian_friends_pinned_messages', {
+        method: 'POST',
+        headers: { Prefer: 'return=representation' },
+        body: JSON.stringify({ body, pinned_by: CEO_EMAIL })
+      });
+      if (!response.ok) return res.status(502).json({ error: 'Não foi possível fixar a mensagem.' });
+      const rows = await response.json() as Record<string, unknown>[];
+      return res.status(201).json({ pinnedMessage: rows[0] || null });
+    } catch (error: any) {
+      console.error('Brazilian Friends pin failed:', error.message);
+      return res.status(500).json({ error: 'Falha ao fixar a mensagem.' });
+    }
+  });
+
+  app.delete('/api/friends/pinned-messages/:id', async (req, res) => {
+    try {
+      const authUser = await getSupabaseUserFromRequest(req);
+      if (!authUser?.id || !authUser.email_confirmed_at) return res.status(401).json({ error: 'Sessão inválida.' });
+      if (normalizeEmail(authUser.email) !== CEO_EMAIL) return res.status(403).json({ error: 'Somente André Augusto pode desafixar mensagens.' });
+      if (!/^[0-9a-f-]{36}$/i.test(req.params.id)) return res.status(400).json({ error: 'Mensagem fixada inválida.' });
+      const response = await supabaseServiceRequest(`brazilian_friends_pinned_messages?id=eq.${encodeURIComponent(req.params.id)}`, {
+        method: 'PATCH',
+        headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({ is_active: false })
+      });
+      if (!response.ok) return res.status(502).json({ error: 'Não foi possível desafixar a mensagem.' });
+      return res.status(204).end();
+    } catch (error: any) {
+      console.error('Brazilian Friends unpin failed:', error.message);
+      return res.status(500).json({ error: 'Falha ao desafixar a mensagem.' });
     }
   });
 

@@ -278,6 +278,13 @@ input, textarea, select {
 .friends-list-status-dot { display: block; width: 0.52rem; height: 0.52rem; flex: 0 0 auto; border-radius: 50%; background: #64748b; }
 .friends-list-status-online { background: #4ade80; box-shadow: 0 0 10px rgba(74, 222, 128, 0.75); }
 .friends-message-scroll { min-height: 0; flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: clamp(1rem, 3vw, 2rem); }
+.friends-pinned-messages { display: grid; gap: 0.45rem; margin: 0 auto 1rem; width: min(100%, 42rem); }
+.friends-pinned-message { display: flex; align-items: flex-start; gap: 0.55rem; padding: 0.65rem 0.75rem; border: 1px solid rgba(255, 209, 102, 0.4); border-radius: 0.7rem; color: #fff2c9; background: rgba(136, 96, 22, 0.28); font-size: 0.72rem; }
+.friends-pinned-message p { flex: 1; margin: 0; overflow-wrap: anywhere; line-height: 1.35; }
+.friends-pinned-remove, .friends-message-pin { display: inline-grid; place-items: center; border: 0; color: inherit; background: transparent; cursor: pointer; }
+.friends-pinned-remove { width: 1.5rem; height: 1.5rem; }
+.friends-message-pin { width: 1.35rem; height: 1.35rem; margin-left: 0.25rem; opacity: 0.7; vertical-align: middle; }
+.friends-message-pin:hover, .friends-pinned-remove:hover { opacity: 1; color: #fff; }
 .friends-message-row { display: flex; justify-content: flex-start; margin-bottom: 0.62rem; }
 .friends-message-row-own { justify-content: flex-end; }
 .friends-message-group { max-width: min(76%, 38rem); }

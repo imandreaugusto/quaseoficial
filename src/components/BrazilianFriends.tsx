@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { RealtimeChannel, Session } from '@supabase/supabase-js';
-import { ArrowLeft, Camera, ChevronDown, Info, MessageCircle, MessageCircleMore, Send, Smile, Users, WifiOff, X } from 'lucide-react';
+import { ArrowLeft, Camera, ChevronDown, Info, MessageCircle, MessageCircleMore, Pin, PinOff, Send, Smile, Users, WifiOff, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile } from '../types';
 import { BrazilianLogo } from './BrazilianLogo';
@@ -36,6 +36,13 @@ interface FriendMessage {
   body: string;
   created_at: string;
   expires_at: string | null;
+}
+
+interface PinnedMessage {
+  id: string;
+  body: string;
+  pinned_by: string;
+  pinned_at: string;
 }
 
 interface PresencePayload {
@@ -139,6 +146,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
   const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
   const [profilePreviewId, setProfilePreviewId] = useState<string | null>(null);
   const [messages, setMessages] = useState<FriendMessage[]>([]);
+  const [pinnedMessages, setPinnedMessages] = useState<PinnedMessage[]>([]);
   const [draft, setDraft] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -379,6 +387,48 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
 
   const { url: configuredUrl, anonKey: configuredAnonKey } = getSupabaseConfig();
   const publicName = getPublicName(currentUser);
+  const canManagePinnedMessages = currentUser.email.trim().toLowerCase() === CEO_EMAIL.toLowerCase();
+
+  useEffect(() => {
+    const client = getSupabaseClient();
+    if (!client || !isSessionReady || !socialUserId) return;
+    let cancelled = false;
+    const loadPinnedMessages = async () => {
+      const result = await requestFriendsApi<{ pinnedMessages: PinnedMessage[] }>(client, '/api/friends/pinned-messages');
+      if (!cancelled && !result.error) setPinnedMessages(result.data?.pinnedMessages || []);
+    };
+    void loadPinnedMessages();
+    const pollingId = window.setInterval(() => void loadPinnedMessages(), 15_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(pollingId);
+    };
+  }, [isSessionReady, socialUserId]);
+
+  const pinMessage = async (body: string) => {
+    const client = getSupabaseClient();
+    if (!client || !canManagePinnedMessages) return;
+    const result = await requestFriendsApi<{ pinnedMessage: PinnedMessage }>(client, '/api/friends/pinned-messages', {
+      method: 'POST',
+      body: JSON.stringify({ body })
+    });
+    if (result.error || !result.data?.pinnedMessage) {
+      setError(result.error || 'Não foi possível fixar a mensagem.');
+      return;
+    }
+    setPinnedMessages((current) => [result.data!.pinnedMessage, ...current]);
+  };
+
+  const unpinMessage = async (messageId: string) => {
+    const client = getSupabaseClient();
+    if (!client || !canManagePinnedMessages) return;
+    const result = await requestFriendsApi<unknown>(client, `/api/friends/pinned-messages/${messageId}`, { method: 'DELETE' });
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+    setPinnedMessages((current) => current.filter((message) => message.id !== messageId));
+  };
 
   const handleProfilePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -595,6 +645,17 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
           </header>
 
           <div className="friends-message-scroll custom-scrollbar">
+            {!selectedFriend && pinnedMessages.length > 0 && (
+              <section className="friends-pinned-messages" aria-label="Mensagens fixadas">
+                {pinnedMessages.map((message) => (
+                  <article key={message.id} className="friends-pinned-message">
+                    <Pin size={14} />
+                    <p>{message.body}</p>
+                    {canManagePinnedMessages && <button type="button" className="friends-pinned-remove" onClick={() => void unpinMessage(message.id)} aria-label="Desafixar mensagem"><PinOff size={14} /></button>}
+                  </article>
+                ))}
+              </section>
+            )}
             {!isLoadingMessages && !selectedFriend && messages.length === 0 && (
               <div className="friends-empty-conversation">
                 <MessageCircle size={28} className="mb-3" />
@@ -619,6 +680,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
                     <div className="friends-message-meta"><strong>{senderName}</strong><span>{senderLocation}</span></div>
                     <div className={`friends-message-bubble ${ownMessage ? 'friends-message-bubble-own' : ''}`} style={ownMessage ? { '--bubble-accent': accentColor } as React.CSSProperties : undefined}>
                       <p>{message.body}</p>
+                      {canManagePinnedMessages && !selectedFriend && <button type="button" className="friends-message-pin" onClick={() => void pinMessage(message.body)} aria-label="Fixar mensagem" title="Fixar mensagem"><Pin size={13} /></button>}
                     </div>
                   </div>
                 </motion.div>
