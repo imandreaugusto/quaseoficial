@@ -269,6 +269,76 @@ async function startServer() {
     });
   });
 
+  app.get('/api/announcements/active', async (req, res) => {
+    try {
+      const authUser = await getSupabaseUserFromRequest(req);
+      if (!authUser?.id || !authUser.email_confirmed_at) {
+        return res.status(401).json({ error: 'Conecte sua conta Google para ver os avisos.' });
+      }
+      if (isRateLimited(`announcement-read:${authUser.id}`, 30, 60_000)) {
+        return res.status(429).json({ error: 'Muitas consultas de avisos. Aguarde um momento.' });
+      }
+
+      const response = await supabaseServiceRequest(
+        'ceo_announcements?id=eq.1&select=id,message,is_active,revision,updated_at&limit=1'
+      );
+      if (!response.ok) {
+        console.error('CEO announcement read failed:', response.status, await response.text());
+        return res.status(502).json({ error: 'Não foi possível carregar o aviso.' });
+      }
+      const rows = await response.json() as Record<string, unknown>[];
+      return res.json({ announcement: rows[0] || null });
+    } catch (error: any) {
+      console.error('CEO announcement read failed:', error.message);
+      return res.status(500).json({ error: 'Falha ao carregar o aviso.' });
+    }
+  });
+
+  app.post('/api/admin/announcement', async (req, res) => {
+    try {
+      const authUser = await getSupabaseUserFromRequest(req);
+      if (!authUser?.id || !authUser.email_confirmed_at) return res.status(401).json({ error: 'Sessão inválida.' });
+      if (normalizeEmail(authUser.email) !== CEO_EMAIL) return res.status(403).json({ error: 'Somente André Augusto pode publicar avisos.' });
+      if (isRateLimited(`announcement-save:${authUser.id}`, 10, 60_000)) {
+        return res.status(429).json({ error: 'Muitas alterações de aviso. Aguarde um momento.' });
+      }
+
+      const message = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
+      const isActive = req.body?.isActive === true;
+      if (message.length > 1000 || (isActive && !message)) {
+        return res.status(400).json({ error: 'Escreva um aviso de até 1.000 caracteres antes de ativá-lo.' });
+      }
+
+      const currentResponse = await supabaseServiceRequest(
+        'ceo_announcements?id=eq.1&select=revision&limit=1'
+      );
+      if (!currentResponse.ok) return res.status(502).json({ error: 'Não foi possível ler a revisão atual do aviso.' });
+      const currentRows = await currentResponse.json() as { revision?: number }[];
+      const revision = (Number(currentRows[0]?.revision) || 0) + 1;
+      const response = await supabaseServiceRequest('ceo_announcements?on_conflict=id', {
+        method: 'POST',
+        headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
+        body: JSON.stringify({
+          id: 1,
+          message,
+          is_active: isActive,
+          revision,
+          updated_at: new Date().toISOString(),
+          updated_by: CEO_EMAIL
+        })
+      });
+      if (!response.ok) {
+        console.error('CEO announcement save failed:', response.status, await response.text());
+        return res.status(502).json({ error: 'Não foi possível salvar o aviso.' });
+      }
+      const rows = await response.json() as Record<string, unknown>[];
+      return res.json({ announcement: rows[0] || null });
+    } catch (error: any) {
+      console.error('CEO announcement save failed:', error.message);
+      return res.status(500).json({ error: 'Falha ao salvar o aviso.' });
+    }
+  });
+
   app.get('/api/public-config', (_req, res) => {
     const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
     const anonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;

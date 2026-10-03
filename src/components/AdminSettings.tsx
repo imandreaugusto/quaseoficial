@@ -64,6 +64,7 @@ import {
   Clock3,
   Layers,
   Gamepad2,
+  Megaphone,
   BarChart3,
   UserPlus,
   Wallet,
@@ -71,6 +72,7 @@ import {
 } from 'lucide-react';
 import { BrazilianLogo } from './BrazilianLogo';
 import { deleteExpiredBrazilianFriendMessages, getSupabaseClient, getSupabaseConfig } from '../utils/supabaseClient';
+import { loadCEOAnnouncement, saveCEOAnnouncement } from '../utils/ceoAnnouncement';
 
 interface AdminSettingsProps {
   accentColor?: string;
@@ -130,7 +132,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   onRefreshUsers,
   currentUser
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'students' | 'apps_order' | 'revenue' | 'gateway' | 'promotions' | 'pix_approvals' | 'ceo_security' | 'friends_cleanup'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'students' | 'apps_order' | 'revenue' | 'gateway' | 'promotions' | 'pix_approvals' | 'ceo_security' | 'friends_cleanup' | 'announcement'>('overview');
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [coupons, setCoupons] = useState<TrialCoupon[]>([]);
   const [pixPayments, setPixPayments] = useState<PixPaymentRecord[]>([]);
@@ -145,6 +147,57 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   const [isCleaningFriends, setIsCleaningFriends] = useState(false);
   const [friendsCleanupMessage, setFriendsCleanupMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const isMainCeo = Boolean(currentUser?.email && isVerifiedCeoEmail(currentUser.email));
+  const [announcementDraft, setAnnouncementDraft] = useState('');
+  const [announcementEnabled, setAnnouncementEnabled] = useState(false);
+  const [isAnnouncementLoading, setIsAnnouncementLoading] = useState(false);
+  const [isAnnouncementSaving, setIsAnnouncementSaving] = useState(false);
+  const [announcementFeedback, setAnnouncementFeedback] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+
+  useEffect(() => {
+    if (!isMainCeo || activeTab !== 'announcement') return;
+    let cancelled = false;
+    setIsAnnouncementLoading(true);
+    setAnnouncementFeedback(null);
+    void loadCEOAnnouncement()
+      .then((announcement) => {
+        if (cancelled) return;
+        setAnnouncementDraft(announcement?.message || '');
+        setAnnouncementEnabled(Boolean(announcement?.is_active));
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        setAnnouncementFeedback({
+          text: error instanceof Error ? error.message : 'Não foi possível carregar o Heads-up.',
+          type: 'error'
+        });
+      })
+      .finally(() => {
+        if (!cancelled) setIsAnnouncementLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [activeTab, isMainCeo]);
+
+  const handleSaveAnnouncement = async () => {
+    if (announcementEnabled && !announcementDraft.trim()) {
+      setAnnouncementFeedback({ text: 'Escreva o aviso antes de ativá-lo.', type: 'error' });
+      return;
+    }
+
+    setIsAnnouncementSaving(true);
+    setAnnouncementFeedback(null);
+    try {
+      await saveCEOAnnouncement(announcementDraft, announcementEnabled);
+      setAnnouncementFeedback({ text: 'Heads-up salvo com sucesso.', type: 'success' });
+    } catch (error) {
+      setAnnouncementFeedback({
+        text: error instanceof Error ? error.message : 'Não foi possível salvar o Heads-up.',
+        type: 'error'
+      });
+    } finally {
+      setIsAnnouncementSaving(false);
+    }
+  };
 
   // Accordion state for grouping students by status
   const [openAccordions, setOpenAccordions] = useState<{
@@ -441,7 +494,8 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
     e.preventDefault();
     const normalized = {
       url: supabasePublicConfig.url.trim().replace(/\/$/, ''),
-      anonKey: supabasePublicConfig.anonKey.trim()
+      anonKey: supabasePublicConfig.anonKey.trim(),
+      appUrl: supabasePublicConfig.appUrl.trim().replace(/\/$/, '')
     };
     localStorage.setItem('bia_supabase_public_config', JSON.stringify(normalized));
     setSupabasePublicConfig(normalized);
@@ -670,6 +724,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   const activeStudentsCount = users.filter((u) => u.role === 'student' && u.status === 'active').length;
   const pendingStudentsCount = users.filter((u) => u.role === 'student' && u.status === 'pending').length;
   const expiredStudentsCount = users.filter((u) => u.role === 'student' && u.status === 'expired').length;
+  const studentUsers = users.filter((u) => u.role === 'student');
 
   // Strict segregation: coupon/trial students never count as paid revenue.
   const payingActiveStudents = users.filter((u) => u.role === 'student' && u.status === 'active' && !u.cupom_usado);
@@ -720,11 +775,59 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
 
   const totalMonthlyProfit = totalMonthlyRevenue - totalExpenses;
   const totalWeeklyProfit = totalWeeklyRevenue - (totalExpenses / 4);
+  const dashboardMonths = Array.from({ length: 8 }, (_, index) => {
+    const month = new Date();
+    month.setDate(1);
+    month.setHours(0, 0, 0, 0);
+    month.setMonth(month.getMonth() - (7 - index));
+    return month;
+  });
+  const subscribersByMonth = dashboardMonths.map((month) => {
+    const monthEnd = new Date(month.getFullYear(), month.getMonth() + 1, 0, 23, 59, 59, 999).getTime();
+    return studentUsers.filter((user) => {
+      const createdAt = Date.parse(user.created_at);
+      return Number.isFinite(createdAt) && createdAt <= monthEnd;
+    }).length;
+  });
+  const paymentsByMonth = dashboardMonths.map((month) => {
+    const monthStart = month.getTime();
+    const monthEnd = new Date(month.getFullYear(), month.getMonth() + 1, 0, 23, 59, 59, 999).getTime();
+    return pixPayments
+      .filter((payment) => {
+        const paidAt = Date.parse(payment.paidAt);
+        return payment.status === 'approved' && Number.isFinite(paidAt) && paidAt >= monthStart && paidAt <= monthEnd;
+      })
+      .reduce((total, payment) => total + payment.amount, 0);
+  });
+  const subscriberChartMax = Math.max(1, ...subscribersByMonth);
+  const subscriberChartPoints = subscribersByMonth
+    .map((count, index) => `${(index / Math.max(1, subscribersByMonth.length - 1)) * 100},${88 - (count / subscriberChartMax) * 70}`)
+    .join(' ');
+  const paymentChartMax = Math.max(1, ...paymentsByMonth);
+  const recentStudents = [...studentUsers]
+    .filter((user) => Number.isFinite(Date.parse(user.created_at)))
+    .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
+    .slice(0, 5);
+  const pendingDashboardPayments = pixPayments
+    .filter((payment) => payment.status === 'pending')
+    .slice(0, 4);
+  const expiringStudents = studentUsers
+    .filter((user) => user.status === 'active' && user.data_expiracao && Date.parse(user.data_expiracao) >= Date.now())
+    .sort((a, b) => Date.parse(a.data_expiracao!) - Date.parse(b.data_expiracao!))
+    .slice(0, 4);
+  const activePaidShare = activeStudentsCount
+    ? Math.round((payingActiveStudentsCount / activeStudentsCount) * 100)
+    : 0;
+  const formatMoney = (value: number) =>
+    value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const formatShortDate = (value?: string | null) => {
+    if (!value || !Number.isFinite(Date.parse(value))) return '—';
+    return new Date(value).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+  };
 
   // Helper for receipt written text (por extenso)
   const valorPorExtenso = (valor: number): string => {
     if (valor === 0) return 'zero reais';
-  const studentUsers = users.filter((u) => u.role === 'student');
     const unidades = ['', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove'];
     const dezAonove = ['dez', 'onze', 'doze', 'treze', 'quatorze', 'quinze', 'dezesseis', 'dezessete', 'dezoito', 'dezenove'];
     const dezenas = ['', '', 'vinte', 'trinta', 'quarenta', 'cinquenta', 'sessenta', 'setenta', 'oitenta', 'noventa'];
@@ -775,55 +878,6 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
     let numAulas = 0;
     let desc = '';
 
-  const dashboardMonths = Array.from({ length: 8 }, (_, index) => {
-    const month = new Date();
-    month.setDate(1);
-    month.setHours(0, 0, 0, 0);
-    month.setMonth(month.getMonth() - (7 - index));
-    return month;
-  });
-  const subscribersByMonth = dashboardMonths.map((month) => {
-    const monthEnd = new Date(month.getFullYear(), month.getMonth() + 1, 0, 23, 59, 59, 999).getTime();
-    return studentUsers.filter((user) => {
-      const createdAt = Date.parse(user.created_at);
-      return Number.isFinite(createdAt) && createdAt <= monthEnd;
-    }).length;
-  });
-  const paymentsByMonth = dashboardMonths.map((month) => {
-    const monthStart = month.getTime();
-    const monthEnd = new Date(month.getFullYear(), month.getMonth() + 1, 0, 23, 59, 59, 999).getTime();
-    return pixPayments
-      .filter((payment) => {
-        const paidAt = Date.parse(payment.paidAt);
-        return payment.status === 'approved' && Number.isFinite(paidAt) && paidAt >= monthStart && paidAt <= monthEnd;
-      })
-      .reduce((total, payment) => total + payment.amount, 0);
-  });
-  const subscriberChartMax = Math.max(1, ...subscribersByMonth);
-  const subscriberChartPoints = subscribersByMonth
-    .map((count, index) => `${(index / Math.max(1, subscribersByMonth.length - 1)) * 100},${88 - (count / subscriberChartMax) * 70}`)
-    .join(' ');
-  const paymentChartMax = Math.max(1, ...paymentsByMonth);
-  const recentStudents = [...studentUsers]
-    .filter((user) => Number.isFinite(Date.parse(user.created_at)))
-    .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
-    .slice(0, 5);
-  const pendingDashboardPayments = pixPayments
-    .filter((payment) => payment.status === 'pending')
-    .slice(0, 4);
-  const expiringStudents = studentUsers
-    .filter((user) => user.status === 'active' && user.data_expiracao && Date.parse(user.data_expiracao) >= Date.now())
-    .sort((a, b) => Date.parse(a.data_expiracao!) - Date.parse(b.data_expiracao!))
-    .slice(0, 4);
-  const activePaidShare = activeStudentsCount
-    ? Math.round((payingActiveStudentsCount / activeStudentsCount) * 100)
-    : 0;
-  const formatMoney = (value: number) =>
-    value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  const formatShortDate = (value?: string | null) => {
-    if (!value || !Number.isFinite(Date.parse(value))) return '—';
-    return new Date(value).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
-  };
     if (tipo === 'bia') {
       totalVal = gatewaySettings.subscriptionPrice || 20;
       desc = 'Referente à taxa de assinatura mensal do aplicativo Brazilian in Action (Acesso Completo)';
@@ -875,6 +929,18 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
         {/* Tab Navigation: Floating Individual Glassmorphism Pills */}
         <nav aria-label="Abas de Administração" className="w-full">
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setActiveTab('overview')}
+              className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer backdrop-blur-xl shadow-lg border active:scale-95 ${
+                activeTab === 'overview'
+                  ? 'bg-amber-500 text-black border-amber-400 font-black shadow-amber-500/30'
+                  : 'bg-neutral-900/80 hover:bg-neutral-800 text-white/80 hover:text-white border-white/15 hover:border-white/30'
+              }`}
+            >
+              <LayoutDashboard size={14} className={activeTab === 'overview' ? 'text-black' : 'text-cyan-300'} />
+              <span>Visão geral</span>
+            </button>
             {/* 1. Alunos */}
             <button
               type="button"
@@ -929,18 +995,6 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
               className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer backdrop-blur-xl shadow-lg border active:scale-95 ${
                 activeTab === 'revenue'
                   ? 'bg-amber-500 text-black border-amber-400 font-black shadow-amber-500/30'
-            <button
-              type="button"
-              onClick={() => setActiveTab('overview')}
-              className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer backdrop-blur-xl shadow-lg border active:scale-95 ${
-                activeTab === 'overview'
-                  ? 'bg-amber-500 text-black border-amber-400 font-black shadow-amber-500/30'
-                  : 'bg-neutral-900/80 hover:bg-neutral-800 text-white/80 hover:text-white border-white/15 hover:border-white/30'
-              }`}
-            >
-              <LayoutDashboard size={14} className={activeTab === 'overview' ? 'text-black' : 'text-cyan-300'} />
-              <span>Visão geral</span>
-            </button>
                   : 'bg-neutral-900/80 hover:bg-neutral-800 text-white/80 hover:text-white border-white/15 hover:border-white/30'
               }`}
             >
@@ -1009,78 +1063,24 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                 )}
               </button>
             )}
+            {isMainCeo && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('announcement')}
+                className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer backdrop-blur-xl shadow-lg border active:scale-95 ${
+                  activeTab === 'announcement'
+                    ? 'bg-amber-500 text-black border-amber-400 font-black shadow-amber-500/30'
+                    : 'bg-neutral-900/80 hover:bg-neutral-800 text-white/80 hover:text-white border-white/15 hover:border-white/30'
+                }`}
+              >
+                <Megaphone size={14} className={activeTab === 'announcement' ? 'text-black' : 'text-cyan-300'} />
+                <span>Heads-up</span>
+              </button>
+            )}
           </div>
         </nav>
       </div>
 
-      {/* TAB 1: GERENCIAMENTO DE ALUNOS & TELEMETRIA & ACCORDIONS */}
-      {activeTab === 'students' && (
-        <div className="space-y-6">
-          {/* Summary Metrics Bar */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="glass-card p-4 rounded-2xl border border-white/10">
-              <span className="text-[11px] text-white/50 uppercase font-mono">Total Cadastrados</span>
-              <div className="text-2xl font-black text-white mt-1">{users.length}</div>
-            </div>
-            <div className="glass-card p-4 rounded-2xl border border-emerald-500/30">
-              <span className="text-[11px] text-emerald-400 uppercase font-mono">Ativos (Pagos)</span>
-              <div className="text-2xl font-black text-emerald-400 mt-1">{activeStudentsCount}</div>
-            </div>
-            <div className="glass-card p-4 rounded-2xl border border-amber-500/30">
-              <span className="text-[11px] text-amber-400 uppercase font-mono">Pendentes (Pix)</span>
-              <div className="text-2xl font-black text-amber-400 mt-1">{pendingStudentsCount}</div>
-            </div>
-            <div className="glass-card p-4 rounded-2xl border border-red-500/30">
-              <span className="text-[11px] text-red-400 uppercase font-mono">Expirados</span>
-              <div className="text-2xl font-black text-red-400 mt-1">{expiredStudentsCount}</div>
-            </div>
-          </div>
-
-          {/* Search Bar */}
-          <div className="flex items-center justify-between gap-3 bg-neutral-900 border border-white/15 p-2 px-3 rounded-2xl backdrop-blur-md">
-            <div className="flex items-center gap-2 flex-1">
-              <Search size={16} className="text-white/40" />
-              <input
-                type="text"
-                placeholder="Buscar por e-mail, nome, estado ou cidade..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="bg-transparent text-white text-xs sm:text-sm outline-none w-full placeholder:text-white/30"
-              />
-            </div>
-            <button
-              onClick={loadData}
-              className="p-1.5 hover:bg-white/10 rounded-xl text-white/60 hover:text-white transition-all cursor-pointer"
-              title="Recarregar dados"
-            >
-              <RefreshCw size={15} />
-            </button>
-          </div>
-
-          {/* Collapsible Accordion Sections for Students */}
-          {(() => {
-            const activeList = filteredUsers.filter((u) => u.status === 'active');
-            const pendingList = filteredUsers.filter((u) => u.status === 'pending');
-            const expiredList = filteredUsers.filter((u) => u.status === 'expired');
-
-            const renderStudentCard = (student: UserProfile) => {
-              const perms: StudentPermissions = student.permissions || {
-                friends: true,
-                readclub: true,
-                board: true,
-                quiz: true,
-                biacompare: true,
-                conversation: true,
-                tradutor: true,
-                youtube: true,
-                practice: true,
-                stories: true
-              };
-
-              return (
-                <div
-                  key={student.id}
-                  className="glass-card p-3.5 sm:p-4 rounded-2xl border border-white/10 flex flex-col gap-3 transition-all hover:border-white/20 bg-neutral-900/60"
       {activeTab === 'overview' && (
         <section className="space-y-4" aria-label="Visão geral do Painel do CEO">
           <div className="flex flex-col gap-3 rounded-3xl border border-white/10 bg-slate-950/55 p-4 shadow-2xl backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:p-5">
@@ -1317,6 +1317,145 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
         </section>
       )}
 
+      {activeTab === 'announcement' && isMainCeo && (
+        <section className="glass-card space-y-5 rounded-3xl border border-cyan-300/20 p-5 sm:p-7">
+          <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="flex items-center gap-2 text-base font-bold text-white">
+                <Megaphone size={18} className="text-cyan-200" />
+                Heads-up dos assinantes
+              </h2>
+              <p className="mt-1 max-w-2xl text-xs leading-relaxed text-white/55">
+                Publique uma atualização curta. O aviso aparece abaixo do relógio na Home e pode ser recolhido pelos assinantes.
+              </p>
+            </div>
+            <label className="inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.04] px-3.5 text-xs font-semibold text-white/80">
+              <input
+                type="checkbox"
+                checked={announcementEnabled}
+                onChange={(event) => setAnnouncementEnabled(event.target.checked)}
+                className="h-4 w-4 accent-cyan-300"
+                disabled={isAnnouncementLoading || isAnnouncementSaving}
+              />
+              Aviso ativo
+            </label>
+          </header>
+
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(16rem,0.8fr)]">
+            <div className="space-y-2">
+              <label htmlFor="ceo-heads-up-message" className="text-[11px] font-bold uppercase text-white/55">
+                Mensagem
+              </label>
+              <textarea
+                id="ceo-heads-up-message"
+                value={announcementDraft}
+                onChange={(event) => setAnnouncementDraft(event.target.value.slice(0, 1000))}
+                maxLength={1000}
+                rows={5}
+                placeholder="Ex.: O Brazilian Friends recebeu uma atualização..."
+                disabled={isAnnouncementLoading || isAnnouncementSaving}
+                className="w-full resize-y rounded-xl border border-white/15 bg-black/25 p-3 text-sm leading-relaxed text-white outline-none transition-colors placeholder:text-white/30 focus:border-cyan-200/50 disabled:opacity-50"
+              />
+              <div className="flex items-center justify-between gap-3 text-[10px] text-white/40">
+                <span>{announcementEnabled ? 'O aviso será exibido aos assinantes.' : 'O aviso ficará oculto enquanto estiver desativado.'}</span>
+                <span className="shrink-0 tabular-nums">{announcementDraft.length}/1000</span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <span className="text-[11px] font-bold uppercase text-white/55">Prévia</span>
+              <div className="ceo-heads-up-preview">
+                <span className="ceo-heads-up-kicker"><Megaphone size={12} /> Heads-up</span>
+                <p>{announcementDraft.trim() || 'Sua atualização aparecerá aqui.'}</p>
+              </div>
+            </div>
+          </div>
+
+          <footer className="flex flex-col-reverse gap-3 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <p aria-live="polite" className={`min-h-4 text-xs ${announcementFeedback?.type === 'error' ? 'text-rose-300' : 'text-emerald-300'}`}>
+              {isAnnouncementLoading ? 'Carregando configuração…' : announcementFeedback?.text || ''}
+            </p>
+            <button
+              type="button"
+              onClick={() => void handleSaveAnnouncement()}
+              disabled={isAnnouncementLoading || isAnnouncementSaving}
+              className="inline-flex min-h-11 items-center justify-center gap-2 self-stretch rounded-xl border border-cyan-200/30 bg-cyan-100/10 px-4 text-xs font-bold text-cyan-50 transition-colors hover:bg-cyan-100/15 disabled:cursor-wait disabled:opacity-55 sm:self-auto"
+            >
+              <Check size={15} />
+              {isAnnouncementSaving ? 'Salvando…' : 'Salvar Heads-up'}
+            </button>
+          </footer>
+        </section>
+      )}
+
+      {/* TAB 1: GERENCIAMENTO DE ALUNOS & TELEMETRIA & ACCORDIONS */}
+      {activeTab === 'students' && (
+        <div className="space-y-6">
+          {/* Summary Metrics Bar */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="glass-card p-4 rounded-2xl border border-white/10">
+              <span className="text-[11px] text-white/50 uppercase font-mono">Total Cadastrados</span>
+              <div className="text-2xl font-black text-white mt-1">{users.length}</div>
+            </div>
+            <div className="glass-card p-4 rounded-2xl border border-emerald-500/30">
+              <span className="text-[11px] text-emerald-400 uppercase font-mono">Ativos (Pagos)</span>
+              <div className="text-2xl font-black text-emerald-400 mt-1">{activeStudentsCount}</div>
+            </div>
+            <div className="glass-card p-4 rounded-2xl border border-amber-500/30">
+              <span className="text-[11px] text-amber-400 uppercase font-mono">Pendentes (Pix)</span>
+              <div className="text-2xl font-black text-amber-400 mt-1">{pendingStudentsCount}</div>
+            </div>
+            <div className="glass-card p-4 rounded-2xl border border-red-500/30">
+              <span className="text-[11px] text-red-400 uppercase font-mono">Expirados</span>
+              <div className="text-2xl font-black text-red-400 mt-1">{expiredStudentsCount}</div>
+            </div>
+          </div>
+
+          {/* Search Bar */}
+          <div className="flex items-center justify-between gap-3 bg-neutral-900 border border-white/15 p-2 px-3 rounded-2xl backdrop-blur-md">
+            <div className="flex items-center gap-2 flex-1">
+              <Search size={16} className="text-white/40" />
+              <input
+                type="text"
+                placeholder="Buscar por e-mail, nome, estado ou cidade..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="bg-transparent text-white text-xs sm:text-sm outline-none w-full placeholder:text-white/30"
+              />
+            </div>
+            <button
+              onClick={loadData}
+              className="p-1.5 hover:bg-white/10 rounded-xl text-white/60 hover:text-white transition-all cursor-pointer"
+              title="Recarregar dados"
+            >
+              <RefreshCw size={15} />
+            </button>
+          </div>
+
+          {/* Collapsible Accordion Sections for Students */}
+          {(() => {
+            const activeList = filteredUsers.filter((u) => u.status === 'active');
+            const pendingList = filteredUsers.filter((u) => u.status === 'pending');
+            const expiredList = filteredUsers.filter((u) => u.status === 'expired');
+
+            const renderStudentCard = (student: UserProfile) => {
+              const perms: StudentPermissions = student.permissions || {
+                friends: true,
+                readclub: true,
+                board: true,
+                quiz: true,
+                biacompare: true,
+                conversation: true,
+                tradutor: true,
+                youtube: true,
+                practice: true,
+                stories: true
+              };
+
+              return (
+                <div
+                  key={student.id}
+                  className="glass-card p-3.5 sm:p-4 rounded-2xl border border-white/10 flex flex-col gap-3 transition-all hover:border-white/20 bg-neutral-900/60"
                 >
                   {/* Header Row: Info & Telemetry */}
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">

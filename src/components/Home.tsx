@@ -9,10 +9,13 @@ import {
   Book, 
   ArrowRight, 
   Layers, 
-  Sparkles 
+  Sparkles,
+  Megaphone,
+  X
 } from 'lucide-react';
-import { motion } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import { SocialLinksBar } from './SocialLinksBar';
+import { CEOAnnouncement, loadCEOAnnouncement } from '../utils/ceoAnnouncement';
 
 interface HomeProps {
   classes: ClassItem[];
@@ -37,8 +40,11 @@ export const Home: React.FC<HomeProps> = ({
 }) => {
   const [agendaMode, setAgendaMode] = useState<'semana' | 'hoje'>('semana');
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [headsUp, setHeadsUp] = useState<CEOAnnouncement | null>(null);
+  const [isHeadsUpExpanded, setIsHeadsUpExpanded] = useState(false);
 
   const isAdmin = propIsAdmin !== undefined ? propIsAdmin : currentUser?.role === 'admin';
+  const accountKey = currentUser?.auth_user_id || currentUser?.id || currentUser?.email || '';
 
   // Persistent user selected class ID on home page (admin only)
   const [selectedClassId, setSelectedClassId] = useState<string | null>(() => {
@@ -51,6 +57,98 @@ export const Home: React.FC<HomeProps> = ({
     }, 15000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (!accountKey) return;
+    let cancelled = false;
+
+    const refreshHeadsUp = async () => {
+      try {
+        const announcement = await loadCEOAnnouncement();
+        if (cancelled) return;
+        if (!announcement?.is_active || !announcement.message.trim()) {
+          setHeadsUp(null);
+          setIsHeadsUpExpanded(false);
+          return;
+        }
+
+        setHeadsUp(announcement);
+        let dismissedRevision: number | null = null;
+        try {
+          const saved = JSON.parse(localStorage.getItem(`bia_heads_up_${accountKey}`) || 'null');
+          if (saved?.dismissed === true) dismissedRevision = Number(saved.revision);
+        } catch {
+          dismissedRevision = null;
+        }
+        setIsHeadsUpExpanded(dismissedRevision !== announcement.revision);
+      } catch {
+        if (!cancelled) setHeadsUp(null);
+      }
+    };
+
+    void refreshHeadsUp();
+    const intervalId = window.setInterval(() => void refreshHeadsUp(), 60_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [accountKey]);
+
+  const collapseHeadsUp = () => {
+    if (headsUp && accountKey) {
+      localStorage.setItem(`bia_heads_up_${accountKey}`, JSON.stringify({
+        revision: headsUp.revision,
+        dismissed: true
+      }));
+    }
+    setIsHeadsUpExpanded(false);
+  };
+
+  const renderHeadsUp = () => {
+    if (!headsUp) return null;
+
+    return (
+      <div className="ceo-heads-up" aria-live="polite">
+        <AnimatePresence mode="wait" initial={false}>
+          {isHeadsUpExpanded ? (
+            <motion.section
+              key={`expanded-${headsUp.revision}`}
+              initial={{ opacity: 0, y: -5, height: 0 }}
+              animate={{ opacity: 1, y: 0, height: 'auto' }}
+              exit={{ opacity: 0, y: -4, height: 0 }}
+              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+              className="ceo-heads-up-card"
+              aria-label="Aviso da plataforma"
+            >
+              <div className="ceo-heads-up-card-header">
+                <span className="ceo-heads-up-kicker"><Megaphone size={12} /> Heads-up</span>
+                <button type="button" onClick={collapseHeadsUp} className="ceo-heads-up-close" aria-label="Recolher aviso" title="Recolher aviso">
+                  <X size={14} />
+                </button>
+              </div>
+              <p className="ceo-heads-up-message">{headsUp.message}</p>
+            </motion.section>
+          ) : (
+            <motion.button
+              key={`collapsed-${headsUp.revision}`}
+              type="button"
+              initial={{ opacity: 0, y: -3 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -3 }}
+              transition={{ duration: 0.16 }}
+              onClick={() => setIsHeadsUpExpanded(true)}
+              className="ceo-heads-up-collapsed"
+              aria-label="Reabrir aviso Heads-up"
+            >
+              <Megaphone size={12} />
+              <span>Heads-up</span>
+              <span className="ceo-heads-up-unread-dot" aria-hidden="true" />
+            </motion.button>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  };
 
   const handleSelectClass = (id: string) => {
     setSelectedClassId((prev) => {
@@ -157,6 +255,7 @@ export const Home: React.FC<HomeProps> = ({
         <div className="absolute top-4 right-5 sm:right-12 lg:right-28 z-10 flex justify-end items-center">
           <div className="flex flex-col gap-2">
             <Clock clock24h={clock24h} align="left" />
+            {renderHeadsUp()}
             <span className="text-xl sm:text-2xl font-semibold tracking-tight text-white text-right">{greeting}</span>
           </div>
         </div>
@@ -175,6 +274,7 @@ export const Home: React.FC<HomeProps> = ({
         <div className="absolute top-4 right-5 sm:right-12 lg:right-28 z-10 flex flex-col gap-2 items-end">
           <span className="text-xl sm:text-2xl font-semibold tracking-tight text-white">{greeting}</span>
           <Clock clock24h={clock24h} align="left" />
+          {renderHeadsUp()}
         </div>
         {renderSocialLinks()}
       </div>
@@ -189,8 +289,9 @@ export const Home: React.FC<HomeProps> = ({
       <div className="w-full flex flex-col md:flex-row md:items-center md:justify-between gap-6 md:gap-10 pt-2 pb-2 shrink-0">
         
         {/* THE CLOCK - LEFT ALIGNED AND SLEEK */}
-        <div className="flex justify-end items-center pr-5 sm:pr-12 lg:pr-28">
+        <div className="flex flex-col items-end pr-5 sm:pr-12 lg:pr-28">
           <Clock clock24h={clock24h} align="left" />
+          {renderHeadsUp()}
         </div>
 
         {/* PRÓXIMA TURMA/AULA - STRATEGICALLY PLACED ON THE RIGHT CORNER */}
