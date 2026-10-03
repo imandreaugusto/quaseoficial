@@ -4,7 +4,16 @@
 
 # Brazilian in Action
 
-Primeiro commit do projeto.
+Aplicativo React + Vite + TypeScript com API Node/Express, publicado em GitHub Pages e Render.
+
+## Publicacao automatica
+
+- Cada push em `main` executa `.github/workflows/deploy-pages.yml`: instala dependencias, verifica TypeScript, executa os testes e publica o frontend no GitHub Pages.
+- O `render.yaml` configura o servico `brazilian-in-action` para atualizar a API no Render depois que as verificacoes do commit passarem.
+- Para manter a publicacao automatica, o servico Render deve permanecer conectado ao repositorio `imandreaugusto/quaseoficial`, branch `main`, e o GitHub Pages deve continuar habilitado para o workflow.
+- As chaves do GitHub Actions ficam nos Secrets do repositorio; as credenciais da API ficam nas variaveis de ambiente do Render. Nunca versione arquivos `.env`.
+
+Se um deploy falhar, consulte a execucao mais recente na aba **Actions** do GitHub e os eventos do servico no Render antes de tentar novamente.
 
 # Run and deploy your AI Studio app
 

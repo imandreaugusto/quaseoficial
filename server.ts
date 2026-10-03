@@ -178,7 +178,7 @@ async function startServer() {
     };
   };
 
-  const getGoogleProfileByAuthId = async (authUserId: string) => {
+  const getAuthenticatedProfileByAuthId = async (authUserId: string) => {
     const response = await supabaseServiceRequest(
       `profiles?auth_user_id=eq.${encodeURIComponent(authUserId)}&select=id,auth_user_id,email,full_name,photo_url,role,status,data_expiracao,permissions,ip_country,ip_region,ip_city,location_consent&limit=1`
     );
@@ -242,7 +242,7 @@ async function startServer() {
       res.setHeader('Access-Control-Allow-Origin', origin);
       res.setHeader('Vary', 'Origin');
       res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
     }
     if (req.method === 'OPTIONS') {
       return res.sendStatus(204);
@@ -269,76 +269,6 @@ async function startServer() {
     });
   });
 
-  app.get('/api/announcements/active', async (req, res) => {
-    try {
-      const authUser = await getSupabaseUserFromRequest(req);
-      if (!authUser?.id || !authUser.email_confirmed_at) {
-        return res.status(401).json({ error: 'Conecte sua conta Google para ver os avisos.' });
-      }
-      if (isRateLimited(`announcement-read:${authUser.id}`, 30, 60_000)) {
-        return res.status(429).json({ error: 'Muitas consultas de avisos. Aguarde um momento.' });
-      }
-
-      const response = await supabaseServiceRequest(
-        'ceo_announcements?id=eq.1&select=id,message,is_active,revision,updated_at&limit=1'
-      );
-      if (!response.ok) {
-        console.error('CEO announcement read failed:', response.status, await response.text());
-        return res.status(502).json({ error: 'Não foi possível carregar o aviso.' });
-      }
-      const rows = await response.json() as Record<string, unknown>[];
-      return res.json({ announcement: rows[0] || null });
-    } catch (error: any) {
-      console.error('CEO announcement read failed:', error.message);
-      return res.status(500).json({ error: 'Falha ao carregar o aviso.' });
-    }
-  });
-
-  app.post('/api/admin/announcement', async (req, res) => {
-    try {
-      const authUser = await getSupabaseUserFromRequest(req);
-      if (!authUser?.id || !authUser.email_confirmed_at) return res.status(401).json({ error: 'Sessão inválida.' });
-      if (normalizeEmail(authUser.email) !== CEO_EMAIL) return res.status(403).json({ error: 'Somente André Augusto pode publicar avisos.' });
-      if (isRateLimited(`announcement-save:${authUser.id}`, 10, 60_000)) {
-        return res.status(429).json({ error: 'Muitas alterações de aviso. Aguarde um momento.' });
-      }
-
-      const message = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
-      const isActive = req.body?.isActive === true;
-      if (message.length > 1000 || (isActive && !message)) {
-        return res.status(400).json({ error: 'Escreva um aviso de até 1.000 caracteres antes de ativá-lo.' });
-      }
-
-      const currentResponse = await supabaseServiceRequest(
-        'ceo_announcements?id=eq.1&select=revision&limit=1'
-      );
-      if (!currentResponse.ok) return res.status(502).json({ error: 'Não foi possível ler a revisão atual do aviso.' });
-      const currentRows = await currentResponse.json() as { revision?: number }[];
-      const revision = (Number(currentRows[0]?.revision) || 0) + 1;
-      const response = await supabaseServiceRequest('ceo_announcements?on_conflict=id', {
-        method: 'POST',
-        headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
-        body: JSON.stringify({
-          id: 1,
-          message,
-          is_active: isActive,
-          revision,
-          updated_at: new Date().toISOString(),
-          updated_by: CEO_EMAIL
-        })
-      });
-      if (!response.ok) {
-        console.error('CEO announcement save failed:', response.status, await response.text());
-        return res.status(502).json({ error: 'Não foi possível salvar o aviso.' });
-      }
-      const rows = await response.json() as Record<string, unknown>[];
-      return res.json({ announcement: rows[0] || null });
-    } catch (error: any) {
-      console.error('CEO announcement save failed:', error.message);
-      return res.status(500).json({ error: 'Falha ao salvar o aviso.' });
-    }
-  });
-
   app.get('/api/public-config', (_req, res) => {
     const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
     const anonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
@@ -350,25 +280,29 @@ async function startServer() {
     });
   });
 
-  app.post('/api/auth/google/profile', async (req, res) => {
+  const registerAuthenticatedProfile = async (req: express.Request, res: express.Response) => {
     try {
       const authUser = await getSupabaseUserFromRequest(req);
       const email = normalizeEmail(authUser?.email);
       if (!authUser?.id || !email || !authUser.email_confirmed_at) {
-        return res.status(401).json({ error: 'Sessão inválida ou e-mail não confirmado.' });
+        return res.status(401).json({ error: 'Confirme seu e-mail e entre novamente para concluir o cadastro.' });
       }
-      if (isRateLimited(`google-profile:${authUser.id}`, 10, 60_000)) {
+      if (isRateLimited(`auth-profile:${authUser.id}`, 10, 60_000)) {
         return res.status(429).json({ error: 'Muitas tentativas. Aguarde e tente novamente.' });
       }
 
       const metadata = authUser.user_metadata || {};
       const locationConsent = req.body?.locationConsent === true;
+      const submittedName = typeof req.body?.fullName === 'string' ? req.body.fullName.trim() : '';
+      const metadataName = typeof metadata.full_name === 'string'
+        ? metadata.full_name
+        : typeof metadata.name === 'string' ? metadata.name : '';
       const profileResponse = await supabaseServiceRequest('rpc/register_google_profile', {
         method: 'POST',
         body: JSON.stringify({
           p_id: authUser.id,
           p_email: email,
-          p_full_name: metadata.full_name || metadata.name || email.split('@')[0],
+          p_full_name: submittedName || metadataName || null,
           p_photo_url: metadata.avatar_url || metadata.picture || null,
           p_location_consent: locationConsent,
           p_ip_country: locationConsent ? req.body?.ip_country || null : null,
@@ -378,7 +312,7 @@ async function startServer() {
       });
       if (!profileResponse.ok) {
         const details = await profileResponse.text();
-        console.error('Google profile registration failed:', profileResponse.status, details);
+        console.error('Authenticated profile registration failed:', profileResponse.status, details);
         return res.status(502).json({ error: 'Não foi possível salvar seu perfil no Supabase.' });
       }
 
@@ -387,36 +321,159 @@ async function startServer() {
       if (!profile) return res.status(502).json({ error: 'Supabase não retornou o perfil criado.' });
       return res.status(200).json({ profile });
     } catch (error: any) {
-      console.error('Google profile registration failed:', error.message);
-      return res.status(500).json({ error: 'Falha ao registrar o perfil Google.' });
+      console.error('Authenticated profile registration failed:', error.message);
+      return res.status(500).json({ error: 'Falha ao registrar o perfil da conta.' });
+    }
+  };
+  app.post('/api/auth/profile', registerAuthenticatedProfile);
+  app.post('/api/auth/google/profile', registerAuthenticatedProfile);
+
+  app.get('/api/trial-coupons/:code', async (req, res) => {
+    try {
+      const code = typeof req.params.code === 'string' ? req.params.code.trim().toUpperCase() : '';
+      if (!/^[A-Z0-9-]{4,100}$/.test(code)) return res.status(400).json({ error: 'Cupom inválido.' });
+      if (isRateLimited(`trial-coupon-check:${req.ip}`, 30, 60_000)) {
+        return res.status(429).json({ error: 'Muitas tentativas de validação. Aguarde um minuto.' });
+      }
+
+      const response = await supabaseServiceRequest('rpc/check_trial_coupon', {
+        method: 'POST',
+        body: JSON.stringify({ requested_code: code })
+      });
+      if (!response.ok) {
+        console.error('Trial coupon lookup failed:', response.status, await response.text());
+        return res.status(502).json({ error: 'Não foi possível validar o cupom no servidor.' });
+      }
+      const result = await response.json() as { ok?: boolean; coupon?: Record<string, unknown> };
+      if (!result.ok || !result.coupon) return res.status(404).json({ error: 'Cupom inválido, expirado ou já utilizado.' });
+      return res.status(200).json({ coupon: result.coupon });
+    } catch (error: any) {
+      console.error('Trial coupon lookup failed:', error.message);
+      return res.status(500).json({ error: 'Falha ao validar o cupom.' });
     }
   });
 
-  app.post('/api/auth/google/redeem-coupon', async (req, res) => {
+  const redeemAuthenticatedCoupon = async (req: express.Request, res: express.Response) => {
     try {
       const authUser = await getSupabaseUserFromRequest(req);
       const email = normalizeEmail(authUser?.email);
       const code = typeof req.body?.code === 'string' ? req.body.code.trim().toUpperCase() : '';
       if (!authUser?.id || !email || !authUser.email_confirmed_at) {
-        return res.status(401).json({ error: 'Sessão Google inválida.' });
+        return res.status(401).json({ error: 'Confirme seu e-mail e entre novamente para resgatar o cupom.' });
       }
-      if (isRateLimited(`google-coupon:${authUser.id}`, 8, 60_000)) {
+      if (isRateLimited(`auth-coupon:${authUser.id}`, 8, 60_000)) {
         return res.status(429).json({ error: 'Muitas tentativas de cupom. Aguarde e tente novamente.' });
       }
-      if (!code || code.length > 100) return res.status(400).json({ error: 'Cupom inválido.' });
+      if (!/^[A-Z0-9-]{4,100}$/.test(code)) return res.status(400).json({ error: 'Cupom inválido.' });
 
       const response = await supabaseServiceRequest('rpc/redeem_google_trial_coupon', {
         method: 'POST',
         body: JSON.stringify({ p_code: code, p_email: email, p_user_id: authUser.id })
       });
       if (!response.ok) {
-        console.error('Google coupon redemption failed:', response.status, await response.text());
-        return res.status(502).json({ error: 'Não foi possível validar o cupom no servidor.' });
+        console.error('Authenticated coupon redemption failed:', response.status, await response.text());
+        return res.status(502).json({ error: 'Não foi possível resgatar o cupom no servidor.' });
       }
       return res.status(200).json(await response.json());
     } catch (error: any) {
-      console.error('Google coupon redemption failed:', error.message);
+      console.error('Authenticated coupon redemption failed:', error.message);
       return res.status(500).json({ error: 'Falha ao resgatar o cupom.' });
+    }
+  };
+  app.post('/api/auth/redeem-coupon', redeemAuthenticatedCoupon);
+  app.post('/api/auth/google/redeem-coupon', redeemAuthenticatedCoupon);
+
+  const getVerifiedCeo = async (req: express.Request) => {
+    const authUser = await getSupabaseUserFromRequest(req);
+    if (!authUser?.id || !authUser.email_confirmed_at || normalizeEmail(authUser.email) !== CEO_EMAIL) return null;
+    return authUser;
+  };
+
+  app.get('/api/admin/trial-coupons', async (req, res) => {
+    try {
+      const authUser = await getVerifiedCeo(req);
+      if (!authUser) return res.status(403).json({ error: 'Somente a conta CEO pode gerenciar cupons.' });
+      const response = await supabaseServiceRequest(
+        'bia_trial_coupons?select=id,code,days,is_used,used_by_email,used_at,expires_at,notes,created_at&order=created_at.desc'
+      );
+      if (!response.ok) {
+        console.error('Admin trial coupon list failed:', response.status, await response.text());
+        return res.status(502).json({ error: 'Não foi possível carregar os cupons compartilhados.' });
+      }
+      return res.json({ coupons: await response.json() });
+    } catch (error: any) {
+      console.error('Admin trial coupon list failed:', error.message);
+      return res.status(500).json({ error: 'Falha ao carregar os cupons.' });
+    }
+  });
+
+  app.post('/api/admin/trial-coupons', async (req, res) => {
+    try {
+      const authUser = await getVerifiedCeo(req);
+      if (!authUser) return res.status(403).json({ error: 'Somente a conta CEO pode gerenciar cupons.' });
+      if (isRateLimited(`admin-coupons:${authUser.id}`, 30, 60_000)) {
+        return res.status(429).json({ error: 'Muitos cupons criados. Aguarde um momento.' });
+      }
+      const code = typeof req.body?.code === 'string' ? req.body.code.trim().toUpperCase() : '';
+      const days = Number(req.body?.days);
+      const id = typeof req.body?.id === 'string' && /^[a-zA-Z0-9_-]{1,100}$/.test(req.body.id)
+        ? req.body.id
+        : `coupon_${randomUUID()}`;
+      const notes = typeof req.body?.notes === 'string' ? req.body.notes.trim().slice(0, 200) : null;
+      const expiresAt = req.body?.expires_at == null ? null : String(req.body.expires_at);
+      if (!/^[A-Z0-9-]{4,100}$/.test(code) || !Number.isInteger(days) || days < 1 || days > 365) {
+        return res.status(400).json({ error: 'Código ou duração do cupom inválido.' });
+      }
+      if (expiresAt && !Number.isFinite(Date.parse(expiresAt))) {
+        return res.status(400).json({ error: 'Data de expiração inválida.' });
+      }
+
+      const response = await supabaseServiceRequest('bia_trial_coupons', {
+        method: 'POST',
+        headers: { Prefer: 'return=representation' },
+        body: JSON.stringify({
+          id,
+          code,
+          days,
+          is_used: false,
+          notes,
+          expires_at: expiresAt
+        })
+      });
+      if (response.status === 409) return res.status(409).json({ error: 'Este código de cupom já existe.' });
+      if (!response.ok) {
+        console.error('Admin trial coupon creation failed:', response.status, await response.text());
+        return res.status(502).json({ error: 'Não foi possível salvar o cupom compartilhado.' });
+      }
+      const coupons = await response.json() as Record<string, unknown>[];
+      return res.status(201).json({ coupon: coupons[0] });
+    } catch (error: any) {
+      console.error('Admin trial coupon creation failed:', error.message);
+      return res.status(500).json({ error: 'Falha ao criar o cupom.' });
+    }
+  });
+
+  app.delete('/api/admin/trial-coupons/:id', async (req, res) => {
+    try {
+      const authUser = await getVerifiedCeo(req);
+      if (!authUser) return res.status(403).json({ error: 'Somente a conta CEO pode gerenciar cupons.' });
+      const id = req.params.id;
+      if (!/^[a-zA-Z0-9_-]{1,100}$/.test(id)) return res.status(400).json({ error: 'Identificador de cupom inválido.' });
+
+      const response = await supabaseServiceRequest(
+        `bia_trial_coupons?id=eq.${encodeURIComponent(id)}&is_used=eq.false`,
+        { method: 'DELETE', headers: { Prefer: 'return=representation' } }
+      );
+      if (!response.ok) {
+        console.error('Admin trial coupon deletion failed:', response.status, await response.text());
+        return res.status(502).json({ error: 'Não foi possível excluir o cupom.' });
+      }
+      const deletedCoupons = await response.json() as unknown[];
+      if (deletedCoupons.length === 0) return res.status(404).json({ error: 'Cupom não encontrado ou já utilizado.' });
+      return res.json({ ok: true });
+    } catch (error: any) {
+      console.error('Admin trial coupon deletion failed:', error.message);
+      return res.status(500).json({ error: 'Falha ao excluir o cupom.' });
     }
   });
 
@@ -716,7 +773,7 @@ async function startServer() {
         return res.status(400).json({ error: 'Pontuação fora do limite permitido.' });
       }
 
-      const profile = await getGoogleProfileByAuthId(authUser.id);
+      const profile = await getAuthenticatedProfileByAuthId(authUser.id);
       if (!isEligibleForBrazilianGames(profile)) {
         return res.status(403).json({ error: 'Perfil sem acesso ao ranking semanal.' });
       }
@@ -759,7 +816,7 @@ async function startServer() {
         return res.status(429).json({ error: 'Muitas consultas ao ranking. Aguarde um minuto.' });
       }
 
-      const profile = await getGoogleProfileByAuthId(authUser.id);
+      const profile = await getAuthenticatedProfileByAuthId(authUser.id);
       if (!isEligibleForBrazilianGames(profile)) {
         return res.status(403).json({ error: 'Perfil sem acesso ao ranking semanal.' });
       }
@@ -781,21 +838,21 @@ async function startServer() {
     }
   });
 
-  // Pix is created only for the authenticated Google profile and at the server price.
+  // Pix is created only for a verified Supabase profile and at the server price.
   app.post('/api/payments/create-pix', async (req, res) => {
     try {
       const authUser = await getSupabaseUserFromRequest(req);
       const email = normalizeEmail(authUser?.email);
       if (!authUser?.id || !email || !authUser.email_confirmed_at) {
-        return res.status(401).json({ error: 'Entre com o Google antes de criar uma cobrança.' });
+        return res.status(401).json({ error: 'Confirme seu e-mail e entre antes de criar uma cobrança.' });
       }
       if (isRateLimited(`pix-create:${authUser.id}`, 5, 60_000)) {
         return res.status(429).json({ error: 'Muitas cobranças solicitadas. Aguarde um minuto.' });
       }
 
-      const profile = await getGoogleProfileByAuthId(authUser.id);
+      const profile = await getAuthenticatedProfileByAuthId(authUser.id);
       if (!profile || normalizeEmail(profile.email) !== email) {
-        return res.status(403).json({ error: 'Perfil Google não encontrado para esta sessão.' });
+        return res.status(403).json({ error: 'Perfil da conta não encontrado para esta sessão. Saia e entre novamente.' });
       }
 
       const abatePayToken = process.env.ABACATEPAY_API_KEY || process.env.ABATEPAY_TOKEN;
@@ -877,7 +934,7 @@ async function startServer() {
     try {
       const authUser = await getSupabaseUserFromRequest(req);
       const email = normalizeEmail(authUser?.email);
-      if (!authUser?.id || !email) return res.status(401).json({ error: 'Sessão Google inválida.' });
+      if (!authUser?.id || !email) return res.status(401).json({ error: 'Sessão inválida.' });
       if (isRateLimited(`pix-status:${authUser.id}`, 30, 60_000)) {
         return res.status(429).json({ error: 'Muitas consultas de pagamento. Aguarde alguns segundos.' });
       }

@@ -33,6 +33,15 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
+      - name: Verificar TypeScript
+        run: npm run lint
+
+      - name: Testar seguranca de pagamentos
+        run: npm run test:security
+
+      - name: Testar jogos
+        run: npm run test:games
+
       - name: Gerar site
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { UserProfile, TrialCoupon } from '../types';
+import { UserProfile } from '../types';
 import { useGatewaySettings } from '../hooks/useGatewaySettings';
 import { 
   CEO_EMAIL,
@@ -25,7 +25,7 @@ import { BrazilianLogo } from './BrazilianLogo';
 import { SubscriptionInfoModal } from './SubscriptionInfoModal';
 import { Clock } from './Clock';
 import { SocialLinksBar } from './SocialLinksBar';
-import { findUserProfileByEmail, syncUserProfileToSupabase, fetchCouponFromSupabase, redeemCouponInSupabase, getSupabaseConfig, getSupabaseClient, signInWithGoogle, registerGoogleProfile } from '../utils/supabaseClient';
+import { fetchCouponFromSupabase, redeemAuthenticatedTrialCoupon, getSupabaseConfig, getSupabaseClient, signInWithGoogle, registerAuthenticatedProfile } from '../utils/supabaseClient';
 import { SiteLegalFooter } from './SiteLegalFooter';
 
 // Location is approximate IP-derived data and is only fetched after consent.
@@ -69,7 +69,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     status: 'idle' | 'valid' | 'used' | 'invalid';
     days: number;
     message: string;
-    couponObj?: TrialCoupon;
   }>({ status: 'idle', days: 5, message: '' });
 
   const [loading, setLoading] = useState(false);
@@ -77,50 +76,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [successMsg, setSuccessMsg] = useState('');
   const [, setEggCounter] = useState(0);
   const [isTourOpen, setIsTourOpen] = useState(false);
+  const couponCheckRequestRef = useRef(0);
+  const couponValidationTimerRef = useRef<number | null>(null);
+  const completedAuthUserIdsRef = useRef(new Set<string>());
+  const pendingAuthCompletionsRef = useRef(new Map<string, Promise<void>>());
+  const completeAuthenticatedSignInRef = useRef<
+    (sessionUser: { id: string; email?: string; user_metadata?: Record<string, unknown> }) => Promise<void>
+  >(async () => undefined);
 
   // Easter Egg Tracker: 17 rapid clicks in 3 seconds
   const clickTimestamps = useRef<number[]>([]);
-
-  // Function to get or initialize coupons list
-  const getStoredCoupons = (): TrialCoupon[] => {
-    try {
-      const stored = localStorage.getItem('bia_trial_coupons');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch (e) {}
-
-    // Default Seed Coupons if empty
-    const defaultCoupons: TrialCoupon[] = [
-      {
-        id: 'coupon_default_1',
-        code: 'BIA-5DIAS',
-        days: 5,
-        createdAt: new Date().toISOString(),
-        isUsed: false,
-        notes: 'Cupom Padrão de 5 Dias Grátis'
-      },
-      {
-        id: 'coupon_default_2',
-        code: 'DEGUSTA5',
-        days: 5,
-        createdAt: new Date().toISOString(),
-        isUsed: false,
-        notes: 'Degustação 5 Dias de Acesso'
-      },
-      {
-        id: 'coupon_default_3',
-        code: 'BRAZILIAN5',
-        days: 5,
-        createdAt: new Date().toISOString(),
-        isUsed: false,
-        notes: 'Cupom Promocional Brazilian 5 Dias'
-      }
-    ];
-    localStorage.setItem('bia_trial_coupons', JSON.stringify(defaultCoupons));
-    return defaultCoupons;
-  };
 
   // Check URL promo parameter on component mount
   useEffect(() => {
@@ -136,63 +101,114 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     } catch (e) {}
   }, []);
 
-  // Completes login after Supabase reports an authenticated session.
+  // Creates the app profile after Supabase confirms the authenticated identity.
   useEffect(() => {
     const client = getSupabaseClient();
     if (!client) return;
 
-    const completeAuthenticatedSignIn = async (sessionUser: { id: string; email?: string; user_metadata?: Record<string, any> }) => {
-      if (!sessionUser.email) return;
+    const completeAuthenticatedSignIn = (sessionUser: { id: string; email?: string; user_metadata?: Record<string, unknown> }) => {
+      if (!sessionUser.email || completedAuthUserIdsRef.current.has(sessionUser.id)) return Promise.resolve();
+      const pendingCompletion = pendingAuthCompletionsRef.current.get(sessionUser.id);
+      if (pendingCompletion) return pendingCompletion;
 
-      setLoading(true);
-      setErrorMsg('');
-      try {
-        const savedConsent = localStorage.getItem('bia_google_location_consent') === 'true';
-        localStorage.removeItem('bia_google_location_consent');
-        const geo = savedConsent ? await fetchIpGeolocation() : undefined;
-        const profile = await registerGoogleProfile(savedConsent, geo);
-        const storedUsersRaw = localStorage.getItem('bia_users_database');
-        let usersList: UserProfile[] = storedUsersRaw ? JSON.parse(storedUsersRaw) : [];
-        const existingIndex = usersList.findIndex((user) => user.email.toLowerCase() === profile.email.toLowerCase());
-        const existingUser = {
-          ...(existingIndex >= 0 ? usersList[existingIndex] : {}),
-          ...profile,
-          password: existingIndex >= 0 ? usersList[existingIndex].password : undefined
-        } as UserProfile;
-        if (existingIndex >= 0) usersList[existingIndex] = existingUser;
-        else usersList.push(existingUser);
+      const completion = (async () => {
+        setLoading(true);
+        setErrorMsg('');
+        try {
+          const savedConsent = localStorage.getItem('bia_google_location_consent') === 'true';
+          localStorage.removeItem('bia_google_location_consent');
+          const geo = savedConsent ? await fetchIpGeolocation() : undefined;
+          const profile = await registerAuthenticatedProfile(savedConsent, geo);
+          const storedUsersRaw = localStorage.getItem('bia_users_database');
+          const usersList: UserProfile[] = storedUsersRaw ? JSON.parse(storedUsersRaw) : [];
+          const existingIndex = usersList.findIndex((user) => user.email.toLowerCase() === profile.email.toLowerCase());
+          const existingUser: UserProfile = {
+            ...(existingIndex >= 0 ? usersList[existingIndex] : {}),
+            ...profile,
+            password: undefined
+          } as UserProfile;
+          delete existingUser.onboarding_notice;
 
-        localStorage.setItem('bia_users_database', JSON.stringify(usersList));
-        localStorage.setItem('bia_current_user', JSON.stringify(existingUser));
+          let pendingCoupon: { code?: string; email?: string } = {};
+          try {
+            pendingCoupon = JSON.parse(localStorage.getItem('bia_pending_trial_coupon') || '{}');
+          } catch {
+            pendingCoupon = {};
+          }
+          if (
+            pendingCoupon.code &&
+            (!pendingCoupon.email || pendingCoupon.email.trim().toLowerCase() === profile.email.toLowerCase())
+          ) {
+            try {
+              const redemption = await redeemAuthenticatedTrialCoupon(pendingCoupon.code);
+              if (redemption.ok) {
+                localStorage.removeItem('bia_pending_trial_coupon');
+              } else {
+                existingUser.onboarding_notice = 'O cupom não pôde ser aplicado (inválido, expirado ou já utilizado). Você ainda pode continuar para o pagamento.';
+                localStorage.removeItem('bia_pending_trial_coupon');
+              }
+            } catch (couponError) {
+              console.error('Trial coupon redemption failed after account registration:', couponError);
+              existingUser.onboarding_notice = 'Não foi possível aplicar o cupom agora. Você ainda pode continuar para o pagamento.';
+            }
+          }
 
-        setSuccessMsg(`Bem-vindo, ${existingUser.full_name || existingUser.email}.`);
-        onAuthSuccess(existingUser);
-      } catch (err: any) {
-        localStorage.removeItem('bia_google_location_consent');
-        setErrorMsg(err.message || 'Falha ao concluir o login com Google.');
-      } finally {
-        setLoading(false);
-      }
+          if (existingIndex >= 0) usersList[existingIndex] = existingUser;
+          else usersList.push(existingUser);
+          localStorage.setItem('bia_users_database', JSON.stringify(usersList));
+          localStorage.setItem('bia_current_user', JSON.stringify(existingUser));
+
+          completedAuthUserIdsRef.current.add(sessionUser.id);
+          setSuccessMsg(`Bem-vindo, ${existingUser.full_name || existingUser.email}.`);
+          onAuthSuccess(existingUser);
+        } catch (err: any) {
+          localStorage.removeItem('bia_google_location_consent');
+          setErrorMsg(err.message || 'Não foi possível concluir o cadastro/login. Tente novamente.');
+        } finally {
+          setLoading(false);
+        }
+      })();
+
+      pendingAuthCompletionsRef.current.set(sessionUser.id, completion);
+      void completion.finally(() => pendingAuthCompletionsRef.current.delete(sessionUser.id));
+      return completion;
     };
+    completeAuthenticatedSignInRef.current = completeAuthenticatedSignIn;
 
-    client.auth.getSession().then(({ data }) => {
+    void client.auth.getSession().then(({ data }) => {
       if (data.session?.user) void completeAuthenticatedSignIn(data.session.user);
+    }).catch((error) => {
+      console.error('Could not restore Supabase authentication session:', error);
+      setErrorMsg('Não foi possível verificar sua sessão. Atualize a página e tente novamente.');
     });
 
     const { data: authListener } = client.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') completedAuthUserIdsRef.current.clear();
       if (event === 'SIGNED_IN' && session?.user) void completeAuthenticatedSignIn(session.user);
     });
 
     return () => authListener.subscription.unsubscribe();
   }, []);
 
-  // Redirects to Google via Supabase OAuth; completeGoogleSignIn (above) picks up the result on return.
+  // Supabase returns to this app after Google OAuth and the auth listener completes the profile.
   const handleGoogleSignIn = async () => {
     setErrorMsg('');
+    if (isSignUp && couponCode.trim() && couponState.status !== 'valid') {
+      setErrorMsg('Aguarde a validação do cupom ou remova o código antes de continuar.');
+      return;
+    }
+    setLoading(true);
     localStorage.setItem('bia_google_location_consent', String(locationConsent));
+    if (isSignUp && couponState.status === 'valid') {
+      localStorage.setItem('bia_pending_trial_coupon', JSON.stringify({ code: couponCode.trim().toUpperCase() }));
+    } else {
+      localStorage.removeItem('bia_pending_trial_coupon');
+    }
     const result = await signInWithGoogle();
     if (!result.ok) {
+      setLoading(false);
       localStorage.removeItem('bia_google_location_consent');
+      localStorage.removeItem('bia_pending_trial_coupon');
       setErrorMsg(
         result.reason === 'offline'
           ? 'Login com Google indisponível no momento.'
@@ -203,16 +219,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   // Validates a coupon against the shared database first (so a code that was
   // already redeemed on another device/browser is correctly rejected here too).
-  // Local coupons are only allowed when Supabase is not configured at all.
   const checkCouponValidity = async (rawCode: string) => {
+    const requestId = ++couponCheckRequestRef.current;
     const clean = rawCode.trim().toUpperCase();
     if (!clean) {
       setCouponState({ status: 'idle', days: 5, message: '' });
       return;
     }
 
-    const { url: supabaseUrl, anonKey: supabaseAnonKey } = getSupabaseConfig();
-    const remoteCoupon = await fetchCouponFromSupabase(clean);
+    let remoteCoupon;
+    try {
+      remoteCoupon = await fetchCouponFromSupabase(clean);
+    } catch (error) {
+      if (requestId !== couponCheckRequestRef.current) return;
+      console.error('Trial coupon validation request failed:', error);
+      setCouponState({ status: 'invalid', days: 5, message: 'Não foi possível validar o cupom agora. Tente novamente.' });
+      return;
+    }
+    if (requestId !== couponCheckRequestRef.current) return;
     if (remoteCoupon) {
       if (remoteCoupon.expires_at && new Date(remoteCoupon.expires_at).getTime() <= Date.now()) {
         setCouponState({ status: 'invalid', days: 5, message: 'Este cupom expirou.' });
@@ -235,42 +259,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
-    if (supabaseUrl && supabaseAnonKey) {
-      setCouponState({ status: 'invalid', days: 5, message: 'Não foi possível validar o cupom no servidor.' });
-      return;
-    }
-
-    try {
-      const couponsList = getStoredCoupons();
-      const found = couponsList.find((c) => c.code.toUpperCase() === clean);
-
-      if (!found) {
-        setCouponState({
-          status: 'invalid',
-          days: 5,
-          message: 'Código de cupom não encontrado ou inválido.'
-        });
-        return;
-      }
-
-      if (found.isUsed) {
-        setCouponState({
-          status: 'used',
-          days: 5,
-          message: 'Este cupom de uso único já foi resgatado e não pode ser reutilizado.'
-        });
-        return;
-      }
-
-      setCouponState({
-        status: 'valid',
-        days: found.days || 5,
-        message: `Cupom Válido: ${found.days || 5} Dias de Degustação Gratuita liberados!`,
-        couponObj: found
-      });
-    } catch (e) {
-      setCouponState({ status: 'invalid', days: 5, message: 'Erro ao validar cupom.' });
-    }
+    setCouponState({
+      status: 'invalid',
+      days: 5,
+      message: 'Cupom não encontrado, expirado ou já utilizado.'
+    });
   };
 
   // 17 clicks Easter Egg Trigger
@@ -309,7 +302,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setErrorMsg('');
     setSuccessMsg('');
 
-    if (!isAdminMode && !isSignUp) {
+    if (isAdminMode) {
+      await handleGoogleSignIn();
+      return;
+    }
+
+    if (!isSignUp) {
       setLoading(true);
       try {
         const cleanEmail = email.trim().toLowerCase();
@@ -342,145 +340,53 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
-    if (!isAdminMode) {
-      setLoading(true);
-      localStorage.setItem('bia_google_location_consent', String(locationConsent));
-      const googleResult = await signInWithGoogle();
-      if (!googleResult.ok) {
-        localStorage.removeItem('bia_google_location_consent');
-        setErrorMsg(googleResult.reason === 'offline'
-          ? 'Login com Google indisponível no momento.'
-          : googleResult.message || 'Não foi possível iniciar o login com Google.');
-      }
-      setLoading(false);
-      return;
-    }
-
-    if (isAdminMode) {
-      await handleGoogleSignIn();
-      return;
-    }
-
     setLoading(true);
-
     try {
       const cleanEmail = email.trim().toLowerCase();
-
-      // Basic email validation
       if (!isValidEmailFormat(cleanEmail)) {
         throw new Error('Por favor, informe um endereço de e-mail válido (ex: seu.nome@gmail.com).');
       }
-
-      if (isAdminMode && isSignUp) {
-        throw new Error('O modo CEO não cria contas de estudante.');
+      if (!fullName.trim()) throw new Error('Informe seu nome completo para criar a conta.');
+      if (password.length < 6) throw new Error('A senha deve conter no mínimo 6 caracteres.');
+      if (couponCode.trim() && couponState.status !== 'valid') {
+        throw new Error('Aguarde a validação do cupom ou remova o código antes de continuar.');
+      }
+      if (cleanEmail === CEO_EMAIL) {
+        throw new Error('A conta CEO usa somente o botão "Entrar com Google".');
       }
 
-      const storedUsersRaw = localStorage.getItem('bia_users_database');
-      let usersList: UserProfile[] = storedUsersRaw ? JSON.parse(storedUsersRaw) : [];
+      const client = getSupabaseClient();
+      if (!client) throw new Error('Cadastro indisponível: não foi possível conectar ao Supabase.');
 
-      const geo = locationConsent
-        ? await fetchIpGeolocation()
-        : { country: '', regionName: '', city: '' };
+      localStorage.setItem('bia_google_location_consent', String(locationConsent));
+      if (couponState.status === 'valid') {
+        localStorage.setItem('bia_pending_trial_coupon', JSON.stringify({
+          code: couponCode.trim().toUpperCase(),
+          email: cleanEmail
+        }));
+      }
 
-      if (isSignUp) {
-        // Direct Student Signup (No email delivery roadblock)
-        const existing = usersList.find((u) => u.email.toLowerCase() === cleanEmail);
-        if (existing) {
-          throw new Error('Este e-mail já está cadastrado. Alterne para Entrar na sua Conta.');
+      const { data, error: signUpError } = await client.auth.signUp({
+        email: cleanEmail,
+        password,
+        options: {
+          data: { full_name: fullName.trim() },
+          emailRedirectTo: new URL(import.meta.env.BASE_URL, window.location.origin).toString()
         }
+      });
+      if (signUpError) {
+        localStorage.removeItem('bia_google_location_consent');
+        localStorage.removeItem('bia_pending_trial_coupon');
+        const message = signUpError.message.toLowerCase().includes('already registered')
+          ? 'Este e-mail já tem uma conta. Use “Entrar” ou escolha “Entrar com o Google”.'
+          : signUpError.message;
+        throw new Error(message);
+      }
 
-        if (password.length < 6) {
-          throw new Error('A senha deve conter no mínimo 6 caracteres.');
-        }
-
-        const isCouponActive = couponState.status === 'valid';
-        const trialDays = couponState.days || 5;
-
-        // Re-validate + atomically redeem right before creating the account, so a
-        // coupon cannot be double-spent by two signups racing each other.
-        let couponGranted = false;
-        let grantedDays = trialDays;
-        if (isCouponActive) {
-          const redeemResult = await redeemCouponInSupabase(couponCode, cleanEmail);
-          if (redeemResult.ok) {
-            couponGranted = true;
-            grantedDays = redeemResult.coupon?.days || trialDays;
-          } else if (redeemResult.reason === 'offline') {
-            // No Supabase configured: fall back to the local single-device list.
-            try {
-              const rawCoupons = localStorage.getItem('bia_trial_coupons');
-              const parsed: TrialCoupon[] = rawCoupons ? JSON.parse(rawCoupons) : [];
-              const target = parsed.find((c) => c.code.toUpperCase() === couponCode.trim().toUpperCase());
-              if (target && !target.isUsed) {
-                const updated = parsed.map((c) =>
-                  c.code.toUpperCase() === couponCode.trim().toUpperCase()
-                    ? { ...c, isUsed: true, usedByEmail: cleanEmail, usedAt: new Date().toISOString() }
-                    : c
-                );
-                localStorage.setItem('bia_trial_coupons', JSON.stringify(updated));
-                couponGranted = true;
-              }
-            } catch (e) {}
-          } else {
-            throw new Error('Este cupom de uso único já foi resgatado e não pode ser reutilizado.');
-          }
-        }
-
-        const expirationDate = new Date();
-        if (couponGranted) {
-          expirationDate.setDate(expirationDate.getDate() + grantedDays);
-        } else {
-          expirationDate.setDate(expirationDate.getDate() + 30);
-        }
-
-        const newUser: UserProfile = {
-          id: typeof crypto !== 'undefined' && crypto.randomUUID
-            ? crypto.randomUUID()
-            : `user_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
-          email: cleanEmail,
-          password: password,
-          full_name: fullName.trim() || 'Estudante Brazilian in Action',
-          role: 'student',
-          status: couponGranted ? 'active' : 'pending',
-          data_expiracao: expirationDate.toISOString(),
-          email_verified: true,
-          location_consent: locationConsent,
-          ip_country: geo.country || undefined,
-          ip_region: geo.regionName || undefined,
-          ip_city: geo.city || undefined,
-          cupom_usado: couponGranted ? couponCode.trim().toUpperCase() : undefined,
-          permissions: {
-            friends: true,
-            readclub: true,
-            board: true,
-            quiz: true,
-            biacompare: true,
-            conversation: true,
-            tradutor: true,
-            youtube: true,
-            practice: true,
-            stories: true
-          },
-          created_at: new Date().toISOString()
-        };
-
-        usersList.push(newUser);
-        localStorage.setItem('bia_users_database', JSON.stringify(usersList));
-        localStorage.setItem('bia_current_user', JSON.stringify(newUser));
-        void syncUserProfileToSupabase(newUser);
-
-        setSuccessMsg(
-          couponGranted
-            ? `Conta criada com sucesso! ${grantedDays} Dias de Degustação Liberados.`
-            : 'Conta criada! Prossiga com o pagamento Pix para ativar seu acesso.'
-        );
-
-        setTimeout(() => {
-          onAuthSuccess(newUser);
-        }, 600);
+      if (data.session?.user) {
+        await completeAuthenticatedSignInRef.current(data.session.user);
       } else {
-        if (cleanEmail === CEO_EMAIL) throw new Error('A conta CEO usa somente o botão "Entrar com Google".');
-        throw new Error('Para proteger e confirmar sua assinatura, entre com Google usando o mesmo e-mail da conta.');
+        setSuccessMsg('Conta criada. Confirme seu e-mail pelo link enviado para concluir o cadastro e continuar para o pagamento.');
       }
     } catch (err: any) {
       setErrorMsg(err.message || 'Falha ao autenticar.');
@@ -584,7 +490,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
             <div className="shrink-0 font-mono font-black text-[11px] sm:text-sm">
               {couponState.status === 'valid' ? (
-                <span className="text-emerald-300">5 DIAS GRÁTIS</span>
+                <span className="text-emerald-300">{couponState.days} DIAS GRÁTIS</span>
               ) : (
                 <span className="text-amber-400">
                   R$ {(gatewaySettings?.subscriptionPrice ?? 10).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mês
@@ -608,7 +514,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         )}
 
         {/* FLOATING TEXTBOXES FORM */}
-        <form onSubmit={handleSubmit} className={`${!isAdminMode && !isSignUp ? '' : 'hidden'} w-full rounded-[26px] border border-white/10 bg-black/15 p-2.5 shadow-[0_25px_60px_rgba(0,0,0,0.55)] backdrop-blur-md sm:p-3.5`}>
+        <form onSubmit={handleSubmit} className="w-full rounded-[26px] border border-white/10 bg-black/15 p-2.5 shadow-[0_25px_60px_rgba(0,0,0,0.55)] backdrop-blur-md sm:p-3.5">
           <div className="flex w-full flex-col gap-2.5">
           {isSignUp && !isAdminMode && (
             <div className="grid gap-1.5 sm:grid-cols-[94px_minmax(0,1fr)] sm:items-center">
@@ -693,7 +599,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     onChange={(e) => {
                       const val = e.target.value.toUpperCase();
                       setCouponCode(val);
-                      void checkCouponValidity(val);
+                      setCouponState({ status: 'idle', days: 5, message: '' });
+                      if (couponValidationTimerRef.current !== null) {
+                        window.clearTimeout(couponValidationTimerRef.current);
+                      }
+                      couponValidationTimerRef.current = window.setTimeout(() => {
+                        couponValidationTimerRef.current = null;
+                        void checkCouponValidity(val);
+                      }, 300);
                     }}
                     className="bg-transparent text-white font-mono text-xs sm:text-sm outline-none w-full placeholder:text-white/50 uppercase tracking-wider"
                   />
@@ -738,7 +651,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               couponState.status === 'valid' ? (
                 <>
                   <Sparkles size={14} />
-                  <span className="whitespace-nowrap">Criar conta + 5 dias</span>
+                  <span className="whitespace-nowrap">Criar conta + {couponState.days} dias</span>
                 </>
               ) : (
                 <>
@@ -801,6 +714,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 setErrorMsg('');
                 setSuccessMsg('');
                 setCouponCode('');
+                couponCheckRequestRef.current += 1;
+                if (couponValidationTimerRef.current !== null) {
+                  window.clearTimeout(couponValidationTimerRef.current);
+                  couponValidationTimerRef.current = null;
+                }
                 setCouponState({ status: 'idle', days: 5, message: '' });
               }}
               className="text-[10px] sm:text-[11px] font-bold text-amber-400 transition-colors hover:text-amber-300 cursor-pointer whitespace-nowrap"

@@ -2,6 +2,7 @@ services:
   - type: web
     name: brazilian-in-action
     runtime: node
+    autoDeployTrigger: checksPass
     buildCommand: npm ci && npm run build
     startCommand: npm start
     healthCheckPath: /api/health

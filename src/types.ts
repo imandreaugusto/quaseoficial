@@ -180,6 +180,7 @@ export interface UserProfile {
   last_pix_tx_id?: string;
   last_pix_receipt?: string;
   pix_submitted_at?: string;
+  onboarding_notice?: string;
   permissions: StudentPermissions;
   created_at: string;
   updated_at?: string;
@@ -268,4 +269,3 @@ export interface StageBroadcastState {
   themeColor: string;
   timestamp: number;
 }
-

@@ -63,16 +63,17 @@ import {
   UserX,
   Clock3,
   Layers,
-  Gamepad2,
-  Megaphone,
-  BarChart3,
-  UserPlus,
-  Wallet,
-  ArrowUpRight
+  Gamepad2
 } from 'lucide-react';
 import { BrazilianLogo } from './BrazilianLogo';
-import { deleteExpiredBrazilianFriendMessages, getSupabaseClient, getSupabaseConfig } from '../utils/supabaseClient';
-import { loadCEOAnnouncement, saveCEOAnnouncement } from '../utils/ceoAnnouncement';
+import {
+  createTrialCoupon,
+  deleteExpiredBrazilianFriendMessages,
+  deleteTrialCoupon,
+  fetchTrialCoupons,
+  getSupabaseClient,
+  getSupabaseConfig
+} from '../utils/supabaseClient';
 
 interface AdminSettingsProps {
   accentColor?: string;
@@ -132,7 +133,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   onRefreshUsers,
   currentUser
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'students' | 'apps_order' | 'revenue' | 'gateway' | 'promotions' | 'pix_approvals' | 'ceo_security' | 'friends_cleanup' | 'announcement'>('overview');
+  const [activeTab, setActiveTab] = useState<'students' | 'apps_order' | 'revenue' | 'gateway' | 'promotions' | 'pix_approvals' | 'ceo_security' | 'friends_cleanup'>('students');
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [coupons, setCoupons] = useState<TrialCoupon[]>([]);
   const [pixPayments, setPixPayments] = useState<PixPaymentRecord[]>([]);
@@ -142,62 +143,13 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   const [previewReceiptImage, setPreviewReceiptImage] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [copiedCouponId, setCopiedCouponId] = useState<string | null>(null);
+  const [couponManagementMessage, setCouponManagementMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [isManagingCoupons, setIsManagingCoupons] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [expiredFriendMessages, setExpiredFriendMessages] = useState(0);
   const [isCleaningFriends, setIsCleaningFriends] = useState(false);
   const [friendsCleanupMessage, setFriendsCleanupMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const isMainCeo = Boolean(currentUser?.email && isVerifiedCeoEmail(currentUser.email));
-  const [announcementDraft, setAnnouncementDraft] = useState('');
-  const [announcementEnabled, setAnnouncementEnabled] = useState(false);
-  const [isAnnouncementLoading, setIsAnnouncementLoading] = useState(false);
-  const [isAnnouncementSaving, setIsAnnouncementSaving] = useState(false);
-  const [announcementFeedback, setAnnouncementFeedback] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
-
-  useEffect(() => {
-    if (!isMainCeo || activeTab !== 'announcement') return;
-    let cancelled = false;
-    setIsAnnouncementLoading(true);
-    setAnnouncementFeedback(null);
-    void loadCEOAnnouncement()
-      .then((announcement) => {
-        if (cancelled) return;
-        setAnnouncementDraft(announcement?.message || '');
-        setAnnouncementEnabled(Boolean(announcement?.is_active));
-      })
-      .catch((error: unknown) => {
-        if (cancelled) return;
-        setAnnouncementFeedback({
-          text: error instanceof Error ? error.message : 'Não foi possível carregar o Heads-up.',
-          type: 'error'
-        });
-      })
-      .finally(() => {
-        if (!cancelled) setIsAnnouncementLoading(false);
-      });
-
-    return () => { cancelled = true; };
-  }, [activeTab, isMainCeo]);
-
-  const handleSaveAnnouncement = async () => {
-    if (announcementEnabled && !announcementDraft.trim()) {
-      setAnnouncementFeedback({ text: 'Escreva o aviso antes de ativá-lo.', type: 'error' });
-      return;
-    }
-
-    setIsAnnouncementSaving(true);
-    setAnnouncementFeedback(null);
-    try {
-      await saveCEOAnnouncement(announcementDraft, announcementEnabled);
-      setAnnouncementFeedback({ text: 'Heads-up salvo com sucesso.', type: 'success' });
-    } catch (error) {
-      setAnnouncementFeedback({
-        text: error instanceof Error ? error.message : 'Não foi possível salvar o Heads-up.',
-        type: 'error'
-      });
-    } finally {
-      setIsAnnouncementSaving(false);
-    }
-  };
 
   // Accordion state for grouping students by status
   const [openAccordions, setOpenAccordions] = useState<{
@@ -263,9 +215,11 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   // Load Users and Settings from LocalStorage/Cloud
   useEffect(() => {
     loadData();
+    void loadSharedCoupons();
 
     const handleDataChange = () => {
       loadData();
+      void loadSharedCoupons();
     };
 
     window.addEventListener('storage', handleDataChange);
@@ -323,25 +277,6 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
 
     setAuthorizedCeos(getAuthorizedCeoEmails());
 
-    const storedCoupons = localStorage.getItem('bia_trial_coupons');
-    if (storedCoupons) {
-      try {
-        setCoupons(JSON.parse(storedCoupons));
-      } catch (e) {}
-    } else {
-      // Seed default dynamic single-use coupon
-      const initialCoupon: TrialCoupon = {
-        id: 'coupon_init_1',
-        code: generateRandomCouponCode(),
-        days: 5,
-        createdAt: new Date().toISOString(),
-        isUsed: false,
-        notes: 'Cupom de 5 Dias de Teste Gratuito'
-      };
-      setCoupons([initialCoupon]);
-      localStorage.setItem('bia_trial_coupons', JSON.stringify([initialCoupon]));
-    }
-
     const savedGateway = localStorage.getItem('bia_gateway_settings');
     if (savedGateway) {
       try {
@@ -374,6 +309,60 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
           }
         });
       } catch (e) {}
+    }
+  };
+
+  const loadSharedCoupons = async () => {
+    if (!isMainCeo) return;
+    try {
+      let remoteCoupons = await fetchTrialCoupons();
+      const localCouponsRaw = localStorage.getItem('bia_trial_coupons');
+      const localCoupons: TrialCoupon[] = localCouponsRaw ? JSON.parse(localCouponsRaw) : [];
+      const remoteCodes = new Set(remoteCoupons.map((coupon) => String(coupon.code).toUpperCase()));
+      let migrationFailed = false;
+
+      for (const coupon of localCoupons) {
+        if (coupon.isUsed || remoteCodes.has(coupon.code.toUpperCase())) continue;
+        try {
+          await createTrialCoupon({
+            id: coupon.id,
+            code: coupon.code,
+            days: coupon.days,
+            notes: coupon.notes,
+            expiresAt: coupon.expiresAt
+          });
+          remoteCodes.add(coupon.code.toUpperCase());
+        } catch (error) {
+          if (!(error instanceof Error) || !error.message.includes('já existe')) {
+            migrationFailed = true;
+            console.error('Legacy coupon could not be migrated to shared storage:', error);
+          }
+        }
+      }
+
+      if (remoteCodes.size !== new Set(remoteCoupons.map((coupon) => String(coupon.code).toUpperCase())).size) {
+        remoteCoupons = await fetchTrialCoupons();
+      }
+      setCoupons(remoteCoupons.map((coupon) => ({
+        id: String(coupon.id),
+        code: String(coupon.code),
+        days: Number(coupon.days),
+        isUsed: Boolean(coupon.is_used),
+        createdAt: String(coupon.created_at),
+        expiresAt: coupon.expires_at ? String(coupon.expires_at) : null,
+        usedByEmail: coupon.used_by_email ? String(coupon.used_by_email) : undefined,
+        usedAt: coupon.used_at ? String(coupon.used_at) : undefined,
+        notes: coupon.notes ? String(coupon.notes) : undefined
+      })));
+      setCouponManagementMessage(migrationFailed
+        ? { text: 'Alguns cupons antigos não puderam ser compartilhados. Tente recarregar ou gere novos cupons.', type: 'error' }
+        : null);
+    } catch (error) {
+      console.error('Shared coupon list could not be loaded:', error);
+      setCouponManagementMessage({
+        text: error instanceof Error ? error.message : 'Não foi possível conectar ao serviço de cupons.',
+        type: 'error'
+      });
     }
   };
 
@@ -493,9 +482,9 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   const handleSaveSupabaseConfig = (e: React.FormEvent) => {
     e.preventDefault();
     const normalized = {
+      ...supabasePublicConfig,
       url: supabasePublicConfig.url.trim().replace(/\/$/, ''),
-      anonKey: supabasePublicConfig.anonKey.trim(),
-      appUrl: supabasePublicConfig.appUrl.trim().replace(/\/$/, '')
+      anonKey: supabasePublicConfig.anonKey.trim()
     };
     localStorage.setItem('bia_supabase_public_config', JSON.stringify(normalized));
     setSupabasePublicConfig(normalized);
@@ -505,7 +494,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   };
 
   // Create a single unique single-use coupon
-  const handleCreateSingleCoupon = (days: number = 5) => {
+  const handleCreateSingleCoupon = async (days: number = 5) => {
     const newCoupon: TrialCoupon = {
       id: `coupon_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       code: generateRandomCouponCode(),
@@ -514,13 +503,11 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
       isUsed: false,
       notes: `Acesso Individual de ${days} Dias`
     };
-    const nextCoupons = [newCoupon, ...coupons];
-    setCoupons(nextCoupons);
-    localStorage.setItem('bia_trial_coupons', JSON.stringify(nextCoupons));
+    await createAndRefreshCoupons([newCoupon]);
   };
 
   // Create a batch of unique coupons
-  const handleCreateBatchCoupons = (count: number = 5, days: number = 5) => {
+  const handleCreateBatchCoupons = async (count: number = 5, days: number = 5) => {
     const newCoupons: TrialCoupon[] = [];
     for (let i = 0; i < count; i++) {
       newCoupons.push({
@@ -532,16 +519,47 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
         notes: `Lote promocional de ${days} dias`
       });
     }
-    const next = [...newCoupons, ...coupons];
-    setCoupons(next);
-    localStorage.setItem('bia_trial_coupons', JSON.stringify(next));
+    await createAndRefreshCoupons(newCoupons);
   };
 
   // Delete a coupon
-  const handleDeleteCoupon = (id: string) => {
-    const next = coupons.filter((c) => c.id !== id);
-    setCoupons(next);
-    localStorage.setItem('bia_trial_coupons', JSON.stringify(next));
+  const createAndRefreshCoupons = async (newCoupons: TrialCoupon[]) => {
+    setIsManagingCoupons(true);
+    setCouponManagementMessage(null);
+    try {
+      for (const coupon of newCoupons) {
+        await createTrialCoupon(coupon);
+      }
+      await loadSharedCoupons();
+      setCouponManagementMessage({ text: `${newCoupons.length} cupom(ns) salvo(s) e disponível(is) para resgate.`, type: 'success' });
+    } catch (error) {
+      console.error('Shared coupon creation failed:', error);
+      await loadSharedCoupons();
+      setCouponManagementMessage({
+        text: error instanceof Error ? error.message : 'Não foi possível salvar os cupons compartilhados.',
+        type: 'error'
+      });
+    } finally {
+      setIsManagingCoupons(false);
+    }
+  };
+
+  const handleDeleteCoupon = async (id: string) => {
+    setIsManagingCoupons(true);
+    setCouponManagementMessage(null);
+    try {
+      await deleteTrialCoupon(id);
+      await loadSharedCoupons();
+      setCouponManagementMessage({ text: 'Cupom removido.', type: 'success' });
+    } catch (error) {
+      console.error('Shared coupon deletion failed:', error);
+      setCouponManagementMessage({
+        text: error instanceof Error ? error.message : 'Não foi possível excluir o cupom.',
+        type: 'error'
+      });
+    } finally {
+      setIsManagingCoupons(false);
+    }
   };
 
   // Share Coupon Link directly to WhatsApp
@@ -724,7 +742,6 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   const activeStudentsCount = users.filter((u) => u.role === 'student' && u.status === 'active').length;
   const pendingStudentsCount = users.filter((u) => u.role === 'student' && u.status === 'pending').length;
   const expiredStudentsCount = users.filter((u) => u.role === 'student' && u.status === 'expired').length;
-  const studentUsers = users.filter((u) => u.role === 'student');
 
   // Strict segregation: coupon/trial students never count as paid revenue.
   const payingActiveStudents = users.filter((u) => u.role === 'student' && u.status === 'active' && !u.cupom_usado);
@@ -775,55 +792,6 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
 
   const totalMonthlyProfit = totalMonthlyRevenue - totalExpenses;
   const totalWeeklyProfit = totalWeeklyRevenue - (totalExpenses / 4);
-  const dashboardMonths = Array.from({ length: 8 }, (_, index) => {
-    const month = new Date();
-    month.setDate(1);
-    month.setHours(0, 0, 0, 0);
-    month.setMonth(month.getMonth() - (7 - index));
-    return month;
-  });
-  const subscribersByMonth = dashboardMonths.map((month) => {
-    const monthEnd = new Date(month.getFullYear(), month.getMonth() + 1, 0, 23, 59, 59, 999).getTime();
-    return studentUsers.filter((user) => {
-      const createdAt = Date.parse(user.created_at);
-      return Number.isFinite(createdAt) && createdAt <= monthEnd;
-    }).length;
-  });
-  const paymentsByMonth = dashboardMonths.map((month) => {
-    const monthStart = month.getTime();
-    const monthEnd = new Date(month.getFullYear(), month.getMonth() + 1, 0, 23, 59, 59, 999).getTime();
-    return pixPayments
-      .filter((payment) => {
-        const paidAt = Date.parse(payment.paidAt);
-        return payment.status === 'approved' && Number.isFinite(paidAt) && paidAt >= monthStart && paidAt <= monthEnd;
-      })
-      .reduce((total, payment) => total + payment.amount, 0);
-  });
-  const subscriberChartMax = Math.max(1, ...subscribersByMonth);
-  const subscriberChartPoints = subscribersByMonth
-    .map((count, index) => `${(index / Math.max(1, subscribersByMonth.length - 1)) * 100},${88 - (count / subscriberChartMax) * 70}`)
-    .join(' ');
-  const paymentChartMax = Math.max(1, ...paymentsByMonth);
-  const recentStudents = [...studentUsers]
-    .filter((user) => Number.isFinite(Date.parse(user.created_at)))
-    .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
-    .slice(0, 5);
-  const pendingDashboardPayments = pixPayments
-    .filter((payment) => payment.status === 'pending')
-    .slice(0, 4);
-  const expiringStudents = studentUsers
-    .filter((user) => user.status === 'active' && user.data_expiracao && Date.parse(user.data_expiracao) >= Date.now())
-    .sort((a, b) => Date.parse(a.data_expiracao!) - Date.parse(b.data_expiracao!))
-    .slice(0, 4);
-  const activePaidShare = activeStudentsCount
-    ? Math.round((payingActiveStudentsCount / activeStudentsCount) * 100)
-    : 0;
-  const formatMoney = (value: number) =>
-    value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  const formatShortDate = (value?: string | null) => {
-    if (!value || !Number.isFinite(Date.parse(value))) return '—';
-    return new Date(value).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
-  };
 
   // Helper for receipt written text (por extenso)
   const valorPorExtenso = (valor: number): string => {
@@ -908,7 +876,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   };
 
   return (
-    <div className="max-w-[1600px] mx-auto px-3 sm:px-6 py-6 pb-28 select-none">
+    <div className="max-w-6xl mx-auto px-3 sm:px-6 py-6 pb-28 select-none">
       {/* Top Header & Perfectly Aligned CEO Badge */}
       <div className="flex flex-col gap-4 mb-6">
         <div className="flex flex-col gap-1.5">
@@ -918,29 +886,17 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
               <span>Painel do CEO André Augusto</span>
             </span>
             <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-            Painel executivo
+              Central de Gestão & Faturamento
             </h1>
           </div>
           <p className="text-xs text-white/60">
-            Acompanhe assinaturas, pagamentos e desempenho do Brazilian in Action.
+            Controle de alunos, faturamento semanal/mensal, ordem de apps e manutenção global.
           </p>
         </div>
 
-        {/* Tab Navigation: Floating Individual Glassmorphism Pills */}
+        {/* Tab Navigation: Floating Individual Glassmorphism Pills (Wrap automatically so all 7 options are 100% visible) */}
         <nav aria-label="Abas de Administração" className="w-full">
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setActiveTab('overview')}
-              className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer backdrop-blur-xl shadow-lg border active:scale-95 ${
-                activeTab === 'overview'
-                  ? 'bg-amber-500 text-black border-amber-400 font-black shadow-amber-500/30'
-                  : 'bg-neutral-900/80 hover:bg-neutral-800 text-white/80 hover:text-white border-white/15 hover:border-white/30'
-              }`}
-            >
-              <LayoutDashboard size={14} className={activeTab === 'overview' ? 'text-black' : 'text-cyan-300'} />
-              <span>Visão geral</span>
-            </button>
             {/* 1. Alunos */}
             <button
               type="button"
@@ -1063,330 +1019,9 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                 )}
               </button>
             )}
-            {isMainCeo && (
-              <button
-                type="button"
-                onClick={() => setActiveTab('announcement')}
-                className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer backdrop-blur-xl shadow-lg border active:scale-95 ${
-                  activeTab === 'announcement'
-                    ? 'bg-amber-500 text-black border-amber-400 font-black shadow-amber-500/30'
-                    : 'bg-neutral-900/80 hover:bg-neutral-800 text-white/80 hover:text-white border-white/15 hover:border-white/30'
-                }`}
-              >
-                <Megaphone size={14} className={activeTab === 'announcement' ? 'text-black' : 'text-cyan-300'} />
-                <span>Heads-up</span>
-              </button>
-            )}
           </div>
         </nav>
       </div>
-
-      {activeTab === 'overview' && (
-        <section className="space-y-4" aria-label="Visão geral do Painel do CEO">
-          <div className="flex flex-col gap-3 rounded-3xl border border-white/10 bg-slate-950/55 p-4 shadow-2xl backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:p-5">
-            <div className="flex items-center gap-3">
-              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-cyan-300/20 bg-cyan-300/10 text-cyan-200">
-                <BarChart3 size={21} />
-              </div>
-              <div>
-                <h2 className="text-base font-bold text-white">Visão geral da plataforma</h2>
-                <p className="mt-0.5 text-xs text-white/50">
-                  Indicadores atualizados com os dados de assinantes e pagamentos cadastrados.
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                loadData();
-                onRefreshUsers?.();
-              }}
-              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-xs font-semibold text-white/70 transition hover:border-cyan-200/30 hover:text-white"
-            >
-              <RefreshCw size={14} />
-              Atualizar dados
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {[
-              { label: 'Assinantes cadastrados', value: studentUsers.length, detail: `${studentUsers.filter((user) => user.created_at?.startsWith(new Date().toISOString().slice(0, 7))).length} novos este mês`, icon: Users, tone: 'cyan' },
-              { label: 'Acessos ativos', value: activeStudentsCount, detail: `${payingActiveStudentsCount} assinaturas pagantes`, icon: CheckCircle, tone: 'emerald' },
-              { label: 'Previsão mensal', value: formatMoney(totalMonthlyRevenue), detail: `Lucro estimado ${formatMoney(totalMonthlyProfit)}`, icon: TrendingUp, tone: 'violet' },
-              { label: 'Pagamentos pendentes', value: pendingStudentsCount, detail: `${pixPayments.filter((payment) => payment.status === 'pending').length} comprovantes aguardando análise`, icon: CreditCard, tone: 'amber' }
-            ].map((metric) => {
-              const Icon = metric.icon;
-              const toneClasses = {
-                cyan: 'border-cyan-300/20 bg-cyan-300/10 text-cyan-200',
-                emerald: 'border-emerald-300/20 bg-emerald-300/10 text-emerald-200',
-                violet: 'border-violet-300/20 bg-violet-300/10 text-violet-200',
-                amber: 'border-amber-300/20 bg-amber-300/10 text-amber-200'
-              }[metric.tone];
-              return (
-                <article key={metric.label} className="rounded-2xl border border-white/10 bg-slate-950/55 p-4 shadow-xl backdrop-blur-xl">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-white/45">{metric.label}</p>
-                      <p className="mt-2 text-2xl font-black tabular-nums text-white">{metric.value}</p>
-                    </div>
-                    <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl border ${toneClasses}`}>
-                      <Icon size={18} />
-                    </span>
-                  </div>
-                  <p className="mt-2 truncate text-[11px] text-white/45">{metric.detail}</p>
-                </article>
-              );
-            })}
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-            <article className="rounded-2xl border border-white/10 bg-slate-950/55 p-4 shadow-xl backdrop-blur-xl xl:col-span-2">
-              <header className="mb-4 flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="flex items-center gap-2 text-sm font-bold text-white">
-                    <UserPlus size={16} className="text-cyan-200" />
-                    Crescimento de assinantes
-                  </h3>
-                  <p className="mt-1 text-[11px] text-white/45">Total de cadastros até cada mês, nos últimos 8 meses</p>
-                </div>
-                <span className="rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] text-white/55">8 meses</span>
-              </header>
-              <div className="h-40 w-full">
-                <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="Gráfico de crescimento de assinantes" className="h-full w-full overflow-visible">
-                  <defs>
-                    <linearGradient id="subscriber-area" x1="0" x2="0" y1="0" y2="1">
-                      <stop offset="0%" stopColor="#22d3ee" stopOpacity="0.3" />
-                      <stop offset="100%" stopColor="#22d3ee" stopOpacity="0" />
-                    </linearGradient>
-                  </defs>
-                  {[18, 42, 66, 90].map((y) => <line key={y} x1="0" x2="100" y1={y} y2={y} stroke="rgba(255,255,255,0.08)" strokeWidth="0.5" />)}
-                  <polygon points={`0,92 ${subscriberChartPoints} 100,92`} fill="url(#subscriber-area)" />
-                  <polyline points={subscriberChartPoints} fill="none" stroke="#67e8f9" strokeWidth="1.8" vectorEffect="non-scaling-stroke" />
-                  {subscribersByMonth.map((count, index) => (
-                    <circle key={`${dashboardMonths[index].toISOString()}-subscriber`} cx={(index / Math.max(1, subscribersByMonth.length - 1)) * 100} cy={88 - (count / subscriberChartMax) * 70} r="1.6" fill="#a5f3fc" />
-                  ))}
-                </svg>
-              </div>
-              <div className="mt-2 grid grid-cols-8 text-center text-[9px] capitalize text-white/40">
-                {dashboardMonths.map((month) => <span key={month.toISOString()}>{month.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}</span>)}
-              </div>
-            </article>
-
-            <article className="rounded-2xl border border-white/10 bg-slate-950/55 p-4 shadow-xl backdrop-blur-xl">
-              <header className="mb-4">
-                <h3 className="flex items-center gap-2 text-sm font-bold text-white">
-                  <Wallet size={16} className="text-emerald-200" />
-                  Recebimentos via Pix
-                </h3>
-                <p className="mt-1 text-[11px] text-white/45">Pagamentos aprovados por mês</p>
-              </header>
-              <div className="flex h-40 items-end gap-2 border-b border-white/10 pb-1">
-                {paymentsByMonth.map((amount, index) => (
-                  <div key={`${dashboardMonths[index].toISOString()}-payment`} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1">
-                    <span className="text-[8px] tabular-nums text-white/45">{amount > 0 ? formatMoney(amount).replace('R$', '').trim() : ''}</span>
-                    <div
-                      className="w-full max-w-7 rounded-t-md bg-gradient-to-t from-cyan-600 to-cyan-300 transition-all"
-                      style={{ height: `${Math.max(amount > 0 ? 8 : 2, (amount / paymentChartMax) * 75)}%` }}
-                      title={`${dashboardMonths[index].toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}: ${formatMoney(amount)}`}
-                    />
-                    <span className="text-[9px] text-white/40">{dashboardMonths[index].toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}</span>
-                  </div>
-                ))}
-              </div>
-              <p className="mt-3 text-[10px] leading-relaxed text-white/40">
-                A receita mensal prevista também considera o valor dos planos ativos e das aulas cadastradas.
-              </p>
-            </article>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            <article className="rounded-2xl border border-white/10 bg-slate-950/55 p-4 shadow-xl backdrop-blur-xl">
-              <h3 className="flex items-center gap-2 text-sm font-bold text-white">
-                <Users size={15} className="text-violet-200" />
-                Situação das assinaturas
-              </h3>
-              <div className="mt-4 flex items-center gap-4">
-                <div
-                  className="grid h-28 w-28 shrink-0 place-items-center rounded-full"
-                  style={{ background: `conic-gradient(#34d399 0 ${activePaidShare}%, #a78bfa ${activePaidShare}% ${activeStudentsCount ? 100 : 0}%, #fbbf24 ${activeStudentsCount ? 100 : 0}% ${activeStudentsCount ? 100 + Math.round((pendingStudentsCount / Math.max(1, studentUsers.length)) * 100) : 35}%, #fb7185 0)` }}
-                  role="img"
-                  aria-label={`${activeStudentsCount} assinaturas ativas, ${pendingStudentsCount} pendentes e ${expiredStudentsCount} expiradas`}
-                >
-                  <div className="grid h-[4.5rem] w-[4.5rem] place-items-center rounded-full bg-slate-950 text-center">
-                    <span><strong className="block text-xl text-white">{studentUsers.length}</strong><small className="text-[9px] text-white/45">alunos</small></span>
-                  </div>
-                </div>
-                <div className="min-w-0 space-y-2 text-[11px]">
-                  <p className="flex items-center justify-between gap-3 text-white/65"><span className="flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-emerald-300" />Pagantes ativos</span><strong className="text-white">{payingActiveStudentsCount}</strong></p>
-                  <p className="flex items-center justify-between gap-3 text-white/65"><span className="flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-violet-300" />Ativos com cupom</span><strong className="text-white">{couponActiveStudentsCount}</strong></p>
-                  <p className="flex items-center justify-between gap-3 text-white/65"><span className="flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-amber-300" />Aguardando Pix</span><strong className="text-white">{pendingStudentsCount}</strong></p>
-                  <p className="flex items-center justify-between gap-3 text-white/65"><span className="flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-rose-300" />Expirados</span><strong className="text-white">{expiredStudentsCount}</strong></p>
-                </div>
-              </div>
-            </article>
-
-            <article className="rounded-2xl border border-white/10 bg-slate-950/55 p-4 shadow-xl backdrop-blur-xl">
-              <div className="mb-3 flex items-center justify-between gap-2">
-                <h3 className="flex items-center gap-2 text-sm font-bold text-white"><Clock size={15} className="text-amber-200" />Próximos vencimentos</h3>
-                <span className="text-[10px] text-white/40">Assinaturas ativas</span>
-              </div>
-              {expiringStudents.length ? (
-                <ul className="space-y-2">
-                  {expiringStudents.map((student) => (
-                    <li key={student.id} className="flex min-w-0 items-center justify-between gap-2 rounded-xl border border-white/[0.06] bg-white/[0.025] px-3 py-2">
-                      <span className="truncate text-[11px] text-white/75">{student.full_name || student.email}</span>
-                      <span className="shrink-0 text-[10px] text-amber-200">{formatShortDate(student.data_expiracao)}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : <p className="rounded-xl border border-white/[0.06] p-3 text-[11px] text-white/45">Nenhum vencimento futuro cadastrado.</p>}
-              <button type="button" onClick={() => setActiveTab('students')} className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold text-cyan-200 hover:text-cyan-100">
-                Gerenciar assinantes <ArrowUpRight size={13} />
-              </button>
-            </article>
-
-            <article className="rounded-2xl border border-white/10 bg-slate-950/55 p-4 shadow-xl backdrop-blur-xl">
-              <div className="mb-3 flex items-center justify-between gap-2">
-                <h3 className="flex items-center gap-2 text-sm font-bold text-white"><CreditCard size={15} className="text-cyan-200" />Pix aguardando análise</h3>
-                <button type="button" onClick={() => setActiveTab('pix_approvals')} className="text-[10px] font-semibold text-cyan-200 hover:text-cyan-100">Ver todos</button>
-              </div>
-              {pendingDashboardPayments.length ? (
-                <ul className="space-y-2">
-                  {pendingDashboardPayments.map((payment) => (
-                    <li key={payment.id} className="flex min-w-0 items-center justify-between gap-2 rounded-xl border border-white/[0.06] bg-white/[0.025] px-3 py-2">
-                      <div className="min-w-0">
-                        <p className="truncate text-[11px] text-white/75">{payment.userEmail}</p>
-                        <p className="text-[9px] text-white/40">{formatShortDate(payment.paidAt)}</p>
-                      </div>
-                      <span className="shrink-0 text-[11px] font-bold text-white">{formatMoney(payment.amount)}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : <p className="rounded-xl border border-white/[0.06] p-3 text-[11px] text-white/45">Nenhum pagamento pendente no momento.</p>}
-            </article>
-          </div>
-
-          <article className="overflow-hidden rounded-2xl border border-white/10 bg-slate-950/55 shadow-xl backdrop-blur-xl">
-            <header className="flex flex-col gap-2 border-b border-white/10 p-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h3 className="flex items-center gap-2 text-sm font-bold text-white"><UserPlus size={15} className="text-cyan-200" />Assinantes recentes</h3>
-                <p className="mt-1 text-[10px] text-white/40">Cadastros mais recentes na plataforma</p>
-              </div>
-              <button type="button" onClick={() => setActiveTab('students')} className="inline-flex items-center gap-1 self-start text-[11px] font-semibold text-cyan-200 hover:text-cyan-100 sm:self-auto">
-                Ver todos os assinantes <ArrowUpRight size={13} />
-              </button>
-            </header>
-            {recentStudents.length ? (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[650px] text-left text-[11px]">
-                  <thead className="text-[9px] uppercase tracking-wide text-white/35">
-                    <tr>
-                      <th className="px-4 py-2.5 font-semibold">Assinante</th>
-                      <th className="px-4 py-2.5 font-semibold">Localização</th>
-                      <th className="px-4 py-2.5 font-semibold">Plano</th>
-                      <th className="px-4 py-2.5 font-semibold">Cadastro</th>
-                      <th className="px-4 py-2.5 font-semibold">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/[0.06]">
-                    {recentStudents.map((student) => (
-                      <tr key={student.id} className="text-white/70">
-                        <td className="px-4 py-3">
-                          <p className="font-semibold text-white">{student.full_name || student.email.split('@')[0]}</p>
-                          <p className="mt-0.5 text-[10px] text-white/40">{student.email}</p>
-                        </td>
-                        <td className="px-4 py-3">{[student.ip_city, student.ip_region].filter(Boolean).join(', ') || 'Não informado'}</td>
-                        <td className="px-4 py-3">{student.cupom_usado ? 'Acesso por cupom' : 'Assinatura mensal'}</td>
-                        <td className="px-4 py-3">{formatShortDate(student.created_at)}</td>
-                        <td className="px-4 py-3">
-                          <span className={`rounded-full border px-2 py-1 text-[9px] font-semibold ${
-                            student.status === 'active' ? 'border-emerald-300/20 bg-emerald-300/10 text-emerald-200'
-                              : student.status === 'pending' ? 'border-amber-300/20 bg-amber-300/10 text-amber-200'
-                                : 'border-rose-300/20 bg-rose-300/10 text-rose-200'
-                          }`}>
-                            {student.status === 'active' ? 'Ativo' : student.status === 'pending' ? 'Pendente' : 'Expirado'}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : <p className="p-5 text-center text-xs text-white/45">Nenhum assinante cadastrado para exibir.</p>}
-          </article>
-        </section>
-      )}
-
-      {activeTab === 'announcement' && isMainCeo && (
-        <section className="glass-card space-y-5 rounded-3xl border border-cyan-300/20 p-5 sm:p-7">
-          <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <h2 className="flex items-center gap-2 text-base font-bold text-white">
-                <Megaphone size={18} className="text-cyan-200" />
-                Heads-up dos assinantes
-              </h2>
-              <p className="mt-1 max-w-2xl text-xs leading-relaxed text-white/55">
-                Publique uma atualização curta. O aviso aparece abaixo do relógio na Home e pode ser recolhido pelos assinantes.
-              </p>
-            </div>
-            <label className="inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.04] px-3.5 text-xs font-semibold text-white/80">
-              <input
-                type="checkbox"
-                checked={announcementEnabled}
-                onChange={(event) => setAnnouncementEnabled(event.target.checked)}
-                className="h-4 w-4 accent-cyan-300"
-                disabled={isAnnouncementLoading || isAnnouncementSaving}
-              />
-              Aviso ativo
-            </label>
-          </header>
-
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(16rem,0.8fr)]">
-            <div className="space-y-2">
-              <label htmlFor="ceo-heads-up-message" className="text-[11px] font-bold uppercase text-white/55">
-                Mensagem
-              </label>
-              <textarea
-                id="ceo-heads-up-message"
-                value={announcementDraft}
-                onChange={(event) => setAnnouncementDraft(event.target.value.slice(0, 1000))}
-                maxLength={1000}
-                rows={5}
-                placeholder="Ex.: O Brazilian Friends recebeu uma atualização..."
-                disabled={isAnnouncementLoading || isAnnouncementSaving}
-                className="w-full resize-y rounded-xl border border-white/15 bg-black/25 p-3 text-sm leading-relaxed text-white outline-none transition-colors placeholder:text-white/30 focus:border-cyan-200/50 disabled:opacity-50"
-              />
-              <div className="flex items-center justify-between gap-3 text-[10px] text-white/40">
-                <span>{announcementEnabled ? 'O aviso será exibido aos assinantes.' : 'O aviso ficará oculto enquanto estiver desativado.'}</span>
-                <span className="shrink-0 tabular-nums">{announcementDraft.length}/1000</span>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <span className="text-[11px] font-bold uppercase text-white/55">Prévia</span>
-              <div className="ceo-heads-up-preview">
-                <span className="ceo-heads-up-kicker"><Megaphone size={12} /> Heads-up</span>
-                <p>{announcementDraft.trim() || 'Sua atualização aparecerá aqui.'}</p>
-              </div>
-            </div>
-          </div>
-
-          <footer className="flex flex-col-reverse gap-3 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
-            <p aria-live="polite" className={`min-h-4 text-xs ${announcementFeedback?.type === 'error' ? 'text-rose-300' : 'text-emerald-300'}`}>
-              {isAnnouncementLoading ? 'Carregando configuração…' : announcementFeedback?.text || ''}
-            </p>
-            <button
-              type="button"
-              onClick={() => void handleSaveAnnouncement()}
-              disabled={isAnnouncementLoading || isAnnouncementSaving}
-              className="inline-flex min-h-11 items-center justify-center gap-2 self-stretch rounded-xl border border-cyan-200/30 bg-cyan-100/10 px-4 text-xs font-bold text-cyan-50 transition-colors hover:bg-cyan-100/15 disabled:cursor-wait disabled:opacity-55 sm:self-auto"
-            >
-              <Check size={15} />
-              {isAnnouncementSaving ? 'Salvando…' : 'Salvar Heads-up'}
-            </button>
-          </footer>
-        </section>
-      )}
 
       {/* TAB 1: GERENCIAMENTO DE ALUNOS & TELEMETRIA & ACCORDIONS */}
       {activeTab === 'students' && (
@@ -2381,6 +2016,15 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
         <div className="space-y-6">
           {/* Header Card & Single-Use Generator */}
           <div className="glass-card p-6 rounded-3xl border border-white/10 space-y-5">
+            {couponManagementMessage && (
+              <div className={`rounded-xl border p-3 text-xs ${
+                couponManagementMessage.type === 'success'
+                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
+                  : 'border-red-500/40 bg-red-500/10 text-red-200'
+              }`}>
+                {couponManagementMessage.text}
+              </div>
+            )}
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
                 <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
@@ -2397,6 +2041,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                 <button
                   type="button"
                   onClick={() => handleCreateSingleCoupon(5)}
+                  disabled={isManagingCoupons}
                   className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-2xl transition-all flex items-center gap-1.5 cursor-pointer shadow-lg shadow-amber-500/20 active:scale-95"
                 >
                   <Plus size={16} />
@@ -2405,6 +2050,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                 <button
                   type="button"
                   onClick={() => handleCreateBatchCoupons(5, 5)}
+                  disabled={isManagingCoupons}
                   className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-2xl transition-all flex items-center gap-1.5 cursor-pointer border border-white/15 active:scale-95"
                 >
                   <Ticket size={16} className="text-amber-400" />
@@ -2546,6 +2192,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                         <button
                           type="button"
                           onClick={() => handleDeleteCoupon(coupon.id)}
+                          disabled={isManagingCoupons || coupon.isUsed}
                           className="p-1.5 hover:bg-red-500/20 text-white/30 hover:text-red-400 rounded-xl transition-all cursor-pointer"
                           title="Excluir Cupom"
                         >

@@ -50,38 +50,51 @@ export const getSupabaseClient = () => {
   return cachedClient;
 };
 
+const getAuthenticatedAccessToken = async () => {
+  const client = getSupabaseClient();
+  if (!client) throw new Error('Supabase não está configurado.');
+  const { data, error } = await client.auth.getSession();
+  if (error) throw error;
+  const accessToken = data.session?.access_token;
+  if (!accessToken) throw new Error('Entre novamente para continuar.');
+  return accessToken;
+};
+
 // Redirects the browser to Google via Supabase Auth. On return, the session
 // can be read with getSupabaseClient()?.auth.getSession().
 export const signInWithGoogle = async () => {
   const client = getSupabaseClient();
   if (!client) return { ok: false, reason: 'offline' as const };
 
-  const redirectTo = new URL(import.meta.env.BASE_URL, window.location.origin).toString();
+  try {
+    const redirectTo = new URL(import.meta.env.BASE_URL, window.location.origin).toString();
+    const { error } = await client.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo }
+    });
 
-  const { error } = await client.auth.signInWithOAuth({
-    provider: 'google',
-    options: { redirectTo }
-  });
-
-  if (error) {
-    console.warn('Supabase Google sign-in failed:', error);
-    return { ok: false, reason: 'error' as const, message: error.message };
+    if (error) {
+      console.warn('Supabase Google sign-in failed:', error);
+      return { ok: false, reason: 'error' as const, message: error.message };
+    }
+    return { ok: true as const };
+  } catch (error) {
+    console.error('Supabase Google sign-in request failed:', error);
+    return {
+      ok: false,
+      reason: 'error' as const,
+      message: error instanceof Error ? error.message : 'Não foi possível conectar ao login do Google.'
+    };
   }
-  return { ok: true as const };
 };
 
-export const registerGoogleProfile = async (
+export const registerAuthenticatedProfile = async (
   locationConsent: boolean,
   geolocation?: { country: string; regionName: string; city: string }
 ): Promise<UserProfile> => {
-  const client = getSupabaseClient();
-  if (!client) throw new Error('Autenticação indisponível: Supabase não configurado.');
+  const accessToken = await getAuthenticatedAccessToken();
 
-  const { data } = await client.auth.getSession();
-  const accessToken = data.session?.access_token;
-  if (!accessToken) throw new Error('Sessão não encontrada. Entre novamente.');
-
-  const response = await apiFetch('/api/auth/google/profile', {
+  const response = await apiFetch('/api/auth/profile', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -103,15 +116,12 @@ export const registerGoogleProfile = async (
   return result.profile as UserProfile;
 };
 
-export const redeemGoogleTrialCoupon = async (code: string) => {
-  const client = getSupabaseClient();
-  if (!client) throw new Error('Supabase não está configurado.');
+export const registerGoogleProfile = registerAuthenticatedProfile;
 
-  const { data } = await client.auth.getSession();
-  const accessToken = data.session?.access_token;
-  if (!accessToken) throw new Error('Entre com o Google antes de resgatar um cupom.');
+export const redeemAuthenticatedTrialCoupon = async (code: string) => {
+  const accessToken = await getAuthenticatedAccessToken();
 
-  const response = await apiFetch('/api/auth/google/redeem-coupon', {
+  const response = await apiFetch('/api/auth/redeem-coupon', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -122,6 +132,55 @@ export const redeemGoogleTrialCoupon = async (code: string) => {
   const result = await response.json();
   if (!response.ok) throw new Error(result.error || 'Não foi possível validar o cupom.');
   return result as { ok: boolean; reason?: string; coupon?: { code: string; days: number }; expires_at?: string };
+};
+
+export const redeemGoogleTrialCoupon = redeemAuthenticatedTrialCoupon;
+
+export const createTrialCoupon = async (coupon: {
+  id: string;
+  code: string;
+  days: number;
+  notes?: string;
+  expiresAt?: string | null;
+}) => {
+  const accessToken = await getAuthenticatedAccessToken();
+
+  const response = await apiFetch('/api/admin/trial-coupons', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({
+      id: coupon.id,
+      code: coupon.code,
+      days: coupon.days,
+      notes: coupon.notes || null,
+      expires_at: coupon.expiresAt || null
+    })
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error || 'Não foi possível criar o cupom compartilhado.');
+  return result.coupon as Record<string, unknown>;
+};
+
+export const fetchTrialCoupons = async () => {
+  const accessToken = await getAuthenticatedAccessToken();
+
+  const response = await apiFetch('/api/admin/trial-coupons', {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error || 'Não foi possível carregar os cupons compartilhados.');
+  return (result.coupons || []) as Record<string, unknown>[];
+};
+
+export const deleteTrialCoupon = async (id: string) => {
+  const accessToken = await getAuthenticatedAccessToken();
+
+  const response = await apiFetch(`/api/admin/trial-coupons/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error || 'Não foi possível excluir o cupom.');
 };
 
 export const deleteExpiredBrazilianFriendMessages = async () => {
@@ -391,20 +450,13 @@ export const findUserProfileByEmail = async (email: string) => {
 // Reads a coupon's live state from the shared database so single-use validation
 // works across every device/browser, instead of only the local one.
 export const fetchCouponFromSupabase = async (code: string) => {
-  const client = getSupabaseClient();
-  if (!client || !code) return null;
+  if (!code) return null;
 
-  try {
-    const { data, error } = await client.rpc('check_trial_coupon', {
-      requested_code: code.trim().toUpperCase()
-    });
-
-    if (error) throw error;
-    return data?.ok ? data.coupon : null;
-  } catch (error) {
-    console.warn('Supabase coupon fetch failed:', error);
-    return null;
-  }
+  const response = await apiFetch(`/api/trial-coupons/${encodeURIComponent(code.trim().toUpperCase())}`);
+  if (response.status === 404) return null;
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error || 'Falha ao validar cupom.');
+  return result.coupon || null;
 };
 
 // Atomically marks a coupon as used ONLY if it is still unused, preventing the
@@ -414,16 +466,22 @@ export const redeemCouponInSupabase = async (code: string, usedByEmail: string) 
   if (!client || !code) return { ok: false, reason: 'offline' as const };
 
   try {
-    const { data, error } = await client.rpc('redeem_trial_coupon', {
-      requested_code: code.trim().toUpperCase(),
-      redeemer_email: usedByEmail.trim().toLowerCase()
+    const { data: sessionData } = await client.auth.getSession();
+    const accessToken = sessionData.session?.access_token;
+    if (!accessToken || sessionData.session?.user.email?.trim().toLowerCase() !== usedByEmail.trim().toLowerCase()) {
+      return { ok: false, reason: 'unauthenticated' as const };
+    }
+    const response = await apiFetch('/api/auth/redeem-coupon', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({ code: code.trim().toUpperCase() })
     });
-
-    if (error) throw error;
-    if (!data?.ok) return { ok: false, reason: data?.reason || 'already_used' as const };
-    return { ok: true, coupon: data.coupon };
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || 'Falha ao resgatar cupom.');
+    if (!result.ok) return { ok: false, reason: result.reason || 'already_used' as const };
+    return { ok: true, coupon: result.coupon };
   } catch (error) {
-    console.warn('Supabase coupon redeem failed:', error);
+    console.warn('Authenticated trial coupon redeem failed:', error);
     return { ok: false, reason: 'error' as const };
   }
 };

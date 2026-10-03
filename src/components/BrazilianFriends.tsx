@@ -7,6 +7,7 @@ import { BrazilianLogo } from './BrazilianLogo';
 import { getSupabaseClient, getSupabaseConfig, signInWithGoogle } from '../utils/supabaseClient';
 import { CEO_EMAIL } from '../utils/security';
 import { apiFetch } from '../lib/api';
+import { playPrivateMessageSound } from '../lib/menuSounds';
 
 const QUICK_EMOJIS = [
   '😀', '😂', '😍', '😊', '😉', '😎', '🥳', '😢',
@@ -49,6 +50,11 @@ interface PrivateNotification {
   id: string;
   sender_id: string;
   created_at: string;
+}
+
+interface PrivateMessageToast {
+  senderId: string;
+  messageCount: number;
 }
 
 interface PrivateNotificationState {
@@ -169,6 +175,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
   const [messages, setMessages] = useState<FriendMessage[]>([]);
   const [pinnedMessages, setPinnedMessages] = useState<PinnedMessage[]>([]);
   const [unreadPrivateBySender, setUnreadPrivateBySender] = useState<Record<string, number>>({});
+  const [privateMessageToast, setPrivateMessageToast] = useState<PrivateMessageToast | null>(null);
   const [draft, setDraft] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -307,6 +314,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
         readAtBySender: { ...state.readAtBySender }
       };
       let latestCreatedAt = nextState.cursor;
+      const newlyUnreadMessages: PrivateNotification[] = [];
 
       for (const message of result.data.messages || []) {
         if (!message.id || !message.sender_id || !message.created_at) continue;
@@ -320,6 +328,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
         const unreadIds = nextState.unreadIdsBySender[message.sender_id] || [];
         if (!unreadIds.includes(message.id)) {
           nextState.unreadIdsBySender[message.sender_id] = [...unreadIds, message.id].slice(-100);
+          newlyUnreadMessages.push(message);
         }
       }
 
@@ -329,6 +338,14 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
       setUnreadPrivateBySender(Object.fromEntries(
         Object.entries(nextState.unreadIdsBySender).map(([senderId, ids]) => [senderId, ids.length])
       ));
+      if (newlyUnreadMessages.length > 0) {
+        const latestMessage = newlyUnreadMessages[newlyUnreadMessages.length - 1];
+        setPrivateMessageToast({
+          senderId: latestMessage.sender_id,
+          messageCount: newlyUnreadMessages.filter((message) => message.sender_id === latestMessage.sender_id).length
+        });
+        playPrivateMessageSound();
+      }
     };
 
     void pollPrivateNotifications();
@@ -338,6 +355,23 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
       window.clearInterval(intervalId);
     };
   }, [isSessionReady, socialUserId]);
+
+  useEffect(() => {
+    if (!privateMessageToast) return;
+    let timeoutId: number | undefined;
+    const syncDismissTimer = () => {
+      if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+      timeoutId = document.hidden
+        ? undefined
+        : window.setTimeout(() => setPrivateMessageToast(null), 8_000);
+    };
+    syncDismissTimer();
+    document.addEventListener('visibilitychange', syncDismissTimer);
+    return () => {
+      if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+      document.removeEventListener('visibilitychange', syncDismissTimer);
+    };
+  }, [privateMessageToast]);
 
   useEffect(() => {
     setProfilePhoto(currentUser.photo_url);
@@ -825,6 +859,46 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
             {selectedFriend && <button type="button" className="friends-mobile-back-button" onClick={() => setSelectedFriendId(null)}><ArrowLeft size={15} /><span>Public chat</span></button>}
             {selectedFriend && <button type="button" className="friends-selected-chip" onClick={() => setSelectedFriendId(null)}><ArrowLeft size={13} /> {selectedFriend.full_name}</button>}
           </header>
+
+          <AnimatePresence>
+            {privateMessageToast && (
+              <motion.aside
+                className="friends-private-toast"
+                role="status"
+                aria-live="polite"
+                initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                transition={{ duration: 0.18 }}
+              >
+                <MessageCircle size={16} aria-hidden="true" />
+                <p>
+                  {privateMessageToast.messageCount > 1
+                    ? `${privateMessageToast.messageCount} novas mensagens privadas de `
+                    : 'Nova mensagem privada de '}
+                  <strong>{profiles.find((profile) => profile.id === privateMessageToast.senderId)?.full_name || 'alguém'}</strong>
+                </p>
+                <button
+                  type="button"
+                  className="friends-private-toast-open"
+                  onClick={() => {
+                    setSelectedFriendId(privateMessageToast.senderId);
+                    setPrivateMessageToast(null);
+                  }}
+                >
+                  Abrir
+                </button>
+                <button
+                  type="button"
+                  className="friends-private-toast-close"
+                  onClick={() => setPrivateMessageToast(null)}
+                  aria-label="Fechar notificação"
+                >
+                  <X size={14} />
+                </button>
+              </motion.aside>
+            )}
+          </AnimatePresence>
 
           {!selectedFriend && pinnedMessages.length > 0 && (
             <section className="friends-pinned-messages" aria-label="Mensagens fixadas">

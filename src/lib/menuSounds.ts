@@ -76,3 +76,24 @@ export function playMenuSelectSound(volume: number = 0.18): void {
     console.warn('Select sound error:', err);
   }
 }
+
+export function playPrivateMessageSound(): void {
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    const oscillator = ctx.createOscillator();
+    const gain = ctx.createGain();
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(660, now);
+    gain.gain.setValueAtTime(0.045, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.09);
+    oscillator.connect(gain);
+    gain.connect(ctx.destination);
+    oscillator.start(now);
+    oscillator.stop(now + 0.1);
+  } catch (error) {
+    console.warn('Private message notification sound suppressed:', error);
+  }
+}

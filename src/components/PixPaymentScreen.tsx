@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { BrazilianLogo } from './BrazilianLogo';
 import { SocialLinksBar } from './SocialLinksBar';
-import { getSupabaseClient, redeemGoogleTrialCoupon } from '../utils/supabaseClient';
+import { getSupabaseClient, redeemAuthenticatedTrialCoupon } from '../utils/supabaseClient';
 import { SiteLegalFooter } from './SiteLegalFooter';
 import { apiFetch } from '../lib/api';
 
@@ -68,10 +68,10 @@ export const PixPaymentScreen: React.FC<PixPaymentScreenProps> = ({
       setAbatePayError('');
       try {
         const client = getSupabaseClient();
-        if (!client) throw new Error('Login Google indisponível. Entre novamente.');
+        if (!client) throw new Error('Login indisponível. Verifique sua conexão e entre novamente.');
         const { data: sessionData } = await client.auth.getSession();
         const accessToken = sessionData.session?.access_token;
-        if (!accessToken) throw new Error('Entre com o Google novamente para gerar sua cobrança.');
+        if (!accessToken) throw new Error('Sua sessão expirou. Entre novamente para gerar sua cobrança.');
 
         const response = await apiFetch('/api/payments/create-pix', {
           method: 'POST',
@@ -231,7 +231,7 @@ export const PixPaymentScreen: React.FC<PixPaymentScreenProps> = ({
 
     setValidatingCoupon(true);
     try {
-      const result = await redeemGoogleTrialCoupon(cleanToken);
+      const result = await redeemAuthenticatedTrialCoupon(cleanToken);
       if (!result.ok) {
         throw new Error(result.reason === 'invalid_or_used' ? 'Cupom inválido, expirado ou já utilizado.' : 'Não foi possível resgatar o cupom.');
       }
@@ -296,6 +296,12 @@ export const PixPaymentScreen: React.FC<PixPaymentScreenProps> = ({
 
         {activeTab === 'checkout' ? (
           <>
+            {user.onboarding_notice && (
+              <div className="mb-3 w-full rounded-xl border border-amber-400/30 bg-amber-400/10 p-3 text-left text-xs text-amber-100">
+                {user.onboarding_notice}
+              </div>
+            )}
+
             {/* Top Floating Badge */}
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-bold uppercase tracking-wider mb-3 shadow-sm">
               <Zap size={13} className="text-amber-400" />
