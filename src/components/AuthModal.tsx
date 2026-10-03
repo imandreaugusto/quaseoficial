@@ -24,7 +24,6 @@ import {
 import { BrazilianLogo } from './BrazilianLogo';
 import { SubscriptionInfoModal } from './SubscriptionInfoModal';
 import { Clock } from './Clock';
-import { SocialLinksBar } from './SocialLinksBar';
 import { fetchCouponFromSupabase, redeemAuthenticatedTrialCoupon, getSupabaseConfig, getSupabaseClient, signInWithGoogle, registerAuthenticatedProfile } from '../utils/supabaseClient';
 import { SiteLegalFooter } from './SiteLegalFooter';
 
@@ -533,6 +532,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
           )}
 
+          {isSignUp && !isAdminMode && (
+            <label className="flex cursor-pointer items-start gap-2 rounded-xl px-1 py-1 text-[10px] leading-relaxed text-white/55 sm:text-[11px]">
+              <input
+                type="checkbox"
+                checked={locationConsent}
+                onChange={(event) => setLocationConsent(event.target.checked)}
+                className="mt-0.5 shrink-0 accent-amber-400"
+              />
+              <span>Opcional: compartilhar minha região aproximada no Brazilian Friends.</span>
+            </label>
+          )}
+
           <div className="grid gap-1.5 sm:grid-cols-[94px_minmax(0,1fr)] sm:items-center">
             <label className="text-[10px] sm:text-[11px] text-white/90 font-bold sm:text-right drop-shadow">
               {isAdminMode ? 'E-mail CEO' : 'E-mail'}
@@ -669,18 +680,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </div>
         </form>
 
-        {!isAdminMode && (
-          <label className="mt-2 flex w-full cursor-pointer items-start gap-2 px-1 text-[10px] leading-relaxed text-white/65 sm:text-[11px]">
-            <input
-              type="checkbox"
-              checked={locationConsent}
-              onChange={(event) => setLocationConsent(event.target.checked)}
-              className="mt-0.5 accent-amber-400"
-            />
-            <span>Opcional: aceito registrar país, estado/região e cidade aproximados pelo IP. Minha região/país poderão aparecer para assinantes enquanto eu estiver online no Brazilian Friends. Posso continuar sem compartilhar.</span>
-          </label>
-        )}
-
         {/* Google Sign-In via Supabase OAuth */}
         {getSupabaseConfig().url && getSupabaseConfig().anonKey && (
           <div className="mt-3 flex w-full flex-col items-center gap-2.5 pointer-events-auto">
@@ -743,16 +742,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           )}
         </div>
 
-        {/* Social Media Channels (YouTube, TikTok, Instagram, WhatsApp) - Soltos & Separados */}
-        <div className="mt-2 flex w-full flex-col items-center justify-center gap-1 pointer-events-auto">
-          <SocialLinksBar size="md" />
-          <p className="text-[9px] font-extrabold tracking-[0.16em] text-amber-300 uppercase drop-shadow-[0_2px_8px_rgba(0,0,0,1)]">
-            Brazilian in Action
-          </p>
-          <p className="text-[8px] text-white/75 font-mono tracking-wider text-center">
-            © 2026 Brazilian in Action. Todos os direitos reservados.
-          </p>
-        </div>
           </div>
         </div>
 
