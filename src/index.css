@@ -465,17 +465,16 @@ input, textarea, select {
 .readclub-library-panel {
   position: relative;
   isolation: isolate;
-  overflow: hidden;
 }
 
 .readclub-library-panel::before {
   content: '';
   position: absolute;
   top: -1rem;
-  right: 0;
-  bottom: -1rem;
-  left: 0;
-  z-index: 0;
+  left: -1rem;
+  right: -1rem;
+  height: min(48rem, 92vh);
+  z-index: -1;
   pointer-events: none;
   background: linear-gradient(180deg, rgba(0, 0, 0, 0.88) 0%, rgba(0, 0, 0, 0.68) 30%, rgba(0, 0, 0, 0.3) 58%, transparent 100%);
   filter: blur(18px);
