@@ -5,6 +5,23 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { UserProfile } from '../types';
 import { apiFetch } from '../lib/api';
 
+export interface StudentFeedbackRecord {
+  id: string;
+  auth_user_id: string;
+  student_name: string;
+  student_email: string;
+  answers: {
+    platform: string;
+    improve: string;
+    expectations: string;
+    other: string;
+  };
+  status: 'new' | 'reviewing' | 'answered';
+  admin_reply: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export const getSupabaseConfig = () => {
   let storedConfig: { url?: string; anonKey?: string; appUrl?: string } = {};
   try {
@@ -429,6 +446,99 @@ export const loadStudentProgressFromSupabase = async (userId: string) => {
     console.warn('Supabase student progress load failed:', error);
     throw error;
   }
+};
+
+export const submitStudentFeedback = async (feedback: {
+  authUserId: string;
+  studentName: string;
+  studentEmail: string;
+  answers: StudentFeedbackRecord['answers'];
+}) => {
+  const client = getSupabaseClient();
+  if (!client) throw new Error('Supabase não está configurado para enviar o feedback.');
+  if (!feedback.authUserId) throw new Error('Não foi possível identificar a conta autenticada.');
+
+  const { data: authData, error: authError } = await client.auth.getUser();
+  if (authError) throw authError;
+  if (authData.user?.id !== feedback.authUserId) {
+    throw new Error('Sua sessão expirou. Entre novamente para enviar o feedback.');
+  }
+
+  const { data, error } = await client
+    .from('bia_student_feedback')
+    .insert({
+      auth_user_id: feedback.authUserId,
+      student_name: feedback.studentName.trim(),
+      student_email: feedback.studentEmail.trim().toLowerCase(),
+      answers: feedback.answers,
+    })
+    .select('id, status, created_at')
+    .single();
+
+  if (error) {
+    console.error('Student feedback submission failed:', error);
+    throw error;
+  }
+  return data as Pick<StudentFeedbackRecord, 'id' | 'status' | 'created_at'>;
+};
+
+export const loadStudentFeedback = async () => {
+  const client = getSupabaseClient();
+  if (!client) throw new Error('Supabase não está configurado para carregar feedbacks.');
+
+  const { data: authData, error: authError } = await client.auth.getUser();
+  if (authError) throw authError;
+  if (!authData.user) throw new Error('Entre novamente para ver os feedbacks.');
+
+  const { data, error } = await client
+    .from('bia_student_feedback')
+    .select('id, auth_user_id, student_name, student_email, answers, status, admin_reply, created_at, updated_at')
+    .eq('auth_user_id', authData.user.id)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Student feedback history load failed:', error);
+    throw error;
+  }
+  return (data || []) as StudentFeedbackRecord[];
+};
+
+export const loadAllStudentFeedback = async () => {
+  const client = getSupabaseClient();
+  if (!client) throw new Error('Supabase não está configurado para carregar feedbacks.');
+
+  const { data, error } = await client
+    .from('bia_student_feedback')
+    .select('id, auth_user_id, student_name, student_email, answers, status, admin_reply, created_at, updated_at')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Admin feedback list load failed:', error);
+    throw error;
+  }
+  return (data || []) as StudentFeedbackRecord[];
+};
+
+export const updateStudentFeedback = async (
+  id: string,
+  update: Pick<StudentFeedbackRecord, 'status' | 'admin_reply'>
+) => {
+  const client = getSupabaseClient();
+  if (!client) throw new Error('Supabase não está configurado para atualizar feedbacks.');
+  if (!id) throw new Error('O identificador do feedback está vazio.');
+
+  const { data, error } = await client
+    .from('bia_student_feedback')
+    .update({ ...update, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select('id')
+    .single();
+
+  if (error) {
+    console.error('Admin feedback update failed:', error);
+    throw error;
+  }
+  return data;
 };
 
 export const findUserProfileByEmail = async (email: string) => {

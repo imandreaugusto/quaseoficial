@@ -63,7 +63,8 @@ import {
   UserX,
   Clock3,
   Layers,
-  Gamepad2
+  Gamepad2,
+  MessageSquareText
 } from 'lucide-react';
 import { BrazilianLogo } from './BrazilianLogo';
 import {
@@ -114,6 +115,7 @@ const ALL_ADMIN_APPS = [
   { id: 'biacompare', label: 'BIA Compare', icon: Sparkles, desc: 'Laboratório de comparação' },
   { id: 'conversation', label: 'Brazilian Conversation', icon: Mic, desc: 'Conversação com IA avançada' },
   { id: 'tradutor', label: 'Brazilian Tradutor', icon: Languages, desc: 'Dicionário e tradutor cultural' },
+  { id: 'feedback', label: 'Feedback dos alunos', icon: MessageSquareText, desc: 'Sugestões enviadas pelos alunos' },
   { id: 'settings', label: 'Configurações', icon: SettingsIcon, desc: 'Personalização visual da plataforma' },
 ];
 
@@ -178,7 +180,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   // App Order and Global Availability Configuration
   const [appConfig, setAppConfig] = useState<GlobalAppConfig>({
     studentAppOrder: ['brazilianfriends', 'stories', 'practice', 'readclub', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube'],
-    adminAppOrder: ['home', 'work', 'brazilianfriends', 'stories', 'practice', 'dashboard', 'admin_settings', 'readclub', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'settings'],
+    adminAppOrder: ['home', 'work', 'brazilianfriends', 'stories', 'practice', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'settings'],
     studentGlobalEnabled: {
       brazilianfriends: true,
       stories: true,
@@ -294,6 +296,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
         const adminAppOrder = parsed.adminAppOrder.includes('braziliangames')
           ? parsed.adminAppOrder
           : [...parsed.adminAppOrder, 'braziliangames'];
+        if (!adminAppOrder.includes('feedback')) adminAppOrder.push('feedback');
         setAppConfig({
           ...parsed,
           studentAppOrder: studentAppOrder.includes('brazilianfriends')
@@ -715,7 +718,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   const handleResetAppOrder = () => {
     const defaultConfig: GlobalAppConfig = {
       studentAppOrder: ['brazilianfriends', 'readclub', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube'],
-      adminAppOrder: ['home', 'work', 'brazilianfriends', 'dashboard', 'admin_settings', 'readclub', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'settings'],
+      adminAppOrder: ['home', 'work', 'brazilianfriends', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'settings'],
       studentGlobalEnabled: {
         brazilianfriends: true,
         readclub: true,

@@ -25,7 +25,8 @@ import {
   EyeOff,
   Globe,
   Instagram,
-  Gamepad2
+  Gamepad2,
+  MessageSquareText
 } from 'lucide-react';
 import { UserProfile, GlobalAppConfig } from '../types';
 import { BrazilianLogo } from './BrazilianLogo';
@@ -56,7 +57,8 @@ const ALL_STUDENT_ITEMS = [
   { id: 'biacompare', label: 'BIA Compare', icon: Sparkles, permKey: 'biacompare' as const },
   { id: 'conversation', label: 'Conversação IA', icon: Mic, permKey: 'conversation' as const },
   { id: 'tradutor', label: 'Tradutor Cultural', icon: Languages, permKey: 'tradutor' as const },
-  { id: 'youtube', label: 'Brazilian Music', icon: Music, permKey: 'youtube' as const }
+  { id: 'youtube', label: 'Brazilian Music', icon: Music, permKey: 'youtube' as const },
+  { id: 'feedback', label: 'Feedback', icon: MessageSquareText, permKey: 'readclub' as const }
 ];
 
 type NavItem = {
@@ -200,6 +202,7 @@ const ALL_ADMIN_ITEMS = [
   { id: 'conversation', label: 'Brazilian Conversation', icon: Mic },
   { id: 'tradutor', label: 'Brazilian Tradutor', icon: Languages },
   { id: 'youtube', label: 'Brazilian Music', icon: Music },
+  { id: 'feedback', label: 'Feedback dos alunos', icon: MessageSquareText },
   { id: 'settings', label: 'Configurações', icon: SettingsIcon },
 ];
 
@@ -218,7 +221,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [appConfig, setAppConfig] = useState<GlobalAppConfig>({
     studentAppOrder: ['home', 'brazilianfriends', 'stories', 'practice', 'readclub', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube'],
-    adminAppOrder: ['home', 'work', 'brazilianfriends', 'stories', 'practice', 'dashboard', 'admin_settings', 'readclub', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'settings'],
+    adminAppOrder: ['home', 'work', 'brazilianfriends', 'stories', 'practice', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'settings'],
     studentGlobalEnabled: {
       brazilianfriends: true,
       stories: true,
@@ -249,6 +252,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             : ['brazilianfriends', ...parsed.adminAppOrder];
           if (!studentAppOrder.includes('braziliangames')) studentAppOrder.push('braziliangames');
           if (!adminAppOrder.includes('braziliangames')) adminAppOrder.push('braziliangames');
+          if (!adminAppOrder.includes('feedback')) adminAppOrder.push('feedback');
           setAppConfig({
             ...parsed,
             studentAppOrder,
@@ -297,11 +301,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
       const isPermittedForUser = perms[item.permKey] !== false;
       return isGloballyActive && isPermittedForUser;
     });
+  if (!studentItems.some((item) => item.id === 'feedback')) {
+    const feedbackItem = ALL_STUDENT_ITEMS.find((item) => item.id === 'feedback');
+    if (feedbackItem) studentItems.push(feedbackItem);
+  }
 
   // Build Ordered Admin Items
   const adminItems = appConfig.adminAppOrder
     .map((appId) => ALL_ADMIN_ITEMS.find((item) => item.id === appId))
     .filter((item): item is typeof ALL_ADMIN_ITEMS[number] => Boolean(item));
+  if (!adminItems.some((item) => item.id === 'feedback')) {
+    const feedbackItem = ALL_ADMIN_ITEMS.find((item) => item.id === 'feedback');
+    if (feedbackItem) adminItems.push(feedbackItem);
+  }
 
   // Strictly filter menu items based on active role & student preview simulation
   const menuItems = isAdmin ? adminItems : studentItems;

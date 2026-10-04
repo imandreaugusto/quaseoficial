@@ -386,6 +386,9 @@ export const Settings: React.FC<SettingsProps> = ({
             <Trash2 size={13} />
             <span>Dados & Backups</span>
           </h3>
+          <p className="mb-3 rounded-xl border border-amber-300/15 bg-amber-300/5 p-3 text-xs leading-relaxed text-amber-100/80">
+            O backup JSON inclui aulas, despesas, configurações e dados do Read Club. Baixe-o regularmente e guarde-o em local privado, como um Drive protegido. Ele não substitui uma cópia completa do banco Supabase e pode conter informações pessoais de alunos. Restaurar um backup substitui os dados correspondentes.
+          </p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <button
               onClick={onExportBackup}

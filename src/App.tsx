@@ -18,6 +18,8 @@ import { BrazilianStories } from './components/BrazilianStories';
 import { BrazilianFriends } from './components/BrazilianFriends';
 import { StreamStudio } from './components/StreamStudio';
 import { AdminSettings } from './components/AdminSettings';
+import { AdminFeedbackPanel } from './components/AdminFeedbackPanel';
+import { StudentFeedback } from './components/StudentFeedback';
 import { AuthModal } from './components/AuthModal';
 import { PixPaymentScreen } from './components/PixPaymentScreen';
 import { GlobalStreamOverlay } from './components/GlobalStreamOverlay';
@@ -724,16 +726,36 @@ export default function App() {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        const payload = JSON.parse(e.target?.result as string);
-        if (payload.dashboard?.aulas) handleUpdateClasses(payload.dashboard.aulas);
-        if (payload.dashboard?.desp) handleUpdateExpenses(payload.dashboard.desp);
-        if (payload.settings) handleUpdateSettings(payload.settings);
-        if (payload.library) handleUpdateLibrary(payload.library);
-        if (payload.sessions) handleUpdateSessions(payload.sessions);
-        if (payload.glossary) handleUpdateGlossary(payload.glossary);
-        if (payload.learnedWords) handleUpdateLearnedWords(payload.learnedWords);
+        const payload: unknown = JSON.parse(String(e.target?.result || ''));
+        if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+          throw new Error('Formato de backup inválido.');
+        }
+        const backup = payload as {
+          dashboard?: { classes?: unknown; expenses?: unknown; aulas?: unknown; desp?: unknown };
+          settings?: unknown;
+          library?: unknown;
+          sessions?: unknown;
+          glossary?: unknown;
+          learnedWords?: unknown;
+        };
+        const backupClasses = backup.dashboard?.classes ?? backup.dashboard?.aulas;
+        const backupExpenses = backup.dashboard?.expenses ?? backup.dashboard?.desp;
+        if (Array.isArray(backupClasses)) handleUpdateClasses(backupClasses as ClassItem[]);
+        if (Array.isArray(backupExpenses)) handleUpdateExpenses(backupExpenses as ExpenseItem[]);
+        if (backup.settings && typeof backup.settings === 'object' && !Array.isArray(backup.settings)) {
+          handleUpdateSettings(backup.settings as Partial<AppSettings>);
+        }
+        if (Array.isArray(backup.library)) handleUpdateLibrary(backup.library as StoryItem[]);
+        if (Array.isArray(backup.sessions)) handleUpdateSessions(backup.sessions as ReadSession[]);
+        if (backup.glossary && typeof backup.glossary === 'object' && !Array.isArray(backup.glossary)) {
+          handleUpdateGlossary(backup.glossary as Record<string, GlossaryEntry>);
+        }
+        if (backup.learnedWords && typeof backup.learnedWords === 'object' && !Array.isArray(backup.learnedWords)) {
+          handleUpdateLearnedWords(backup.learnedWords as Record<number, string[]>);
+        }
         alert('Backup restaurado com sucesso!');
       } catch (err) {
+        console.error('Backup import failed:', err);
         alert('Erro ao importar arquivo de backup.');
       }
     };
@@ -1116,6 +1138,16 @@ export default function App() {
                       expenses={expenses}
                       currentUser={currentUser}
                     />
+                  )}
+
+                  {effectiveIsAdmin && currentApp === 'feedback' && (
+                    <div className="mx-auto max-w-5xl px-4 py-8">
+                      <AdminFeedbackPanel />
+                    </div>
+                  )}
+
+                  {currentUser && currentApp === 'feedback' && (!isAdmin || isStudentPreviewMode) && (
+                    <StudentFeedback currentUser={currentUser} accentColor={settings.accentColor} />
                   )}
 
                   {effectiveIsAdmin && currentApp === 'classroom' && (
