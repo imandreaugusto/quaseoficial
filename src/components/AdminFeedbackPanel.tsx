@@ -119,17 +119,21 @@ export const AdminFeedbackPanel: React.FC = () => {
                 </header>
 
                 <div className="space-y-3 py-4">
-                  {[
-                    ['O que está achando da plataforma?', item.answers.platform],
-                    ['Como podemos melhorar?', item.answers.improve],
-                    ['O que espera encontrar na plataforma?', item.answers.expectations],
-                    ['Outros comentários', item.answers.other],
-                  ].map(([question, answer]) => answer && (
-                    <p key={question} className="whitespace-pre-wrap text-sm text-white/75">
-                      <span className="font-semibold text-white/90">{question} </span>
-                      {answer}
-                    </p>
-                  ))}
+                  {item.answers.message ? (
+                    <p className="whitespace-pre-wrap text-sm text-white/75">{item.answers.message}</p>
+                  ) : (
+                    [
+                      ['O que está achando da plataforma?', item.answers.platform],
+                      ['Como podemos melhorar?', item.answers.improve],
+                      ['O que espera encontrar na plataforma?', item.answers.expectations],
+                      ['Outros comentários', item.answers.other],
+                    ].map(([question, answer]) => answer && (
+                      <p key={question} className="whitespace-pre-wrap text-sm text-white/75">
+                        <span className="font-semibold text-white/90">{question} </span>
+                        {answer}
+                      </p>
+                    ))
+                  )}
                 </div>
 
                 {draft && (
@@ -150,7 +154,7 @@ export const AdminFeedbackPanel: React.FC = () => {
                       </select>
                     </label>
                     <label className="text-xs font-semibold text-white/70">
-                      Resposta para o aluno (opcional)
+                      Resposta do CEO para este aluno (privada)
                       <textarea
                         value={draft.reply}
                         onChange={(event) => setDrafts((previous) => ({
@@ -160,7 +164,7 @@ export const AdminFeedbackPanel: React.FC = () => {
                         maxLength={2000}
                         rows={3}
                         className="mt-1 block w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none focus:border-white/25"
-                        placeholder="Escreva uma resposta para o aluno..."
+                        placeholder="Somente este aluno verá sua resposta..."
                       />
                     </label>
                     <button

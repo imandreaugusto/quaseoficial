@@ -12,20 +12,11 @@ interface StudentFeedbackProps {
   accentColor: string;
 }
 
-const QUESTIONS = [
-  { key: 'platform', label: 'O que você está achando da plataforma?' },
-  { key: 'improve', label: 'Como poderíamos melhorar?' },
-  { key: 'expectations', label: 'O que você espera encontrar na plataforma?' },
-  { key: 'other', label: 'Quer deixar alguma outra sugestão ou comentário?' },
-] as const;
-
-type FeedbackAnswers = StudentFeedbackRecord['answers'];
-
-const EMPTY_ANSWERS: FeedbackAnswers = {
-  platform: '',
-  improve: '',
-  expectations: '',
-  other: '',
+const LEGACY_QUESTIONS: Record<string, string> = {
+  platform: 'O que você está achando da plataforma?',
+  improve: 'Como poderíamos melhorar?',
+  expectations: 'O que você espera encontrar na plataforma?',
+  other: 'Quer deixar alguma outra sugestão ou comentário?',
 };
 
 const STATUS_LABELS: Record<StudentFeedbackRecord['status'], string> = {
@@ -35,7 +26,7 @@ const STATUS_LABELS: Record<StudentFeedbackRecord['status'], string> = {
 };
 
 export const StudentFeedback: React.FC<StudentFeedbackProps> = ({ currentUser, accentColor }) => {
-  const [answers, setAnswers] = useState<FeedbackAnswers>(EMPTY_ANSWERS);
+  const [answer, setAnswer] = useState('');
   const [history, setHistory] = useState<StudentFeedbackRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -59,8 +50,8 @@ export const StudentFeedback: React.FC<StudentFeedbackProps> = ({ currentUser, a
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!Object.values(answers).some((answer) => answer.trim())) {
-      setErrorMessage('Escreva pelo menos uma resposta antes de enviar.');
+    if (!answer.trim()) {
+      setErrorMessage('Escreva seu feedback antes de enviar.');
       return;
     }
 
@@ -72,9 +63,9 @@ export const StudentFeedback: React.FC<StudentFeedbackProps> = ({ currentUser, a
         authUserId: currentUser.auth_user_id || currentUser.id,
         studentName: currentUser.full_name || currentUser.email,
         studentEmail: currentUser.email,
-        answers,
+        answers: { message: answer.trim() },
       });
-      setAnswers(EMPTY_ANSWERS);
+      setAnswer('');
       setSuccessMessage('Obrigado! Seu feedback foi enviado para a equipe.');
       await refreshHistory();
     } catch (error) {
@@ -93,26 +84,26 @@ export const StudentFeedback: React.FC<StudentFeedbackProps> = ({ currentUser, a
         <MessageSquareText className="mx-auto mb-3" size={30} style={{ color: accentColor }} />
         <h1 className="text-2xl font-bold">Feedback e sugestões</h1>
         <p className="mt-2 text-sm text-white/60">
-          Conte com suas palavras o que está funcionando e o que podemos melhorar.
-          Suas respostas serão lidas pela equipe da plataforma.
+          Em um único campo, conte o que está achando da plataforma, como podemos melhorar
+          e o que você espera encontrar. Sua mensagem será lida pela equipe.
         </p>
       </header>
 
       <form onSubmit={handleSubmit} className="space-y-5 rounded-2xl border border-white/10 bg-white/[0.04] p-5 sm:p-7">
-        {QUESTIONS.map(({ key, label }) => (
-          <label key={key} className="block">
-            <span className="mb-2 block text-sm font-semibold text-white/85">{label}</span>
-            <textarea
-              value={answers[key]}
-              onChange={(event) => setAnswers((previous) => ({ ...previous, [key]: event.target.value }))}
-              maxLength={2000}
-              rows={3}
-              className="w-full resize-y rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-white/30"
-              placeholder="Escreva aqui..."
-            />
-            <span className="mt-1 block text-right text-[11px] text-white/35">{answers[key].length}/2000</span>
-          </label>
-        ))}
+        <label className="block">
+          <span className="mb-2 block text-sm font-semibold text-white/85">
+            O que você está achando? Como podemos melhorar? O que espera encontrar?
+          </span>
+          <textarea
+            value={answer}
+            onChange={(event) => setAnswer(event.target.value)}
+            maxLength={5000}
+            rows={8}
+            className="w-full resize-y rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-white/30"
+            placeholder="Responda às perguntas com suas palavras. Você pode falar sobre todos os pontos em uma única mensagem."
+          />
+          <span className="mt-1 block text-right text-[11px] text-white/35">{answer.length}/5000</span>
+        </label>
 
         {errorMessage && <p role="alert" className="text-sm text-red-300">{errorMessage}</p>}
         {successMessage && <p role="status" className="text-sm text-emerald-300">{successMessage}</p>}
@@ -147,18 +138,21 @@ export const StudentFeedback: React.FC<StudentFeedbackProps> = ({ currentUser, a
                     {new Date(entry.created_at).toLocaleDateString('pt-BR')}
                   </time>
                 </div>
-                {Object.entries(entry.answers).map(([key, answer]) => {
-                  const question = QUESTIONS.find((item) => item.key === key);
-                  return answer ? (
+                {entry.answers.message ? (
+                  <p className="mt-3 whitespace-pre-wrap text-sm text-white/75">{entry.answers.message}</p>
+                ) : Object.entries(entry.answers).map(([key, legacyAnswer]) => (
+                  legacyAnswer ? (
                     <p key={key} className="mt-3 whitespace-pre-wrap text-sm text-white/75">
-                      <span className="font-semibold text-white/90">{question?.label} </span>
-                      {answer}
+                      {LEGACY_QUESTIONS[key] && (
+                        <span className="font-semibold text-white/90">{LEGACY_QUESTIONS[key]} </span>
+                      )}
+                      {legacyAnswer}
                     </p>
-                  ) : null;
-                })}
+                  ) : null
+                ))}
                 {entry.admin_reply && (
                   <div className="mt-4 rounded-lg border border-emerald-300/15 bg-emerald-300/5 p-3">
-                    <p className="text-xs font-bold text-emerald-200">Resposta da equipe</p>
+                    <p className="text-xs font-bold text-emerald-200">Resposta do CEO para você</p>
                     <p className="mt-1 whitespace-pre-wrap text-sm text-white/80">{entry.admin_reply}</p>
                   </div>
                 )}

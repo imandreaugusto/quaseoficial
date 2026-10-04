@@ -11,10 +11,11 @@ export interface StudentFeedbackRecord {
   student_name: string;
   student_email: string;
   answers: {
-    platform: string;
-    improve: string;
-    expectations: string;
-    other: string;
+    message?: string;
+    platform?: string;
+    improve?: string;
+    expectations?: string;
+    other?: string;
   };
   status: 'new' | 'reviewing' | 'answered';
   admin_reply: string | null;
@@ -452,7 +453,7 @@ export const submitStudentFeedback = async (feedback: {
   authUserId: string;
   studentName: string;
   studentEmail: string;
-  answers: StudentFeedbackRecord['answers'];
+  answers: { message: string };
 }) => {
   const client = getSupabaseClient();
   if (!client) throw new Error('Supabase não está configurado para enviar o feedback.');
