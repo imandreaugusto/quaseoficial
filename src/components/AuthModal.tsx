@@ -68,7 +68,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     status: 'idle' | 'valid' | 'used' | 'invalid';
     days: number;
     message: string;
-  }>({ status: 'idle', days: 5, message: '' });
+  }>({ status: 'idle', days: 2, message: '' });
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -143,7 +143,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               if (redemption.ok) {
                 localStorage.removeItem('bia_pending_trial_coupon');
               } else {
-                existingUser.onboarding_notice = 'O cupom não pôde ser aplicado (inválido, expirado ou já utilizado). Você ainda pode continuar para o pagamento.';
+                existingUser.onboarding_notice = redemption.reason === 'trial_already_used'
+                  ? 'Esta conta já utilizou o período de degustação. O cupom não pode ser repassado para desbloquear outro teste.'
+                  : 'O cupom não pôde ser aplicado (inválido, expirado ou já utilizado). Você ainda pode continuar para o pagamento.';
                 localStorage.removeItem('bia_pending_trial_coupon');
               }
             } catch (couponError) {
@@ -222,7 +224,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     const requestId = ++couponCheckRequestRef.current;
     const clean = rawCode.trim().toUpperCase();
     if (!clean) {
-      setCouponState({ status: 'idle', days: 5, message: '' });
+      setCouponState({ status: 'idle', days: 2, message: '' });
       return;
     }
 
@@ -232,19 +234,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     } catch (error) {
       if (requestId !== couponCheckRequestRef.current) return;
       console.error('Trial coupon validation request failed:', error);
-      setCouponState({ status: 'invalid', days: 5, message: 'Não foi possível validar o cupom agora. Tente novamente.' });
+      setCouponState({ status: 'invalid', days: 2, message: 'Não foi possível validar o cupom agora. Tente novamente.' });
       return;
     }
     if (requestId !== couponCheckRequestRef.current) return;
     if (remoteCoupon) {
       if (remoteCoupon.expires_at && new Date(remoteCoupon.expires_at).getTime() <= Date.now()) {
-        setCouponState({ status: 'invalid', days: 5, message: 'Este cupom expirou.' });
+        setCouponState({ status: 'invalid', days: 2, message: 'Este cupom expirou.' });
         return;
       }
       if (remoteCoupon.is_used) {
         setCouponState({
           status: 'used',
-          days: 5,
+          days: 2,
           message: 'Este cupom de uso único já foi resgatado e não pode ser reutilizado.'
         });
         return;
@@ -252,15 +254,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
       setCouponState({
         status: 'valid',
-        days: remoteCoupon.days || 5,
-        message: `Cupom Válido: ${remoteCoupon.days || 5} Dias de Degustação Gratuita liberados!`
+        days: remoteCoupon.days || 2,
+        message: `Cupom válido: ${remoteCoupon.days || 2} dias de degustação gratuita liberados!`
       });
       return;
     }
 
     setCouponState({
       status: 'invalid',
-      days: 5,
+      days: 2,
       message: 'Cupom não encontrado, expirado ou já utilizado.'
     });
   };
@@ -610,7 +612,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     onChange={(e) => {
                       const val = e.target.value.toUpperCase();
                       setCouponCode(val);
-                      setCouponState({ status: 'idle', days: 5, message: '' });
+                      setCouponState({ status: 'idle', days: 2, message: '' });
                       if (couponValidationTimerRef.current !== null) {
                         window.clearTimeout(couponValidationTimerRef.current);
                       }
@@ -718,7 +720,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   window.clearTimeout(couponValidationTimerRef.current);
                   couponValidationTimerRef.current = null;
                 }
-                setCouponState({ status: 'idle', days: 5, message: '' });
+                setCouponState({ status: 'idle', days: 2, message: '' });
               }}
               className="text-[10px] sm:text-[11px] font-bold text-amber-400 transition-colors hover:text-amber-300 cursor-pointer whitespace-nowrap"
             >

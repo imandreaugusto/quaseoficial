@@ -121,10 +121,8 @@ const ALL_ADMIN_APPS = [
 
 const generateRandomCouponCode = () => {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let token = '';
-  for (let i = 0; i < 4; i++) {
-    token += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
+  const randomValues = crypto.getRandomValues(new Uint8Array(10));
+  const token = Array.from(randomValues, (value) => chars[value & 31]).join('');
   return `BIA-TRIAL-${token}`;
 };
 
@@ -330,8 +328,8 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
           await createTrialCoupon({
             id: coupon.id,
             code: coupon.code,
-            days: coupon.days,
-            notes: coupon.notes,
+            days: 2,
+            notes: coupon.notes?.replace(/5 dias/gi, '2 dias'),
             expiresAt: coupon.expiresAt
           });
           remoteCodes.add(coupon.code.toUpperCase());
@@ -497,7 +495,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   };
 
   // Create a single unique single-use coupon
-  const handleCreateSingleCoupon = async (days: number = 5) => {
+  const handleCreateSingleCoupon = async (days: number = 2) => {
     const newCoupon: TrialCoupon = {
       id: `coupon_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       code: generateRandomCouponCode(),
@@ -510,7 +508,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   };
 
   // Create a batch of unique coupons
-  const handleCreateBatchCoupons = async (count: number = 5, days: number = 5) => {
+  const handleCreateBatchCoupons = async (count: number = 5, days: number = 2) => {
     const newCoupons: TrialCoupon[] = [];
     for (let i = 0; i < count; i++) {
       newCoupons.push({
@@ -2032,10 +2030,10 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
               <div>
                 <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
                   <Gift size={20} className="text-amber-400" />
-                  <span>Gerador de Cupons Únicos (5 Dias de Degustação)</span>
+                  <span>Gerador de Cupons Únicos (2 Dias de Degustação)</span>
                 </h2>
                 <p className="text-xs text-white/60 mt-1 max-w-2xl">
-                  Gere cupons com <strong>códigos criptografados de uso único</strong>. Assim que o aluno utilizar o cupom para se cadastrar, ele é automaticamente queimado e <strong>ninguém mais poderá reutilizá-lo</strong>.
+                  Gere cupons com <strong>códigos aleatórios exclusivos de uso único</strong>. O primeiro resgate válido consome o código, e cada conta pode usar apenas um cupom de degustação.
                 </p>
               </div>
 
@@ -2043,16 +2041,16 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => handleCreateSingleCoupon(5)}
+                  onClick={() => handleCreateSingleCoupon(2)}
                   disabled={isManagingCoupons}
                   className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-2xl transition-all flex items-center gap-1.5 cursor-pointer shadow-lg shadow-amber-500/20 active:scale-95"
                 >
                   <Plus size={16} />
-                  <span>Gerar 1 Novo Cupom (5 Dias)</span>
+                  <span>Gerar 1 Novo Cupom (2 Dias)</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleCreateBatchCoupons(5, 5)}
+                  onClick={() => handleCreateBatchCoupons(5, 2)}
                   disabled={isManagingCoupons}
                   className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-2xl transition-all flex items-center gap-1.5 cursor-pointer border border-white/15 active:scale-95"
                 >
@@ -2228,9 +2226,9 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
             <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
               <strong className="text-blue-400 block mb-1 text-sm flex items-center gap-1.5">
                 <Clock size={15} />
-                <span>3. Bloqueio no 6º Dia</span>
+                <span>3. Bloqueio no 3º Dia</span>
               </strong>
-              <span>Após os 5 dias corridos, o aluno é direcionado automaticamente para o pagamento Pix de R$ {gatewaySettings.subscriptionPrice.toFixed(2)}/mês para continuar.</span>
+              <span>Após os 2 dias corridos, o aluno é direcionado automaticamente para o pagamento Pix de R$ {gatewaySettings.subscriptionPrice.toFixed(2)}/mês para continuar.</span>
             </div>
           </div>
         </div>

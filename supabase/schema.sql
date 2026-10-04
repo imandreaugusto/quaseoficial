@@ -147,7 +147,7 @@ create table if not exists bia_ceo_friend_messages (
 create table if not exists bia_trial_coupons (
   id text primary key,
   code text not null unique,
-  days integer not null default 5,
+  days integer not null default 2,
   is_used boolean not null default false,
   used_by_email text,
   used_at timestamptz,
@@ -155,13 +155,6 @@ create table if not exists bia_trial_coupons (
   notes text,
   created_at timestamptz not null default now()
 );
-
-insert into bia_trial_coupons (id, code, days, is_used, notes)
-values
-  ('coupon_default_1', 'BIA-5DIAS', 5, false, 'Cupom Padrão de 5 Dias Grátis'),
-  ('coupon_default_2', 'DEGUSTA5', 5, false, 'Degustação 5 Dias de Acesso'),
-  ('coupon_default_3', 'BRAZILIAN5', 5, false, 'Cupom Promocional Brazilian 5 Dias')
-on conflict (code) do nothing;
 
 create index if not exists idx_shared_content_updated_at on bia_shared_content (updated_at desc);
 create index if not exists idx_student_progress_updated_at on bia_student_progress (updated_at desc);
@@ -350,39 +343,8 @@ end;
 $$;
 
 revoke all on function check_trial_coupon(text) from public;
-grant execute on function check_trial_coupon(text) to anon, authenticated;
-
-create or replace function redeem_trial_coupon(requested_code text, redeemer_email text)
-returns jsonb
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  redeemed_coupon bia_trial_coupons;
-begin
-  update bia_trial_coupons
-  set is_used = true,
-      used_by_email = lower(trim(redeemer_email)),
-      used_at = now()
-  where upper(code) = upper(trim(requested_code))
-    and is_used = false
-    and (expires_at is null or expires_at > now())
-  returning * into redeemed_coupon;
-
-  if redeemed_coupon.id is null then
-    return jsonb_build_object('ok', false, 'reason', 'invalid_or_used');
-  end if;
-
-  return jsonb_build_object(
-    'ok', true,
-    'coupon', jsonb_build_object('code', redeemed_coupon.code, 'days', redeemed_coupon.days)
-  );
-end;
-$$;
-
-revoke all on function redeem_trial_coupon(text, text) from public;
-grant execute on function redeem_trial_coupon(text, text) to anon, authenticated;
+grant execute on function check_trial_coupon(text) to service_role;
+drop function if exists public.redeem_trial_coupon(text, text);
 
 create or replace function update_updated_at_column()
 returns trigger as $$

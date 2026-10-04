@@ -42,7 +42,7 @@ create table if not exists public.bia_ceo_friend_messages (
 create table if not exists public.bia_trial_coupons (
   id text primary key,
   code text not null unique,
-  days integer not null default 5,
+  days integer not null default 2,
   is_used boolean not null default false,
   used_by_email text,
   used_at timestamptz,
@@ -50,13 +50,6 @@ create table if not exists public.bia_trial_coupons (
   notes text,
   created_at timestamptz not null default now()
 );
-insert into public.bia_trial_coupons (id, code, days, is_used, notes)
-values
-  ('coupon_default_1', 'BIA-5DIAS', 5, false, 'Cupom Padrão de 5 Dias Grátis'),
-  ('coupon_default_2', 'DEGUSTA5', 5, false, 'Degustação 5 Dias de Acesso'),
-  ('coupon_default_3', 'BRAZILIAN5', 5, false, 'Cupom Promocional Brazilian 5 Dias')
-on conflict (code) do nothing;
-
 create table if not exists public.bia_payment_intents (
   payment_id text primary key,
   user_id text,
@@ -308,8 +301,23 @@ set search_path = public
 as $$
 declare
   redeemed_coupon public.bia_trial_coupons;
+  target_profile public.profiles%rowtype;
   expiration timestamptz;
 begin
+  select * into target_profile
+  from public.profiles
+  where lower(email) = lower(trim(p_email))
+    and auth_user_id = p_user_id
+  for update;
+
+  if not found then
+    return jsonb_build_object('ok', false, 'reason', 'profile_not_found');
+  end if;
+
+  if nullif(trim(target_profile.cupom_usado), '') is not null then
+    return jsonb_build_object('ok', false, 'reason', 'trial_already_used');
+  end if;
+
   update public.bia_trial_coupons
   set is_used = true,
       used_by_email = lower(trim(p_email)),
@@ -323,20 +331,13 @@ begin
     return jsonb_build_object('ok', false, 'reason', 'invalid_or_used');
   end if;
 
-  if not exists (
-    select 1 from public.profiles
-    where lower(email) = lower(trim(p_email)) and auth_user_id = p_user_id
-  ) then
-    raise exception 'Google profile must be created before coupon redemption';
-  end if;
-
   select greatest(coalesce(subscription_expires_at, now()), now())
   into expiration
   from public.bia_subscription_profiles
   where lower(email) = lower(trim(p_email))
   for update;
 
-  expiration := expiration + make_interval(days => greatest(redeemed_coupon.days, 1));
+  expiration := expiration + interval '2 days';
 
   update public.profiles
   set status = 'active', data_expiracao = expiration,
@@ -348,7 +349,7 @@ begin
   on conflict (email) do update
   set user_id = excluded.user_id, status = 'active', subscription_expires_at = excluded.subscription_expires_at, updated_at = now();
 
-  return jsonb_build_object('ok', true, 'coupon', jsonb_build_object('code', redeemed_coupon.code, 'days', redeemed_coupon.days), 'expires_at', expiration);
+  return jsonb_build_object('ok', true, 'coupon', jsonb_build_object('code', redeemed_coupon.code, 'days', 2), 'expires_at', expiration);
 end;
 $$;
 
@@ -409,7 +410,7 @@ grant execute on function public.register_google_profile(text, text, text, text,
 grant execute on function public.redeem_google_trial_coupon(text, text, text) to service_role;
 grant execute on function public.activate_bia_payment(text, text) to service_role;
 
-revoke all on function public.redeem_trial_coupon(text, text) from public, anon, authenticated;
+drop function if exists public.redeem_trial_coupon(text, text);
 revoke all on function public.check_trial_coupon(text) from public, anon, authenticated;
 grant execute on function public.check_trial_coupon(text) to service_role;
 

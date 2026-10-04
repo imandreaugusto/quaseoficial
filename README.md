@@ -21,6 +21,8 @@ Para habilitar a sincronizacao global de aulas, biblioteca do Read Club/Brazilia
 
 Para receber feedback dos alunos, execute tambem [`supabase/enable_student_feedback.sql`](./supabase/enable_student_feedback.sql) no SQL Editor. Cada aluno pode ver apenas seus proprios envios; a leitura geral e as respostas ficam restritas aos administradores autorizados.
 
+Para atualizar os cupons de degustacao para dois dias e limitar cada conta a um unico resgate, execute [`supabase/trial_coupon_two_day_single_use.sql`](./supabase/trial_coupon_two_day_single_use.sql) no SQL Editor.
+
 # Run and deploy your AI Studio app
 
 This contains everything you need to run your app locally.

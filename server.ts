@@ -589,8 +589,8 @@ async function startServer() {
         : `coupon_${randomUUID()}`;
       const notes = typeof req.body?.notes === 'string' ? req.body.notes.trim().slice(0, 200) : null;
       const expiresAt = req.body?.expires_at == null ? null : String(req.body.expires_at);
-      if (!/^[A-Z0-9-]{4,100}$/.test(code) || !Number.isInteger(days) || days < 1 || days > 365) {
-        return res.status(400).json({ error: 'Código ou duração do cupom inválido.' });
+      if (!/^[A-Z0-9-]{4,100}$/.test(code) || days !== 2) {
+        return res.status(400).json({ error: 'Código inválido. Cupons de degustação concedem exatamente 2 dias.' });
       }
       if (expiresAt && !Number.isFinite(Date.parse(expiresAt))) {
         return res.status(400).json({ error: 'Data de expiração inválida.' });
@@ -602,7 +602,7 @@ async function startServer() {
         body: JSON.stringify({
           id,
           code,
-          days,
+          days: 2,
           is_used: false,
           notes,
           expires_at: expiresAt
