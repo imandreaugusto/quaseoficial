@@ -347,7 +347,8 @@ export const loadStoriesFromSupabase = async () => {
 
 export const syncSharedContentToSupabase = async (contentKey: string, payload: unknown) => {
   const client = getSupabaseClient();
-  if (!client || !contentKey) return null;
+  if (!client) throw new Error('Supabase não está configurado para salvar o conteúdo compartilhado.');
+  if (!contentKey) throw new Error('A chave do conteúdo compartilhado está vazia.');
 
   try {
     const { data, error } = await client
@@ -359,13 +360,14 @@ export const syncSharedContentToSupabase = async (contentKey: string, payload: u
     return data;
   } catch (error) {
     console.warn('Supabase shared content sync failed:', error);
-    return null;
+    throw error;
   }
 };
 
 export const loadSharedContentFromSupabase = async <T>(contentKey: string): Promise<T | null> => {
   const client = getSupabaseClient();
-  if (!client || !contentKey) return null;
+  if (!client) throw new Error('Supabase não está configurado para carregar o conteúdo compartilhado.');
+  if (!contentKey) throw new Error('A chave do conteúdo compartilhado está vazia.');
 
   try {
     const { data, error } = await client
@@ -377,7 +379,7 @@ export const loadSharedContentFromSupabase = async <T>(contentKey: string): Prom
     return (data?.payload as T) || null;
   } catch (error) {
     console.warn('Supabase shared content load failed:', error);
-    return null;
+    throw error;
   }
 };
 
@@ -387,7 +389,8 @@ export const syncStudentProgressToSupabase = async (userId: string, progress: {
   learnedWords: unknown;
 }) => {
   const client = getSupabaseClient();
-  if (!client || !userId) return null;
+  if (!client) throw new Error('Supabase não está configurado para salvar o progresso.');
+  if (!userId) throw new Error('O identificador do aluno está vazio.');
 
   try {
     const { data, error } = await client
@@ -405,13 +408,14 @@ export const syncStudentProgressToSupabase = async (userId: string, progress: {
     return data;
   } catch (error) {
     console.warn('Supabase student progress sync failed:', error);
-    return null;
+    throw error;
   }
 };
 
 export const loadStudentProgressFromSupabase = async (userId: string) => {
   const client = getSupabaseClient();
-  if (!client || !userId) return null;
+  if (!client) throw new Error('Supabase não está configurado para carregar o progresso.');
+  if (!userId) throw new Error('O identificador do aluno está vazio.');
 
   try {
     const { data, error } = await client
@@ -423,7 +427,7 @@ export const loadStudentProgressFromSupabase = async (userId: string) => {
     return data;
   } catch (error) {
     console.warn('Supabase student progress load failed:', error);
-    return null;
+    throw error;
   }
 };
 

@@ -30,7 +30,12 @@ import { INITIAL_READ_LIBRARY, SLIDESHOW_IMAGES, US_LANDMARKS } from './data';
 import { CEO_EMAIL, logAdminAccessAttempt, isAuthorizedCeoEmail } from './utils/security';
 import { motion, AnimatePresence } from 'motion/react';
 import { LayoutPositionProvider } from './lib/LayoutPositionContext';
-import { loadPlatformDataFromCloud, loadUserDataFromCloud, savePlatformDataToCloud, saveUserDataToCloud } from './lib/firebase';
+import {
+  loadSharedContentFromSupabase,
+  loadStudentProgressFromSupabase,
+  syncSharedContentToSupabase,
+  syncStudentProgressToSupabase,
+} from './utils/supabaseClient';
 import { Eye, EyeOff, MapPin } from 'lucide-react';
 import {
   getSupabaseClient,
@@ -102,6 +107,7 @@ export default function App() {
   // SAAS Authentication & Access Control States
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [isBooting, setIsBooting] = useState(true);
+  const [cloudSaveStatus, setCloudSaveStatus] = useState<'saving' | 'saved' | 'error' | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [currentApp, setCurrentApp] = useState<string>('home');
   const [quickTradutorModalOpen, setQuickTradutorModalOpen] = useState(false);
@@ -144,20 +150,74 @@ export default function App() {
   const alarmPlayedRef = useRef<Record<string, boolean>>({});
   const platformSyncQueueRef = useRef(Promise.resolve());
   const progressSyncQueueRef = useRef(Promise.resolve());
+  const pendingPlatformPayloadRef = useRef<{
+    classes: ClassItem[];
+    expenses: ExpenseItem[];
+    settings: AppSettings;
+    library: StoryItem[];
+  } | null>(null);
+  const progressRef = useRef({ sessions, glossary, learnedWords });
+  const pendingProgressRef = useRef<{
+    userId: string;
+    progress: { sessions: ReadSession[]; glossary: Record<string, GlossaryEntry>; learnedWords: Record<number, string[]> };
+  } | null>(null);
 
-  const queuePlatformSync = (payload: { classes: ClassItem[]; settings: AppSettings; library: StoryItem[] }) => {
+  const queuePlatformSync = (payload: {
+    classes: ClassItem[];
+    expenses: ExpenseItem[];
+    settings: AppSettings;
+    library: StoryItem[];
+  }) => {
+    pendingPlatformPayloadRef.current = payload;
+    setCloudSaveStatus('saving');
     platformSyncQueueRef.current = platformSyncQueueRef.current
       .catch(() => undefined)
-      .then(() => savePlatformDataToCloud('platform', payload))
-      .catch((error) => console.warn('Platform sync queued failed:', error));
+      .then(() => syncSharedContentToSupabase('platform', payload))
+      .then(() => {
+        if (pendingPlatformPayloadRef.current === payload) {
+          pendingPlatformPayloadRef.current = null;
+          if (!pendingProgressRef.current) setCloudSaveStatus('saved');
+        }
+      })
+      .catch((error) => {
+        console.error('Platform cloud save failed:', error);
+        setCloudSaveStatus('error');
+      });
   };
 
-  const queueProgressSync = (userId: string, progress: { sessions: unknown; glossary: unknown; learnedWords: unknown }) => {
+  const queueProgressSync = (
+    userId: string,
+    progress: { sessions: ReadSession[]; glossary: Record<string, GlossaryEntry>; learnedWords: Record<number, string[]> }
+  ) => {
+    const pending = { userId, progress };
+    pendingProgressRef.current = pending;
+    setCloudSaveStatus('saving');
     progressSyncQueueRef.current = progressSyncQueueRef.current
       .catch(() => undefined)
-      .then(() => saveUserDataToCloud(userId, 'readclub_progress', progress))
-      .catch((error) => console.warn('Progress sync queued failed:', error));
+      .then(() => syncStudentProgressToSupabase(userId, progress))
+      .then(() => {
+        if (pendingProgressRef.current === pending) {
+          pendingProgressRef.current = null;
+          if (!pendingPlatformPayloadRef.current) setCloudSaveStatus('saved');
+        }
+      })
+      .catch((error) => {
+        console.error('Read Club progress cloud save failed:', error);
+        setCloudSaveStatus('error');
+      });
   };
+
+  const retryPendingCloudSaves = () => {
+    if (pendingPlatformPayloadRef.current) queuePlatformSync(pendingPlatformPayloadRef.current);
+    if (pendingProgressRef.current) {
+      queueProgressSync(pendingProgressRef.current.userId, pendingProgressRef.current.progress);
+    }
+  };
+
+  useEffect(() => {
+    window.addEventListener('online', retryPendingCloudSaves);
+    return () => window.removeEventListener('online', retryPendingCloudSaves);
+  }, []);
 
   // Initial Auth & Session Verification
   useEffect(() => {
@@ -235,36 +295,107 @@ export default function App() {
   useEffect(() => {
     if (!currentUser) return;
 
+    let cancelled = false;
     const loadCloudContent = async () => {
-      const shared = await loadPlatformDataFromCloud('platform') as {
-        classes?: ClassItem[];
-        settings?: AppSettings;
-        library?: StoryItem[];
-      } | null;
-      const localDashboard = localStorage.getItem('bia_v14_final');
-      const localSettings = localStorage.getItem('bia_settings_final');
-      const localLibrary = localStorage.getItem('bia_readclub_library');
-      if (!localDashboard && shared?.classes) setClasses(shared.classes);
-      if (!localSettings && shared?.settings) setSettings({ ...DEFAULT_SETTINGS, ...shared.settings });
-      if (!localLibrary && shared?.library) setLibrary(shared.library);
+      try {
+        const shared = await loadSharedContentFromSupabase<{
+          classes?: ClassItem[];
+          expenses?: ExpenseItem[];
+          settings?: AppSettings;
+          library?: StoryItem[];
+        }>('platform');
+        if (cancelled) return;
 
-      const progress = await loadUserDataFromCloud(currentUser.id, 'readclub_progress') as {
-        sessions?: ReadSession[];
-        glossary?: Record<string, GlossaryEntry>;
-        learnedWords?: Record<number, string[]>;
-      } | null;
-      if (!localStorage.getItem('bia_readclub_sessions') && progress?.sessions) {
-        setSessions(progress.sessions);
-      }
-      if (!localStorage.getItem('bia_readclub_glossary') && progress?.glossary) {
-        setGlossary(progress.glossary);
-      }
-      if (!localStorage.getItem('bia_readclub_learned') && progress?.learnedWords) {
-        setLearnedWords(progress.learnedWords);
+        if (shared) {
+          if (shared.classes) {
+            setClasses(shared.classes);
+            const stored = localStorage.getItem('bia_v14_final');
+            const parsed = stored ? JSON.parse(stored) : {};
+            localStorage.setItem('bia_v14_final', JSON.stringify({ ...parsed, aulas: shared.classes }));
+          }
+          if (shared.expenses) {
+            setExpenses(shared.expenses);
+            const stored = localStorage.getItem('bia_v14_final');
+            const parsed = stored ? JSON.parse(stored) : {};
+            localStorage.setItem('bia_v14_final', JSON.stringify({ ...parsed, desp: shared.expenses }));
+          }
+          if (shared.settings) {
+            const nextSettings = { ...DEFAULT_SETTINGS, ...shared.settings };
+            setSettings(nextSettings);
+            localStorage.setItem('bia_settings_final', JSON.stringify(nextSettings));
+          }
+          if (shared.library) {
+            setLibrary(shared.library);
+            localStorage.setItem('bia_readclub_library', JSON.stringify(shared.library));
+          }
+
+          if (
+            currentUser.role === 'admin' &&
+            isAuthorizedCeoEmail(currentUser.email) &&
+            shared.expenses === undefined
+          ) {
+            const stored = localStorage.getItem('bia_v14_final');
+            const localExpenses: ExpenseItem[] = stored ? JSON.parse(stored).desp || [] : [];
+            queuePlatformSync({
+              classes: shared.classes || classes,
+              expenses: localExpenses,
+              settings: shared.settings ? { ...DEFAULT_SETTINGS, ...shared.settings } : settings,
+              library: shared.library || library,
+            });
+          }
+        } else if (currentUser.role === 'admin' && isAuthorizedCeoEmail(currentUser.email)) {
+          const stored = localStorage.getItem('bia_v14_final');
+          const localDashboard = stored ? JSON.parse(stored) : {};
+          const localSettingsRaw = localStorage.getItem('bia_settings_final');
+          const localLibraryRaw = localStorage.getItem('bia_readclub_library');
+          queuePlatformSync({
+            classes: localDashboard.aulas || classes,
+            expenses: localDashboard.desp || [],
+            settings: localSettingsRaw ? { ...DEFAULT_SETTINGS, ...JSON.parse(localSettingsRaw) } : settings,
+            library: localLibraryRaw ? JSON.parse(localLibraryRaw) : library,
+          });
+        }
+
+        const authUserId = currentUser.auth_user_id || currentUser.id;
+        const progress = await loadStudentProgressFromSupabase(authUserId) as {
+          sessions?: ReadSession[];
+          glossary?: Record<string, GlossaryEntry>;
+          learned_words?: Record<number, string[]>;
+        } | null;
+        if (cancelled) return;
+
+        if (progress) {
+          const nextProgress = {
+            sessions: progress.sessions || [],
+            glossary: progress.glossary || {},
+            learnedWords: progress.learned_words || {},
+          };
+          progressRef.current = nextProgress;
+          setSessions(nextProgress.sessions);
+          setGlossary(nextProgress.glossary);
+          setLearnedWords(nextProgress.learnedWords);
+          localStorage.setItem('bia_readclub_sessions', JSON.stringify(nextProgress.sessions));
+          localStorage.setItem('bia_readclub_glossary', JSON.stringify(nextProgress.glossary));
+          localStorage.setItem('bia_readclub_learned', JSON.stringify(nextProgress.learnedWords));
+        } else {
+          const localProgress = {
+            sessions: JSON.parse(localStorage.getItem('bia_readclub_sessions') || '[]') as ReadSession[],
+            glossary: JSON.parse(localStorage.getItem('bia_readclub_glossary') || '{}') as Record<string, GlossaryEntry>,
+            learnedWords: JSON.parse(localStorage.getItem('bia_readclub_learned') || '{}') as Record<number, string[]>,
+          };
+          progressRef.current = localProgress;
+          queueProgressSync(authUserId, localProgress);
+        }
+      } catch (error) {
+        console.error('Could not load cloud-saved platform data:', error);
+        if (!cancelled) setCloudSaveStatus('error');
       }
     };
 
     void loadCloudContent();
+    return () => {
+      cancelled = true;
+    };
   }, [currentUser?.id]);
 
   // 1. Initial Load of Local Databases
@@ -307,17 +438,8 @@ export default function App() {
       if (storedLib) {
         try {
           const parsedLib: StoryItem[] = JSON.parse(storedLib);
-          if (Array.isArray(parsedLib) && parsedLib.length > 0) {
-            // Merge INITIAL_READ_LIBRARY to ensure standard library (Mystery, Humor, Coldplay, Queen, etc.) is never lost
-            const existingIds = new Set(parsedLib.map((s) => s.id));
-            const merged = [...parsedLib];
-            INITIAL_READ_LIBRARY.forEach((initStory) => {
-              if (!existingIds.has(initStory.id)) {
-                merged.push(initStory);
-              }
-            });
-            setLibrary(merged);
-            localStorage.setItem('bia_readclub_library', JSON.stringify(merged));
+          if (Array.isArray(parsedLib)) {
+            setLibrary(parsedLib);
           } else {
             setLibrary(INITIAL_READ_LIBRARY);
             localStorage.setItem('bia_readclub_library', JSON.stringify(INITIAL_READ_LIBRARY));
@@ -372,7 +494,7 @@ export default function App() {
   // Sync state helpers with atomic persistence
   const handleUpdateClasses = (next: ClassItem[]) => {
     setClasses(next);
-    queuePlatformSync({ classes: next, settings, library });
+    queuePlatformSync({ classes: next, expenses, settings, library });
     try {
       const stored = localStorage.getItem('bia_v14_final');
       const parsed = stored ? JSON.parse(stored) : {};
@@ -384,6 +506,7 @@ export default function App() {
 
   const handleUpdateExpenses = (next: ExpenseItem[]) => {
     setExpenses(next);
+    queuePlatformSync({ classes, expenses: next, settings, library });
     try {
       const stored = localStorage.getItem('bia_v14_final');
       const parsed = stored ? JSON.parse(stored) : {};
@@ -396,31 +519,37 @@ export default function App() {
   const handleUpdateSettings = (updated: Partial<AppSettings>) => {
     const next = { ...settings, ...updated };
     setSettings(next);
-    queuePlatformSync({ classes, settings: next, library });
+    queuePlatformSync({ classes, expenses, settings: next, library });
     localStorage.setItem('bia_settings_final', JSON.stringify(next));
   };
 
   const handleUpdateLibrary = (next: StoryItem[]) => {
     setLibrary(next);
-    queuePlatformSync({ classes, settings, library: next });
+    queuePlatformSync({ classes, expenses, settings, library: next });
     localStorage.setItem('bia_readclub_library', JSON.stringify(next));
   };
 
   const handleUpdateSessions = (next: ReadSession[]) => {
     setSessions(next);
-    if (currentUser) queueProgressSync(currentUser.id, { sessions: next, glossary, learnedWords });
+    const updated = { ...progressRef.current, sessions: next };
+    progressRef.current = updated;
+    if (currentUser) queueProgressSync(currentUser.auth_user_id || currentUser.id, updated);
     localStorage.setItem('bia_readclub_sessions', JSON.stringify(next));
   };
 
   const handleUpdateGlossary = (next: Record<string, GlossaryEntry>) => {
     setGlossary(next);
-    if (currentUser) queueProgressSync(currentUser.id, { sessions, glossary: next, learnedWords });
+    const updated = { ...progressRef.current, glossary: next };
+    progressRef.current = updated;
+    if (currentUser) queueProgressSync(currentUser.auth_user_id || currentUser.id, updated);
     localStorage.setItem('bia_readclub_glossary', JSON.stringify(next));
   };
 
   const handleUpdateLearnedWords = (next: Record<number, string[]>) => {
     setLearnedWords(next);
-    if (currentUser) queueProgressSync(currentUser.id, { sessions, glossary, learnedWords: next });
+    const updated = { ...progressRef.current, learnedWords: next };
+    progressRef.current = updated;
+    if (currentUser) queueProgressSync(currentUser.auth_user_id || currentUser.id, updated);
     localStorage.setItem('bia_readclub_learned', JSON.stringify(next));
   };
 
@@ -448,7 +577,7 @@ export default function App() {
         const parsed = stored ? JSON.parse(stored) : {};
         localStorage.setItem('bia_v14_final', JSON.stringify({ ...parsed, aulas: next, desp: expenses }));
       } catch (e) {}
-      queuePlatformSync({ classes: next, settings, library });
+      queuePlatformSync({ classes: next, expenses, settings, library });
       return next;
     });
   };
@@ -461,7 +590,7 @@ export default function App() {
         const parsed = stored ? JSON.parse(stored) : {};
         localStorage.setItem('bia_v14_final', JSON.stringify({ ...parsed, aulas: next, desp: expenses }));
       } catch (e) {}
-      queuePlatformSync({ classes: next, settings, library });
+      queuePlatformSync({ classes: next, expenses, settings, library });
       return next;
     });
   };
@@ -484,7 +613,7 @@ export default function App() {
         const parsed = stored ? JSON.parse(stored) : {};
         localStorage.setItem('bia_v14_final', JSON.stringify({ ...parsed, aulas: classes, desp: next }));
       } catch (e) {}
-      queuePlatformSync({ classes, settings, library });
+      queuePlatformSync({ classes, expenses: next, settings, library });
       return next;
     });
   };
@@ -497,7 +626,7 @@ export default function App() {
         const parsed = stored ? JSON.parse(stored) : {};
         localStorage.setItem('bia_v14_final', JSON.stringify({ ...parsed, aulas: classes, desp: next }));
       } catch (e) {}
-      queuePlatformSync({ classes, settings, library });
+      queuePlatformSync({ classes, expenses: next, settings, library });
       return next;
     });
   };
@@ -860,6 +989,38 @@ export default function App() {
           isStudentPreviewMode={isStudentPreviewMode}
           onToggleStudentPreview={handleToggleStudentPreview}
         />
+
+        {cloudSaveStatus && (
+          <div
+            role="status"
+            aria-live="polite"
+            className={`fixed bottom-4 left-4 z-[3000] flex max-w-[min(92vw,28rem)] items-center gap-3 rounded-xl border px-4 py-3 text-sm shadow-xl backdrop-blur ${
+              cloudSaveStatus === 'error'
+                ? 'border-red-300/30 bg-red-950/90 text-red-100'
+                : cloudSaveStatus === 'saved'
+                  ? 'border-emerald-300/30 bg-emerald-950/90 text-emerald-100'
+                  : 'border-amber-300/30 bg-neutral-950/90 text-amber-100'
+            }`}
+          >
+            <span>
+              {cloudSaveStatus === 'saving' && 'Salvando alterações na nuvem…'}
+              {cloudSaveStatus === 'saved' && 'Alterações salvas na nuvem.'}
+              {cloudSaveStatus === 'error' && 'Não foi possível sincronizar. Os dados locais foram mantidos.'}
+            </span>
+            {cloudSaveStatus === 'error' && (
+              <button
+                type="button"
+                className="shrink-0 font-semibold underline underline-offset-2"
+                onClick={() => {
+                  if (pendingPlatformPayloadRef.current || pendingProgressRef.current) retryPendingCloudSaves();
+                  else window.location.reload();
+                }}
+              >
+                Tentar novamente
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Dynamic Floating US Landmark & Background Slideshow Controls (Always active when background is enabled) */}
         {settings.bgEnabled && (

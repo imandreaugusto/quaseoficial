@@ -15,6 +15,10 @@ Aplicativo React + Vite + TypeScript com API Node/Express, publicado em GitHub P
 
 Se um deploy falhar, consulte a execucao mais recente na aba **Actions** do GitHub e os eventos do servico no Render antes de tentar novamente.
 
+## Salvamento automatico entre dispositivos
+
+Para habilitar a sincronizacao global de aulas, biblioteca do Read Club/Brazilian Music e progresso individual dos alunos, execute uma vez o script [`supabase/enable_platform_autosave.sql`](./supabase/enable_platform_autosave.sql) no SQL Editor do projeto Supabase. O script permite leitura para usuarios autenticados e restringe alteracoes do conteudo compartilhado aos e-mails administrativos autorizados.
+
 # Run and deploy your AI Studio app
 
 This contains everything you need to run your app locally.

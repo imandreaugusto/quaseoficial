@@ -200,6 +200,38 @@ for select to authenticated using (user_id = auth.uid()::text);
 
 drop policy if exists "shared_content_all_access" on bia_shared_content;
 drop policy if exists "shared_content_public_read" on bia_shared_content;
+drop policy if exists "shared_content_authenticated_read" on bia_shared_content;
+drop policy if exists "shared_content_ceo_insert" on bia_shared_content;
+drop policy if exists "shared_content_ceo_update" on bia_shared_content;
+drop policy if exists "shared_content_ceo_delete" on bia_shared_content;
+create policy "shared_content_authenticated_read" on bia_shared_content
+for select to authenticated using (true);
+create policy "shared_content_ceo_insert" on bia_shared_content
+for insert to authenticated
+with check (lower(coalesce(auth.jwt() ->> 'email', '')) in (
+  'andrejrcardoso93@gmail.com',
+  'brazilianinaction@gmail.com',
+  'brazilianinactionidiomas@gmail.com'
+));
+create policy "shared_content_ceo_update" on bia_shared_content
+for update to authenticated
+using (lower(coalesce(auth.jwt() ->> 'email', '')) in (
+  'andrejrcardoso93@gmail.com',
+  'brazilianinaction@gmail.com',
+  'brazilianinactionidiomas@gmail.com'
+))
+with check (lower(coalesce(auth.jwt() ->> 'email', '')) in (
+  'andrejrcardoso93@gmail.com',
+  'brazilianinaction@gmail.com',
+  'brazilianinactionidiomas@gmail.com'
+));
+create policy "shared_content_ceo_delete" on bia_shared_content
+for delete to authenticated
+using (lower(coalesce(auth.jwt() ->> 'email', '')) in (
+  'andrejrcardoso93@gmail.com',
+  'brazilianinaction@gmail.com',
+  'brazilianinactionidiomas@gmail.com'
+));
 
 drop policy if exists "student_progress_all_access" on bia_student_progress;
 drop policy if exists "student_progress_own" on bia_student_progress;
@@ -236,6 +268,7 @@ revoke all on public.stories from anon, authenticated;
 grant select on public.stories to anon, authenticated;
 grant insert, update, delete on public.stories to authenticated;
 revoke all on public.bia_shared_content from anon, authenticated;
+grant select, insert, update, delete on public.bia_shared_content to authenticated;
 revoke all on public.bia_student_progress, public.bia_ceo_friend_messages from anon, authenticated;
 grant select, insert, update, delete on public.bia_student_progress, public.bia_ceo_friend_messages to authenticated;
 
