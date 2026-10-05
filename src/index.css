@@ -544,6 +544,18 @@ button:not(:disabled):active,
   box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.18);
 }
 
+/* Pele de vidro: converte os blocos escuros sólidos (bg-neutral-9xx) das telas antigas em vidro translúcido. */
+.bia-glass-skin :is([class^='bg-neutral-9'], [class*=' bg-neutral-9']) {
+  background-color: rgba(15, 23, 42, 0.34) !important;
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.bia-glass-skin :is([class^='bg-neutral-9'], [class*=' bg-neutral-9']):is(button, a, [role='button']):hover {
+  background-color: rgba(30, 41, 59, 0.48) !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -1092,7 +1092,7 @@ export default function App() {
                 className="w-full h-full page-motion"
               >
                 <ErrorBoundary fallbackTitle="Erro ao carregar este módulo">
-                  <PageReveal enabled={settings.animOn}>
+                  <PageReveal enabled={settings.animOn} glassSkin={['quiz', 'conversation', 'tradutor', 'youtube', 'biacompare', 'board', 'dashboard', 'admin_settings', 'feedback', 'settings'].includes(currentApp)}>
                   {/* HOME TAB - Accessible to all authenticated users */}
                   {currentApp === 'home' && (
                     <Home

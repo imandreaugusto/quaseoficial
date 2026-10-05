@@ -92,7 +92,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       clearProps: 'opacity,transform'
     });
     return () => {
-      tween.kill();
+      tween.revert();
     };
   }, [isOpen, isAdminMode]);
   const couponValidationTimerRef = useRef<number | null>(null);

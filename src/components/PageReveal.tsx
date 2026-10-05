@@ -3,11 +3,12 @@ import gsap from 'gsap';
 
 interface PageRevealProps {
   enabled: boolean;
+  glassSkin?: boolean;
   children: React.ReactNode;
 }
 
 // Faz os cartões de vidro de cada tela entrarem em sequência ao abrir o app; ignora o que já tem animação própria.
-export const PageReveal: React.FC<PageRevealProps> = ({ enabled, children }) => {
+export const PageReveal: React.FC<PageRevealProps> = ({ enabled, glassSkin = false, children }) => {
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   useLayoutEffect(() => {
@@ -30,9 +31,9 @@ export const PageReveal: React.FC<PageRevealProps> = ({ enabled, children }) => 
 
     const tween = gsap.from(targets, { opacity: 0, y: 22, duration: 0.6, stagger: 0.05, ease: 'power3.out', clearProps: 'opacity,transform' });
     return () => {
-      tween.kill();
+      tween.revert();
     };
   }, []);
 
-  return <div ref={rootRef} className="contents">{children}</div>;
+  return <div ref={rootRef} className={glassSkin ? 'contents bia-glass-skin' : 'contents'}>{children}</div>;
 };
