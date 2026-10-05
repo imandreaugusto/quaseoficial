@@ -645,6 +645,214 @@ async function startServer() {
     }
   });
 
+  // Brazilian Post: upload e moderação pelo servidor (service role), sem depender de políticas SQL no Storage.
+  const STORY_BUCKET = 'bia-stories';
+  const STORY_MAX_BYTES = 50 * 1024 * 1024;
+  const STORY_CATEGORIES = new Set(['challenge', 'episoden', 'readclub', 'expression', 'routine']);
+  let storyBucketReady = false;
+
+  const supabaseStorageRequest = async (resource: string, init: RequestInit = {}) => {
+    const { url, serviceRoleKey } = getSupabaseServiceConfig();
+    const headers = new Headers(init.headers);
+    headers.set('apikey', serviceRoleKey);
+    headers.set('Authorization', `Bearer ${serviceRoleKey}`);
+    return fetch(`${url}/storage/v1/${resource}`, { ...init, headers });
+  };
+
+  const ensureStoryBucket = async () => {
+    if (storyBucketReady) return;
+    const response = await supabaseStorageRequest('bucket', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: STORY_BUCKET, name: STORY_BUCKET, public: true })
+    });
+    if (!response.ok) {
+      const details = await response.text();
+      if (response.status !== 409 && !/already exists|duplicate/i.test(details)) {
+        throw new Error(`Supabase bucket creation failed (${response.status}): ${details}`);
+      }
+    }
+    storyBucketReady = true;
+  };
+
+  const getVerifiedStoryUser = async (req: express.Request, res: express.Response) => {
+    const authUser = await getSupabaseUserFromRequest(req);
+    if (!authUser?.id || !authUser.email_confirmed_at) {
+      res.status(401).json({ error: 'Entre novamente para usar o Brazilian Post.' });
+      return null;
+    }
+    return authUser;
+  };
+
+  const isStoryAdmin = async (authUser: { id: string; email?: string }) => {
+    if (normalizeEmail(authUser.email) === CEO_EMAIL) return true;
+    const profile = await getAuthenticatedProfileByAuthId(authUser.id);
+    return profile?.role === 'admin';
+  };
+
+  const storyObjectPath = (videoUrl: string | null | undefined) => {
+    const marker = `/storage/v1/object/public/${STORY_BUCKET}/`;
+    const index = videoUrl ? videoUrl.indexOf(marker) : -1;
+    return videoUrl && index >= 0 ? decodeURIComponent(videoUrl.slice(index + marker.length).split('?')[0]) : null;
+  };
+
+  app.get('/api/stories', async (req, res) => {
+    try {
+      const authUser = await getVerifiedStoryUser(req, res);
+      if (!authUser) return;
+      const admin = await isStoryAdmin(authUser);
+      const visibility = admin
+        ? ''
+        : `&or=${encodeURIComponent(`(status.in.(approved,featured),student_id.eq.${authUser.id})`)}`;
+      const response = await supabaseServiceRequest(`stories?select=*&order=created_at.desc&limit=200${visibility}`);
+      if (!response.ok) {
+        console.error('Stories list failed:', response.status, await response.text());
+        return res.status(502).json({ error: 'Não foi possível carregar os stories.' });
+      }
+      return res.json({ stories: await response.json(), isAdmin: admin });
+    } catch (error: any) {
+      console.error('Stories list failed:', error.message);
+      return res.status(500).json({ error: 'Falha ao carregar os stories.' });
+    }
+  });
+
+  app.post('/api/stories/upload', express.raw({ type: ['video/*'], limit: STORY_MAX_BYTES }), async (req, res) => {
+    try {
+      const authUser = await getVerifiedStoryUser(req, res);
+      if (!authUser) return;
+      if (isRateLimited(`story-upload:${authUser.id}`, 6, 10 * 60_000)) {
+        return res.status(429).json({ error: 'Muitos envios seguidos. Aguarde alguns minutos.' });
+      }
+      const contentType = String(req.header('content-type') || '').split(';')[0].trim().toLowerCase();
+      const extension = ({ 'video/mp4': 'mp4', 'video/webm': 'webm', 'video/quicktime': 'mov' } as Record<string, string>)[contentType];
+      if (!extension) return res.status(415).json({ error: 'Formato de vídeo não suportado.' });
+      const body = req.body as Buffer;
+      if (!Buffer.isBuffer(body) || body.length === 0) return res.status(400).json({ error: 'Vídeo vazio.' });
+
+      await ensureStoryBucket();
+      const objectPath = `${authUser.id}/${Date.now()}-${randomUUID()}.${extension}`;
+      const response = await supabaseStorageRequest(`object/${STORY_BUCKET}/${objectPath}`, {
+        method: 'POST',
+        headers: { 'Content-Type': contentType, 'x-upsert': 'false' },
+        body
+      });
+      if (!response.ok) {
+        console.error('Story upload failed:', response.status, await response.text());
+        return res.status(502).json({ error: 'Não foi possível guardar o vídeo agora.' });
+      }
+      const { url } = getSupabaseServiceConfig();
+      return res.status(201).json({ videoUrl: `${url}/storage/v1/object/public/${STORY_BUCKET}/${objectPath}` });
+    } catch (error: any) {
+      console.error('Story upload failed:', error.message);
+      return res.status(500).json({ error: 'Falha ao enviar o vídeo.' });
+    }
+  });
+
+  app.post('/api/stories', async (req, res) => {
+    try {
+      const authUser = await getVerifiedStoryUser(req, res);
+      if (!authUser) return;
+      if (isRateLimited(`story-save:${authUser.id}`, 10, 10 * 60_000)) {
+        return res.status(429).json({ error: 'Muitos envios seguidos. Aguarde alguns minutos.' });
+      }
+      const title = typeof req.body?.title === 'string' ? req.body.title.trim().slice(0, 120) : '';
+      const category = typeof req.body?.category === 'string' ? req.body.category : '';
+      const promptUsed = typeof req.body?.promptUsed === 'string' ? req.body.promptUsed.trim().slice(0, 120) : title;
+      const videoUrl = typeof req.body?.videoUrl === 'string' ? req.body.videoUrl : '';
+      const instagramRaw = typeof req.body?.instagramHandle === 'string' ? req.body.instagramHandle.trim() : '';
+      const instagramHandle = /^@?[A-Za-z0-9._]{1,30}$/.test(instagramRaw) ? `@${instagramRaw.replace(/^@/, '')}` : null;
+      const { url } = getSupabaseServiceConfig();
+      const ownFolder = `${url}/storage/v1/object/public/${STORY_BUCKET}/${authUser.id}/`;
+      if (!title || !STORY_CATEGORIES.has(category) || !videoUrl.startsWith(ownFolder)) {
+        return res.status(400).json({ error: 'Dados do story inválidos.' });
+      }
+
+      const admin = await isStoryAdmin(authUser);
+      const profile = await getAuthenticatedProfileByAuthId(authUser.id);
+      const studentName = String(profile?.full_name || authUser.email?.split('@')[0] || 'Aluno BIA').slice(0, 80);
+      const response = await supabaseServiceRequest('stories', {
+        method: 'POST',
+        headers: { Prefer: 'return=representation' },
+        body: JSON.stringify({
+          id: `story-${randomUUID()}`,
+          student_id: authUser.id,
+          student_name: studentName,
+          title,
+          category,
+          prompt_used: promptUsed,
+          video_url: videoUrl,
+          status: admin ? 'featured' : 'pending',
+          likes_count: 0,
+          instagram_handle: instagramHandle
+        })
+      });
+      if (!response.ok) {
+        console.error('Story save failed:', response.status, await response.text());
+        return res.status(502).json({ error: 'Não foi possível salvar o story.' });
+      }
+      const rows = await response.json() as Record<string, unknown>[];
+      return res.status(201).json({ story: rows[0] });
+    } catch (error: any) {
+      console.error('Story save failed:', error.message);
+      return res.status(500).json({ error: 'Falha ao salvar o story.' });
+    }
+  });
+
+  app.post('/api/stories/:id/status', async (req, res) => {
+    try {
+      const authUser = await getVerifiedStoryUser(req, res);
+      if (!authUser) return;
+      if (!(await isStoryAdmin(authUser))) return res.status(403).json({ error: 'Somente a equipe BIA pode moderar stories.' });
+      const id = req.params.id;
+      const status = req.body?.status;
+      if (!/^[a-zA-Z0-9_-]{1,100}$/.test(id) || !['approved', 'featured'].includes(status)) {
+        return res.status(400).json({ error: 'Dados de moderação inválidos.' });
+      }
+      const response = await supabaseServiceRequest(`stories?id=eq.${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({ status })
+      });
+      if (!response.ok) {
+        console.error('Story moderation failed:', response.status, await response.text());
+        return res.status(502).json({ error: 'Não foi possível atualizar o story.' });
+      }
+      return res.json({ ok: true });
+    } catch (error: any) {
+      console.error('Story moderation failed:', error.message);
+      return res.status(500).json({ error: 'Falha ao moderar o story.' });
+    }
+  });
+
+  app.delete('/api/stories/:id', async (req, res) => {
+    try {
+      const authUser = await getVerifiedStoryUser(req, res);
+      if (!authUser) return;
+      const id = req.params.id;
+      if (!/^[a-zA-Z0-9_-]{1,100}$/.test(id)) return res.status(400).json({ error: 'Identificador inválido.' });
+
+      const lookup = await supabaseServiceRequest(`stories?id=eq.${encodeURIComponent(id)}&select=student_id,video_url&limit=1`);
+      if (!lookup.ok) return res.status(502).json({ error: 'Não foi possível localizar o story.' });
+      const story = (await lookup.json() as { student_id?: string; video_url?: string }[])[0];
+      if (!story) return res.status(404).json({ error: 'Story não encontrado.' });
+      if (story.student_id !== authUser.id && !(await isStoryAdmin(authUser))) {
+        return res.status(403).json({ error: 'Você não pode excluir este story.' });
+      }
+
+      const response = await supabaseServiceRequest(`stories?id=eq.${encodeURIComponent(id)}`, { method: 'DELETE' });
+      if (!response.ok) {
+        console.error('Story deletion failed:', response.status, await response.text());
+        return res.status(502).json({ error: 'Não foi possível excluir o story.' });
+      }
+      const objectPath = storyObjectPath(story.video_url);
+      if (objectPath) await supabaseStorageRequest(`object/${STORY_BUCKET}/${objectPath}`, { method: 'DELETE' }).catch(() => {});
+      return res.json({ ok: true });
+    } catch (error: any) {
+      console.error('Story deletion failed:', error.message);
+      return res.status(500).json({ error: 'Falha ao excluir o story.' });
+    }
+  });
+
   const friendsProfileFields = 'id,full_name,photo_url,status_message';
   const friendsMessageFields = 'id,sender_id,receiver_id,body,created_at,expires_at';
   const isFriendUserId = (value: unknown): value is string =>

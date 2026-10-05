@@ -23,7 +23,6 @@ import { motion } from 'motion/react';
 import { StorySubmission, UserProfile } from '../types';
 import {
   deleteStoryFromSupabase,
-  getSupabaseClient,
   loadStoriesFromSupabase,
   saveStoryToSupabase,
   updateStoryStatusInSupabase,
@@ -188,43 +187,8 @@ export const BrazilianStories: React.FC<BrazilianStoriesProps> = ({
   const caption = `${selectedPrompt.suggestedCaption}\n\n${selectedPrompt.hashtags}`;
 
   useEffect(() => {
-    const client = getSupabaseClient();
-    if (!client) return;
-
     void loadStoriesFromSupabase().then((remote) => setStories(remote as StorySubmission[]));
-
-    const channel = client
-      .channel('stories-live-sync')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'stories' }, (payload) => {
-        if (payload.eventType === 'DELETE') {
-          const removedId = String((payload.old as { id?: string })?.id || '');
-          setStories((prev) => prev.filter((item) => item.id !== removedId));
-          return;
-        }
-        const row = payload.new as Record<string, any>;
-        if (!row?.id) return;
-        const mapped: StorySubmission = {
-          id: String(row.id),
-          studentId: row.student_id,
-          studentName: row.student_name,
-          title: row.title,
-          category: row.category,
-          promptUsed: row.prompt_used,
-          videoUrl: row.video_url || undefined,
-          thumbnailUrl: row.thumbnail_url || undefined,
-          createdAt: row.created_at,
-          status: row.status,
-          likesCount: Number(row.likes_count || 0),
-          instagramHandle: row.instagram_handle || undefined
-        };
-        setStories((prev) => (prev.some((item) => item.id === mapped.id) ? prev.map((item) => (item.id === mapped.id ? mapped : item)) : [mapped, ...prev]));
-      })
-      .subscribe();
-
-    return () => {
-      void client.removeChannel(channel);
-    };
-  }, []);
+  }, [activeTab]);
 
   // O elemento de vídeo só existe depois do render; por isso o stream é ligado aqui.
   useEffect(() => {
@@ -287,29 +251,13 @@ export const BrazilianStories: React.FC<BrazilianStoriesProps> = ({
     setNotice(null);
     try {
       const videoUrl = await uploadStoryVideo(blob, recorder.extension);
-      const story: StorySubmission = {
-        id: `story-${Date.now()}`,
-        studentId: myId,
-        studentName: currentUser?.full_name || currentUser?.email?.split('@')[0] || 'Aluno BIA',
+      const story = (await saveStoryToSupabase({
         title: selectedPrompt.title,
         category: selectedPrompt.category,
         promptUsed: selectedPrompt.title,
         videoUrl,
-        createdAt: new Date().toISOString(),
-        status: isAdmin ? 'featured' : 'pending',
-        likesCount: 0,
         instagramHandle: studentInstagram.trim() || undefined
-      };
-      await saveStoryToSupabase({
-        id: story.id,
-        studentName: story.studentName,
-        title: story.title,
-        category: story.category,
-        promptUsed: story.promptUsed,
-        videoUrl,
-        status: story.status,
-        instagramHandle: story.instagramHandle
-      });
+      })) as StorySubmission;
       setStories((prev) => [story, ...prev.filter((item) => item.id !== story.id)]);
       setSentUrl(videoUrl);
       setNotice({
@@ -361,7 +309,7 @@ export const BrazilianStories: React.FC<BrazilianStoriesProps> = ({
   const handleDelete = async (story: StorySubmission) => {
     if (!window.confirm('Excluir este story definitivamente?')) return;
     try {
-      await deleteStoryFromSupabase(story.id, story.videoUrl);
+      await deleteStoryFromSupabase(story.id);
       setStories((prev) => prev.filter((item) => item.id !== story.id));
     } catch (error) {
       setNotice({ type: 'error', text: error instanceof Error ? error.message : 'Não foi possível excluir o story.' });
