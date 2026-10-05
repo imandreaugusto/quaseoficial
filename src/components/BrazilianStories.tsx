@@ -25,8 +25,7 @@ import {
   deleteStoryFromSupabase,
   loadStoriesFromSupabase,
   saveStoryToSupabase,
-  updateStoryStatusInSupabase,
-  uploadStoryVideo
+  updateStoryStatusInSupabase
 } from '../utils/supabaseClient';
 import {
   MAX_STORY_SECONDS,
@@ -88,6 +87,8 @@ const STORY_PROMPTS: StoryPromptOption[] = [
     hashtags: '#ReadClub #Pronunciation #BrazilianInAction #ReadingInEnglish'
   }
 ];
+
+const STORY_MURAL_DAYS = 7;
 
 const CATEGORY_LABELS: Record<StorySubmission['category'], string> = {
   challenge: 'Evolução',
@@ -179,7 +180,9 @@ export const BrazilianStories: React.FC<BrazilianStoriesProps> = ({
   const [studentInstagram, setStudentInstagram] = useState('');
   const [copiedCaption, setCopiedCaption] = useState(false);
   const [sending, setSending] = useState(false);
-  const [sentUrl, setSentUrl] = useState<string | null>(null);
+  const [postLink, setPostLink] = useState('');
+  const [linkSent, setLinkSent] = useState(false);
+  const [highlightForm, setHighlightForm] = useState({ url: '', title: '', name: '', handle: '' });
   const [notice, setNotice] = useState<{ type: 'error' | 'info'; text: string } | null>(null);
 
   const liveVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -224,7 +227,8 @@ export const BrazilianStories: React.FC<BrazilianStoriesProps> = ({
   const handleReset = () => {
     discardRecording();
     onShowFloatingCamera?.(false);
-    setSentUrl(null);
+    setPostLink('');
+    setLinkSent(false);
     setNotice(null);
   };
 
@@ -244,28 +248,50 @@ export const BrazilianStories: React.FC<BrazilianStoriesProps> = ({
     document.body.removeChild(link);
   };
 
-  const handleSend = async () => {
-    const blob = getRecordedBlob();
-    if (!blob || sending) return;
+  // O vídeo não fica na plataforma: só o link do post público no Instagram é guardado.
+  const handleSubmitLink = async () => {
+    if (sending || !postLink.trim()) return;
     setSending(true);
     setNotice(null);
     try {
-      const videoUrl = await uploadStoryVideo(blob, recorder.extension);
       const story = (await saveStoryToSupabase({
         title: selectedPrompt.title,
         category: selectedPrompt.category,
         promptUsed: selectedPrompt.title,
-        videoUrl,
+        instagramUrl: postLink.trim(),
         instagramHandle: studentInstagram.trim() || undefined
       })) as StorySubmission;
       setStories((prev) => [story, ...prev.filter((item) => item.id !== story.id)]);
-      setSentUrl(videoUrl);
+      setLinkSent(true);
       setNotice({
         type: 'info',
-        text: isAdmin ? 'Story publicado como destaque no Mural.' : 'Story enviado! A equipe vai avaliar e pode repostar no Instagram oficial.'
+        text: isAdmin ? 'Publicado como destaque no Mural.' : 'Link enviado! A equipe vai avaliar e, se aprovado, o seu post aparece no Mural.'
       });
     } catch (error) {
-      setNotice({ type: 'error', text: error instanceof Error ? error.message : 'Não foi possível enviar o story.' });
+      setNotice({ type: 'error', text: error instanceof Error ? error.message : 'Não foi possível enviar o link.' });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleAddHighlight = async () => {
+    if (sending || !highlightForm.url.trim() || !highlightForm.title.trim()) return;
+    setSending(true);
+    setNotice(null);
+    try {
+      const story = (await saveStoryToSupabase({
+        title: highlightForm.title.trim(),
+        category: 'challenge',
+        promptUsed: highlightForm.title.trim(),
+        instagramUrl: highlightForm.url.trim(),
+        instagramHandle: highlightForm.handle.trim() || undefined,
+        studentName: highlightForm.name.trim() || undefined
+      })) as StorySubmission;
+      setStories((prev) => [story, ...prev.filter((item) => item.id !== story.id)]);
+      setHighlightForm({ url: '', title: '', name: '', handle: '' });
+      setNotice({ type: 'info', text: 'Destaque adicionado ao Mural.' });
+    } catch (error) {
+      setNotice({ type: 'error', text: error instanceof Error ? error.message : 'Não foi possível adicionar o destaque.' });
     } finally {
       setSending(false);
     }
@@ -288,13 +314,25 @@ export const BrazilianStories: React.FC<BrazilianStoriesProps> = ({
     window.open('https://www.instagram.com/brazilianinaction/', '_blank', 'noopener,noreferrer');
     setNotice({
       type: 'info',
-      text: 'Vídeo baixado e legenda copiada. Abra o Instagram, publique o vídeo e marque @brazilianinaction.'
+      text: 'Vídeo baixado e legenda copiada. Passe o vídeo para o celular, abra o Instagram e marque @brazilianinaction no story.'
     });
   };
 
-  const handleWhatsApp = () => {
-    if (!sentUrl) return;
-    window.open(`https://wa.me/?text=${encodeURIComponent(`${caption}\n\n${sentUrl}`)}`, '_blank', 'noopener,noreferrer');
+  const handleWhatsApp = async () => {
+    const blob = getRecordedBlob();
+    if (!blob) return;
+    const file = new File([blob], `story-bia.${recorder.extension}`, { type: recorder.mimeType || blob.type });
+    try {
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], text: caption, title: 'Meu story na Brazilian in Action' });
+        return;
+      }
+    } catch (error) {
+      if ((error as { name?: string })?.name === 'AbortError') return;
+    }
+    handleDownload();
+    window.open('https://web.whatsapp.com/', '_blank', 'noopener,noreferrer');
+    setNotice({ type: 'info', text: 'Vídeo baixado. Anexe o arquivo na conversa ou no grupo do WhatsApp.' });
   };
 
   const handleModeration = async (story: StorySubmission, status: 'approved' | 'featured') => {
@@ -316,8 +354,9 @@ export const BrazilianStories: React.FC<BrazilianStoriesProps> = ({
     }
   };
 
-  const publicStories = stories.filter((story) => story.status !== 'pending');
-  const myStories = stories.filter((story) => story.studentId === myId);
+  // Posts somem do Mural após 7 dias (o servidor também apaga o link e depois o registro).
+  const publicStories = stories.filter((story) => story.status !== 'pending' && story.videoUrl && Date.now() - new Date(story.createdAt).getTime() < STORY_MURAL_DAYS * 86_400_000);
+  const myStories = stories.filter((story) => story.studentId === myId && story.videoUrl);
   const pendingCount = stories.filter((story) => story.status === 'pending').length;
 
   const tabClass = (tab: typeof activeTab) =>
@@ -353,7 +392,7 @@ export const BrazilianStories: React.FC<BrazilianStoriesProps> = ({
             <span className="block bg-gradient-to-r from-blue-400 via-violet-400 to-fuchsia-400 bg-clip-text text-transparent">Mostre sua evolução.</span>
           </h1>
           <p className="mt-3 max-w-xl text-sm leading-6 text-white/75">
-            Grave um vídeo falando inglês, envie para a Brazilian in Action e poste no seu Instagram marcando <strong className="font-semibold text-white">@brazilianinaction</strong>.
+            Grave um vídeo falando inglês, poste no seu Instagram marcando <strong className="font-semibold text-white">@brazilianinaction</strong> e cole o link aqui para aparecer no Mural.
           </p>
         </div>
         <nav className="relative flex flex-wrap items-center gap-1 self-start rounded-full border border-white/20 bg-white/10 p-1.5 backdrop-blur-xl md:self-auto" aria-label="Seções do Brazilian Post">
@@ -374,7 +413,7 @@ export const BrazilianStories: React.FC<BrazilianStoriesProps> = ({
             <div className={`flex flex-col items-center gap-4 p-10 text-center ${GLASS}`}>
               <div className="flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-white/10 text-violet-200"><Video size={24} /></div>
               <h2 className="text-lg font-extrabold text-white">Os destaques da comunidade aparecem aqui</h2>
-              <p className="max-w-md text-sm text-white/70">Grave o seu story e, depois de aprovado pela equipe, ele ganha um lugar no mural.</p>
+              <p className="max-w-md text-sm text-white/70">Poste o seu vídeo no Instagram marcando @brazilianinaction e cole o link na aba Gravar Story. Os posts aprovados ficam no mural por 7 dias.</p>
               <button type="button" onClick={() => setActiveTab('recorder')} className={`inline-flex cursor-pointer items-center gap-2 rounded-2xl px-6 py-3 text-xs font-extrabold uppercase tracking-wider transition ${GRADIENT_BUTTON}`}>
                 <Camera size={15} /> Gravar meu story
               </button>
@@ -383,14 +422,17 @@ export const BrazilianStories: React.FC<BrazilianStoriesProps> = ({
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
               {publicStories.map((story) => (
                 <motion.article key={story.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="group relative flex flex-col overflow-hidden rounded-2xl border border-white/20 bg-white/[0.08] shadow-[0_8px_30px_rgba(0,0,0,0.2)] backdrop-blur-xl transition hover:-translate-y-1 hover:border-white/40">
-                  <div className="relative aspect-[9/14] bg-black/30">
-                    {story.videoUrl ? (
-                      <video src={story.videoUrl} controls playsInline preload="metadata" className="h-full w-full object-cover" />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-white/40"><Video size={28} /></div>
-                    )}
+                  <div className="relative bg-black/30">
+                    <iframe
+                      src={`${story.videoUrl}embed`}
+                      title={`Post de ${story.studentName} no Instagram`}
+                      loading="lazy"
+                      allow="encrypted-media; fullscreen"
+                      referrerPolicy="strict-origin-when-cross-origin"
+                      className="block h-[540px] w-full border-0"
+                    />
                     {story.status === 'featured' && (
-                      <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full border border-amber-300/50 bg-amber-400/25 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-100 backdrop-blur-xl">
+                      <span className="pointer-events-none absolute left-3 top-3 inline-flex items-center gap-1 rounded-full border border-amber-300/50 bg-amber-400/25 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-100 backdrop-blur-xl">
                         <Trophy size={10} /> Destaque
                       </span>
                     )}
@@ -402,7 +444,7 @@ export const BrazilianStories: React.FC<BrazilianStoriesProps> = ({
                       {story.studentName}
                       {story.instagramHandle && <span className="ml-1.5 font-mono text-fuchsia-200">{story.instagramHandle}</span>}
                     </p>
-                    <p className="text-[10px] text-white/45">{formatDate(story.createdAt)}</p>
+                    <a href={story.videoUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-violet-200 hover:text-white"><Instagram size={11} /> Ver no Instagram</a>
                   </div>
                 </motion.article>
               ))}
@@ -593,23 +635,40 @@ export const BrazilianStories: React.FC<BrazilianStoriesProps> = ({
               <div className={`flex w-full flex-col gap-4 p-5 ${recorder.mode === 'camera' ? 'max-w-sm' : 'max-w-2xl'} ${GLASS}`}>
                 <video src={recorder.url} controls playsInline className={`w-full rounded-2xl bg-black object-contain ${recorder.mode === 'camera' ? 'aspect-[9/16]' : 'aspect-video'}`} />
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <button type="button" onClick={() => void handleSend()} disabled={sending || Boolean(sentUrl)} className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-2xl px-4 py-3 text-xs font-extrabold uppercase tracking-wider transition disabled:cursor-not-allowed disabled:opacity-60 sm:col-span-2 ${GRADIENT_BUTTON}`}>
-                    {sending ? <><Loader2 size={15} className="animate-spin" /> Enviando…</> : sentUrl ? <><Check size={15} /> Enviado</> : <><Send size={15} /> Enviar para a Brazilian in Action</>}
+                  <button type="button" onClick={() => void handleShareInstagram()} className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-2xl px-4 py-3 text-xs font-extrabold uppercase tracking-wider transition sm:col-span-2 ${GRADIENT_BUTTON}`}>
+                    <Instagram size={15} /> Postar no Instagram
                   </button>
-                  <button type="button" onClick={() => void handleShareInstagram()} className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition ${GLASS_BUTTON}`}>
-                    <Instagram size={14} /> Postar no Instagram
-                  </button>
-                  <button type="button" onClick={handleWhatsApp} disabled={!sentUrl} title={sentUrl ? undefined : 'Envie o story primeiro para gerar o link'} className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition disabled:cursor-not-allowed disabled:opacity-45 ${GLASS_BUTTON}`}>
+                  <button type="button" onClick={() => void handleWhatsApp()} className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition ${GLASS_BUTTON}`}>
                     <MessageCircle size={14} /> Enviar no WhatsApp
                   </button>
                   <button type="button" onClick={handleDownload} className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition ${GLASS_BUTTON}`}>
                     <Download size={14} /> Baixar vídeo
                   </button>
-                  <button type="button" onClick={handleReset} className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition ${GLASS_BUTTON}`}>
+                  <button type="button" onClick={handleReset} className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition sm:col-span-2 ${GLASS_BUTTON}`}>
                     <RotateCcw size={14} /> Regravar
                   </button>
                 </div>
-                <p className="flex items-start gap-2 text-[11px] leading-relaxed text-white/55"><Sparkles size={12} className="mt-0.5 shrink-0 text-violet-200" /> Para aparecer no Instagram oficial, envie para a BIA. Se preferir, poste no seu perfil marcando @brazilianinaction.</p>
+                <ol className="space-y-1 rounded-2xl border border-white/15 bg-white/[0.06] p-3 text-[11px] leading-relaxed text-white/70">
+                  <li>1. Toque em <strong className="text-white">Postar no Instagram</strong> e escolha <strong className="text-white">Stories</strong> (no celular).</li>
+                  <li>2. Cole a legenda (já copiada) e marque <strong className="text-white">@brazilianinaction</strong> com o adesivo @.</li>
+                  <li>3. No computador, passe o vídeo baixado para o celular e poste de lá.</li>
+                </ol>
+                <div className="space-y-2 rounded-2xl border border-white/15 bg-white/[0.06] p-3">
+                  <p className="flex items-start gap-2 text-[11px] leading-relaxed text-white/65"><Sparkles size={12} className="mt-0.5 shrink-0 text-violet-200" /> Postou como reel ou post público? Cole o link para a equipe BIA ver e destacar no Mural. O vídeo não fica guardado aqui.</p>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <input
+                      value={postLink}
+                      onChange={(event) => setPostLink(event.target.value)}
+                      placeholder="https://www.instagram.com/reel/..."
+                      inputMode="url"
+                      disabled={linkSent}
+                      className="min-w-0 flex-1 rounded-2xl border border-white/20 bg-white/10 px-3 py-2 font-mono text-xs text-white outline-none backdrop-blur-xl placeholder:text-white/40 focus:border-violet-300/70 disabled:opacity-60"
+                    />
+                    <button type="button" onClick={() => void handleSubmitLink()} disabled={sending || linkSent || !postLink.trim()} className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-2xl px-4 py-2 text-xs font-extrabold uppercase tracking-wider transition disabled:cursor-not-allowed disabled:opacity-50 ${GRADIENT_BUTTON}`}>
+                      {sending ? <><Loader2 size={14} className="animate-spin" /> Enviando…</> : linkSent ? <><Check size={14} /> Enviado</> : <><Send size={14} /> Enviar link</>}
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -620,16 +679,34 @@ export const BrazilianStories: React.FC<BrazilianStoriesProps> = ({
       {activeTab === 'moderation' && isAdmin && (
         <section className="space-y-4" aria-label="Moderação de stories">
           {noticeBanner}
+          <div className={`space-y-3 p-5 ${GLASS}`}>
+            <h2 className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-white/80"><Instagram size={14} className="text-fuchsia-200" /> Adicionar destaque do Instagram</h2>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {([['url', 'Link do reel ou post público'], ['title', 'Título do destaque'], ['name', 'Nome do aluno (opcional)'], ['handle', '@ do aluno (opcional)']] as const).map(([field, label]) => (
+                <input
+                  key={field}
+                  value={highlightForm[field]}
+                  onChange={(event) => setHighlightForm((prev) => ({ ...prev, [field]: event.target.value }))}
+                  placeholder={label}
+                  aria-label={label}
+                  className="rounded-2xl border border-white/20 bg-white/10 px-3 py-2 text-xs text-white outline-none backdrop-blur-xl placeholder:text-white/40 focus:border-violet-300/70"
+                />
+              ))}
+            </div>
+            <button type="button" onClick={() => void handleAddHighlight()} disabled={sending || !highlightForm.url.trim() || !highlightForm.title.trim()} className={`inline-flex cursor-pointer items-center gap-2 rounded-2xl px-5 py-2.5 text-xs font-extrabold uppercase tracking-wider transition disabled:cursor-not-allowed disabled:opacity-50 ${GRADIENT_BUTTON}`}>
+              {sending ? <Loader2 size={14} className="animate-spin" /> : <Trophy size={14} />} Adicionar ao Mural
+            </button>
+          </div>
           {stories.length === 0 ? (
             <p className={`p-8 text-center text-sm text-white/70 ${GLASS}`}>Nenhum story enviado ainda.</p>
           ) : (
             stories.map((story) => (
               <div key={story.id} className="flex flex-col gap-4 rounded-2xl border border-white/20 bg-white/[0.08] p-4 backdrop-blur-xl sm:flex-row sm:items-center">
-                {story.videoUrl && <video src={story.videoUrl} controls playsInline preload="metadata" className="aspect-[9/14] w-full max-w-[140px] shrink-0 rounded-xl bg-black/40 object-cover" />}
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-bold text-white">{story.studentName} {story.instagramHandle && <span className="ml-1 font-mono text-xs text-fuchsia-200">{story.instagramHandle}</span>}</p>
-                  <p className="mt-0.5 text-xs text-white/65">{story.title} · {formatDate(story.createdAt)}</p>
-                  <span className={`mt-2 inline-block rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${STATUS_CLASSES[story.status]}`}>{STATUS_LABELS[story.status]}</span>
+                  <p className="mt-0.5 text-xs text-white/65">{story.title} · {formatDate(story.createdAt)}{story.promptUsed && !story.videoUrl ? ` · ${story.promptUsed}` : ''}</p>
+                  {story.videoUrl && <a href={story.videoUrl} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-violet-200 hover:text-white"><Instagram size={11} /> Abrir no Instagram</a>}
+                  <span className={`mt-2 block w-fit rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${story.videoUrl ? STATUS_CLASSES[story.status] : 'border-white/20 bg-white/10 text-white/60'}`}>{story.videoUrl ? STATUS_LABELS[story.status] : 'Registro'}</span>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   {story.status === 'pending' && (

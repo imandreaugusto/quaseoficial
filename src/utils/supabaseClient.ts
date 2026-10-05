@@ -300,20 +300,15 @@ const storyApi = async (path: string, init: RequestInit = {}) => {
   return result;
 };
 
-// O servidor guarda o vídeo no Storage do Supabase e devolve o endereço público.
-export const uploadStoryVideo = async (blob: Blob, extension: string): Promise<string> => {
-  const contentType = (blob.type || `video/${extension}`).split(';')[0];
-  const result = await storyApi('/api/stories/upload', { method: 'POST', headers: { 'Content-Type': contentType }, body: blob });
-  return result.videoUrl as string;
-};
-
+// Só o link do post público no Instagram é guardado; o vídeo nunca passa pela plataforma.
 // Quem publica como CEO/admin entra já em destaque; aluno entra como pendente (decidido no servidor).
 export const saveStoryToSupabase = async (story: {
   title: string;
   category: string;
   promptUsed: string;
-  videoUrl: string;
+  instagramUrl: string;
   instagramHandle?: string;
+  studentName?: string;
 }) => {
   const result = await storyApi('/api/stories', {
     method: 'POST',

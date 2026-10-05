@@ -645,35 +645,60 @@ async function startServer() {
     }
   });
 
-  // Brazilian Post: upload e moderação pelo servidor (service role), sem depender de políticas SQL no Storage.
-  const STORY_BUCKET = 'bia-stories';
-  const STORY_MAX_BYTES = 50 * 1024 * 1024;
+  // Brazilian Post: guarda apenas o link do post/reel no Instagram (sem armazenar vídeo na plataforma).
   const STORY_CATEGORIES = new Set(['challenge', 'episoden', 'readclub', 'expression', 'routine']);
-  let storyBucketReady = false;
+  const INSTAGRAM_POST_URL = /^https:\/\/(?:www\.)?instagram\.com\/(p|reel|reels|tv)\/([A-Za-z0-9_-]{5,30})\/?(?:[?#].*)?$/i;
+  const STORY_LINK_DAYS = 7;
+  const STORY_RECORD_DAYS = 30;
+  let lastStoryCleanup = 0;
 
-  const supabaseStorageRequest = async (resource: string, init: RequestInit = {}) => {
-    const { url, serviceRoleKey } = getSupabaseServiceConfig();
-    const headers = new Headers(init.headers);
-    headers.set('apikey', serviceRoleKey);
-    headers.set('Authorization', `Bearer ${serviceRoleKey}`);
-    return fetch(`${url}/storage/v1/${resource}`, { ...init, headers });
-  };
+  // Após 7 dias o link vira só um registro (nome, país, estado); após 30 dias o registro é apagado. Roda no máximo 1x/hora.
+  const cleanupExpiredStories = async () => {
+    if (Date.now() - lastStoryCleanup < 60 * 60_000) return;
+    lastStoryCleanup = Date.now();
+    try {
+      const recordCutoff = new Date(Date.now() - STORY_RECORD_DAYS * 86_400_000).toISOString();
+      await supabaseServiceRequest(`stories?created_at=lt.${encodeURIComponent(recordCutoff)}`, { method: 'DELETE' });
 
-  const ensureStoryBucket = async () => {
-    if (storyBucketReady) return;
-    const response = await supabaseStorageRequest('bucket', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: STORY_BUCKET, name: STORY_BUCKET, public: true })
-    });
-    if (!response.ok) {
-      const details = await response.text();
-      if (response.status !== 409 && !/already exists|duplicate/i.test(details)) {
-        throw new Error(`Supabase bucket creation failed (${response.status}): ${details}`);
+      const linkCutoff = new Date(Date.now() - STORY_LINK_DAYS * 86_400_000).toISOString();
+      const expiredResponse = await supabaseServiceRequest(
+        `stories?created_at=lt.${encodeURIComponent(linkCutoff)}&or=${encodeURIComponent('(video_url.not.is.null,title.neq.Registro)')}&select=id,student_id&limit=200`
+      );
+      if (!expiredResponse.ok) return;
+      const expired = await expiredResponse.json() as { id: string; student_id?: string }[];
+      if (expired.length === 0) return;
+
+      const studentIds = [...new Set(expired.map((row) => row.student_id).filter((id): id is string => isFriendUserIdLike(id)))];
+      const locations = new Map<string, string>();
+      if (studentIds.length > 0) {
+        const profilesResponse = await supabaseServiceRequest(
+          `profiles?auth_user_id=in.(${studentIds.join(',')})&select=auth_user_id,ip_country,ip_region`
+        );
+        if (profilesResponse.ok) {
+          const profiles = await profilesResponse.json() as { auth_user_id: string; ip_country?: string | null; ip_region?: string | null }[];
+          profiles.forEach((profile) => {
+            locations.set(profile.auth_user_id, [profile.ip_country, profile.ip_region].filter(Boolean).join(' · '));
+          });
+        }
       }
+
+      await Promise.all(expired.map((row) => supabaseServiceRequest(`stories?id=eq.${encodeURIComponent(row.id)}`, {
+        method: 'PATCH',
+        headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({
+          video_url: null,
+          thumbnail_url: null,
+          title: 'Registro',
+          instagram_handle: null,
+          prompt_used: (row.student_id && locations.get(row.student_id)) || ''
+        })
+      })));
+    } catch (error: any) {
+      console.warn('Story cleanup failed:', error.message);
     }
-    storyBucketReady = true;
   };
+  const isFriendUserIdLike = (value: unknown): value is string =>
+    typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 
   const getVerifiedStoryUser = async (req: express.Request, res: express.Response) => {
     const authUser = await getSupabaseUserFromRequest(req);
@@ -690,17 +715,12 @@ async function startServer() {
     return profile?.role === 'admin';
   };
 
-  const storyObjectPath = (videoUrl: string | null | undefined) => {
-    const marker = `/storage/v1/object/public/${STORY_BUCKET}/`;
-    const index = videoUrl ? videoUrl.indexOf(marker) : -1;
-    return videoUrl && index >= 0 ? decodeURIComponent(videoUrl.slice(index + marker.length).split('?')[0]) : null;
-  };
-
   app.get('/api/stories', async (req, res) => {
     try {
       const authUser = await getVerifiedStoryUser(req, res);
       if (!authUser) return;
       const admin = await isStoryAdmin(authUser);
+      void cleanupExpiredStories();
       const visibility = admin
         ? ''
         : `&or=${encodeURIComponent(`(status.in.(approved,featured),student_id.eq.${authUser.id})`)}`;
@@ -716,38 +736,6 @@ async function startServer() {
     }
   });
 
-  app.post('/api/stories/upload', express.raw({ type: ['video/*'], limit: STORY_MAX_BYTES }), async (req, res) => {
-    try {
-      const authUser = await getVerifiedStoryUser(req, res);
-      if (!authUser) return;
-      if (isRateLimited(`story-upload:${authUser.id}`, 6, 10 * 60_000)) {
-        return res.status(429).json({ error: 'Muitos envios seguidos. Aguarde alguns minutos.' });
-      }
-      const contentType = String(req.header('content-type') || '').split(';')[0].trim().toLowerCase();
-      const extension = ({ 'video/mp4': 'mp4', 'video/webm': 'webm', 'video/quicktime': 'mov' } as Record<string, string>)[contentType];
-      if (!extension) return res.status(415).json({ error: 'Formato de vídeo não suportado.' });
-      const body = req.body as Buffer;
-      if (!Buffer.isBuffer(body) || body.length === 0) return res.status(400).json({ error: 'Vídeo vazio.' });
-
-      await ensureStoryBucket();
-      const objectPath = `${authUser.id}/${Date.now()}-${randomUUID()}.${extension}`;
-      const response = await supabaseStorageRequest(`object/${STORY_BUCKET}/${objectPath}`, {
-        method: 'POST',
-        headers: { 'Content-Type': contentType, 'x-upsert': 'false' },
-        body
-      });
-      if (!response.ok) {
-        console.error('Story upload failed:', response.status, await response.text());
-        return res.status(502).json({ error: 'Não foi possível guardar o vídeo agora.' });
-      }
-      const { url } = getSupabaseServiceConfig();
-      return res.status(201).json({ videoUrl: `${url}/storage/v1/object/public/${STORY_BUCKET}/${objectPath}` });
-    } catch (error: any) {
-      console.error('Story upload failed:', error.message);
-      return res.status(500).json({ error: 'Falha ao enviar o vídeo.' });
-    }
-  });
-
   app.post('/api/stories', async (req, res) => {
     try {
       const authUser = await getVerifiedStoryUser(req, res);
@@ -758,18 +746,19 @@ async function startServer() {
       const title = typeof req.body?.title === 'string' ? req.body.title.trim().slice(0, 120) : '';
       const category = typeof req.body?.category === 'string' ? req.body.category : '';
       const promptUsed = typeof req.body?.promptUsed === 'string' ? req.body.promptUsed.trim().slice(0, 120) : title;
-      const videoUrl = typeof req.body?.videoUrl === 'string' ? req.body.videoUrl : '';
+      const postMatch = INSTAGRAM_POST_URL.exec(typeof req.body?.instagramUrl === 'string' ? req.body.instagramUrl.trim() : '');
       const instagramRaw = typeof req.body?.instagramHandle === 'string' ? req.body.instagramHandle.trim() : '';
       const instagramHandle = /^@?[A-Za-z0-9._]{1,30}$/.test(instagramRaw) ? `@${instagramRaw.replace(/^@/, '')}` : null;
-      const { url } = getSupabaseServiceConfig();
-      const ownFolder = `${url}/storage/v1/object/public/${STORY_BUCKET}/${authUser.id}/`;
-      if (!title || !STORY_CATEGORIES.has(category) || !videoUrl.startsWith(ownFolder)) {
-        return res.status(400).json({ error: 'Dados do story inválidos.' });
+      if (!title || !STORY_CATEGORIES.has(category) || !postMatch) {
+        return res.status(400).json({ error: 'Cole o link de um post ou reel público do Instagram (instagram.com/reel/...).' });
       }
+      const postType = postMatch[1].toLowerCase() === 'reels' ? 'reel' : postMatch[1].toLowerCase();
+      const postUrl = `https://www.instagram.com/${postType}/${postMatch[2]}/`;
 
       const admin = await isStoryAdmin(authUser);
       const profile = await getAuthenticatedProfileByAuthId(authUser.id);
-      const studentName = String(profile?.full_name || authUser.email?.split('@')[0] || 'Aluno BIA').slice(0, 80);
+      const submittedName = admin && typeof req.body?.studentName === 'string' ? req.body.studentName.trim() : '';
+      const studentName = (submittedName || String(profile?.full_name || authUser.email?.split('@')[0] || 'Aluno BIA')).slice(0, 80);
       const response = await supabaseServiceRequest('stories', {
         method: 'POST',
         headers: { Prefer: 'return=representation' },
@@ -780,7 +769,7 @@ async function startServer() {
           title,
           category,
           prompt_used: promptUsed,
-          video_url: videoUrl,
+          video_url: postUrl,
           status: admin ? 'featured' : 'pending',
           likes_count: 0,
           instagram_handle: instagramHandle
@@ -831,9 +820,9 @@ async function startServer() {
       const id = req.params.id;
       if (!/^[a-zA-Z0-9_-]{1,100}$/.test(id)) return res.status(400).json({ error: 'Identificador inválido.' });
 
-      const lookup = await supabaseServiceRequest(`stories?id=eq.${encodeURIComponent(id)}&select=student_id,video_url&limit=1`);
+      const lookup = await supabaseServiceRequest(`stories?id=eq.${encodeURIComponent(id)}&select=student_id&limit=1`);
       if (!lookup.ok) return res.status(502).json({ error: 'Não foi possível localizar o story.' });
-      const story = (await lookup.json() as { student_id?: string; video_url?: string }[])[0];
+      const story = (await lookup.json() as { student_id?: string }[])[0];
       if (!story) return res.status(404).json({ error: 'Story não encontrado.' });
       if (story.student_id !== authUser.id && !(await isStoryAdmin(authUser))) {
         return res.status(403).json({ error: 'Você não pode excluir este story.' });
@@ -844,8 +833,6 @@ async function startServer() {
         console.error('Story deletion failed:', response.status, await response.text());
         return res.status(502).json({ error: 'Não foi possível excluir o story.' });
       }
-      const objectPath = storyObjectPath(story.video_url);
-      if (objectPath) await supabaseStorageRequest(`object/${STORY_BUCKET}/${objectPath}`, { method: 'DELETE' }).catch(() => {});
       return res.json({ ok: true });
     } catch (error: any) {
       console.error('Story deletion failed:', error.message);
