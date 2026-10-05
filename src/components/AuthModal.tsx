@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
+import gsap from 'gsap';
 import { UserProfile } from '../types';
 import { useGatewaySettings } from '../hooks/useGatewaySettings';
 import { 
@@ -76,6 +77,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [, setEggCounter] = useState(0);
   const [isTourOpen, setIsTourOpen] = useState(false);
   const couponCheckRequestRef = useRef(0);
+  const loginContentRef = useRef<HTMLDivElement | null>(null);
+
+  // Entrada em sequência da logo, avisos, campos e botões ao abrir o login.
+  useLayoutEffect(() => {
+    const content = loginContentRef.current;
+    if (!isOpen || !content || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    const tween = gsap.from(content.querySelectorAll('[data-login-step]'), {
+      opacity: 0,
+      y: 24,
+      duration: 0.65,
+      stagger: 0.07,
+      ease: 'power3.out',
+      clearProps: 'opacity,transform'
+    });
+    return () => {
+      tween.kill();
+    };
+  }, [isOpen, isAdminMode]);
   const couponValidationTimerRef = useRef<number | null>(null);
   const completedAuthUserIdsRef = useRef(new Set<string>());
   const pendingAuthCompletionsRef = useRef(new Map<string, Promise<void>>());
@@ -415,7 +434,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <button
               type="button"
               onClick={() => setIsTourOpen(true)}
-              className="px-3.5 py-2 rounded-2xl bg-black/40 hover:bg-black/60 border border-white/20 text-white/90 hover:text-white text-xs font-bold flex items-center gap-2 transition-all shadow-xl cursor-pointer group active:scale-95 backdrop-blur-md"
+              className="px-3.5 py-2 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/25 text-white/90 hover:text-white text-xs font-bold flex items-center gap-2 transition-all shadow-xl cursor-pointer group active:scale-95 backdrop-blur-xl"
               title="Conheça todos os módulos da plataforma e planos de assinatura"
             >
               <Sparkles size={14} className="text-amber-400" />
@@ -426,10 +445,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
         {/* CENTER: Clean Floating Form Elements */}
         <div className="mx-auto flex w-full max-w-[480px] flex-1 min-h-0 items-center justify-center px-1 py-2 sm:px-2">
-          <div className="flex w-full flex-col items-center">
+          <div ref={loginContentRef} className="flex w-full flex-col items-center">
         
         {/* LOGO WITH 17-CLICK EASTER EGG */}
         <div
+          data-login-step
           onClick={handleEasterEggClick}
           className="cursor-pointer select-none mb-3 flex flex-col items-center group transition-transform active:scale-95 text-center relative"
           title="Brazilian in Action"
@@ -472,10 +492,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
         {/* Pricing / Trial Header Banner */}
         {!isAdminMode && (
-          <div className={`w-full border rounded-2xl p-2.5 px-3.5 mb-2.5 flex items-center justify-between gap-2 text-[11px] sm:text-xs transition-all backdrop-blur-md shadow-lg ${
+          <div data-login-step className={`w-full border rounded-2xl p-2.5 px-3.5 mb-2.5 flex items-center justify-between gap-2 text-[11px] sm:text-xs transition-all backdrop-blur-xl shadow-lg ${
             couponState.status === 'valid'
               ? 'bg-emerald-500/20 border-emerald-400/50 text-emerald-200'
-              : 'bg-black/40 border-white/20 text-white'
+              : 'bg-white/10 border-white/25 text-white'
           }`}>
             <div className="flex min-w-0 items-center gap-1.5 font-bold">
               {couponState.status === 'valid' ? (
@@ -516,12 +536,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         )}
 
         {/* FLOATING TEXTBOXES FORM */}
-        <form onSubmit={handleSubmit} className="w-full rounded-[26px] border border-white/10 bg-black/15 p-2.5 shadow-[0_25px_60px_rgba(0,0,0,0.55)] backdrop-blur-md sm:p-3.5">
+        <form data-login-step onSubmit={handleSubmit} className="w-full rounded-[26px] border border-white/25 bg-white/10 p-2.5 shadow-[0_25px_60px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.2)] backdrop-blur-2xl sm:p-3.5">
           <div className="flex w-full flex-col gap-2.5">
           {isSignUp && !isAdminMode && (
             <div className="grid gap-1.5 sm:grid-cols-[94px_minmax(0,1fr)] sm:items-center">
               <label className="text-[10px] sm:text-[11px] text-white/90 font-bold sm:text-right drop-shadow">Nome</label>
-              <div className="flex items-center gap-2.5 bg-black/40 hover:bg-black/50 focus-within:bg-black/60 border border-white/25 focus-within:border-amber-400 rounded-2xl px-3 py-2.5 transition-all backdrop-blur-md shadow-xl">
+              <div className="flex items-center gap-2.5 bg-white/10 hover:bg-white/15 focus-within:bg-white/20 border border-white/25 focus-within:border-violet-300/70 rounded-2xl px-3 py-2.5 transition-all backdrop-blur-xl shadow-lg">
                 <User size={15} className="text-white/70 shrink-0" />
                 <input
                   type="text"
@@ -551,7 +571,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <label className="text-[10px] sm:text-[11px] text-white/90 font-bold sm:text-right drop-shadow">
               {isAdminMode ? 'E-mail CEO' : 'E-mail'}
             </label>
-            <div className="flex items-center gap-2.5 bg-black/40 hover:bg-black/50 focus-within:bg-black/60 border border-white/25 focus-within:border-amber-400 rounded-2xl px-3 py-2.5 transition-all backdrop-blur-md shadow-xl">
+            <div className="flex items-center gap-2.5 bg-white/10 hover:bg-white/15 focus-within:bg-white/20 border border-white/25 focus-within:border-violet-300/70 rounded-2xl px-3 py-2.5 transition-all backdrop-blur-xl shadow-lg">
               <Mail size={15} className="text-white/70 shrink-0" />
               <input
                 type="email"
@@ -568,7 +588,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <label className="text-[10px] sm:text-[11px] text-white/90 font-bold sm:text-right drop-shadow">
               {isAdminMode ? 'Senha CEO' : 'Senha'}
             </label>
-            <div className="flex items-center gap-2.5 bg-black/40 hover:bg-black/50 focus-within:bg-black/60 border border-white/25 focus-within:border-amber-400 rounded-2xl px-3 py-2.5 transition-all backdrop-blur-md shadow-xl">
+            <div className="flex items-center gap-2.5 bg-white/10 hover:bg-white/15 focus-within:bg-white/20 border border-white/25 focus-within:border-violet-300/70 rounded-2xl px-3 py-2.5 transition-all backdrop-blur-xl shadow-lg">
               <Lock size={15} className="text-white/70 shrink-0" />
               <input
                 type={showPassword ? 'text' : 'password'}
@@ -598,12 +618,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <span>Cupom</span>
                 </label>
 
-                <div className={`flex items-center gap-2.5 bg-black/40 hover:bg-black/50 focus-within:bg-black/60 border rounded-2xl px-3 py-2.5 transition-all backdrop-blur-md shadow-xl ${
+                <div className={`flex items-center gap-2.5 bg-white/10 hover:bg-white/15 focus-within:bg-white/20 border rounded-2xl px-3 py-2.5 transition-all backdrop-blur-xl shadow-lg ${
                   couponState.status === 'valid'
                     ? 'border-emerald-400 bg-emerald-500/20'
                     : couponState.status === 'used' || couponState.status === 'invalid'
                     ? 'border-red-400 bg-red-500/20'
-                    : 'border-white/25 focus-within:border-amber-400'
+                    : 'border-white/25 focus-within:border-violet-300/70'
                 }`}>
                   <Ticket size={14} className={couponState.status === 'valid' ? 'text-emerald-300' : 'text-white/70'} />
                   <input
@@ -651,12 +671,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <button
             type="submit"
             disabled={loading}
-            className={`w-full py-2.5 mt-0.5 rounded-2xl font-black text-[11px] sm:text-sm tracking-wide transition-all cursor-pointer shadow-2xl flex items-center justify-center gap-2 active:scale-95 ${
+            className={`w-full py-2.5 mt-0.5 rounded-2xl font-black text-[11px] sm:text-sm tracking-wide transition-all cursor-pointer shadow-2xl flex items-center justify-center gap-2 active:scale-95 hover:-translate-y-0.5 ${
               isAdminMode
                 ? 'bg-red-600 hover:bg-red-500 text-white shadow-red-950/50'
                 : couponState.status === 'valid'
                 ? 'bg-emerald-500 hover:bg-emerald-400 text-black shadow-emerald-500/30'
-                : 'bg-amber-500 hover:bg-amber-400 text-black shadow-amber-500/30'
+                : 'bg-gradient-to-r from-blue-500 to-violet-500 hover:brightness-110 text-white shadow-violet-500/30'
             }`}
           >
             {loading ? (
@@ -684,7 +704,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         </form>
 
         {/* Google Sign-In via Supabase OAuth */}
-        <div className="mt-3 flex w-full flex-col items-center gap-2.5 pointer-events-auto">
+        <div data-login-step className="mt-3 flex w-full flex-col items-center gap-2.5 pointer-events-auto">
           <button
             type="button"
             onClick={handleGoogleSignIn}
