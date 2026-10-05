@@ -1230,6 +1230,8 @@ export default function App() {
                       onClearGlossary={handleClearGlossary}
                       learnedWords={learnedWords}
                       onToggleLearnedWord={handleToggleLearnedWord}
+                      onUpdateLearnedWords={handleUpdateLearnedWords}
+                      heightClass="h-[calc(100dvh-7.5rem)] sm:h-[calc(100dvh-8rem)]"
                       accentColor={settings.accentColor}
                     />
                   )}

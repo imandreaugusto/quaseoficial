@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StoryItem, ReadSession, GlossaryEntry } from '../types';
-import { US_LANDMARKS } from '../data';
-import { Plus, Trash2, Edit, ChevronRight, ChevronLeft, ChevronDown, BookOpen, Volume2, HelpCircle, FileText, Settings, Compass, HelpCircle as KeyboardIcon, Search, Download, Trash, Maximize2, X, Clock, Play, Pause, Check, Languages, Sparkles, Loader2 } from 'lucide-react';
+import { Plus, Trash2, Edit, ChevronRight, ChevronLeft, ChevronDown, BookOpen, Volume2, HelpCircle, FileText, Settings, Compass, HelpCircle as KeyboardIcon, Search, Download, Trash, Maximize2, X, Check, Languages, Sparkles, Loader2, Bookmark, BookmarkCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { translateText, lookupDictionary } from '../lib/translator';
 import { BrazilianLogo } from './BrazilianLogo';
@@ -22,8 +21,14 @@ interface ReadClubProps {
   onClearGlossary: () => void;
   learnedWords: Record<number, string[]>;
   onToggleLearnedWord: (bookId: number, word: string) => void;
+  onUpdateLearnedWords?: (next: Record<number, string[]>) => void;
+  heightClass?: string;
   accentColor: string;
 }
+
+// Progresso de leitura salvo na conta dentro de learnedWords, com chaves reservadas (sem coluna nova no banco).
+const READ_BOOKS_KEY = -1;
+const BOOKMARKS_KEY = -2;
 
 export const ReadClub: React.FC<ReadClubProps> = ({
   library,
@@ -40,6 +45,8 @@ export const ReadClub: React.FC<ReadClubProps> = ({
   onClearGlossary,
   learnedWords,
   onToggleLearnedWord,
+  onUpdateLearnedWords,
+  heightClass = 'h-screen',
   accentColor,
 }) => {
   const [activeTab, setActiveTab] = useState<'story' | 'music'>('story');
@@ -62,18 +69,10 @@ export const ReadClub: React.FC<ReadClubProps> = ({
   const [alignMode, setAlignMode] = useState<'center' | 'justify'>('center');
   const [showReaderSettings, setShowReaderSettings] = useState(false);
 
-  // Background US Landmarks Wallpaper Rotation State
-  const [bgIndex, setBgIndex] = useState(0);
-  const [bgSlideshowActive, setBgSlideshowActive] = useState(true);
-
-  // Automatic US Landmark Background Switcher (every 8 seconds)
-  useEffect(() => {
-    if (!bgSlideshowActive) return;
-    const timer = setInterval(() => {
-      setBgIndex((prev) => (prev + 1) % US_LANDMARKS.length);
-    }, 8000);
-    return () => clearInterval(timer);
-  }, [bgSlideshowActive]);
+  // Reading progress state
+  const [readFilter, setReadFilter] = useState<'all' | 'unread' | 'read'>('all');
+  const [readProgress, setReadProgress] = useState(0);
+  const [resumeNotice, setResumeNotice] = useState(false);
 
   // Interactive Tools Toggles
   const [rulerActive, setRulerActive] = useState(false);
@@ -120,26 +119,6 @@ export const ReadClub: React.FC<ReadClubProps> = ({
 
   // Google Meet Presentation Mode State
   const [isMeetFullscreen, setIsMeetFullscreen] = useState(false);
-  const [meetTime, setMeetTime] = useState(0);
-  const [isMeetTimerRunning, setIsMeetTimerRunning] = useState(false);
-
-  useEffect(() => {
-    let interval: any = null;
-    if (isMeetTimerRunning) {
-      interval = setInterval(() => {
-        setMeetTime((prev) => prev + 1);
-      }, 1000);
-    } else {
-      clearInterval(interval);
-    }
-    return () => clearInterval(interval);
-  }, [isMeetTimerRunning]);
-
-  const formatMeetTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  };
 
   const [isFormattingText, setIsFormattingText] = useState(false);
 
@@ -169,12 +148,42 @@ export const ReadClub: React.FC<ReadClubProps> = ({
   const ttsParagraphsRef = useRef<string[]>([]);
   const ttsUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
+  const readBookIds = new Set(learnedWords[READ_BOOKS_KEY] || []);
+  const isBookRead = (bookId: number) => readBookIds.has(String(bookId));
+
+  const getBookmark = (bookId: number): number | null => {
+    const entry = (learnedWords[BOOKMARKS_KEY] || []).find((item) => item.startsWith(`${bookId}:`));
+    if (!entry) return null;
+    const paragraph = Number(entry.split(':')[1]);
+    return Number.isInteger(paragraph) ? paragraph : null;
+  };
+
+  const setBookRead = (bookId: number, read: boolean) => {
+    const current = learnedWords[READ_BOOKS_KEY] || [];
+    const has = current.includes(String(bookId));
+    if (has === read) return;
+    const nextList = read ? [...current, String(bookId)] : current.filter((item) => item !== String(bookId));
+    if (onUpdateLearnedWords) onUpdateLearnedWords({ ...learnedWords, [READ_BOOKS_KEY]: nextList });
+    else onToggleLearnedWord(READ_BOOKS_KEY, String(bookId));
+  };
+
+  const setBookmark = (bookId: number, paragraph: number | null) => {
+    if (!onUpdateLearnedWords) return;
+    const others = (learnedWords[BOOKMARKS_KEY] || []).filter((item) => !item.startsWith(`${bookId}:`));
+    onUpdateLearnedWords({
+      ...learnedWords,
+      [BOOKMARKS_KEY]: paragraph === null ? others : [...others, `${bookId}:${paragraph}`],
+    });
+  };
+
   // Group books by category
   const getGroupedBooks = () => {
     const filtered = library.filter((b) => {
       const typeMatch = b.type === activeTab;
       const q = searchQuery.toLowerCase();
       if (!typeMatch) return false;
+      if (readFilter === 'read' && !isBookRead(b.id)) return false;
+      if (readFilter === 'unread' && isBookRead(b.id)) return false;
       if (!q) return true;
       return (
         b.title.toLowerCase().includes(q) ||
@@ -235,6 +244,8 @@ export const ReadClub: React.FC<ReadClubProps> = ({
   const enterReadingMode = (book: StoryItem, session: ReadSession | null) => {
     setActiveBook(book);
     setActiveSession(session);
+    setReadProgress(0);
+    setResumeNotice(getBookmark(book.id) !== null);
     setCurrentQIdx(0);
     setHintRevealed(false);
     setSelectedTranslateWord('');
@@ -254,6 +265,36 @@ export const ReadClub: React.FC<ReadClubProps> = ({
     setTtsCurrentParagraph(null);
     if (window.speechSynthesis) window.speechSynthesis.cancel();
   };
+
+  // Concluir marca o texto como lido; sair antes disso mantém a fitinha.
+  const finishReading = (force: boolean) => {
+    if (activeBook && (force || readProgress >= 0.9)) {
+      setBookRead(activeBook.id, true);
+      if (getBookmark(activeBook.id) !== null) setBookmark(activeBook.id, null);
+    }
+    exitReadingMode();
+  };
+
+  const handleReaderScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    const max = el.scrollHeight - el.clientHeight;
+    setReadProgress(max > 0 ? Math.min(1, el.scrollTop / max) : 1);
+  };
+
+  // Retoma a leitura no parágrafo marcado com a fitinha.
+  useEffect(() => {
+    if (!activeBook) return;
+    const paragraph = getBookmark(activeBook.id);
+    if (paragraph === null) return;
+    const scrollTimer = window.setTimeout(() => {
+      paperRef.current?.querySelector(`[data-para="${paragraph}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }, 250);
+    const noticeTimer = window.setTimeout(() => setResumeNotice(false), 4000);
+    return () => {
+      window.clearTimeout(scrollTimer);
+      window.clearTimeout(noticeTimer);
+    };
+  }, [activeBook?.id]);
 
 // Built-in English-Portuguese Dictionary for Instant Word Lookup
 const COMMON_DICTIONARY: Record<string, string> = {
@@ -611,7 +652,7 @@ const COMMON_DICTIONARY: Record<string, string> = {
   // Reader Themes Styling Mapping
   const readerThemesStyles = {
     night: {
-      bg: 'bg-neutral-950/70 border-white/15 backdrop-blur-md text-neutral-100 shadow-2xl',
+      bg: 'bg-white/[0.09] border-white/20 backdrop-blur-2xl text-neutral-50 shadow-[0_8px_40px_rgba(0,0,0,0.3)]',
       titleColor: 'text-amber-400',
       wordHover: 'hover:bg-amber-400/20 hover:text-amber-300',
       learned: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40',
@@ -642,7 +683,7 @@ const COMMON_DICTIONARY: Record<string, string> = {
   const hintList = activeBook?.hints ? activeBook.hints.split('\n').filter((h) => h.trim()) : [];
 
   return (
-    <div className="h-screen w-full flex overflow-hidden text-white">
+    <div className={`${heightClass} w-full flex overflow-hidden text-white`}>
       {/* 1. Left Sidebar: Library Selector */}
       {!activeBook && (
         <div className="readclub-library-panel w-full md:w-80 box-border min-h-0 flex flex-col p-4 pt-16 md:pt-4 pl-24 sm:pl-28 md:pl-4 h-full flex-shrink-0 z-20">
@@ -690,6 +731,37 @@ const COMMON_DICTIONARY: Record<string, string> = {
             </button>
           )}
 
+          {/* Reading progress: counter + filter */}
+          {(() => {
+            const tabBooks = library.filter((b) => b.type === activeTab);
+            const readCount = tabBooks.filter((b) => isBookRead(b.id)).length;
+            const percent = tabBooks.length ? Math.round((readCount / tabBooks.length) * 100) : 0;
+            return (
+              <div className="mb-4 rounded-2xl border border-white/20 bg-white/10 p-3 backdrop-blur-xl">
+                <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-white/70">
+                  <span>{readCount} de {tabBooks.length} lidos</span>
+                  <span className="text-emerald-300">{percent}%</span>
+                </div>
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/15">
+                  <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-cyan-300 transition-all duration-500" style={{ width: `${percent}%` }} />
+                </div>
+                <div className="mt-3 flex gap-1" role="group" aria-label="Filtrar por leitura">
+                  {([['all', 'Todos'], ['unread', 'Não lidos'], ['read', 'Lidos']] as const).map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setReadFilter(value)}
+                      aria-pressed={readFilter === value}
+                      className={`flex-1 rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-wider transition cursor-pointer ${readFilter === value ? 'border-emerald-300/50 bg-emerald-400/25 text-white' : 'border-white/15 bg-white/5 text-white/60 hover:text-white'}`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Groupings display Accordion */}
           <div className="min-h-0 flex-1 overflow-y-auto flex flex-col gap-2">
             {Object.keys(groupedBooks).length === 0 ? (
@@ -720,7 +792,7 @@ const COMMON_DICTIONARY: Record<string, string> = {
                               <div className="flex items-center justify-between w-full">
                                 <button
                                   onClick={() => enterReadingMode(b, null)}
-                                  className="text-left text-xs font-medium text-white/80 hover:text-white truncate block cursor-pointer flex-1"
+                                  className={`text-left text-xs font-medium hover:text-white truncate block cursor-pointer flex-1 ${isBookRead(b.id) ? 'text-white/50' : 'text-white/80'}`}
                                 >
                                   {b.title}
                                   {b.level && (
@@ -729,6 +801,23 @@ const COMMON_DICTIONARY: Record<string, string> = {
                                     </span>
                                   )}
                                 </button>
+                                {isBookRead(b.id) ? (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setBookRead(b.id, false);
+                                    }}
+                                    className="ml-1 inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-300/40 bg-emerald-400/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-200 cursor-pointer hover:bg-emerald-400/30"
+                                    title="Lido · clique para marcar como não lido"
+                                  >
+                                    <Check size={9} /> Lido
+                                  </button>
+                                ) : getBookmark(b.id) !== null ? (
+                                  <span className="ml-1 inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-300/40 bg-amber-400/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-200" title="Você parou no meio deste texto">
+                                    <BookmarkCheck size={9} /> Continuar
+                                  </span>
+                                ) : null}
                                 <button
                                   type="button"
                                   onClick={(e) => {
@@ -822,14 +911,14 @@ const COMMON_DICTIONARY: Record<string, string> = {
               <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-wrap">
                 <button
                   type="button"
-                  onClick={exitReadingMode}
-                  className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-full text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-lg shadow-emerald-950/30 uppercase tracking-wider shrink-0"
+                  onClick={() => finishReading(false)}
+                  className="px-3.5 py-1.5 bg-emerald-500/80 hover:bg-emerald-500 border border-emerald-300/40 backdrop-blur-xl text-white font-extrabold rounded-full text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-lg shadow-emerald-950/30 uppercase tracking-wider shrink-0"
                   title="Concluir leitura e voltar para a biblioteca"
                 >
                   <Check size={14} />
                   <span>Done</span>
                 </button>
-                <div className="flex items-center gap-1.5 max-w-[160px] sm:max-w-sm bg-neutral-950/80 p-1 px-3 rounded-full border border-white/15 backdrop-blur-md shadow-md">
+                <div className="flex items-center gap-1.5 max-w-[160px] sm:max-w-sm bg-white/10 p-1 px-3 rounded-full border border-white/20 backdrop-blur-xl shadow-md">
                   <h4 className="text-xs font-semibold uppercase tracking-widest text-amber-400 truncate">
                     {activeBook.title}
                   </h4>
@@ -843,7 +932,7 @@ const COMMON_DICTIONARY: Record<string, string> = {
                   </button>
                 </div>
                 {activeSession && (
-                  <span className="text-[10px] bg-neutral-950/80 border border-white/15 text-white/60 px-2.5 py-1 rounded-full uppercase font-mono hidden md:inline backdrop-blur-md">
+                  <span className="text-[10px] bg-white/10 border border-white/20 text-white/70 px-2.5 py-1 rounded-full uppercase font-mono hidden md:inline backdrop-blur-xl">
                     Sessão: {activeSession.className}
                   </span>
                 )}
@@ -853,10 +942,10 @@ const COMMON_DICTIONARY: Record<string, string> = {
               <div className="flex items-center gap-1.5 flex-wrap relative">
                 <button
                   onClick={handlePlayTTS}
-                  className={`px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer backdrop-blur-md shadow-md ${
+                  className={`px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer backdrop-blur-xl shadow-md ${
                     ttsPlaying
                       ? 'bg-amber-500 text-black shadow-amber-500/25'
-                      : 'bg-neutral-950/80 border border-white/15 text-white/80 hover:text-white'
+                      : 'bg-white/10 border border-white/20 text-white/85 hover:text-white hover:bg-white/20'
                   }`}
                 >
                   <Volume2 size={13} />
@@ -867,7 +956,7 @@ const COMMON_DICTIONARY: Record<string, string> = {
                   <select
                     value={ttsRate}
                     onChange={(e) => handleRateChange(parseFloat(e.target.value))}
-                    className="bg-neutral-950/80 border border-white/15 rounded-full px-2 py-1 text-xs text-white backdrop-blur-md"
+                    className="bg-white/10 border border-white/20 rounded-full px-2 py-1 text-xs text-white backdrop-blur-xl"
                   >
                     <option value="0.8">0.8x</option>
                     <option value="1">1.0x</option>
@@ -881,7 +970,7 @@ const COMMON_DICTIONARY: Record<string, string> = {
                 <div className="relative">
                   <button
                     onClick={() => setShowReaderSettings(!showReaderSettings)}
-                    className="px-3 py-1.5 bg-neutral-950/80 hover:bg-neutral-900 border border-white/15 text-white/80 hover:text-white rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer backdrop-blur-md shadow-md"
+                    className="px-3 py-1.5 bg-white/10 hover:bg-white/20 border border-white/20 text-white/85 hover:text-white rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer backdrop-blur-xl shadow-md"
                     title="Personalizar Fonte, Tema e Alinhamento"
                   >
                     <Settings size={13} />
@@ -975,20 +1064,7 @@ const COMMON_DICTIONARY: Record<string, string> = {
                   </AnimatePresence>
                 </div>
 
-                {/* Stopwatch & Fullscreen Toggle */}
-                <div className="flex items-center gap-1.5 bg-neutral-950/80 border border-white/15 px-3 py-1.5 rounded-full font-mono text-xs text-white backdrop-blur-md shadow-md">
-                  <Clock size={12} className="text-white/40" />
-                  <span>{formatMeetTime(meetTime)}</span>
-                  <button
-                    type="button"
-                    onClick={() => setIsMeetTimerRunning(!isMeetTimerRunning)}
-                    className="ml-0.5 p-0.5 hover:bg-white/10 rounded text-white/70 hover:text-white cursor-pointer"
-                    title={isMeetTimerRunning ? "Pausar Cronômetro" : "Iniciar Cronômetro"}
-                  >
-                    {isMeetTimerRunning ? <Pause size={12} /> : <Play size={12} />}
-                  </button>
-                </div>
-
+                {/* Fullscreen Toggle */}
                 <button
                   type="button"
                   onClick={() => {
@@ -1000,10 +1076,10 @@ const COMMON_DICTIONARY: Record<string, string> = {
                       setIsMeetFullscreen(true);
                     }
                   }}
-                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold tracking-wide transition-all flex items-center gap-1.5 cursor-pointer shadow-md backdrop-blur-md border ${
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold tracking-wide transition-all flex items-center gap-1.5 cursor-pointer shadow-md backdrop-blur-xl border ${
                     isMeetFullscreen
-                      ? 'bg-emerald-600 border-emerald-500 text-white shadow-emerald-950/30'
-                      : 'bg-neutral-950/80 border-blue-500/30 hover:bg-neutral-900 text-blue-300 shadow-md'
+                      ? 'bg-emerald-500/80 border-emerald-300/40 text-white shadow-emerald-950/30'
+                      : 'bg-white/10 border-white/20 hover:bg-white/20 text-blue-200 shadow-md'
                   }`}
                   title="Alternar Tela Cheia"
                 >
@@ -1013,20 +1089,33 @@ const COMMON_DICTIONARY: Record<string, string> = {
               </div>
             </div>
 
-            {/* Ambient Background Wallpaper */}
-            <div 
-              className="absolute inset-0 bg-cover bg-center filter blur-lg opacity-40 scale-105 pointer-events-none transition-all duration-1000 ease-in-out z-0"
-              style={{
-                backgroundImage: `url(${activeBook.coverUrl || US_LANDMARKS[bgIndex].url})`
-              }}
-            />
-
-            {/* Centered glass sheet container (scrolls over ambient backdrop) */}
+            {/* Centered glass sheet: fixed-size box, text scrolls inside and fades out at the edges */}
             <div className="flex-1 overflow-hidden px-4 sm:px-6 pt-8 pb-6 flex justify-center relative z-10">
+              <div className="pointer-events-none absolute inset-x-4 sm:inset-x-6 top-3 flex justify-center" aria-hidden="true">
+                <div className="h-1 w-full max-w-3xl overflow-hidden rounded-full bg-white/15">
+                  <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-cyan-300 transition-[width] duration-200" style={{ width: `${Math.round(readProgress * 100)}%` }} />
+                </div>
+              </div>
+              <AnimatePresence>
+                {resumeNotice && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    className="pointer-events-none absolute left-1/2 top-10 z-20 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-amber-300/40 bg-white/15 px-4 py-1.5 text-xs font-bold text-amber-100 shadow-lg backdrop-blur-xl"
+                  >
+                    <BookmarkCheck size={13} /> Continuando de onde você parou
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              <div className={`relative w-full max-w-3xl h-full max-h-full overflow-hidden rounded-3xl border transition-all ${currentThemeStyle.bg}`}>
               <div
                 ref={paperRef}
-                className={`w-full max-w-3xl h-full max-h-full overflow-y-auto custom-scrollbar rounded-3xl border shadow-[0_25px_60px_rgba(0,0,0,0.85)] p-8 sm:p-14 relative flex flex-col leading-relaxed backdrop-blur-2xl transition-all ${currentThemeStyle.bg}`}
+                onScroll={handleReaderScroll}
+                className="h-full overflow-y-auto custom-scrollbar px-8 sm:px-14 pt-12 pb-12 relative flex flex-col leading-relaxed"
                 style={{
+                  WebkitMaskImage: 'linear-gradient(to bottom, transparent 0, #000 40px, #000 calc(100% - 40px), transparent 100%)',
+                  maskImage: 'linear-gradient(to bottom, transparent 0, #000 40px, #000 calc(100% - 40px), transparent 100%)',
                   fontSize: `${fontSize}px`,
                   fontFamily:
                     fontFamily === 'lora'
@@ -1044,7 +1133,6 @@ const COMMON_DICTIONARY: Record<string, string> = {
                       : "'Poppins', sans-serif",
                 }}
               >
-                <div className="pointer-events-none sticky -top-14 z-20 h-14 -mb-14 bg-gradient-to-b from-black/45 to-transparent" aria-hidden="true" />
                 <div className="relative group/title flex flex-col items-center justify-center gap-2 mb-6 text-center cinematic-copy">
                   <h1 className={`text-2xl sm:text-3xl font-extralight tracking-tight uppercase ${currentThemeStyle.titleColor} flex items-center justify-center flex-wrap gap-x-2 gap-y-1`}>
                     {activeBook.title.split(/(\s+)/).map((word, wIdx) => {
@@ -1089,13 +1177,15 @@ const COMMON_DICTIONARY: Record<string, string> = {
                 <div className={`flex flex-col gap-2.5 sm:gap-3 text-justify cinematic-copy ${alignMode === 'center' ? 'text-center' : 'text-justify'}`}>
                   {activeBook.text.split(/\n\s*\n/).filter((p) => p.trim()).map((para, pIdx) => {
                     const isTtsHighlight = ttsCurrentParagraph === pIdx;
+                    const isBookmarked = getBookmark(activeBook.id) === pIdx;
                     const lines = para.split('\n').filter((l) => l.trim());
 
                     return (
                       <div
                         key={pIdx}
+                        data-para={pIdx}
                         className={`group/para relative transition-all duration-300 p-1.5 sm:p-2 rounded-xl ${
-                          isTtsHighlight ? 'bg-amber-400/20 shadow-lg' : 'hover:bg-white/5'
+                          isTtsHighlight ? 'bg-amber-400/20 shadow-lg' : isBookmarked ? 'bg-amber-300/10 border-l-2 border-amber-300' : 'hover:bg-white/5'
                         }`}
                       >
                         <div className="leading-relaxed inline">
@@ -1135,13 +1225,32 @@ const COMMON_DICTIONARY: Record<string, string> = {
                         >
                           <Languages size={13} />
                         </button>
+
+                        {onUpdateLearnedWords && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setBookmark(activeBook.id, isBookmarked ? null : pIdx);
+                            }}
+                            className={`ml-1 inline-flex items-center justify-center p-1.5 rounded-lg border transition-all cursor-pointer ${
+                              isBookmarked
+                                ? 'bg-amber-400/25 border-amber-300/50 text-amber-300 opacity-100'
+                                : 'bg-white/5 hover:bg-amber-500/20 text-white/30 hover:text-amber-300 border-white/10 hover:border-amber-500/30 opacity-0 group-hover/para:opacity-100'
+                            }`}
+                            title={isBookmarked ? 'Remover marcador de página' : 'Marcar: parei aqui'}
+                            aria-label={isBookmarked ? 'Remover marcador de página' : 'Marcar: parei aqui'}
+                          >
+                            <Bookmark size={13} className={isBookmarked ? 'fill-current' : ''} />
+                          </button>
+                        )}
                       </div>
                     );
                   })}
                 </div>
 
                 {/* Bottom Done Card */}
-                <div className="mt-12 pt-8 border-t border-white/10 text-center flex flex-col items-center justify-center gap-3">
+                <div className="mt-12 pt-4 text-center flex flex-col items-center justify-center gap-3">
                   <div className="w-12 h-12 bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 rounded-2xl flex items-center justify-center shadow-lg">
                     <Check size={24} />
                   </div>
@@ -1150,13 +1259,14 @@ const COMMON_DICTIONARY: Record<string, string> = {
                   </h3>
                   <button
                     type="button"
-                    onClick={exitReadingMode}
-                    className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-2xl text-xs uppercase tracking-widest transition-all cursor-pointer shadow-xl shadow-emerald-950/40 flex items-center gap-2"
+                    onClick={() => finishReading(true)}
+                    className="px-6 py-3 bg-emerald-500/80 hover:bg-emerald-500 border border-emerald-300/40 backdrop-blur-xl text-white font-extrabold rounded-2xl text-xs uppercase tracking-widest transition-all cursor-pointer shadow-xl shadow-emerald-950/40 flex items-center gap-2"
                   >
                     <Check size={18} />
                     <span>Done - Concluir & Voltar ao Início</span>
                   </button>
                 </div>
+              </div>
               </div>
             </div>
 
