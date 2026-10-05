@@ -131,6 +131,9 @@ export default function App() {
   const [glossary, setGlossary] = useState<Record<string, GlossaryEntry>>({});
   const [learnedWords, setLearnedWords] = useState<Record<number, string[]>>({});
 
+  // YouTube Hub persistent database (separate from ReadClub)
+  const [youtubeLibrary, setYoutubeLibrary] = useState<unknown[]>([]);
+
   // Global Stream Studio Overlay State
   const [streamActive, setStreamActive] = useState(false);
   const [isFloatingCamActive, setIsFloatingCamActive] = useState(false);
@@ -390,6 +393,18 @@ export default function App() {
           progressRef.current = localProgress;
           queueProgressSync(authUserId, localProgress);
         }
+
+        // Load YouTube Library from Supabase
+        try {
+          const youtubeData = await loadSharedContentFromSupabase<{ youtube_library?: unknown[] }>('youtube_library');
+          if (cancelled) return;
+          if (youtubeData?.youtube_library && Array.isArray(youtubeData.youtube_library)) {
+            setYoutubeLibrary(youtubeData.youtube_library);
+            localStorage.setItem('bia_youtube_library', JSON.stringify(youtubeData.youtube_library));
+          }
+        } catch (error) {
+          console.warn('YouTube library cloud load failed:', error);
+        }
       } catch (error) {
         console.error('Could not load cloud-saved platform data:', error);
         if (!cancelled) setCloudSaveStatus('error');
@@ -531,6 +546,19 @@ export default function App() {
     setLibrary(next);
     queuePlatformSync({ classes, expenses, settings, library: next });
     localStorage.setItem('bia_readclub_library', JSON.stringify(next));
+  };
+
+  const handleUpdateYouTubeLibrary = (next: unknown[]) => {
+    setYoutubeLibrary(next);
+    try {
+      const videoSyncPayload = { youtube_library: next, updated_at: new Date().toISOString() };
+      syncSharedContentToSupabase('youtube_library', videoSyncPayload).catch((error) => {
+        console.warn('YouTube library cloud sync failed:', error);
+      });
+    } catch (e) {
+      console.error('YouTube library sync error:', e);
+    }
+    localStorage.setItem('bia_youtube_library', JSON.stringify(next));
   };
 
   const handleUpdateSessions = (next: ReadSession[]) => {
@@ -1264,7 +1292,7 @@ export default function App() {
                   )}
 
                   {currentApp === 'youtube' && (isAdmin || perms.youtube) && (
-                    <YouTubeHub accentColor={settings.accentColor} canEdit={effectiveIsAdmin} />
+                    <YouTubeHub accentColor={settings.accentColor} canEdit={effectiveIsAdmin} onLibraryUpdate={handleUpdateYouTubeLibrary} initialLibrary={youtubeLibrary as any} />
                   )}
 
                   {currentApp === 'practice' && (isAdmin || perms.practice !== false) && (

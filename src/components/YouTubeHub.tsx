@@ -38,6 +38,8 @@ import { User } from 'firebase/auth';
 interface YouTubeHubProps {
   accentColor?: string;
   canEdit?: boolean;
+  onLibraryUpdate?: (library: YouTubeLibraryItem[]) => void;
+  initialLibrary?: YouTubeLibraryItem[];
 }
 
 export interface YouTubeLibraryItem {
@@ -147,7 +149,7 @@ That the new always arrives`,
   },
 ];
 
-export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6', canEdit = false }) => {
+export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6', canEdit = false, onLibraryUpdate, initialLibrary }) => {
   const channelUrl = 'https://www.youtube.com/@brazilianinaction';
 
   // Library & Cloud Sync State
@@ -303,15 +305,28 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
     return () => unsubAuth();
   }, []);
 
+  // Load initial library from App.tsx if provided via Supabase sync
+  useEffect(() => {
+    if (initialLibrary && initialLibrary.length > 0) {
+      setLibrary(initialLibrary);
+      setActiveItem(initialLibrary[0]);
+    }
+  }, [initialLibrary]);
+
   // Helper to update library state + persist
   const saveLibraryState = (updatedList: YouTubeLibraryItem[]) => {
     setLibrary(updatedList);
     localStorage.setItem('bia_youtube_library', JSON.stringify(updatedList));
-    if (canEdit) {
-      savePlatformDataToCloud('youtube_library', updatedList);
-    }
-    if (cloudUser) {
-      syncToCloud(cloudUser.uid, 'bia_youtube_library', updatedList);
+    if (onLibraryUpdate) {
+      onLibraryUpdate(updatedList);
+    } else {
+      // Fallback to Firebase sync if no callback provided (for backward compatibility)
+      if (canEdit) {
+        savePlatformDataToCloud('youtube_library', updatedList);
+      }
+      if (cloudUser) {
+        syncToCloud(cloudUser.uid, 'bia_youtube_library', updatedList);
+      }
     }
   };
 
