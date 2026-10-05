@@ -160,7 +160,9 @@ const NavButton: React.FC<{
       onMouseLeave={handleMouseLeave}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
-      className="w-full flex items-center gap-3.5 px-2 py-2.5 bg-transparent select-none cursor-pointer"
+      className={`w-full flex items-center gap-3.5 px-3 py-2.5 rounded-2xl border select-none cursor-pointer ${
+        isActive ? 'border-white/25 bg-white/10 backdrop-blur-xl shadow-[0_4px_24px_rgba(0,0,0,0.25)]' : 'border-transparent bg-transparent'
+      }`}
     >
       <span ref={iconRef} className="shrink-0 flex items-center justify-center">
         <item.icon
