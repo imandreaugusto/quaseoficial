@@ -52,10 +52,22 @@ button, input, textarea, select {
 }
 
 .pix-payment-shell {
-  min-height: 100dvh;
+  box-sizing: border-box;
+  height: calc(100vh - 4.5rem);
+  height: calc(100dvh - 4.5rem);
+  min-height: 0;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
   overscroll-behavior: contain;
   padding: max(0.5rem, env(safe-area-inset-top)) max(0.5rem, env(safe-area-inset-right)) max(0.5rem, env(safe-area-inset-bottom)) max(0.5rem, env(safe-area-inset-left));
+}
+
+@media (min-width: 640px) {
+  .pix-payment-shell {
+    height: calc(100vh - 5rem);
+    height: calc(100dvh - 5rem);
+  }
 }
 
 .pix-payment-card {
@@ -476,7 +488,7 @@ input, textarea, select {
   height: min(48rem, 92vh);
   z-index: -1;
   pointer-events: none;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.88) 0%, rgba(0, 0, 0, 0.68) 30%, rgba(0, 0, 0, 0.3) 58%, transparent 100%);
+  background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.3) 10%, rgba(0, 0, 0, 0.68) 30%, rgba(0, 0, 0, 0.3) 58%, transparent 100%);
   filter: blur(18px);
   opacity: 0.82;
 }

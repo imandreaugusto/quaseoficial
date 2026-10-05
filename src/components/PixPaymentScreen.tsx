@@ -322,7 +322,7 @@ export const PixPaymentScreen: React.FC<PixPaymentScreenProps> = ({
             </div>
 
             {/* Price Tag Highlight */}
-            <div className="my-1.5 p-3 px-6 rounded-2xl bg-neutral-900/90 border border-white/15 backdrop-blur-md flex items-baseline gap-1 shadow-inner">
+            <div className="my-1.5 w-full max-w-full p-3 px-6 rounded-2xl bg-neutral-900/90 border border-white/15 backdrop-blur-md flex flex-wrap items-baseline justify-center gap-1 text-center shadow-inner">
               <span className="text-xs text-white/50 font-bold uppercase">Valor da Assinatura:</span>
               <span className="text-2xl sm:text-3xl font-black text-emerald-400 font-mono ml-1">
                 {abatePayPix

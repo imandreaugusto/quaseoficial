@@ -1012,7 +1012,7 @@ export default function App() {
           onToggleStudentPreview={handleToggleStudentPreview}
         />
 
-        {cloudSaveStatus && (
+        {cloudSaveStatus && currentUser && isSubscriptionActive && (
           <div
             role="status"
             aria-live="polite"
@@ -1056,7 +1056,9 @@ export default function App() {
         )}
 
         {/* Main View Port Routing */}
-        <main className={`relative z-10 ${currentUser ? 'pt-18 sm:pt-20 pb-12' : 'pt-24 pb-8'} ${lockHomeScroll ? 'h-screen box-border overflow-hidden overscroll-none' : 'min-h-[90vh]'}`}>
+        <main className={`relative z-10 ${currentUser ? 'pt-18 sm:pt-20' : 'pt-24 pb-8'} ${
+          currentUser && isStudent && !isSubscriptionActive ? 'pb-0' : currentUser ? 'pb-12' : ''
+        } ${lockHomeScroll ? 'h-screen box-border overflow-hidden overscroll-none' : 'min-h-[90vh]'}`}>
           {/* 1. AUTH MODAL (Unified Login/Cadastro + 17-Click Easter Egg) */}
           <AuthModal
             isOpen={isAuthModalOpen || !currentUser}
