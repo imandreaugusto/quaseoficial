@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import gsap from 'gsap';
 import { UserProfile, GatewaySettings, StudentPermissions, GlobalAppConfig, ClassItem, ExpenseItem, TrialCoupon, PixPaymentRecord } from '../types';
 import { 
   getAuthorizedCeoEmails, 
@@ -64,9 +65,14 @@ import {
   Clock3,
   Layers,
   Gamepad2,
-  MessageSquareText
+  MessageSquareText,
+  MapPin,
+  BellRing
 } from 'lucide-react';
 import { BrazilianLogo } from './BrazilianLogo';
+import { CeoOverview } from './ceo/CeoOverview';
+import { CeoLocation } from './ceo/CeoLocation';
+import { CeoUpdatesEditor } from './ceo/CeoUpdatesEditor';
 import {
   createTrialCoupon,
   deleteExpiredBrazilianFriendMessages,
@@ -133,7 +139,8 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   onRefreshUsers,
   currentUser
 }) => {
-  const [activeTab, setActiveTab] = useState<'students' | 'apps_order' | 'revenue' | 'gateway' | 'promotions' | 'pix_approvals' | 'ceo_security' | 'friends_cleanup'>('students');
+  const [activeTab, setActiveTab] = useState<'overview' | 'updates' | 'location' | 'students' | 'apps_order' | 'revenue' | 'gateway' | 'promotions' | 'pix_approvals' | 'ceo_security' | 'friends_cleanup'>('overview');
+  const sidebarRef = useRef<HTMLElement | null>(null);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [coupons, setCoupons] = useState<TrialCoupon[]>([]);
   const [pixPayments, setPixPayments] = useState<PixPaymentRecord[]>([]);
@@ -876,153 +883,94 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
     };
   };
 
+  const pendingPixCount = pixPayments.filter((payment) => payment.status === 'pending').length;
+  const mainNav: Array<{ id: typeof activeTab; label: string; icon: React.ElementType; badge?: number }> = [
+    { id: 'overview', label: 'Visão Geral', icon: LayoutDashboard },
+    { id: 'students', label: 'Assinantes', icon: Users, badge: users.length },
+    { id: 'revenue', label: 'Financeiro', icon: DollarSign },
+    { id: 'promotions', label: 'Cupons', icon: Ticket },
+    { id: 'pix_approvals', label: 'Pagamentos', icon: CreditCard, badge: pendingPixCount },
+    { id: 'location', label: 'Localização', icon: MapPin },
+    { id: 'updates', label: 'Comunicação', icon: BellRing }
+  ];
+  const settingsNav: Array<{ id: typeof activeTab; label: string; icon: React.ElementType; badge?: number }> = [
+    { id: 'apps_order', label: 'Ordem dos Apps', icon: LayoutGrid },
+    { id: 'gateway', label: 'Pagamentos e Supabase', icon: SettingsIcon },
+    { id: 'ceo_security', label: 'Segurança CEO', icon: KeyRound },
+    ...(isMainCeo ? [{ id: 'friends_cleanup' as const, label: 'Limpeza Friends', icon: Trash2, badge: expiredFriendMessages }] : [])
+  ];
+
+  useLayoutEffect(() => {
+    const sidebar = sidebarRef.current;
+    if (!sidebar || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    const context = gsap.context(() => {
+      gsap.from('.ceo-nav-item', { opacity: 0, x: -18, duration: 0.5, stagger: 0.05, ease: 'power2.out' });
+    }, sidebar);
+    return () => context.revert();
+  }, []);
+
+  const renderNavItem = (item: { id: typeof activeTab; label: string; icon: React.ElementType; badge?: number }) => {
+    const Icon = item.icon;
+    const active = activeTab === item.id;
+    return (
+      <button
+        key={item.id}
+        type="button"
+        onClick={() => setActiveTab(item.id)}
+        aria-current={active ? 'page' : undefined}
+        className={`ceo-nav-item flex w-full cursor-pointer items-center gap-3 rounded-2xl border px-3.5 py-2.5 text-left text-sm font-semibold backdrop-blur-xl transition ${
+          active
+            ? 'border-blue-300/50 bg-gradient-to-r from-blue-500/50 to-violet-500/40 text-white shadow-[0_0_24px_rgba(99,102,241,0.4)]'
+            : 'border-transparent text-white/75 hover:border-white/20 hover:bg-white/10 hover:text-white'
+        }`}
+      >
+        <Icon size={16} className="shrink-0" />
+        <span className="min-w-0 flex-1 truncate">{item.label}</span>
+        {item.badge !== undefined && item.badge > 0 && (
+          <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-black text-white">{item.badge}</span>
+        )}
+      </button>
+    );
+  };
+
   return (
-    <div className="max-w-6xl mx-auto px-3 sm:px-6 py-6 pb-28 select-none">
-      {/* Top Header & Perfectly Aligned CEO Badge */}
-      <div className="flex flex-col gap-4 mb-6">
-        <div className="flex flex-col gap-1.5">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-red-500/20 border border-red-500/40 text-red-300 shadow-sm backdrop-blur-md">
-              <ShieldCheck size={13} className="text-red-400 shrink-0" />
-              <span>Painel do CEO André Augusto</span>
-            </span>
-            <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-              Central de Gestão & Faturamento
-            </h1>
-          </div>
-          <p className="text-xs text-white/60">
-            Controle de alunos, faturamento semanal/mensal, ordem de apps e manutenção global.
-          </p>
-        </div>
-
-        {/* Tab Navigation: Floating Individual Glassmorphism Pills (Wrap automatically so all 7 options are 100% visible) */}
-        <nav aria-label="Abas de Administração" className="w-full">
-          <div className="flex flex-wrap items-center gap-2">
-            {/* 1. Alunos */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('students')}
-              className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer backdrop-blur-xl shadow-lg border active:scale-95 ${
-                activeTab === 'students'
-                  ? 'bg-amber-500 text-black border-amber-400 font-black shadow-amber-500/30'
-                  : 'bg-neutral-900/80 hover:bg-neutral-800 text-white/80 hover:text-white border-white/15 hover:border-white/30'
-              }`}
-            >
-              <Users size={14} className={activeTab === 'students' ? 'text-black' : 'text-amber-400'} />
-              <span>Alunos ({users.length})</span>
-            </button>
-            
-            {/* 2. Aprovações Pix */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('pix_approvals')}
-              className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer backdrop-blur-xl shadow-lg border active:scale-95 relative ${
-                activeTab === 'pix_approvals'
-                  ? 'bg-amber-500 text-black border-amber-400 font-black shadow-amber-500/30'
-                  : 'bg-neutral-900/80 hover:bg-neutral-800 text-white/80 hover:text-white border-white/15 hover:border-white/30'
-              }`}
-            >
-              <CheckCircle size={14} className={activeTab === 'pix_approvals' ? 'text-black' : 'text-emerald-400'} />
-              <span>Aprovações Pix</span>
-              {pixPayments.filter(p => p.status === 'pending').length > 0 && (
-                <span className="px-1.5 py-0.5 bg-red-600 text-white text-[10px] font-black rounded-full shadow-sm animate-pulse">
-                  {pixPayments.filter(p => p.status === 'pending').length}
-                </span>
-              )}
-            </button>
-
-            {/* 3. Ordem dos Apps */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('apps_order')}
-              className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer backdrop-blur-xl shadow-lg border active:scale-95 ${
-                activeTab === 'apps_order'
-                  ? 'bg-amber-500 text-black border-amber-400 font-black shadow-amber-500/30'
-                  : 'bg-neutral-900/80 hover:bg-neutral-800 text-white/80 hover:text-white border-white/15 hover:border-white/30'
-              }`}
-            >
-              <LayoutGrid size={14} className={activeTab === 'apps_order' ? 'text-black' : 'text-purple-400'} />
-              <span>Ordem dos Apps</span>
-            </button>
-
-            {/* 4. Faturamento do App */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('revenue')}
-              className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer backdrop-blur-xl shadow-lg border active:scale-95 ${
-                activeTab === 'revenue'
-                  ? 'bg-amber-500 text-black border-amber-400 font-black shadow-amber-500/30'
-                  : 'bg-neutral-900/80 hover:bg-neutral-800 text-white/80 hover:text-white border-white/15 hover:border-white/30'
-              }`}
-            >
-              <TrendingUp size={14} className={activeTab === 'revenue' ? 'text-black' : 'text-blue-400'} />
-              <span>Faturamento do App</span>
-            </button>
-
-            {/* 5. Pagamentos e Supabase */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('gateway')}
-              className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer backdrop-blur-xl shadow-lg border active:scale-95 ${
-                activeTab === 'gateway'
-                  ? 'bg-amber-500 text-black border-amber-400 font-black shadow-amber-500/30'
-                  : 'bg-neutral-900/80 hover:bg-neutral-800 text-white/80 hover:text-white border-white/15 hover:border-white/30'
-              }`}
-            >
-              <CreditCard size={14} className={activeTab === 'gateway' ? 'text-black' : 'text-cyan-400'} />
-              <span>Pagamentos e Supabase</span>
-            </button>
-
-            {/* 6. Promoção Trial */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('promotions')}
-              className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer backdrop-blur-xl shadow-lg border active:scale-95 ${
-                activeTab === 'promotions'
-                  ? 'bg-amber-500 text-black border-amber-400 font-black shadow-amber-500/30'
-                  : 'bg-neutral-900/80 hover:bg-neutral-800 text-white/80 hover:text-white border-white/15 hover:border-white/30'
-              }`}
-            >
-              <Zap size={14} className={activeTab === 'promotions' ? 'text-black' : 'text-amber-400'} />
-              <span>Promoção Trial</span>
-            </button>
-
-            {/* 7. Segurança CEO */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('ceo_security')}
-              className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer backdrop-blur-xl shadow-lg border active:scale-95 ${
-                activeTab === 'ceo_security'
-                  ? 'bg-red-600 text-white border-red-500 font-black shadow-red-950/50'
-                  : 'bg-neutral-900/80 hover:bg-neutral-800 text-white/80 hover:text-white border-white/15 hover:border-white/30'
-              }`}
-            >
-              <KeyRound size={14} className={activeTab === 'ceo_security' ? 'text-white' : 'text-red-400'} />
-              <span>Segurança CEO</span>
-            </button>
-
-            {isMainCeo && (
-              <button
-                type="button"
-                onClick={() => setActiveTab('friends_cleanup')}
-                className={`px-3.5 py-2 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer backdrop-blur-xl shadow-lg border active:scale-95 ${
-                  activeTab === 'friends_cleanup'
-                    ? 'bg-red-600 text-white border-red-500 font-black shadow-red-950/50'
-                    : 'bg-neutral-900/80 hover:bg-neutral-800 text-white/80 hover:text-white border-white/15 hover:border-white/30'
-                }`}
-              >
-                <Trash2 size={14} className={activeTab === 'friends_cleanup' ? 'text-white' : 'text-red-400'} />
-                <span>Limpeza Friends</span>
-                {expiredFriendMessages > 0 && (
-                  <span className="px-1.5 py-0.5 bg-red-600 text-white text-[10px] font-black rounded-full shadow-sm animate-pulse">
-                    {expiredFriendMessages}
-                  </span>
-                )}
-              </button>
-            )}
-          </div>
-        </nav>
+    <div className="max-w-[1500px] mx-auto px-3 sm:px-6 py-6 pb-28 select-none">
+      <div className="mb-5 flex flex-wrap items-center gap-3">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-amber-200 backdrop-blur-xl">
+          <ShieldCheck size={13} className="shrink-0" />
+          <span>Painel do CEO</span>
+        </span>
+        <p className="text-sm text-white/70">Sua plataforma. Seus alunos. Seu impacto.</p>
       </div>
+
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
+        <aside
+          ref={sidebarRef}
+          aria-label="Navegação do Painel do CEO"
+          className="w-full shrink-0 rounded-3xl border border-white/20 bg-white/[0.08] p-3 shadow-[0_8px_40px_rgba(0,0,0,0.2)] backdrop-blur-2xl lg:sticky lg:top-24 lg:w-64"
+        >
+          <nav className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-1">
+            {mainNav.map(renderNavItem)}
+          </nav>
+          <p className="mb-1 mt-4 px-3.5 text-[10px] font-bold uppercase tracking-[0.2em] text-white/45">Configurações</p>
+          <nav className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-1">
+            {settingsNav.map(renderNavItem)}
+          </nav>
+        </aside>
+
+        <div className="min-w-0 flex-1">
+      {activeTab === 'overview' && (
+        <CeoOverview
+          users={users}
+          pixPayments={pixPayments}
+          coupons={coupons}
+          onOpen={(tab) => setActiveTab(tab)}
+        />
+      )}
+
+      {activeTab === 'location' && <CeoLocation users={users} />}
+
+      {activeTab === 'updates' && <CeoUpdatesEditor />}
 
       {/* TAB 1: GERENCIAMENTO DE ALUNOS & TELEMETRIA & ACCORDIONS */}
       {activeTab === 'students' && (
@@ -2735,6 +2683,8 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
           </div>
         </div>
       )}
+        </div>
+      </div>
 
       {/* RECEIPT IMAGE PREVIEW MODAL */}
       {previewReceiptImage && (

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { SocialLinksBar } from './SocialLinksBar';
+import { NewUpdatesBadge } from './NewUpdatesBadge';
 
 interface HomeProps {
   classes: ClassItem[];
@@ -158,6 +159,7 @@ export const Home: React.FC<HomeProps> = ({
           <div className="flex flex-col gap-2">
             <Clock clock24h={clock24h} align="left" />
             <span className="text-xl sm:text-2xl font-semibold tracking-tight text-white text-right">{greeting}</span>
+            <NewUpdatesBadge currentUser={currentUser} />
           </div>
         </div>
 
