@@ -54,9 +54,9 @@ export const CeoWorldMap: React.FC<{ countries: MapCountry[] }> = ({ countries }
 
   return (
     <svg ref={rootRef} viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="h-full w-full" role="img" aria-label="Mapa-múndi com a localização dos assinantes">
-      <g fill="rgba(255,255,255,0.28)">
+      <g fill="rgba(255,255,255,0.6)">
         {dots.map((dot, index) => (
-          <circle key={index} className="map-dot" cx={dot.x} cy={dot.y} r={1.5} />
+          <circle key={index} className="map-dot" cx={dot.x} cy={dot.y} r={1.7} />
         ))}
       </g>
       {bubbles.map((bubble) => (

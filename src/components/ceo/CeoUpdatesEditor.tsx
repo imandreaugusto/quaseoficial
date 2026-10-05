@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { BellRing, Check, EyeOff, Loader2, Send, Sparkles } from 'lucide-react';
 import { loadUpdatesNotice, saveUpdatesNotice, UpdatesNotice } from '../../lib/updatesNotice';
 
-const GLASS = 'rounded-3xl border border-white/20 bg-white/[0.08] backdrop-blur-2xl shadow-[0_8px_40px_rgba(0,0,0,0.2)]';
+const GLASS = 'rounded-3xl border border-white/25 bg-slate-950/30 backdrop-blur-2xl shadow-[0_8px_40px_rgba(0,0,0,0.25)]';
 
 // Caixa onde o CEO escreve as novidades que aparecem no selo "NEW" da Home de cada assinante.
 export const CeoUpdatesEditor: React.FC = () => {

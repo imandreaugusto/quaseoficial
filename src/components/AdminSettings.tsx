@@ -947,7 +947,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
         <aside
           ref={sidebarRef}
           aria-label="Navegação do Painel do CEO"
-          className="w-full shrink-0 rounded-3xl border border-white/20 bg-white/[0.08] p-3 shadow-[0_8px_40px_rgba(0,0,0,0.2)] backdrop-blur-2xl lg:sticky lg:top-24 lg:w-64"
+          className="w-full shrink-0 rounded-3xl border border-white/25 bg-slate-950/30 p-3 shadow-[0_8px_40px_rgba(0,0,0,0.25)] backdrop-blur-2xl lg:sticky lg:top-24 lg:w-64"
         >
           <nav className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-1">
             {mainNav.map(renderNavItem)}

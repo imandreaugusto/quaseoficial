@@ -29,7 +29,7 @@ interface CeoOverviewProps {
 }
 
 const MONTHS = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-const GLASS = 'ceo-card rounded-2xl border border-white/20 bg-white/[0.08] backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.18)]';
+const GLASS = 'ceo-card rounded-2xl border border-white/25 bg-slate-950/30 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.25)]';
 const COLORS = ['#38bdf8', '#a78bfa', '#f472b6', '#34d399', '#fbbf24', '#fb7185'];
 
 const reducedMotion = () => typeof window !== 'undefined' && Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);

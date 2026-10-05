@@ -3,7 +3,7 @@ import { Globe, MapPin } from 'lucide-react';
 import { UserProfile } from '../../types';
 import { CeoWorldMap } from './CeoWorldMap';
 
-const GLASS = 'rounded-3xl border border-white/20 bg-white/[0.08] backdrop-blur-2xl shadow-[0_8px_40px_rgba(0,0,0,0.2)]';
+const GLASS = 'rounded-3xl border border-white/25 bg-slate-950/30 backdrop-blur-2xl shadow-[0_8px_40px_rgba(0,0,0,0.25)]';
 const COLORS = ['#38bdf8', '#a78bfa', '#f472b6', '#34d399', '#fbbf24'];
 
 const countBy = (items: string[]) => {
