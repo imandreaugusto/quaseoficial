@@ -14,7 +14,7 @@ import { BrazilianTradutor } from './components/BrazilianTradutor';
 import { BiaCompare } from './components/BiaCompare';
 import { YouTubeHub } from './components/YouTubeHub';
 import { BrazilianPractice } from './components/BrazilianPractice';
-import { BrazilianStories } from './components/BrazilianStories';
+import { BrazilianStories, StoryRecordingBar } from './components/BrazilianStories';
 import { BrazilianFriends } from './components/BrazilianFriends';
 import { StreamStudio } from './components/StreamStudio';
 import { AdminSettings } from './components/AdminSettings';
@@ -133,6 +133,7 @@ export default function App() {
   // Global Stream Studio Overlay State
   const [streamActive, setStreamActive] = useState(false);
   const [isFloatingCamActive, setIsFloatingCamActive] = useState(false);
+  const [isStoryCamActive, setIsStoryCamActive] = useState(false);
   const [showQr, setShowQr] = useState(false);
   const [qrUrl, setQrUrl] = useState('https://www.youtube.com/@brazilianinaction');
   const [qrTitle, setQrTitle] = useState('Canal YouTube');
@@ -1273,6 +1274,7 @@ export default function App() {
                       currentUser={currentUser} 
                       isAdmin={effectiveIsAdmin} 
                       accentColor={settings.accentColor} 
+                      onShowFloatingCamera={setIsStoryCamActive}
                     />
                   )}
 
@@ -1347,11 +1349,15 @@ export default function App() {
           />
         )}
 
-        {/* Global Floating Camera Bubble (Strictly Admin / CEO Only) */}
+        {/* Floating camera bubble: admin/CEO anytime; students only while recording a Brazilian Post story */}
         <GlobalFloatingCamera
-          isActive={isFloatingCamActive && effectiveIsAdmin && !isAuthModalOpen && Boolean(currentUser)}
-          onClose={() => setIsFloatingCamActive(false)}
+          isActive={((isFloatingCamActive && effectiveIsAdmin) || isStoryCamActive) && !isAuthModalOpen && Boolean(currentUser)}
+          onClose={() => {
+            setIsFloatingCamActive(false);
+            setIsStoryCamActive(false);
+          }}
         />
+        <StoryRecordingBar onFinished={() => setCurrentApp('stories')} />
       </div>
       )}
     </LayoutPositionProvider>

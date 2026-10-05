@@ -290,44 +290,74 @@ export const getSubscriptionStatusFromSupabase = async (email: string) => {
   }
 };
 
-export const syncStoriesToSupabase = async (stories: any[]) => {
+const STORY_BUCKET = 'bia-stories';
+
+// Envia o vídeo gravado ao Storage do Supabase e devolve o endereço público.
+export const uploadStoryVideo = async (blob: Blob, extension: string): Promise<string> => {
   const client = getSupabaseClient();
-  if (!client || !Array.isArray(stories) || stories.length === 0) return [];
+  if (!client) throw new Error('Supabase não está configurado para enviar o vídeo.');
+  const { data: authData, error: authError } = await client.auth.getUser();
+  if (authError || !authData.user) throw new Error('Entre novamente para enviar o seu story.');
 
-  try {
-    const { data: authData, error: authError } = await client.auth.getUser();
-    if (authError || !authData.user) return [];
+  const path = `${authData.user.id}/${Date.now()}.${extension}`;
+  const { error } = await client.storage.from(STORY_BUCKET).upload(path, blob, {
+    contentType: blob.type || `video/${extension}`,
+    upsert: false
+  });
+  if (error) throw new Error(`Não foi possível enviar o vídeo: ${error.message}`);
+  return client.storage.from(STORY_BUCKET).getPublicUrl(path).data.publicUrl;
+};
 
-    const ownPendingStories = stories.filter((story) =>
-      story.studentId === authData.user.id && (!story.status || story.status === 'pending')
-    );
-    if (ownPendingStories.length === 0) return [];
+// CEO/admin publica já aprovado; aluno entra sempre como pendente (regra imposta pelo banco).
+export const saveStoryToSupabase = async (story: {
+  id: string;
+  studentName: string;
+  title: string;
+  category: string;
+  promptUsed: string;
+  videoUrl: string;
+  status: 'pending' | 'approved' | 'featured';
+  instagramHandle?: string;
+}) => {
+  const client = getSupabaseClient();
+  if (!client) throw new Error('Supabase não está configurado para salvar o story.');
+  const { data: authData, error: authError } = await client.auth.getUser();
+  if (authError || !authData.user) throw new Error('Entre novamente para enviar o seu story.');
 
-    const rows = ownPendingStories.map((story) => ({
-      id: String(story.id),
-      student_id: authData.user.id,
-      student_name: story.studentName || 'Aluno BIA',
-      title: story.title || 'Story',
-      category: story.category || 'challenge',
-      prompt_used: story.promptUsed || story.title || 'Story',
-      video_url: story.videoUrl || null,
-      thumbnail_url: story.thumbnailUrl || null,
-      created_at: story.createdAt || new Date().toISOString(),
-      status: 'pending',
-      likes_count: Number(story.likesCount || 0),
-      instagram_handle: story.instagramHandle || null
-    }));
+  const { error } = await client.from('stories').upsert({
+    id: story.id,
+    student_id: authData.user.id,
+    student_name: story.studentName,
+    title: story.title,
+    category: story.category,
+    prompt_used: story.promptUsed,
+    video_url: story.videoUrl,
+    created_at: new Date().toISOString(),
+    status: story.status,
+    likes_count: 0,
+    instagram_handle: story.instagramHandle || null
+  }, { onConflict: 'id' });
+  if (error) throw new Error(`Não foi possível salvar o story: ${error.message}`);
+};
 
-    const { data, error } = await client
-      .from('stories')
-      .upsert(rows, { onConflict: 'id' })
-      .select();
+export const updateStoryStatusInSupabase = async (id: string, status: 'approved' | 'featured') => {
+  const client = getSupabaseClient();
+  if (!client) throw new Error('Supabase não está configurado.');
+  const { error } = await client.from('stories').update({ status }).eq('id', id);
+  if (error) throw new Error(`Não foi possível atualizar o story: ${error.message}`);
+};
 
-    if (error) throw error;
-    return data || [];
-  } catch (error) {
-    console.warn('Supabase stories sync failed:', error);
-    return [];
+export const deleteStoryFromSupabase = async (id: string, videoUrl?: string) => {
+  const client = getSupabaseClient();
+  if (!client) throw new Error('Supabase não está configurado.');
+  const { error } = await client.from('stories').delete().eq('id', id);
+  if (error) throw new Error(`Não foi possível excluir o story: ${error.message}`);
+
+  const marker = `/${STORY_BUCKET}/`;
+  const markerIndex = videoUrl?.indexOf(marker) ?? -1;
+  if (videoUrl && markerIndex >= 0) {
+    const objectPath = decodeURIComponent(videoUrl.slice(markerIndex + marker.length).split('?')[0]);
+    await client.storage.from(STORY_BUCKET).remove([objectPath]).catch(() => {});
   }
 };
 

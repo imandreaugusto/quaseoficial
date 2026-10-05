@@ -1,246 +1,223 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { 
-  Camera, 
-  Video, 
-  Play, 
-  Square, 
-  RotateCcw, 
-  Download, 
-  Send, 
-  Instagram, 
-  Sparkles, 
-  Trophy, 
-  Flame, 
-  Award, 
-  CheckCircle2, 
-  Copy, 
-  Eye, 
-  ChevronRight, 
-  ThumbsUp, 
-  Heart, 
-  Share2, 
-  Zap, 
-  Volume2, 
-  VolumeX, 
-  FileText, 
-  Layers, 
-  HelpCircle,
-  Clock,
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  AlertCircle,
+  Camera,
   Check,
-  X,
-  Radio,
-  ExternalLink,
-  ShieldCheck
+  Copy,
+  Download,
+  FileText,
+  Instagram,
+  Loader2,
+  MessageCircle,
+  Monitor,
+  RotateCcw,
+  Send,
+  ShieldCheck,
+  Sparkles,
+  Square,
+  Trophy,
+  Video,
+  X
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
-import { UserProfile, StorySubmission, StoryBadge } from '../types';
-import { getSupabaseClient, loadStoriesFromSupabase, syncStoriesToSupabase } from '../utils/supabaseClient';
+import { motion } from 'motion/react';
+import { StorySubmission, UserProfile } from '../types';
+import {
+  deleteStoryFromSupabase,
+  getSupabaseClient,
+  loadStoriesFromSupabase,
+  saveStoryToSupabase,
+  updateStoryStatusInSupabase,
+  uploadStoryVideo
+} from '../utils/supabaseClient';
+import {
+  MAX_STORY_SECONDS,
+  canRecordScreen,
+  discardRecording,
+  getRecordedBlob,
+  openCamera,
+  startRecording,
+  startScreenRecording,
+  stopRecording,
+  useStoryRecorder
+} from '../lib/storyRecorder';
 
 interface StoryPromptOption {
   id: string;
-  category: 'challenge' | 'episoden' | 'readclub' | 'expression' | 'routine';
+  category: StorySubmission['category'];
   title: string;
-  badgeTitle: string;
   teleprompterEn: string;
   teleprompterPt: string;
   suggestedCaption: string;
   hashtags: string;
-  level: string;
 }
 
 const STORY_PROMPTS: StoryPromptOption[] = [
   {
+    id: 'evolution',
+    category: 'challenge',
+    title: 'Minha evolução na BIA',
+    teleprompterEn: "Hi everyone! I want to show you my progress at Brazilian in Action. Look at what I have been doing: I practice every day and I can feel my English getting better. Let me show you!",
+    teleprompterPt: 'Oi pessoal! Quero mostrar minha evolução na Brazilian in Action. Olhem o que venho fazendo: pratico todo dia e sinto meu inglês melhorando. Vou mostrar!',
+    suggestedCaption: 'Mostrando minha evolução no inglês com a @brazilianinaction! Cada dia um passo mais perto da fluência 🇺🇸🔥',
+    hashtags: '#BrazilianInAction #EnglishPractice #MinhaEvolucao #BIAStories'
+  },
+  {
     id: 'episoden-victory',
     category: 'episoden',
-    title: 'Minha Rodada no Episoden',
-    badgeTitle: 'Global Speaker',
-    level: 'Iniciante ao Avançado',
-    teleprompterEn: "Hey guys! I just finished my 7-minute conversation round on Brazilian Practice live. I talked with someone from another country and it was awesome! Destravando meu inglês todos os dias na Brazilian in Action! 🚀🔥",
-    teleprompterPt: "E aí pessoal! Acabei de terminar minha rodada de 7 minutos no Brazilian Practice. Conversei com alguém de outro país e foi incrível! Destravando meu inglês todos os dias na Brazilian in Action! 🚀🔥",
-    suggestedCaption: "Mais um dia destravando o inglês ao vivo no @brazilianinaction! 7 minutinhos de conversa e a confiança só aumenta. 🇺🇸🔥",
-    hashtags: "#BrazilianInAction #EnglishPractice #EpisodenLive #FluenciaReal #BIAStories"
+    title: 'Minha rodada de conversação',
+    teleprompterEn: "Hey guys! I just finished a conversation round on Brazilian Practice. I talked with someone from another country and it was awesome! I am unlocking my English every day!",
+    teleprompterPt: 'E aí pessoal! Acabei de terminar uma rodada de conversação no Brazilian Practice. Conversei com alguém de outro país e foi incrível! Destravando meu inglês todo dia!',
+    suggestedCaption: 'Mais um dia destravando o inglês ao vivo com a @brazilianinaction! Conversar com gente de outro país aumenta a confiança 🌎🔥',
+    hashtags: '#BrazilianInAction #EnglishPractice #FluenciaReal #BIAStories'
   },
   {
     id: 'daily-expression',
     category: 'expression',
-    title: 'Expressão em Inglês do Dia',
-    badgeTitle: 'Daily Teacher',
-    level: 'Todos os Níveis',
-    teleprompterEn: "Today at Brazilian in Action I learned the expression 'Piece of cake' / 'Break a leg' / 'Cut to the chase'. It means going straight to the point without wasting time. How about you? Did you know this one? Drop a comment! 💬✨",
-    teleprompterPt: "Hoje na Brazilian in Action eu aprendi a expressão 'Cut to the chase'. Significa ir direto ao ponto sem enrolar. E você, já conhecia essa? Me conta aqui! 💬✨",
-    suggestedCaption: "Expressão do dia direto da minha aula na @brazilianinaction! Quem já conhecia essa gíria? 📚✨",
-    hashtags: "#DicaDeIngles #BrazilianInAction #AprenderIngles #EnglishTips"
+    title: 'Expressão em inglês do dia',
+    teleprompterEn: "Today I learned a new expression: 'Cut to the chase'. It means to get straight to the point without wasting time. Did you know this one? Let me know in the comments!",
+    teleprompterPt: "Hoje aprendi a expressão 'Cut to the chase'. Significa ir direto ao ponto sem enrolar. E você, já conhecia? Me conta nos comentários!",
+    suggestedCaption: 'Expressão do dia direto da minha aula na @brazilianinaction! Quem já conhecia essa? 📚✨',
+    hashtags: '#DicaDeIngles #BrazilianInAction #AprenderIngles #EnglishTips'
   },
   {
     id: 'read-club-flow',
     category: 'readclub',
-    title: 'Leitura & Pronúncia no Read Club',
-    badgeTitle: 'Fluent Reader',
-    level: 'Iniciante / Intermediário',
-    teleprompterEn: "Practicing my reading and pronunciation today with the Read Club library on Brazilian in Action. Listening to the native audio and repeating each sentence. The accent training here is next level! 📖🎧",
-    teleprompterPt: "Praticando minha leitura e pronúncia hoje com a biblioteca do Read Club na Brazilian in Action. Ouvindo o áudio nativo e repetindo cada frase. O treino de sotaque aqui é de outro nível! 📖🎧",
-    suggestedCaption: "Treino pesado de pronúncia e reading no Read Club do @brazilianinaction! Cada dia um passo mais perto da fluência 🎧🇺🇸",
-    hashtags: "#ReadClub #Pronunciation #BrazilianInAction #ReadingInEnglish"
-  },
-  {
-    id: 'study-routine',
-    category: 'routine',
-    title: 'Minha Rotina de Estudos BIA',
-    badgeTitle: 'Disciplined Hero',
-    level: 'Todos os Níveis',
-    teleprompterEn: "Consistency is key! Starting my English session right now on the Brazilian in Action platform. 15 minutes of quiz, practice, and conversation. No excuses, let's get it! 💪⚡",
-    teleprompterPt: "Constância é a chave! Começando minha sessão de inglês agora mesmo na plataforma Brazilian in Action. 15 minutos de quiz, prática e conversação. Sem desculpas, bora! 💪⚡",
-    suggestedCaption: "Rotina de estudos em dia! 15 minutinhos diários na melhor plataforma: @brazilianinaction 💪🔥",
-    hashtags: "#EstudarIngles #StudyGram #BrazilianInAction #FocoFluencia"
+    title: 'Leitura e pronúncia no Read Club',
+    teleprompterEn: 'I am practicing my reading and pronunciation with the Read Club on Brazilian in Action. I listen to the audio and repeat each sentence. The accent training here is next level!',
+    teleprompterPt: 'Estou praticando leitura e pronúncia com o Read Club da Brazilian in Action. Ouço o áudio e repito cada frase. O treino de sotaque aqui é de outro nível!',
+    suggestedCaption: 'Treino de pronúncia e leitura no Read Club da @brazilianinaction! 🎧🇺🇸',
+    hashtags: '#ReadClub #Pronunciation #BrazilianInAction #ReadingInEnglish'
   }
 ];
 
-const INITIAL_STORIES: StorySubmission[] = [
-  {
-    id: 'story-1',
-    studentId: 'aluno-1',
-    studentName: 'Lucas Ferreira',
-    studentAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
-    title: 'Falei 7 min em inglês pela primeira vez!',
-    category: 'episoden',
-    promptUsed: 'Minha Rodada no Episoden',
-    createdAt: 'Hoje às 14:20',
-    status: 'featured',
-    likesCount: 28,
-    instagramHandle: '@lucas_ferreirabjj'
-  },
-  {
-    id: 'story-2',
-    studentId: 'aluno-2',
-    studentName: 'Camila Duarte',
-    studentAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-    title: 'Treino de pronúncia com as histórias do Read Club',
-    category: 'readclub',
-    promptUsed: 'Leitura & Pronúncia no Read Club',
-    createdAt: 'Ontem às 19:10',
-    status: 'approved',
-    likesCount: 19,
-    instagramHandle: '@camiladuarte_eng'
-  },
-  {
-    id: 'story-3',
-    studentId: 'aluno-3',
-    studentName: 'Rodrigo Mello',
-    studentAvatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop&q=80',
-    title: 'Dica da expressão Hit the books!',
-    category: 'expression',
-    promptUsed: 'Expressão em Inglês do Dia',
-    createdAt: 'Há 2 dias',
-    status: 'approved',
-    likesCount: 34,
-    instagramHandle: '@rodrigomello_dev'
-  }
-];
+const CATEGORY_LABELS: Record<StorySubmission['category'], string> = {
+  challenge: 'Evolução',
+  episoden: 'Conversação',
+  readclub: 'Read Club',
+  expression: 'Expressão',
+  routine: 'Rotina'
+};
 
-const DEFAULT_BADGES: StoryBadge[] = [
-  {
-    id: 'badge-1',
-    name: 'Primeiro Story BIA',
-    description: 'Gravou e compartilhou o primeiro vídeo de inglês.',
-    icon: '🎬',
-    unlocked: true,
-    dateUnlocked: '12/08/2026'
-  },
-  {
-    id: 'badge-2',
-    name: 'Global Speaker',
-    description: 'Completou o desafio de falar sobre o treino no Episoden / Brazilian Practice.',
-    icon: '🌍',
-    unlocked: true,
-    dateUnlocked: '14/08/2026'
-  },
-  {
-    id: 'badge-3',
-    name: 'Repost Oficial',
-    description: 'Teve seu vídeo avaliado e repostado no Instagram oficial @brazilianinaction.',
-    icon: '⭐',
-    unlocked: false
-  },
-  {
-    id: 'badge-4',
-    name: 'Influencer da Fluência',
-    description: 'Enviou 3 ou mais Stories na comunidade BIA.',
-    icon: '👑',
-    unlocked: false
-  }
-];
+const STATUS_LABELS: Record<StorySubmission['status'], string> = {
+  pending: 'Em análise',
+  approved: 'Aprovado',
+  featured: 'Destaque'
+};
+
+const STATUS_CLASSES: Record<StorySubmission['status'], string> = {
+  pending: 'border-yellow-300/40 bg-yellow-400/15 text-yellow-100',
+  approved: 'border-emerald-300/40 bg-emerald-400/15 text-emerald-100',
+  featured: 'border-amber-300/50 bg-amber-400/20 text-amber-100'
+};
+
+const GLASS = 'rounded-3xl border border-white/20 bg-white/[0.08] backdrop-blur-2xl shadow-[0_8px_40px_rgba(0,0,0,0.2)]';
+const GRADIENT_BUTTON = 'bg-gradient-to-r from-blue-500 to-violet-500 text-white shadow-lg shadow-violet-500/25 hover:brightness-110';
+const GLASS_BUTTON = 'border border-white/20 bg-white/10 text-white/85 backdrop-blur-xl hover:bg-white/20 hover:text-white';
+
+const formatClock = (seconds: number) =>
+  `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+
+const formatDate = (value: string) => {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
+// Barra fixa visível em qualquer tela do app enquanto a tela está sendo gravada.
+export const StoryRecordingBar: React.FC<{ onFinished: () => void }> = ({ onFinished }) => {
+  const recorder = useStoryRecorder();
+  const previousStatus = useRef(recorder.status);
+
+  useEffect(() => {
+    if (previousStatus.current === 'recording' && recorder.status === 'review' && recorder.mode === 'screen') onFinished();
+    previousStatus.current = recorder.status;
+  }, [recorder.status, recorder.mode]);
+
+  if (recorder.status !== 'recording' || recorder.mode !== 'screen') return null;
+
+  return (
+    <div
+      role="status"
+      className="fixed bottom-5 left-1/2 z-[300000] flex -translate-x-1/2 items-center gap-3 rounded-full border border-white/25 bg-white/15 py-2 pl-4 pr-2 shadow-[0_8px_30px_rgba(0,0,0,0.35)] backdrop-blur-2xl"
+    >
+      <span className="relative flex h-2.5 w-2.5">
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+        <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500" />
+      </span>
+      <span className="font-mono text-xs font-bold text-white">Gravando {formatClock(recorder.seconds)}</span>
+      <button
+        type="button"
+        onClick={() => void stopRecording()}
+        className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-red-500 px-4 py-1.5 text-xs font-extrabold uppercase tracking-wider text-white transition hover:bg-red-400"
+      >
+        <Square size={11} className="fill-current" /> Parar
+      </button>
+    </div>
+  );
+};
 
 interface BrazilianStoriesProps {
   currentUser?: UserProfile | null;
   isAdmin?: boolean;
   accentColor?: string;
+  onShowFloatingCamera?: (show: boolean) => void;
 }
 
 export const BrazilianStories: React.FC<BrazilianStoriesProps> = ({
   currentUser,
   isAdmin = false,
-  accentColor = '#f59e0b'
+  onShowFloatingCamera
 }) => {
-  const [activeTab, setActiveTab] = useState<'hall' | 'recorder' | 'rewards' | 'admin_submissions'>('hall');
+  const recorder = useStoryRecorder();
+  const screenSupported = canRecordScreen();
+
+  const [activeTab, setActiveTab] = useState<'hall' | 'recorder' | 'moderation'>('hall');
+  const [mode, setMode] = useState<'screen' | 'camera'>(screenSupported ? 'screen' : 'camera');
   const [selectedPrompt, setSelectedPrompt] = useState<StoryPromptOption>(STORY_PROMPTS[0]);
   const [showTeleprompter, setShowTeleprompter] = useState(false);
-  const [teleprompterSpeed, setTeleprompterSpeed] = useState<number>(2); // 1 to 3
-  
-  // Camera & Recording states
-  const [isCameraActive, setIsCameraActive] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordedChunks, setRecordedChunks] = useState<Blob[]>([]);
-  const [recordedVideoUrl, setRecordedVideoUrl] = useState<string | null>(null);
-  const [recordingSeconds, setRecordingSeconds] = useState(0);
-  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [stories, setStories] = useState<StorySubmission[]>([]);
+  const [studentInstagram, setStudentInstagram] = useState('');
+  const [copiedCaption, setCopiedCaption] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sentUrl, setSentUrl] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ type: 'error' | 'info'; text: string } | null>(null);
 
-  // Submissions storage
-  const [stories, setStories] = useState<StorySubmission[]>(() => {
-    const saved = localStorage.getItem('bia_stories_submissions');
-    return saved ? JSON.parse(saved) : INITIAL_STORIES;
-  });
+  const liveVideoRef = useRef<HTMLVideoElement | null>(null);
+  const myId = currentUser?.auth_user_id || currentUser?.id || '';
+  const caption = `${selectedPrompt.suggestedCaption}\n\n${selectedPrompt.hashtags}`;
 
   useEffect(() => {
     const client = getSupabaseClient();
     if (!client) return;
 
-    const loadRemoteStories = async () => {
-      const remote = await loadStoriesFromSupabase();
-      if (remote.length > 0) {
-        setStories(remote);
-        localStorage.setItem('bia_stories_submissions', JSON.stringify(remote));
-      }
-    };
-
-    void loadRemoteStories();
+    void loadStoriesFromSupabase().then((remote) => setStories(remote as StorySubmission[]));
 
     const channel = client
       .channel('stories-live-sync')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'stories' }, (payload) => {
-        const nextStory = payload.new as any;
-        if (!nextStory) return;
+        if (payload.eventType === 'DELETE') {
+          const removedId = String((payload.old as { id?: string })?.id || '');
+          setStories((prev) => prev.filter((item) => item.id !== removedId));
+          return;
+        }
+        const row = payload.new as Record<string, any>;
+        if (!row?.id) return;
         const mapped: StorySubmission = {
-          id: String(nextStory.id),
-          studentId: nextStory.student_id,
-          studentName: nextStory.student_name,
-          title: nextStory.title,
-          category: nextStory.category,
-          promptUsed: nextStory.prompt_used,
-          videoUrl: nextStory.video_url || undefined,
-          thumbnailUrl: nextStory.thumbnail_url || undefined,
-          createdAt: nextStory.created_at,
-          status: nextStory.status,
-          likesCount: Number(nextStory.likes_count || 0),
-          instagramHandle: nextStory.instagram_handle || undefined
+          id: String(row.id),
+          studentId: row.student_id,
+          studentName: row.student_name,
+          title: row.title,
+          category: row.category,
+          promptUsed: row.prompt_used,
+          videoUrl: row.video_url || undefined,
+          thumbnailUrl: row.thumbnail_url || undefined,
+          createdAt: row.created_at,
+          status: row.status,
+          likesCount: Number(row.likes_count || 0),
+          instagramHandle: row.instagram_handle || undefined
         };
-
-        setStories((prev) => {
-          const exists = prev.some((item) => item.id === mapped.id);
-          if (exists) {
-            return prev.map((item) => (item.id === mapped.id ? mapped : item));
-          }
-          return [mapped, ...prev];
-        });
+        setStories((prev) => (prev.some((item) => item.id === mapped.id) ? prev.map((item) => (item.id === mapped.id ? mapped : item)) : [mapped, ...prev]));
       })
       .subscribe();
 
@@ -249,839 +226,477 @@ export const BrazilianStories: React.FC<BrazilianStoriesProps> = ({
     };
   }, []);
 
-  // User badges & points
-  const [badges, setBadges] = useState<StoryBadge[]>(() => {
-    const saved = localStorage.getItem('bia_user_story_badges');
-    return saved ? JSON.parse(saved) : DEFAULT_BADGES;
-  });
-
-  const [studentInstagram, setStudentInstagram] = useState<string>('');
-  const [submissionSuccess, setSubmissionSuccess] = useState(false);
-  const [copiedCaption, setCopiedCaption] = useState(false);
-  const [likedStories, setLikedStories] = useState<string[]>([]);
-  const [viewingStory, setViewingStory] = useState<StorySubmission | null>(null);
-
-  const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const timerIntervalRef = useRef<any>(null);
-
-  // Save stories
+  // O elemento de vídeo só existe depois do render; por isso o stream é ligado aqui.
   useEffect(() => {
-    localStorage.setItem('bia_stories_submissions', JSON.stringify(stories));
-
-    const client = getSupabaseClient();
-    if (client && stories.length > 0) {
-      void syncStoriesToSupabase(stories);
+    if (liveVideoRef.current && recorder.liveStream) {
+      liveVideoRef.current.srcObject = recorder.liveStream;
+      void liveVideoRef.current.play().catch(() => {});
     }
-  }, [stories]);
+  }, [recorder.liveStream, activeTab]);
 
-  // Clean up camera stream on unmount or tab change
+  useEffect(() => {
+    if (recorder.error) onShowFloatingCamera?.(false);
+  }, [recorder.error]);
+
+  useEffect(() => {
+    if (recorder.status === 'review') {
+      onShowFloatingCamera?.(false);
+      setActiveTab('recorder');
+    }
+  }, [recorder.status]);
+
   useEffect(() => {
     return () => {
-      stopCameraStream();
+      if (recorder.status === 'preview') discardRecording();
     };
   }, []);
 
-  const startCamera = async () => {
-    setCameraError(null);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 720 }, height: { ideal: 1280 }, facingMode: 'user' },
-        audio: true
-      });
-      streamRef.current = stream;
-      if (videoPreviewRef.current) {
-        videoPreviewRef.current.srcObject = stream;
-        videoPreviewRef.current.play();
-      }
-      setIsCameraActive(true);
-    } catch (err: any) {
-      console.error('Camera access error:', err);
-      setCameraError('Permissão da câmera ou microfone negada. Verifique as permissões do seu navegador.');
-    }
+  const handleStartScreen = async () => {
+    setNotice(null);
+    onShowFloatingCamera?.(true);
+    await startScreenRecording();
   };
 
-  const stopCameraStream = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-    setIsCameraActive(false);
+  const handleReset = () => {
+    discardRecording();
+    onShowFloatingCamera?.(false);
+    setSentUrl(null);
+    setNotice(null);
   };
 
-  const handleStartRecording = () => {
-    if (!streamRef.current) return;
-    setRecordedChunks([]);
-    setRecordedVideoUrl(null);
-    setRecordingSeconds(0);
-
-    try {
-      const recorder = new MediaRecorder(streamRef.current, { mimeType: 'video/webm' });
-      mediaRecorderRef.current = recorder;
-
-      const chunks: Blob[] = [];
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          chunks.push(e.data);
-        }
-      };
-
-      recorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'video/webm' });
-        const url = URL.createObjectURL(blob);
-        setRecordedVideoUrl(url);
-        setRecordedChunks(chunks);
-        stopCameraStream();
-      };
-
-      recorder.start(100);
-      setIsRecording(true);
-
-      timerIntervalRef.current = setInterval(() => {
-        setRecordingSeconds((prev) => {
-          if (prev >= 60) {
-            // max 60s
-            handleStopRecording();
-            return 60;
-          }
-          return prev + 1;
-        });
-      }, 1000);
-    } catch (err: any) {
-      console.error('MediaRecorder error:', err);
-      setCameraError('Seu navegador não suporta a gravação direta de vídeo.');
-    }
-  };
-
-  const handleStopRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop();
-    }
-    clearInterval(timerIntervalRef.current);
-    setIsRecording(false);
-  };
-
-  const handleResetRecording = () => {
-    setRecordedVideoUrl(null);
-    setRecordedChunks([]);
-    setRecordingSeconds(0);
-    setSubmissionSuccess(false);
-    startCamera();
-  };
-
-  const handleDownloadStory = () => {
-    if (!recordedVideoUrl) return;
-    const a = document.createElement('a');
-    a.href = recordedVideoUrl;
-    a.download = `brazilian-in-action-story-${Date.now()}.webm`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  };
-
-  const handleCopyInstagramCaption = () => {
-    const textToCopy = `${selectedPrompt.suggestedCaption}\n\n${selectedPrompt.hashtags}`;
-    navigator.clipboard.writeText(textToCopy);
+  const handleCopyCaption = async () => {
+    await navigator.clipboard.writeText(caption).catch(() => {});
     setCopiedCaption(true);
-    setTimeout(() => setCopiedCaption(false), 2500);
+    window.setTimeout(() => setCopiedCaption(false), 2500);
   };
 
-  const handleSendToBIA = () => {
-    const studentName = currentUser?.full_name || currentUser?.email?.split('@')[0] || 'Aluno BIA';
-    
-    const newSubmission: StorySubmission = {
-      id: 'story-' + Date.now(),
-      studentId: currentUser?.auth_user_id || currentUser?.id || 'temp-id',
-      studentName,
-      title: selectedPrompt.title,
-      category: selectedPrompt.category,
-      promptUsed: selectedPrompt.title,
-      videoUrl: recordedVideoUrl || undefined,
-      createdAt: new Date().toISOString(),
-      status: 'pending',
-      likesCount: 1,
-      instagramHandle: studentInstagram.trim() || undefined
-    };
-
-    setStories((prev) => [newSubmission, ...prev]);
-    setSubmissionSuccess(true);
-
-    // Unlock badges if needed
-    setBadges((prev) =>
-      prev.map((b) => (b.id === 'badge-1' ? { ...b, unlocked: true, dateUnlocked: 'Hoje' } : b))
-    );
+  const handleDownload = () => {
+    if (!recorder.url) return;
+    const link = document.createElement('a');
+    link.href = recorder.url;
+    link.download = `brazilian-in-action-story-${Date.now()}.${recorder.extension}`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
-  const handleLikeStory = (storyId: string) => {
-    if (likedStories.includes(storyId)) return;
-    setLikedStories((prev) => [...prev, storyId]);
-    setStories((prev) =>
-      prev.map((s) => (s.id === storyId ? { ...s, likesCount: s.likesCount + 1 } : s))
-    );
+  const handleSend = async () => {
+    const blob = getRecordedBlob();
+    if (!blob || sending) return;
+    setSending(true);
+    setNotice(null);
+    try {
+      const videoUrl = await uploadStoryVideo(blob, recorder.extension);
+      const story: StorySubmission = {
+        id: `story-${Date.now()}`,
+        studentId: myId,
+        studentName: currentUser?.full_name || currentUser?.email?.split('@')[0] || 'Aluno BIA',
+        title: selectedPrompt.title,
+        category: selectedPrompt.category,
+        promptUsed: selectedPrompt.title,
+        videoUrl,
+        createdAt: new Date().toISOString(),
+        status: isAdmin ? 'featured' : 'pending',
+        likesCount: 0,
+        instagramHandle: studentInstagram.trim() || undefined
+      };
+      await saveStoryToSupabase({
+        id: story.id,
+        studentName: story.studentName,
+        title: story.title,
+        category: story.category,
+        promptUsed: story.promptUsed,
+        videoUrl,
+        status: story.status,
+        instagramHandle: story.instagramHandle
+      });
+      setStories((prev) => [story, ...prev.filter((item) => item.id !== story.id)]);
+      setSentUrl(videoUrl);
+      setNotice({
+        type: 'info',
+        text: isAdmin ? 'Story publicado como destaque no Mural.' : 'Story enviado! A equipe vai avaliar e pode repostar no Instagram oficial.'
+      });
+    } catch (error) {
+      setNotice({ type: 'error', text: error instanceof Error ? error.message : 'Não foi possível enviar o story.' });
+    } finally {
+      setSending(false);
+    }
   };
 
-  const handleApproveStory = (storyId: string, featured: boolean = false) => {
-    setStories((prev) =>
-      prev.map((s) =>
-        s.id === storyId ? { ...s, status: featured ? 'featured' : 'approved' } : s
-      )
-    );
+  const handleShareInstagram = async () => {
+    const blob = getRecordedBlob();
+    if (!blob) return;
+    await navigator.clipboard.writeText(caption).catch(() => {});
+    const file = new File([blob], `story-bia.${recorder.extension}`, { type: recorder.mimeType || blob.type });
+    try {
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], text: caption, title: 'Meu story na Brazilian in Action' });
+        return;
+      }
+    } catch (error) {
+      if ((error as { name?: string })?.name === 'AbortError') return;
+    }
+    handleDownload();
+    window.open('https://www.instagram.com/brazilianinaction/', '_blank', 'noopener,noreferrer');
+    setNotice({
+      type: 'info',
+      text: 'Vídeo baixado e legenda copiada. Abra o Instagram, publique o vídeo e marque @brazilianinaction.'
+    });
   };
 
-  const handleDeleteStory = (storyId: string) => {
-    setStories((prev) => prev.filter((s) => s.id !== storyId));
+  const handleWhatsApp = () => {
+    if (!sentUrl) return;
+    window.open(`https://wa.me/?text=${encodeURIComponent(`${caption}\n\n${sentUrl}`)}`, '_blank', 'noopener,noreferrer');
   };
+
+  const handleModeration = async (story: StorySubmission, status: 'approved' | 'featured') => {
+    try {
+      await updateStoryStatusInSupabase(story.id, status);
+      setStories((prev) => prev.map((item) => (item.id === story.id ? { ...item, status } : item)));
+    } catch (error) {
+      setNotice({ type: 'error', text: error instanceof Error ? error.message : 'Não foi possível atualizar o story.' });
+    }
+  };
+
+  const handleDelete = async (story: StorySubmission) => {
+    if (!window.confirm('Excluir este story definitivamente?')) return;
+    try {
+      await deleteStoryFromSupabase(story.id, story.videoUrl);
+      setStories((prev) => prev.filter((item) => item.id !== story.id));
+    } catch (error) {
+      setNotice({ type: 'error', text: error instanceof Error ? error.message : 'Não foi possível excluir o story.' });
+    }
+  };
+
+  const publicStories = stories.filter((story) => story.status !== 'pending');
+  const myStories = stories.filter((story) => story.studentId === myId);
+  const pendingCount = stories.filter((story) => story.status === 'pending').length;
+
+  const tabClass = (tab: typeof activeTab) =>
+    `inline-flex cursor-pointer items-center gap-2 rounded-full px-4 py-2 text-xs font-bold uppercase tracking-wider transition ${
+      activeTab === tab ? 'bg-gradient-to-r from-blue-500 to-violet-500 text-white shadow-lg shadow-violet-500/25' : 'text-white/70 hover:bg-white/10 hover:text-white'
+    }`;
+
+  const noticeBanner = notice && (
+    <div
+      role="status"
+      className={`flex w-full max-w-2xl items-start gap-2 rounded-2xl border p-3 text-xs backdrop-blur-xl ${
+        notice.type === 'error' ? 'border-red-300/40 bg-red-400/15 text-red-100' : 'border-emerald-300/40 bg-emerald-400/15 text-emerald-100'
+      }`}
+    >
+      {notice.type === 'error' ? <AlertCircle size={14} className="mt-0.5 shrink-0" /> : <Check size={14} className="mt-0.5 shrink-0" />}
+      <span>{notice.text}</span>
+    </div>
+  );
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-8 select-none z-10">
-      
-      {/* HEADER SECTION */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-white/10">
-        <div>
-          <div className="flex items-center gap-2 mb-1.5">
-            <span className="px-2.5 py-0.5 rounded-full bg-black/35 border border-white/15 text-white/75 font-mono text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 shadow-md">
-              <Sparkles size={11} className="text-amber-400" />
-              <span>O Palco Oficial da Sua Fluência</span>
-            </span>
-            <span className="px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 font-mono text-[10px] font-bold uppercase tracking-widest">
-              Grave & Apareça no Instagram
-            </span>
+    <div className="z-10 mx-auto flex w-full max-w-7xl select-none flex-col gap-6 px-4 py-6 sm:px-6">
+      {/* HEADER */}
+      <header className={`relative flex flex-col justify-between gap-6 overflow-hidden p-6 sm:p-9 md:flex-row md:items-end ${GLASS}`}>
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/60 to-transparent" />
+        <div className="pointer-events-none absolute -left-16 -top-20 h-60 w-60 rounded-full bg-fuchsia-500/20 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-24 right-10 h-60 w-60 rounded-full bg-blue-500/20 blur-3xl" />
+        <div className="relative">
+          <div className="mb-4 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.3em] text-white/75">
+            <Instagram size={15} /> Brazilian Post
           </div>
-
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center gap-3">
-            <span>Brazilian Post</span>
+          <h1 className="text-3xl font-black leading-[1.05] tracking-tight text-white sm:text-5xl">
+            Grave. Compartilhe.
+            <span className="block bg-gradient-to-r from-blue-400 via-violet-400 to-fuchsia-400 bg-clip-text text-transparent">Mostre sua evolução.</span>
           </h1>
-
-          <p className="text-xs sm:text-sm text-white/60 max-w-2xl mt-1.5 font-light leading-relaxed">
-            Grave seus vídeos de prática em inglês no formato de stories/posts com câmera integrada, baixe para publicar no seu Instagram, marque <strong className="text-white font-medium">@brazilianinaction</strong> e envie para ser destaque no Instagram oficial e no Mural da Fama!
+          <p className="mt-3 max-w-xl text-sm leading-6 text-white/75">
+            Grave um vídeo falando inglês, envie para a Brazilian in Action e poste no seu Instagram marcando <strong className="font-semibold text-white">@brazilianinaction</strong>.
           </p>
         </div>
-
-        {/* NAVIGATION TABS */}
-        <div className="flex flex-wrap items-center gap-1.5 bg-neutral-950/80 border border-white/15 p-1.5 rounded-2xl backdrop-blur-xl shadow-xl self-start md:self-auto">
-          <button
-            onClick={() => {
-              setActiveTab('hall');
-              stopCameraStream();
-            }}
-            className={`px-4 py-2 rounded-xl text-xs font-bold font-mono uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer ${
-              activeTab === 'hall'
-                ? 'bg-amber-500 text-neutral-950 shadow-lg shadow-amber-500/20 font-extrabold'
-                : 'text-white/60 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <Trophy size={14} />
-            <span>Mural da Fama</span>
-          </button>
-
-          <button
-            onClick={() => {
-              setActiveTab('recorder');
-              startCamera();
-            }}
-            className={`px-4 py-2 rounded-xl text-xs font-bold font-mono uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer ${
-              activeTab === 'recorder'
-                ? 'bg-white text-neutral-950 shadow-lg font-extrabold'
-                : 'text-white/60 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <Camera size={14} />
-            <span>Gravar Story</span>
-          </button>
-
-          <button
-            onClick={() => {
-              setActiveTab('rewards');
-              stopCameraStream();
-            }}
-            className={`px-4 py-2 rounded-xl text-xs font-bold font-mono uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer ${
-              activeTab === 'rewards'
-                ? 'bg-amber-500 text-neutral-950 shadow-lg shadow-amber-500/20 font-extrabold'
-                : 'text-white/60 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <Award size={14} />
-            <span>Conquistas & Badges</span>
-          </button>
-
+        <nav className="relative flex flex-wrap items-center gap-1 self-start rounded-full border border-white/20 bg-white/10 p-1.5 backdrop-blur-xl md:self-auto" aria-label="Seções do Brazilian Post">
+          <button type="button" className={tabClass('hall')} onClick={() => setActiveTab('hall')}><Trophy size={14} /> Mural</button>
+          <button type="button" className={tabClass('recorder')} onClick={() => setActiveTab('recorder')}><Camera size={14} /> Gravar Story</button>
           {isAdmin && (
-            <button
-              onClick={() => {
-                setActiveTab('admin_submissions');
-                stopCameraStream();
-              }}
-              className={`px-3 py-2 rounded-xl text-xs font-bold font-mono uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer ${
-                activeTab === 'admin_submissions'
-                  ? 'bg-red-500 text-white shadow-lg shadow-red-500/20'
-                  : 'text-red-400 hover:text-red-300 hover:bg-red-500/10 border border-red-500/30'
-              }`}
-            >
-              <ShieldCheck size={14} />
-              <span>Moderação ({stories.filter((s) => s.status === 'pending').length})</span>
+            <button type="button" className={tabClass('moderation')} onClick={() => setActiveTab('moderation')}>
+              <ShieldCheck size={14} /> Moderação{pendingCount > 0 ? ` (${pendingCount})` : ''}
             </button>
           )}
-        </div>
-      </div>
+        </nav>
+      </header>
 
-      {/* ======================================================== */}
-      {/* TAB 1: MURAL DA FAMA (STORIES GALLERY & REPOST SHOWCASE) */}
-      {/* ======================================================== */}
+      {/* MURAL */}
       {activeTab === 'hall' && (
-        <div className="space-y-8">
-          
-          {/* TOP HIGHLIGHT BANNER */}
-          <div className="relative rounded-3xl bg-neutral-950/90 border border-white/12 p-6 sm:p-8 overflow-hidden shadow-[0_25px_70px_rgba(0,0,0,0.35)]">
-            <div className="absolute top-0 right-0 w-80 h-80 bg-pink-500/10 rounded-full blur-3xl pointer-events-none" />
-            
-            <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-              <div className="space-y-2 max-w-2xl">
-                <div className="flex items-center gap-2">
-                  <span className="px-3 py-1 rounded-full bg-pink-500 text-white font-mono text-[10px] font-extrabold uppercase tracking-widest flex items-center gap-1.5 shadow-md">
-                    <Instagram size={12} />
-                    <span>Instagram Oficial @brazilianinaction</span>
-                  </span>
-                  <span className="px-2.5 py-0.5 rounded-full bg-white/10 text-white/70 font-mono text-[10px]">
-                    Vídeos Destravando o Inglês
-                  </span>
-                </div>
-
-                <h2 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
-                  Compartilhe sua voz. Inspire a comunidade.
-                </h2>
-
-                <p className="text-xs sm:text-sm text-white/70 font-light leading-relaxed">
-                  Quem fala inglês de verdade perde a vergonha e mostra para o mundo. Grave seu vídeo no teleprompter oficial, publique nos seus stories marcando <span className="text-pink-400 font-semibold">@brazilianinaction</span> e mande para a nossa equipe repostar você!
-                </p>
-              </div>
-
-              <button
-                onClick={() => {
-                  setActiveTab('recorder');
-                  startCamera();
-                }}
-                className="px-6 py-3.5 rounded-2xl bg-white hover:bg-white/85 text-neutral-950 font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2.5 cursor-pointer shadow-xl hover:scale-[1.02] shrink-0"
-              >
-                <Camera size={16} />
-                <span>Gravar Meu Story Agora</span>
+        <section className="space-y-6" aria-label="Mural de destaques">
+          {publicStories.length === 0 ? (
+            <div className={`flex flex-col items-center gap-4 p-10 text-center ${GLASS}`}>
+              <div className="flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-white/10 text-violet-200"><Video size={24} /></div>
+              <h2 className="text-lg font-extrabold text-white">Os destaques da comunidade aparecem aqui</h2>
+              <p className="max-w-md text-sm text-white/70">Grave o seu story e, depois de aprovado pela equipe, ele ganha um lugar no mural.</p>
+              <button type="button" onClick={() => setActiveTab('recorder')} className={`inline-flex cursor-pointer items-center gap-2 rounded-2xl px-6 py-3 text-xs font-extrabold uppercase tracking-wider transition ${GRADIENT_BUTTON}`}>
+                <Camera size={15} /> Gravar meu story
               </button>
             </div>
-          </div>
-
-          {/* STORIES GRID */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Flame className="text-orange-400" size={16} />
-                <h3 className="text-xs uppercase tracking-[0.2em] font-mono font-bold text-white/80">
-                  Destaques da Comunidade BIA
-                </h3>
-              </div>
-              <span className="text-[10px] text-white/40 font-mono">
-                {stories.filter((s) => s.status !== 'pending').length} Vídeos Aprovados
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {stories
-                .filter((s) => s.status !== 'pending' || isAdmin)
-                .map((story) => (
-                  <div
-                    key={story.id}
-                    className="relative rounded-2xl bg-neutral-950/80 border border-white/15 overflow-hidden backdrop-blur-xl hover:border-pink-500/50 transition-all flex flex-col justify-between group shadow-lg"
-                  >
-                    {/* Story Preview Card Header */}
-                    <div className="p-4 flex items-center justify-between border-b border-white/10 bg-white/[0.02]">
-                      <div className="flex items-center gap-2.5">
-                        <img
-                          src={story.studentAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'}
-                          alt={story.studentName}
-                          className="w-8 h-8 rounded-full border border-pink-500/40 object-cover"
-                        />
-                        <div className="flex flex-col">
-                          <span className="text-xs font-bold text-white leading-tight">
-                            {story.studentName}
-                          </span>
-                          {story.instagramHandle && (
-                            <span className="text-[10px] text-pink-400 font-mono">
-                              {story.instagramHandle}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {story.status === 'featured' && (
-                        <span className="px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[9px] font-mono font-bold uppercase tracking-wider flex items-center gap-1">
-                          <Trophy size={9} />
-                          <span>Destaque</span>
-                        </span>
-                      )}
-                      {story.status === 'pending' && (
-                        <span className="px-2 py-0.5 rounded-full bg-yellow-500/20 border border-yellow-500/40 text-yellow-300 text-[9px] font-mono font-bold uppercase tracking-wider">
-                          Pendente
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Story Body */}
-                    <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
-                      <div>
-                        <span className="text-[9px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-white/50">
-                          {story.promptUsed}
-                        </span>
-
-                        <h4 className="text-sm font-semibold text-white/90 mt-2 leading-snug">
-                          "{story.title}"
-                        </h4>
-                      </div>
-
-                      {/* Mock Vertical Video Screen Player or Real Video Blob */}
-                      <div className="relative rounded-xl overflow-hidden bg-neutral-900 border border-white/10 aspect-[9/12] flex items-center justify-center group-hover:border-pink-500/40 transition-colors">
-                        {story.videoUrl ? (
-                          <video
-                            src={story.videoUrl}
-                            controls
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="text-center p-4 space-y-2">
-                            <div className="w-12 h-12 rounded-full bg-pink-500/20 text-pink-400 flex items-center justify-center mx-auto border border-pink-500/30">
-                              <Play size={20} className="fill-current ml-0.5" />
-                            </div>
-                            <span className="text-[11px] text-white/60 font-mono block">
-                              Story Gravado via BIA
-                            </span>
-                            <span className="text-[9px] text-white/40 block">
-                              {story.createdAt}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Card Footer Actions */}
-                    <div className="p-3.5 border-t border-white/10 bg-white/[0.01] flex items-center justify-between">
-                      <button
-                        onClick={() => handleLikeStory(story.id)}
-                        className={`flex items-center gap-1.5 text-xs font-mono transition-colors cursor-pointer ${
-                          likedStories.includes(story.id)
-                            ? 'text-pink-500 font-bold'
-                            : 'text-white/50 hover:text-pink-400'
-                        }`}
-                      >
-                        <Heart size={14} className={likedStories.includes(story.id) ? 'fill-current' : ''} />
-                        <span>{story.likesCount}</span>
-                      </button>
-
-                      <span className="text-[10px] text-white/40 font-mono">
-                        {story.createdAt}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ======================================================== */}
-      {/* TAB 2: GRAVADOR INTEGRADO (CAMERA + TELEPROMPTER 9:16)  */}
-      {/* ======================================================== */}
-      {activeTab === 'recorder' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          
-          {/* LEFT: TELEPROMPTER SELECTOR & PROMPT CARDS */}
-          <div className="lg:col-span-5 space-y-4">
-            
-            <div className="flex items-center gap-2">
-              <FileText className="text-amber-400" size={16} />
-              <h3 className="text-xs uppercase tracking-[0.2em] font-mono font-bold text-white/80">
-                1. Escolha o Tema do seu Story
-              </h3>
-            </div>
-
-            <div className="space-y-2.5">
-              {STORY_PROMPTS.map((prompt) => {
-                const isSelected = selectedPrompt.id === prompt.id;
-                return (
-                  <div
-                    key={prompt.id}
-                    onClick={() => setSelectedPrompt(prompt)}
-                    className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
-                      isSelected
-                        ? 'bg-neutral-900 border-amber-500/60 shadow-[0_0_15px_rgba(245,158,11,0.15)]'
-                        : 'bg-neutral-950/70 border-white/10 hover:border-white/25'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-white">
-                        {prompt.title}
-                      </span>
-                      <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-white/10 text-white/70">
-                        {prompt.badgeTitle}
-                      </span>
-                    </div>
-
-                    <p className="text-[11px] text-white/50 mt-1 line-clamp-2 font-light">
-                      "{prompt.teleprompterPt}"
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* INSTAGRAM HANDLE & CAPTION HELPER */}
-            <div className="p-4 rounded-2xl bg-neutral-950/80 border border-white/15 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                  <Instagram size={14} className="text-pink-400" />
-                  <span>Legenda Pronta para o Instagram</span>
-                </span>
-                
-                <button
-                  onClick={handleCopyInstagramCaption}
-                  className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-pink-500 hover:text-white text-[10px] font-mono font-bold uppercase tracking-wider text-white/80 transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  {copiedCaption ? (
-                    <>
-                      <Check size={11} className="text-emerald-400" />
-                      <span>Copiado!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy size={11} />
-                      <span>Copiar Texto</span>
-                    </>
-                  )}
-                </button>
-              </div>
-
-              <div className="p-2.5 rounded-xl bg-black/50 border border-white/10 text-[11px] text-white/70 font-mono whitespace-pre-line leading-relaxed">
-                {selectedPrompt.suggestedCaption}
-                {'\n\n'}
-                <span className="text-pink-400/80">{selectedPrompt.hashtags}</span>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-mono text-white/60 uppercase block mb-1">
-                  Seu @ do Instagram (Opcional para marcação):
-                </label>
-                <input
-                  type="text"
-                  value={studentInstagram}
-                  onChange={(e) => setStudentInstagram(e.target.value)}
-                  placeholder="@seunome"
-                  className="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400 font-mono"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* RIGHT: LIVE CAMERA & TELEPROMPTER HUD (9:16 RATIO) */}
-          <div className="lg:col-span-7 flex flex-col items-center">
-            
-            <div className="w-full max-w-sm relative rounded-3xl overflow-hidden border-2 border-white/20 shadow-2xl bg-black aspect-[9/16] flex flex-col justify-between">
-              
-              {/* LIVE CAMERA OR RECORDED VIDEO */}
-              {recordedVideoUrl ? (
-                <video
-                  src={recordedVideoUrl}
-                  controls
-                  autoPlay
-                  loop
-                  className="absolute inset-0 w-full h-full object-cover"
-                />
-              ) : isCameraActive ? (
-                <video
-                  ref={videoPreviewRef}
-                  autoPlay
-                  muted
-                  playsInline
-                  className="absolute inset-0 w-full h-full object-cover -scale-x-100"
-                />
-              ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center space-y-3 bg-neutral-950">
-                  <div className="w-16 h-16 rounded-full bg-white/5 border border-white/15 flex items-center justify-center text-white/40">
-                    <Camera size={28} />
-                  </div>
-                  <p className="text-xs text-white/60 max-w-xs font-light">
-                    {cameraError || 'Clique abaixo para ativar sua câmera e começar a gravar com o teleprompter embutido.'}
-                  </p>
-                  <button
-                    onClick={startCamera}
-                    className="px-4 py-2.5 rounded-xl bg-amber-500 text-neutral-950 text-xs font-bold font-mono uppercase tracking-wider transition-all hover:bg-amber-400 cursor-pointer shadow-lg"
-                  >
-                    Ativar Câmera
-                  </button>
-                </div>
-              )}
-
-              {/* TOP CAMERA CONTROLS: OPTIONAL TELEPROMPTER BUTTON */}
-              {!recordedVideoUrl && isCameraActive && (
-                <div className="relative z-30 m-3 flex items-center justify-between pointer-events-auto">
-                  <button
-                    type="button"
-                    onClick={() => setShowTeleprompter(!showTeleprompter)}
-                    className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer backdrop-blur-md border shadow-lg ${
-                      showTeleprompter
-                        ? 'bg-amber-500 text-black border-amber-400 font-extrabold'
-                        : 'bg-black/60 text-white/90 border-white/20 hover:bg-black/80 hover:text-white'
-                    }`}
-                    title={showTeleprompter ? 'Ocultar Teleprompter' : 'Exibir Teleprompter com roteiro'}
-                  >
-                    <FileText size={13} className={showTeleprompter ? 'text-black' : 'text-amber-400'} />
-                    <span>{showTeleprompter ? 'Teleprompter Ligado' : 'Abrir Teleprompter'}</span>
-                  </button>
-
-                  <div className="px-2.5 py-1 rounded-full bg-black/60 border border-white/15 text-[10px] font-mono text-white/70 backdrop-blur-md">
-                    9:16 HD
-                  </div>
-                </div>
-              )}
-
-              {/* OVERLAY: TELEPROMPTER TOP HUD (ENGLISH & PORTUGUESE) */}
-              {!recordedVideoUrl && isCameraActive && showTeleprompter && (
-                <div className="relative z-20 mx-3 mb-2 p-3.5 rounded-2xl bg-black/80 backdrop-blur-md border border-amber-500/30 text-center space-y-2 shadow-2xl animate-in fade-in">
-                  <div className="flex items-center justify-between text-[9px] font-mono text-amber-400 font-bold uppercase tracking-wider">
-                    <span className="flex items-center gap-1">
-                      <Sparkles size={11} />
-                      <span>Roteiro de Apoio</span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setShowTeleprompter(false)}
-                      className="p-0.5 hover:bg-white/10 rounded text-white/60 hover:text-white cursor-pointer pointer-events-auto"
-                      title="Fechar teleprompter"
-                    >
-                      <X size={12} />
-                    </button>
-                  </div>
-                  <p className="text-xs sm:text-sm font-bold text-white leading-snug drop-shadow-md">
-                    "{selectedPrompt.teleprompterEn}"
-                  </p>
-                  <p className="text-[10px] text-white/60 leading-tight">
-                    ({selectedPrompt.teleprompterPt})
-                  </p>
-                </div>
-              )}
-
-              {/* OVERLAY: BOTTOM RECORDING CONTROLS */}
-              <div className="relative z-20 mt-auto p-4 w-full bg-gradient-to-t from-black/90 via-black/50 to-transparent flex flex-col items-center gap-3">
-                
-                {/* RECORDING STATUS & STOPWATCH */}
-                {isRecording && (
-                  <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-red-600/80 border border-red-400 text-white font-mono text-xs font-bold animate-pulse">
-                    <span className="w-2 h-2 rounded-full bg-white animate-ping" />
-                    <span>GRAVANDO 00:{String(recordingSeconds).padStart(2, '0')}</span>
-                  </div>
-                )}
-
-                {/* CONTROLS */}
-                {!recordedVideoUrl ? (
-                  isCameraActive && (
-                    <div className="flex items-center gap-4">
-                      {!isRecording ? (
-                        <button
-                          onClick={handleStartRecording}
-                          className="w-16 h-16 rounded-full bg-red-600 hover:bg-red-500 text-white flex items-center justify-center shadow-[0_0_20px_rgba(239,68,68,0.5)] transition-transform hover:scale-105 cursor-pointer border-4 border-white/20"
-                          title="Iniciar Gravação"
-                        >
-                          <div className="w-6 h-6 rounded-full bg-white" />
-                        </button>
-                      ) : (
-                        <button
-                          onClick={handleStopRecording}
-                          className="w-16 h-16 rounded-full bg-neutral-900 border-4 border-red-500 text-red-500 flex items-center justify-center shadow-lg transition-transform hover:scale-105 cursor-pointer"
-                          title="Parar Gravação"
-                        >
-                          <Square size={24} className="fill-current" />
-                        </button>
-                      )}
-                    </div>
-                  )
-                ) : (
-                  /* POST RECORDING ACTIONS */
-                  <div className="w-full space-y-2">
-                    {submissionSuccess ? (
-                      <div className="p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-center space-y-1">
-                        <CheckCircle2 size={24} className="text-emerald-400 mx-auto" />
-                        <span className="text-xs font-bold text-white block">
-                          Story Enviado para a Brazilian in Action!
-                        </span>
-                        <span className="text-[10px] text-white/70 font-light block">
-                          Nossa equipe vai avaliar para repostar você no Instagram oficial. Baixe o vídeo abaixo para postar agora no seu próprio story!
-                        </span>
-                      </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              {publicStories.map((story) => (
+                <motion.article key={story.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="group relative flex flex-col overflow-hidden rounded-2xl border border-white/20 bg-white/[0.08] shadow-[0_8px_30px_rgba(0,0,0,0.2)] backdrop-blur-xl transition hover:-translate-y-1 hover:border-white/40">
+                  <div className="relative aspect-[9/14] bg-black/30">
+                    {story.videoUrl ? (
+                      <video src={story.videoUrl} controls playsInline preload="metadata" className="h-full w-full object-cover" />
                     ) : (
-                      <button
-                        onClick={handleSendToBIA}
-                        className="w-full py-3 rounded-xl bg-gradient-to-r from-pink-500 to-orange-500 hover:from-pink-400 hover:to-orange-400 text-white font-bold text-xs font-mono uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-pink-500/30"
-                      >
-                        <Send size={14} />
-                        <span>Enviar para a Brazilian in Action</span>
-                      </button>
+                      <div className="flex h-full items-center justify-center text-white/40"><Video size={28} /></div>
                     )}
-
-                    <div className="flex gap-2">
-                      <button
-                        onClick={handleDownloadStory}
-                        className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-xs font-mono uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                      >
-                        <Download size={14} />
-                        <span>Baixar Vídeo</span>
-                      </button>
-
-                      <button
-                        onClick={handleResetRecording}
-                        className="px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-mono uppercase tracking-wider transition-all flex items-center justify-center gap-1 cursor-pointer"
-                        title="Gravar Novamente"
-                      >
-                        <RotateCcw size={14} />
-                        <span>Regravar</span>
-                      </button>
-                    </div>
+                    {story.status === 'featured' && (
+                      <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full border border-amber-300/50 bg-amber-400/25 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-100 backdrop-blur-xl">
+                        <Trophy size={10} /> Destaque
+                      </span>
+                    )}
                   </div>
-                )}
-              </div>
-            </div>
-
-          </div>
-
-        </div>
-      )}
-
-      {/* ======================================================== */}
-      {/* TAB 3: CONQUISTAS & BADGES (GAMIFICAÇÃO & RECOMPENSAS)   */}
-      {/* ======================================================== */}
-      {activeTab === 'rewards' && (
-        <div className="space-y-6">
-          <div className="p-6 rounded-3xl bg-neutral-950/80 border border-white/15 space-y-4">
-            <div className="flex items-center gap-2">
-              <Award className="text-amber-400" size={20} />
-              <h2 className="text-lg font-bold text-white">
-                Seu Progresso & Crachás de Fluência
-              </h2>
-            </div>
-            <p className="text-xs text-white/60 max-w-xl font-light">
-              Grave seus stories em inglês, marque a Brazilian in Action e desbloqueie crachás exclusivos que provam que você fala inglês sem medo na prática!
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
-              {badges.map((badge) => (
-                <div
-                  key={badge.id}
-                  className={`p-4 rounded-2xl border transition-all flex flex-col justify-between gap-3 ${
-                    badge.unlocked
-                      ? 'bg-amber-500/[0.08] border-amber-500/40 shadow-[0_0_15px_rgba(245,158,11,0.1)]'
-                      : 'bg-white/[0.02] border-white/10 opacity-50'
-                  }`}
-                >
-                  <div className="space-y-2">
-                    <div className="text-3xl">{badge.icon}</div>
-                    <h4 className="text-sm font-bold text-white">
-                      {badge.name}
-                    </h4>
-                    <p className="text-[11px] text-white/60 font-light">
-                      {badge.description}
+                  <div className="space-y-1 p-4">
+                    <span className="inline-block rounded-full border border-white/20 bg-white/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white/70">{CATEGORY_LABELS[story.category] || 'Story'}</span>
+                    <h3 className="text-sm font-bold leading-snug text-white">{story.title}</h3>
+                    <p className="text-xs text-white/65">
+                      {story.studentName}
+                      {story.instagramHandle && <span className="ml-1.5 font-mono text-fuchsia-200">{story.instagramHandle}</span>}
                     </p>
+                    <p className="text-[10px] text-white/45">{formatDate(story.createdAt)}</p>
                   </div>
-
-                  <div className="pt-2 border-t border-white/10 flex items-center justify-between text-[10px] font-mono">
-                    <span className={badge.unlocked ? 'text-amber-400 font-bold' : 'text-white/40'}>
-                      {badge.unlocked ? 'Desbloqueado' : 'Bloqueado'}
-                    </span>
-                    {badge.dateUnlocked && (
-                      <span className="text-white/40">{badge.dateUnlocked}</span>
-                    )}
-                  </div>
-                </div>
+                </motion.article>
               ))}
             </div>
-          </div>
-        </div>
+          )}
+
+          {myStories.length > 0 && (
+            <div className={`p-5 ${GLASS}`}>
+              <h2 className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-white/75">Meus envios</h2>
+              <ul className="divide-y divide-white/10">
+                {myStories.map((story) => (
+                  <li key={story.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+                    <span className="truncate text-white/85">{story.title} <span className="text-xs text-white/45">· {formatDate(story.createdAt)}</span></span>
+                    <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${STATUS_CLASSES[story.status]}`}>{STATUS_LABELS[story.status]}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </section>
       )}
 
-      {/* ======================================================== */}
-      {/* TAB 4: PAINEL DE MODERAÇÃO DO CEO / ADMIN               */}
-      {/* ======================================================== */}
-      {activeTab === 'admin_submissions' && isAdmin && (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm uppercase tracking-widest font-mono font-bold text-white">
-              Painel de Avaliação de Stories ({stories.length})
-            </h3>
-            <span className="text-xs text-white/50 font-mono">
-              Aprove ou destaque os vídeos enviados pelos alunos
-            </span>
+      {/* GRAVAR */}
+      {activeTab === 'recorder' && (
+        <section className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12" aria-label="Gravar story">
+          <div className="space-y-5 lg:col-span-5">
+            <div className={`space-y-3 p-5 ${GLASS}`}>
+              <h2 className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-white/80"><FileText size={14} className="text-violet-200" /> 1. Escolha o tema</h2>
+              <div className="space-y-2">
+                {STORY_PROMPTS.map((prompt) => (
+                  <button
+                    key={prompt.id}
+                    type="button"
+                    disabled={recorder.status === 'recording'}
+                    onClick={() => setSelectedPrompt(prompt)}
+                    aria-pressed={selectedPrompt.id === prompt.id}
+                    className={`w-full cursor-pointer rounded-2xl border p-3.5 text-left backdrop-blur-xl transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                      selectedPrompt.id === prompt.id ? 'border-violet-300/60 bg-violet-400/20 shadow-[0_0_20px_rgba(139,92,246,0.3)]' : 'border-white/15 bg-white/[0.06] hover:border-white/35 hover:bg-white/10'
+                    }`}
+                  >
+                    <span className="block text-sm font-bold text-white">{prompt.title}</span>
+                    <span className="mt-1 line-clamp-2 block text-xs font-light text-white/60">{prompt.teleprompterPt}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {recorder.status === 'idle' && (
+              <div className={`space-y-3 p-5 ${GLASS}`}>
+                <h2 className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-white/80"><Video size={14} className="text-violet-200" /> 2. Como você quer gravar?</h2>
+                <button
+                  type="button"
+                  disabled={!screenSupported}
+                  onClick={() => setMode('screen')}
+                  aria-pressed={mode === 'screen'}
+                  className={`flex w-full cursor-pointer items-start gap-3 rounded-2xl border p-3.5 text-left backdrop-blur-xl transition disabled:cursor-not-allowed disabled:opacity-45 ${mode === 'screen' ? 'border-violet-300/60 bg-violet-400/20' : 'border-white/15 bg-white/[0.06] hover:bg-white/10'}`}
+                >
+                  <Monitor size={18} className="mt-0.5 shrink-0 text-violet-200" />
+                  <span>
+                    <span className="block text-sm font-bold text-white">Mostrar minha tela com a câmera em círculo</span>
+                    <span className="block text-xs font-light text-white/60">{screenSupported ? 'Você navega pelo app mostrando o que fez, falando ao microfone.' : 'Disponível só no computador.'}</span>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode('camera')}
+                  aria-pressed={mode === 'camera'}
+                  className={`flex w-full cursor-pointer items-start gap-3 rounded-2xl border p-3.5 text-left backdrop-blur-xl transition ${mode === 'camera' ? 'border-violet-300/60 bg-violet-400/20' : 'border-white/15 bg-white/[0.06] hover:bg-white/10'}`}
+                >
+                  <Camera size={18} className="mt-0.5 shrink-0 text-violet-200" />
+                  <span>
+                    <span className="block text-sm font-bold text-white">Gravar só eu, na vertical</span>
+                    <span className="block text-xs font-light text-white/60">Vídeo de selfie no formato de story. Funciona no celular.</span>
+                  </span>
+                </button>
+              </div>
+            )}
+
+            <div className={`space-y-3 p-5 ${GLASS}`}>
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-white/80"><Instagram size={14} className="text-fuchsia-200" /> Legenda para o Instagram</h2>
+                <button type="button" onClick={() => void handleCopyCaption()} className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider transition ${GLASS_BUTTON}`}>
+                  {copiedCaption ? <><Check size={11} className="text-emerald-300" /> Copiado</> : <><Copy size={11} /> Copiar</>}
+                </button>
+              </div>
+              <p className="whitespace-pre-line rounded-2xl border border-white/15 bg-white/[0.06] p-3 text-xs leading-relaxed text-white/80">
+                {selectedPrompt.suggestedCaption}
+                {'\n\n'}
+                <span className="text-fuchsia-200">{selectedPrompt.hashtags}</span>
+              </p>
+              <label className="block">
+                <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-white/60">Seu @ do Instagram (opcional)</span>
+                <input
+                  value={studentInstagram}
+                  onChange={(event) => setStudentInstagram(event.target.value)}
+                  placeholder="@seunome"
+                  maxLength={40}
+                  className="w-full rounded-2xl border border-white/20 bg-white/10 px-3 py-2 font-mono text-xs text-white outline-none backdrop-blur-xl placeholder:text-white/40 focus:border-violet-300/70"
+                />
+              </label>
+            </div>
           </div>
 
-          <div className="space-y-3">
-            {stories.map((story) => (
-              <div
-                key={story.id}
-                className="p-4 rounded-2xl bg-neutral-950/80 border border-white/15 flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
-              >
-                <div className="flex items-center gap-3">
-                  <img
-                    src={story.studentAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'}
-                    alt={story.studentName}
-                    className="w-10 h-10 rounded-full object-cover border border-white/20"
-                  />
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-white">{story.studentName}</span>
-                      {story.instagramHandle && (
-                        <span className="text-xs text-pink-400 font-mono">{story.instagramHandle}</span>
-                      )}
-                    </div>
-                    <p className="text-xs text-white/60 font-light mt-0.5">
-                      "{story.title}" • <span className="font-mono text-amber-400">{story.promptUsed}</span>
-                    </p>
-                  </div>
+          <div className="flex flex-col items-center gap-4 lg:col-span-7">
+            {noticeBanner}
+            {recorder.error && (
+              <div role="alert" className="flex w-full max-w-2xl items-start gap-2 rounded-2xl border border-red-300/40 bg-red-400/15 p-3 text-xs text-red-100 backdrop-blur-xl">
+                <AlertCircle size={14} className="mt-0.5 shrink-0" /> <span>{recorder.error}</span>
+              </div>
+            )}
+
+            {recorder.status === 'idle' && (
+              <div className={`flex w-full max-w-2xl flex-col items-center gap-5 p-8 text-center ${GLASS}`}>
+                <div className="flex h-16 w-16 items-center justify-center rounded-full border border-white/20 bg-white/10 text-violet-200">
+                  {mode === 'screen' ? <Monitor size={28} /> : <Camera size={28} />}
                 </div>
+                {mode === 'screen' ? (
+                  <>
+                    <h2 className="text-xl font-extrabold text-white">Grave a tela do app com a sua câmera em círculo</h2>
+                    <ol className="space-y-1.5 text-left text-sm text-white/75">
+                      <li>1. Clique em <strong className="text-white">Começar a gravar</strong> e escolha <strong className="text-white">Esta guia</strong> na janela do navegador.</li>
+                      <li>2. Fale ao microfone e navegue pelo app mostrando a sua evolução. A câmera em círculo aparece no vídeo.</li>
+                      <li>3. Clique em <strong className="text-white">Parar</strong> na barra de gravação para revisar e enviar.</li>
+                    </ol>
+                    <p className="text-xs text-white/50">Limite de {MAX_STORY_SECONDS} segundos.</p>
+                    <button type="button" onClick={() => void handleStartScreen()} className={`inline-flex cursor-pointer items-center gap-2 rounded-2xl px-7 py-3.5 text-xs font-extrabold uppercase tracking-wider transition ${GRADIENT_BUTTON}`}>
+                      <Video size={16} /> Começar a gravar
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <h2 className="text-xl font-extrabold text-white">Ative a câmera e grave seu story</h2>
+                    <p className="max-w-md text-sm text-white/70">Você vê o roteiro na tela enquanto grava. O vídeo sai no formato vertical, pronto para o Instagram.</p>
+                    <button type="button" onClick={() => void openCamera()} className={`inline-flex cursor-pointer items-center gap-2 rounded-2xl px-7 py-3.5 text-xs font-extrabold uppercase tracking-wider transition ${GRADIENT_BUTTON}`}>
+                      <Camera size={16} /> Ativar câmera
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
 
-                <div className="flex items-center gap-2 self-end md:self-auto">
-                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-mono font-bold uppercase ${
-                    story.status === 'featured'
-                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                      : story.status === 'approved'
-                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                      : 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/40'
-                  }`}>
-                    {story.status}
-                  </span>
-
-                  {story.status === 'pending' && (
-                    <button
-                      onClick={() => handleApproveStory(story.id, false)}
-                      className="px-3 py-1.5 rounded-xl bg-emerald-500 text-neutral-950 text-xs font-bold font-mono uppercase tracking-wider transition-all hover:bg-emerald-400 cursor-pointer"
-                    >
-                      Aprovar
+            {(recorder.status === 'preview' || (recorder.status === 'recording' && recorder.mode === 'camera')) && (
+              <div className="relative flex aspect-[9/16] w-full max-w-sm flex-col justify-between overflow-hidden rounded-3xl border border-white/25 bg-black shadow-2xl">
+                <video ref={liveVideoRef} autoPlay muted playsInline className="absolute inset-0 h-full w-full -scale-x-100 object-cover" />
+                <div className="relative z-20 m-3 flex items-center justify-between">
+                  <button type="button" onClick={() => setShowTeleprompter((value) => !value)} className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold transition ${showTeleprompter ? 'bg-violet-500 text-white' : GLASS_BUTTON}`}>
+                    <FileText size={13} /> {showTeleprompter ? 'Ocultar roteiro' : 'Ver roteiro'}
+                  </button>
+                  {recorder.status === 'preview' && (
+                    <button type="button" onClick={handleReset} className={`rounded-full p-1.5 transition ${GLASS_BUTTON}`} aria-label="Fechar câmera"><X size={14} /></button>
+                  )}
+                </div>
+                {showTeleprompter && (
+                  <div className="relative z-20 mx-3 space-y-1.5 rounded-2xl border border-white/25 bg-black/45 p-3.5 text-center backdrop-blur-xl">
+                    <p className="text-sm font-bold leading-snug text-white">“{selectedPrompt.teleprompterEn}”</p>
+                    <p className="text-[10px] leading-tight text-white/65">{selectedPrompt.teleprompterPt}</p>
+                  </div>
+                )}
+                <div className="relative z-20 flex flex-col items-center gap-3 bg-gradient-to-t from-black/80 to-transparent p-4">
+                  {recorder.status === 'recording' && (
+                    <span className="rounded-full border border-red-300/60 bg-red-600/80 px-3 py-1 font-mono text-xs font-bold text-white">GRAVANDO {formatClock(recorder.seconds)}</span>
+                  )}
+                  {recorder.status === 'preview' ? (
+                    <button type="button" onClick={startRecording} className="flex h-16 w-16 cursor-pointer items-center justify-center rounded-full border-4 border-white/30 bg-red-600 shadow-[0_0_20px_rgba(239,68,68,0.5)] transition hover:scale-105" aria-label="Iniciar gravação">
+                      <span className="h-6 w-6 rounded-full bg-white" />
+                    </button>
+                  ) : (
+                    <button type="button" onClick={() => void stopRecording()} className="flex h-16 w-16 cursor-pointer items-center justify-center rounded-full border-4 border-red-500 bg-neutral-900 text-red-500 transition hover:scale-105" aria-label="Parar gravação">
+                      <Square size={24} className="fill-current" />
                     </button>
                   )}
-
-                  <button
-                    onClick={() => handleApproveStory(story.id, true)}
-                    className="px-3 py-1.5 rounded-xl bg-amber-500 text-neutral-950 text-xs font-bold font-mono uppercase tracking-wider transition-all hover:bg-amber-400 cursor-pointer flex items-center gap-1"
-                  >
-                    <Trophy size={12} />
-                    <span>Destacar</span>
-                  </button>
-
-                  <button
-                    onClick={() => handleDeleteStory(story.id)}
-                    className="p-1.5 rounded-xl bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all cursor-pointer"
-                    title="Excluir"
-                  >
-                    <X size={14} />
-                  </button>
                 </div>
               </div>
-            ))}
+            )}
+
+            {recorder.status === 'recording' && recorder.mode === 'screen' && (
+              <div className={`flex w-full max-w-2xl flex-col items-center gap-4 p-8 text-center ${GLASS}`}>
+                <span className="relative flex h-4 w-4"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" /><span className="relative inline-flex h-4 w-4 rounded-full bg-red-500" /></span>
+                <h2 className="text-xl font-extrabold text-white">Gravando {formatClock(recorder.seconds)}</h2>
+                <p className="text-sm text-white/70">Navegue pelo app mostrando sua evolução. Use a barra de gravação para parar quando terminar.</p>
+                <button type="button" onClick={() => void stopRecording()} className="inline-flex cursor-pointer items-center gap-2 rounded-2xl bg-red-500 px-6 py-3 text-xs font-extrabold uppercase tracking-wider text-white transition hover:bg-red-400">
+                  <Square size={13} className="fill-current" /> Parar gravação
+                </button>
+              </div>
+            )}
+
+            {recorder.status === 'review' && recorder.url && (
+              <div className={`flex w-full flex-col gap-4 p-5 ${recorder.mode === 'camera' ? 'max-w-sm' : 'max-w-2xl'} ${GLASS}`}>
+                <video src={recorder.url} controls playsInline className={`w-full rounded-2xl bg-black object-contain ${recorder.mode === 'camera' ? 'aspect-[9/16]' : 'aspect-video'}`} />
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <button type="button" onClick={() => void handleSend()} disabled={sending || Boolean(sentUrl)} className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-2xl px-4 py-3 text-xs font-extrabold uppercase tracking-wider transition disabled:cursor-not-allowed disabled:opacity-60 sm:col-span-2 ${GRADIENT_BUTTON}`}>
+                    {sending ? <><Loader2 size={15} className="animate-spin" /> Enviando…</> : sentUrl ? <><Check size={15} /> Enviado</> : <><Send size={15} /> Enviar para a Brazilian in Action</>}
+                  </button>
+                  <button type="button" onClick={() => void handleShareInstagram()} className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition ${GLASS_BUTTON}`}>
+                    <Instagram size={14} /> Postar no Instagram
+                  </button>
+                  <button type="button" onClick={handleWhatsApp} disabled={!sentUrl} title={sentUrl ? undefined : 'Envie o story primeiro para gerar o link'} className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition disabled:cursor-not-allowed disabled:opacity-45 ${GLASS_BUTTON}`}>
+                    <MessageCircle size={14} /> Enviar no WhatsApp
+                  </button>
+                  <button type="button" onClick={handleDownload} className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition ${GLASS_BUTTON}`}>
+                    <Download size={14} /> Baixar vídeo
+                  </button>
+                  <button type="button" onClick={handleReset} className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition ${GLASS_BUTTON}`}>
+                    <RotateCcw size={14} /> Regravar
+                  </button>
+                </div>
+                <p className="flex items-start gap-2 text-[11px] leading-relaxed text-white/55"><Sparkles size={12} className="mt-0.5 shrink-0 text-violet-200" /> Para aparecer no Instagram oficial, envie para a BIA. Se preferir, poste no seu perfil marcando @brazilianinaction.</p>
+              </div>
+            )}
           </div>
-        </div>
+        </section>
       )}
 
+      {/* MODERAÇÃO */}
+      {activeTab === 'moderation' && isAdmin && (
+        <section className="space-y-4" aria-label="Moderação de stories">
+          {noticeBanner}
+          {stories.length === 0 ? (
+            <p className={`p-8 text-center text-sm text-white/70 ${GLASS}`}>Nenhum story enviado ainda.</p>
+          ) : (
+            stories.map((story) => (
+              <div key={story.id} className="flex flex-col gap-4 rounded-2xl border border-white/20 bg-white/[0.08] p-4 backdrop-blur-xl sm:flex-row sm:items-center">
+                {story.videoUrl && <video src={story.videoUrl} controls playsInline preload="metadata" className="aspect-[9/14] w-full max-w-[140px] shrink-0 rounded-xl bg-black/40 object-cover" />}
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold text-white">{story.studentName} {story.instagramHandle && <span className="ml-1 font-mono text-xs text-fuchsia-200">{story.instagramHandle}</span>}</p>
+                  <p className="mt-0.5 text-xs text-white/65">{story.title} · {formatDate(story.createdAt)}</p>
+                  <span className={`mt-2 inline-block rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${STATUS_CLASSES[story.status]}`}>{STATUS_LABELS[story.status]}</span>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {story.status === 'pending' && (
+                    <button type="button" onClick={() => void handleModeration(story, 'approved')} className="cursor-pointer rounded-xl bg-emerald-400/90 px-3 py-2 text-xs font-bold uppercase tracking-wider text-emerald-950 transition hover:bg-emerald-300">Aprovar</button>
+                  )}
+                  {story.status !== 'featured' && (
+                    <button type="button" onClick={() => void handleModeration(story, 'featured')} className="inline-flex cursor-pointer items-center gap-1 rounded-xl bg-amber-400/90 px-3 py-2 text-xs font-bold uppercase tracking-wider text-amber-950 transition hover:bg-amber-300"><Trophy size={12} /> Destacar</button>
+                  )}
+                  <button type="button" onClick={() => void handleDelete(story)} aria-label="Excluir story" className="cursor-pointer rounded-xl border border-red-300/40 bg-red-400/15 p-2 text-red-200 transition hover:bg-red-400/30"><X size={14} /></button>
+                </div>
+              </div>
+            ))
+          )}
+        </section>
+      )}
     </div>
   );
 };
