@@ -904,7 +904,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
     const sidebar = sidebarRef.current;
     if (!sidebar || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
     const context = gsap.context(() => {
-      gsap.from('.ceo-nav-item', { opacity: 0, x: -18, duration: 0.5, stagger: 0.05, ease: 'power2.out' });
+      gsap.from('.ceo-nav-item', { x: -18, duration: 0.5, stagger: 0.05, ease: 'power2.out', clearProps: 'transform' });
     }, sidebar);
     return () => context.revert();
   }, []);
