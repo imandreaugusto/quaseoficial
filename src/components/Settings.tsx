@@ -53,7 +53,7 @@ export const Settings: React.FC<SettingsProps> = ({
         </p>
       </div>
 
-      <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-8 rounded-3xl border border-white/25 bg-slate-950/35 p-5 shadow-[0_8px_40px_rgba(0,0,0,0.25)] backdrop-blur-2xl sm:p-7">
         {/* Notificações e Áudio */}
         <div>
           <h3 className="text-xs font-bold tracking-widest text-white/40 uppercase mb-3 flex items-center gap-2">

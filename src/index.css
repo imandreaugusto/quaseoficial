@@ -552,6 +552,20 @@ button:not(:disabled):active,
   border-color: rgba(255, 255, 255, 0.22);
 }
 
+/* Linhas quase transparentes (ex.: Configurações) ganham um vidro leve. */
+.bia-glass-skin :is([class~='bg-white/[0.02]'], [class~='bg-white/[0.03]']) {
+  background-color: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.bia-glass-skin .text-white\/40 {
+  color: rgba(255, 255, 255, 0.64) !important;
+}
+
+.bia-glass-skin .text-white\/30 {
+  color: rgba(255, 255, 255, 0.52) !important;
+}
+
 .bia-glass-skin :is([class^='bg-neutral-9'], [class*=' bg-neutral-9']):is(button, a, [role='button']):hover {
   background-color: rgba(30, 41, 59, 0.48) !important;
 }
