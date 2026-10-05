@@ -138,36 +138,36 @@ export const IdiomTetrisGame: React.FC<IdiomTetrisGameProps> = ({ onBack, onComp
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
-      <button type="button" onClick={onBack} className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-white/70 transition-colors hover:text-white"><ChevronLeft size={18} /> Back to games</button>
-      <section className="relative overflow-hidden rounded-lg border border-white/15 bg-neutral-950/85 shadow-2xl backdrop-blur-xl">
+      <button type="button" onClick={onBack} className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white/85 backdrop-blur-xl transition hover:bg-white/20 hover:text-white"><ChevronLeft size={18} /> Voltar aos jogos</button>
+      <section className="relative overflow-hidden rounded-3xl border border-white/20 bg-white/[0.08] shadow-[0_8px_40px_rgba(0,0,0,0.25)] backdrop-blur-2xl">
         {lastReward > 0 && <motion.div key={`${snapshot.linesCleared}-${lastReward}`} initial={{ opacity: 0, y: 10, scale: 0.8 }} animate={{ opacity: 1, y: -18, scale: 1 }} className="pointer-events-none absolute right-5 top-16 z-10 rounded-full bg-emerald-300 px-3 py-1 text-sm font-black text-emerald-950 shadow-lg">+{lastReward}</motion.div>}
         <header className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 px-5 py-4 sm:px-7">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-rose-300">Timed idiom blocks</p>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-rose-200">Blocos de expressões contra o tempo</p>
             <h1 className="mt-1 text-2xl font-black text-white sm:text-3xl">Idiom Tetris</h1>
           </div>
-          <div className="flex gap-5 text-right">
-            <div><p className="text-[10px] font-bold uppercase tracking-wider text-white/45">Score</p><p className="text-xl font-black tabular-nums text-emerald-300">{score}</p></div>
-            <div><p className="text-[10px] font-bold uppercase tracking-wider text-white/45">Time</p><p className={`text-xl font-black tabular-nums ${timeLeft <= 10 ? 'text-rose-300' : 'text-amber-300'}`}>00:{String(timeLeft).padStart(2, '0')}</p></div>
-            <div><p className="text-[10px] font-bold uppercase tracking-wider text-white/45">Lines</p><p className="text-xl font-black tabular-nums text-cyan-200">{snapshot.linesCleared} / 5</p></div>
+          <div className="flex gap-3 text-right">
+            <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-2 backdrop-blur-xl"><p className="text-[10px] font-bold uppercase tracking-wider text-white/55">Pontos</p><p className="text-xl font-black tabular-nums text-emerald-300">{score}</p></div>
+            <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-2 backdrop-blur-xl"><p className="text-[10px] font-bold uppercase tracking-wider text-white/55">Tempo</p><p className={`text-xl font-black tabular-nums ${timeLeft <= 10 ? 'text-rose-300' : 'text-amber-300'}`}>00:{String(timeLeft).padStart(2, '0')}</p></div>
+            <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-2 backdrop-blur-xl"><p className="text-[10px] font-bold uppercase tracking-wider text-white/55">Linhas</p><p className="text-xl font-black tabular-nums text-cyan-200">{snapshot.linesCleared} / 5</p></div>
           </div>
         </header>
 
         <div className="grid gap-6 p-4 sm:p-6 lg:grid-cols-[minmax(260px,1fr)_280px]">
           <div className="relative mx-auto w-full max-w-[320px]">
-            <div className="grid aspect-[1/2] grid-cols-10 overflow-hidden rounded-md border border-white/15 bg-black/70">
+            <div className="grid aspect-[1/2] grid-cols-10 overflow-hidden rounded-xl border border-white/20 bg-black/45 backdrop-blur-md">
               {snapshot.cells.flatMap((row, rowIndex) => row.map((cell, columnIndex) => <span key={`${rowIndex}-${columnIndex}`} className={`border-[0.5px] border-white/[0.035] ${CELL_COLORS[cell] || ''}`} />))}
             </div>
-            {!isPlaying && !isFinished && <div className="absolute inset-0 flex items-center justify-center rounded-md bg-black/55 backdrop-blur-[2px]"><button type="button" onClick={startGame} className="rounded-md bg-amber-300 px-6 py-3 font-extrabold text-neutral-950 transition hover:bg-amber-200">Start game</button></div>}
-            {isFinished && <div className="absolute inset-0 flex items-center justify-center rounded-md bg-black/70 p-5 text-center backdrop-blur-sm"><div><Sparkles className="mx-auto text-amber-300" size={28} /><h2 className="mt-3 text-xl font-black text-white">{won ? 'Five lines cleared!' : 'Round over'}</h2><p className="mt-2 text-sm text-white/65">{score} points</p><p className="mt-2 text-xs text-white/45">{syncStatus === 'saving' && 'Sending score…'}{syncStatus === 'saved' && 'Score added to this week’s board.'}{syncStatus === 'failed' && 'Score could not sync.'}{syncStatus === 'no-points' && 'No score was earned.'}</p><button type="button" onClick={startGame} className="mt-5 rounded-md bg-amber-300 px-4 py-2.5 text-sm font-extrabold text-neutral-950">Play again</button></div></div>}
+            {!isPlaying && !isFinished && <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/40 backdrop-blur-[2px]"><button type="button" onClick={startGame} className="rounded-2xl bg-gradient-to-r from-blue-500 to-violet-500 px-6 py-3 font-extrabold text-white shadow-lg shadow-violet-500/25 transition hover:brightness-110">Iniciar jogo</button></div>}
+            {isFinished && <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/55 p-5 text-center backdrop-blur-md"><div><Sparkles className="mx-auto text-amber-300" size={28} /><h2 className="mt-3 text-xl font-black text-white">{won ? 'Cinco linhas completas!' : 'Fim da rodada'}</h2><p className="mt-2 text-sm text-white/70">{score} pontos</p><p className="mt-2 text-xs text-white/60">{syncStatus === 'saving' && 'Enviando pontuação…'}{syncStatus === 'saved' && 'Pontuação adicionada ao ranking da semana.'}{syncStatus === 'failed' && 'Não foi possível sincronizar a pontuação.'}{syncStatus === 'no-points' && 'Nenhum ponto foi conquistado.'}</p><button type="button" onClick={startGame} className="mt-5 rounded-2xl bg-gradient-to-r from-blue-500 to-violet-500 px-5 py-2.5 text-sm font-extrabold text-white shadow-lg shadow-violet-500/25">Jogar de novo</button></div></div>}
           </div>
 
           <aside className="flex flex-col gap-4">
-            <div className="rounded-md border border-rose-300/20 bg-rose-300/[0.06] p-4">
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-rose-200/70">Idiom card</p>
+            <div className="rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur-xl">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-rose-200">Cartão da expressão</p>
               <h2 className="mt-2 text-xl font-black text-white">{activeIdiom.phrase}</h2>
-              <p className="mt-2 text-sm leading-5 text-white/60">{activeIdiom.meaning}</p>
-              <p className="mt-3 text-[10px] text-white/35">+5 points per cleared line · +50 for five lines before time runs out</p>
+              <p className="mt-2 text-sm leading-5 text-white/70">{activeIdiom.meaning}</p>
+              <p className="mt-3 text-[10px] text-white/50">+5 pontos por linha · +50 por cinco linhas antes do tempo acabar</p>
             </div>
 
             <div className="grid grid-cols-3 gap-2" aria-label="Tetris controls">
@@ -182,7 +182,7 @@ export const IdiomTetrisGame: React.FC<IdiomTetrisGameProps> = ({ onBack, onComp
               <span />
             </div>
 
-            <p className="text-xs leading-5 text-white/40">Use arrow keys to move, up to rotate, and space to drop. The round and score stay on this device until the final score is submitted.</p>
+            <p className="text-xs leading-5 text-white/40">Use as setas para mover, cima para girar e espaço para derrubar. A rodada e a pontuação ficam neste dispositivo até o envio final.</p>
           </aside>
         </div>
       </section>

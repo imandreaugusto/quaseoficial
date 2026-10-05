@@ -193,7 +193,7 @@ export const LocalGameRunner: React.FC<LocalGameRunnerProps> = ({ gameId, title,
     if (correct) celebrateCorrectAnswer();
     const nextScore = score + (correct ? points : 0);
     setScore(nextScore);
-    setFeedback(correct ? `Correct! +${points} points` : `Answer: ${question.answer}`);
+    setFeedback(correct ? `Correto! +${points} pontos` : `Resposta: ${question.answer}`);
     window.setTimeout(() => {
       setFeedback('');
       if (roundIndex >= 4) complete(nextScore);
@@ -203,14 +203,14 @@ export const LocalGameRunner: React.FC<LocalGameRunnerProps> = ({ gameId, title,
 
   const answerTextRound = (rounds: Array<{ prompt: string; answer: string }>, points: number) => {
     if (normalize(answer) !== normalize(rounds[roundIndex].answer)) {
-      setFeedback('Try another answer.');
+      setFeedback('Tente outra resposta.');
       return;
     }
     celebrateCorrectAnswer();
     const nextScore = score + points;
     setScore(nextScore);
     setAnswer('');
-    setFeedback(`Correct! +${points} points`);
+    setFeedback(`Correto! +${points} pontos`);
     window.setTimeout(() => {
       setFeedback('');
       if (roundIndex >= rounds.length - 1) complete(nextScore);
@@ -227,7 +227,7 @@ export const LocalGameRunner: React.FC<LocalGameRunnerProps> = ({ gameId, title,
 
     const guess = nextSelection.map((index) => puzzle.letters[index]).join('').toLowerCase();
     if (guess !== puzzle.answer) {
-      setFeedback('Letters do not form the target word. Try again.');
+      setFeedback('As letras não formam a palavra. Tente de novo.');
       window.setTimeout(() => {
         setHexSelectedLetters([]);
         setFeedback('');
@@ -238,7 +238,7 @@ export const LocalGameRunner: React.FC<LocalGameRunnerProps> = ({ gameId, title,
     celebrateCorrectAnswer();
     const nextScore = score + 10;
     setScore(nextScore);
-    setFeedback('Word found! +10 points');
+    setFeedback('Palavra encontrada! +10 pontos');
     window.setTimeout(() => {
       setFeedback('');
       if (roundIndex >= HEX_ROUNDS.length - 1) complete(nextScore);
@@ -262,7 +262,7 @@ export const LocalGameRunner: React.FC<LocalGameRunnerProps> = ({ gameId, title,
     if (isCorrect) celebrateCorrectAnswer();
     const nextScore = score + (isCorrect ? 20 : 0);
     setScore(nextScore);
-    setFeedback(isCorrect ? 'Correct sentence! +20 points' : 'Not quite. Try arranging the words again.');
+    setFeedback(isCorrect ? 'Frase correta! +20 pontos' : 'Quase lá. Tente reorganizar as palavras.');
     if (isCorrect) {
       window.setTimeout(() => {
         setFeedback('');
@@ -289,11 +289,11 @@ export const LocalGameRunner: React.FC<LocalGameRunnerProps> = ({ gameId, title,
       setMemoryMatched(nextMatched);
       setScore(nextScore);
       setMemoryOpen([]);
-      setFeedback('Pair found! +10 points');
+      setFeedback('Par encontrado! +10 pontos');
       if (nextMatched.length === MEMORY_CARDS.length) window.setTimeout(() => complete(nextScore), 450);
       else window.setTimeout(() => setFeedback(''), 650);
     } else {
-      setFeedback('No match. Try again.');
+      setFeedback('Não combinam. Tente de novo.');
       memoryTimer.current = window.setTimeout(() => {
         setMemoryOpen([]);
         setFeedback('');
@@ -315,7 +315,7 @@ export const LocalGameRunner: React.FC<LocalGameRunnerProps> = ({ gameId, title,
       celebrateCorrectAnswer();
       const nextFound = [...foundCells, ...nextCells];
       setFoundCells(nextFound);
-      setFeedback(`${target.word} found! +10 points`);
+      setFeedback(`${target.word} encontrada! +10 pontos`);
       if (roundIndex >= WORD_SEARCH_TARGETS.length - 1) window.setTimeout(() => complete(nextScore), 450);
       else window.setTimeout(() => {
         setRoundIndex((current) => current + 1);
@@ -323,7 +323,7 @@ export const LocalGameRunner: React.FC<LocalGameRunnerProps> = ({ gameId, title,
         setFeedback('');
       }, 450);
     } else {
-      setFeedback('That path does not match. Try again.');
+      setFeedback('Esse caminho não combina. Tente de novo.');
       window.setTimeout(() => {
         setSelectedCells([]);
         setFeedback('');
@@ -339,10 +339,10 @@ export const LocalGameRunner: React.FC<LocalGameRunnerProps> = ({ gameId, title,
     const errors = nextGuesses.filter((character) => !currentHangmanWord.includes(character)).length;
     if (solved) {
       celebrateCorrectAnswer();
-      setFeedback('Word solved! +10 points');
+      setFeedback('Palavra descoberta! +10 pontos');
       window.setTimeout(() => complete(10), 500);
     } else if (errors >= 6) {
-      setFeedback(`The word was “${currentHangmanWord}”.`);
+      setFeedback(`A palavra era “${currentHangmanWord}”.`);
       window.setTimeout(() => complete(0), 650);
     }
   };
@@ -352,7 +352,7 @@ export const LocalGameRunner: React.FC<LocalGameRunnerProps> = ({ gameId, title,
     if (correct) celebrateCorrectAnswer();
     const nextScore = score + (correct ? 10 : 0);
     setScore(nextScore);
-    setFeedback(correct ? 'Correct! +10 points' : 'Not quite.');
+    setFeedback(correct ? 'Correto! +10 pontos' : 'Quase lá.');
     window.setTimeout(() => {
       setFeedback('');
       if (roundIndex >= YES_NO_ROUNDS.length - 1) complete(nextScore);
@@ -362,7 +362,7 @@ export const LocalGameRunner: React.FC<LocalGameRunnerProps> = ({ gameId, title,
 
   const listenToWord = (word: string) => {
     if (!('speechSynthesis' in window)) {
-      setFeedback('Speech playback is not available in this browser.');
+      setFeedback('A reprodução de voz não está disponível neste navegador.');
       return;
     }
     window.speechSynthesis.cancel();
@@ -380,58 +380,60 @@ export const LocalGameRunner: React.FC<LocalGameRunnerProps> = ({ gameId, title,
 
   return (
     <main className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6 sm:py-10">
-      <button type="button" onClick={onBack} className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-white/70 transition-colors hover:text-white">
-        <ChevronLeft size={18} /> Back to games
+      <button type="button" onClick={onBack} className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white/85 backdrop-blur-xl transition hover:bg-white/20 hover:text-white">
+        <ChevronLeft size={18} /> Voltar aos jogos
       </button>
 
-      <section className="relative overflow-hidden rounded-lg border border-white/15 bg-neutral-950/85 shadow-2xl backdrop-blur-xl">
+      <section className="relative overflow-hidden rounded-3xl border border-white/20 bg-white/[0.08] shadow-[0_8px_40px_rgba(0,0,0,0.25)] backdrop-blur-2xl">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/60 to-transparent" />
+        <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-violet-500/20 blur-3xl" />
         {feedback.match(/\+\d+/)?.[0] && <motion.div key={`${roundIndex}-${score}-${feedback}`} initial={{ opacity: 0, y: 10, scale: 0.8 }} animate={{ opacity: 1, y: -18, scale: 1 }} className="pointer-events-none absolute right-5 top-16 z-10 rounded-full bg-emerald-300 px-3 py-1 text-sm font-black text-emerald-950 shadow-lg">{feedback.match(/\+\d+/)?.[0]}</motion.div>}
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-4 sm:px-7">
+        <header className="relative flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-4 sm:px-7">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-300">Local game</p>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-200">Brazilian Games</p>
             <h1 className="mt-1 text-2xl font-black text-white sm:text-3xl">{title}</h1>
           </div>
-          <div className="text-right">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-white/45">Score</p>
+          <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-2 text-right backdrop-blur-xl">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-white/55">Pontos</p>
             <p className="text-xl font-black tabular-nums text-emerald-300">{score}</p>
           </div>
         </header>
 
-        <div className="min-h-[330px] px-5 py-7 sm:px-9 sm:py-10">
+        <div className="relative min-h-[330px] px-5 py-7 sm:px-9 sm:py-10">
           {finished ? (
             <div className="mx-auto max-w-md py-7 text-center">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-300/15 text-emerald-300"><Sparkles size={25} /></div>
-              <h2 className="mt-5 text-2xl font-black text-white">Round complete</h2>
-              <p className="mt-2 text-sm text-white/60">Final score: <span className="font-extrabold text-white">{score}</span></p>
-              <p aria-live="polite" className="mt-2 text-xs text-white/45">
-                {scoreSync === 'saving' && 'Sending score to the weekly board…'}
-                {scoreSync === 'saved' && 'Score added to this week’s board.'}
-                {scoreSync === 'failed' && 'Score could not sync. It remains in this round only.'}
-                {scoreSync === 'no-points' && 'No score was earned in this round.'}
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-white/15 bg-emerald-300/20 text-emerald-200 backdrop-blur-xl"><Sparkles size={25} /></div>
+              <h2 className="mt-5 text-2xl font-black text-white">Rodada concluída</h2>
+              <p className="mt-2 text-sm text-white/65">Pontuação final: <span className="font-extrabold text-white">{score}</span></p>
+              <p aria-live="polite" className="mt-2 text-xs text-white/60">
+                {scoreSync === 'saving' && 'Enviando a pontuação ao ranking semanal…'}
+                {scoreSync === 'saved' && 'Pontuação adicionada ao ranking da semana.'}
+                {scoreSync === 'failed' && 'Não foi possível sincronizar. A pontuação vale só para esta rodada.'}
+                {scoreSync === 'no-points' && 'Nenhum ponto foi conquistado nesta rodada.'}
               </p>
-              <button type="button" onClick={onBack} className="mt-6 rounded-md bg-amber-300 px-5 py-3 font-extrabold text-neutral-950 transition hover:bg-amber-200">Return to games</button>
+              <button type="button" onClick={onBack} className="mt-6 rounded-2xl bg-gradient-to-r from-blue-500 to-violet-500 px-6 py-3 font-extrabold text-white shadow-lg shadow-violet-500/25 transition hover:brightness-110">Voltar aos jogos</button>
             </div>
           ) : textRounds ? (
             <form onSubmit={(event) => { event.preventDefault(); answerTextRound(textRounds, gameId === 'crossword' ? 10 : 10); }} className="mx-auto max-w-xl text-center">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">{gameId === 'crossword' ? `Clue ${roundIndex + 1} of ${textRounds.length}` : `Puzzle ${roundIndex + 1} of ${textRounds.length}`}</p>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">{gameId === 'crossword' ? `Pista ${roundIndex + 1} de ${textRounds.length}` : `Desafio ${roundIndex + 1} de ${textRounds.length}`}</p>
               <h2 className="mt-4 text-xl font-extrabold text-white sm:text-2xl">{textRounds[roundIndex].prompt}</h2>
-              <div className="mx-auto my-5 flex justify-center gap-1" aria-label="Crossword answer grid">
-                {Array.from({ length: textRounds[roundIndex].answer.length }).map((_, index) => <span key={index} className="flex h-9 w-9 items-center justify-center border border-white/20 bg-white/[0.04] text-sm font-black uppercase text-cyan-100">{answer.trim()[index] || ''}</span>)}
+              <div className="mx-auto my-5 flex justify-center gap-1" aria-label="Grade da resposta">
+                {Array.from({ length: textRounds[roundIndex].answer.length }).map((_, index) => <span key={index} className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/25 bg-white/10 text-sm font-black uppercase text-cyan-100 backdrop-blur-xl">{answer.trim()[index] || ''}</span>)}
               </div>
               <div className="mx-auto mt-7 flex max-w-md flex-col gap-3 sm:flex-row">
-                <label className="sr-only" htmlFor="local-word-answer">Answer</label>
-                <input id="local-word-answer" value={answer} onChange={(event) => setAnswer(event.target.value)} autoComplete="off" className="min-w-0 flex-1 rounded-md border border-white/15 bg-white/[0.06] px-4 py-3 text-white outline-none focus:border-cyan-300/70" placeholder="Your answer" />
-                <button type="submit" className="inline-flex items-center justify-center gap-2 rounded-md bg-amber-300 px-5 py-3 font-extrabold text-neutral-950"><Check size={16} /> Check</button>
+                <label className="sr-only" htmlFor="local-word-answer">Resposta</label>
+                <input id="local-word-answer" value={answer} onChange={(event) => setAnswer(event.target.value)} autoComplete="off" className="min-w-0 flex-1 rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-white outline-none backdrop-blur-xl placeholder:text-white/40 focus:border-violet-300/70" placeholder="Sua resposta" />
+                <button type="submit" className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-blue-500 to-violet-500 px-5 py-3 font-extrabold text-white shadow-lg shadow-violet-500/25 transition hover:brightness-110"><Check size={16} /> Verificar</button>
               </div>
               <p aria-live="polite" className="mt-4 min-h-5 text-sm font-bold text-emerald-300">{feedback}</p>
             </form>
           ) : gameId === 'hex-words' ? (
             <div className="mx-auto max-w-md text-center">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">Hex puzzle {roundIndex + 1} of {HEX_ROUNDS.length}</p>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">Quebra-cabeça hexagonal {roundIndex + 1} de {HEX_ROUNDS.length}</p>
               <h2 className="mt-4 text-lg font-extrabold leading-6 text-white">{HEX_ROUNDS[roundIndex].prompt}</h2>
-              <p className="mt-2 text-xs text-white/45">Select each letter once to build the word.</p>
+              <p className="mt-2 text-xs text-white/45">Selecione cada letra uma vez para formar a palavra.</p>
               <div className="mx-auto mt-7 flex max-w-xs flex-wrap justify-center gap-3">
-                {HEX_ROUNDS[roundIndex].letters.map((letter, index) => <button key={`${letter}-${index}`} type="button" disabled={hexSelectedLetters.includes(index) || Boolean(feedback)} onClick={() => selectHexLetter(index)} className="flex h-14 w-14 items-center justify-center bg-cyan-300/15 text-lg font-black text-cyan-50 transition hover:bg-cyan-200/25 disabled:opacity-35 [clip-path:polygon(25%_5%,75%_5%,100%_50%,75%_95%,25%_95%,0%_50%)]">{letter}</button>)}
+                {HEX_ROUNDS[roundIndex].letters.map((letter, index) => <button key={`${letter}-${index}`} type="button" disabled={hexSelectedLetters.includes(index) || Boolean(feedback)} onClick={() => selectHexLetter(index)} className="flex h-14 w-14 items-center justify-center bg-cyan-300/25 text-lg font-black text-white shadow-lg backdrop-blur-xl transition hover:bg-cyan-200/40 disabled:opacity-35 [clip-path:polygon(25%_5%,75%_5%,100%_50%,75%_95%,25%_95%,0%_50%)]">{letter}</button>)}
               </div>
               <div className="mx-auto mt-5 flex min-h-10 max-w-xs justify-center gap-1">
                 {HEX_ROUNDS[roundIndex].answer.split('').map((_, index) => <span key={index} className="flex h-9 w-9 items-center justify-center border-b-2 border-amber-300 text-base font-black uppercase text-white">{HEX_ROUNDS[roundIndex].letters[hexSelectedLetters[index]] || ''}</span>)}
@@ -440,45 +442,45 @@ export const LocalGameRunner: React.FC<LocalGameRunnerProps> = ({ gameId, title,
             </div>
           ) : gameId === 'word-search' ? (
             <div className="mx-auto max-w-md text-center">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">Find word {roundIndex + 1} of {WORD_SEARCH_TARGETS.length}</p>
-              <p className="mt-3 text-sm text-white/70">Select the letters in <strong className="text-cyan-200">{WORD_SEARCH_TARGETS[roundIndex].word}</strong>, left to right.</p>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">Encontre a palavra {roundIndex + 1} de {WORD_SEARCH_TARGETS.length}</p>
+              <p className="mt-3 text-sm text-white/75">Selecione as letras de <strong className="text-cyan-200">{WORD_SEARCH_TARGETS[roundIndex].word}</strong>, da esquerda para a direita.</p>
               <div className="mx-auto mt-6 grid w-fit grid-cols-5 gap-2">
                 {WORD_SEARCH.map((letter, index) => {
                   const isSelected = selectedCells.includes(index);
                   const isFound = foundCells.includes(index);
-                  return <button key={index} type="button" onClick={() => clickWordSearchCell(index)} className={`h-11 w-11 rounded-md border text-sm font-black transition ${isFound ? 'border-emerald-300/40 bg-emerald-300/15 text-emerald-200' : isSelected ? 'border-cyan-300 bg-cyan-300/20 text-cyan-100' : 'border-white/10 bg-white/[0.04] text-white hover:border-white/30'}`}>{letter}</button>;
+                  return <button key={index} type="button" onClick={() => clickWordSearchCell(index)} className={`h-11 w-11 rounded-xl border text-sm font-black backdrop-blur-xl transition ${isFound ? 'border-emerald-300/50 bg-emerald-300/25 text-emerald-100' : isSelected ? 'border-cyan-300 bg-cyan-300/30 text-white' : 'border-white/20 bg-white/10 text-white hover:border-white/40 hover:bg-white/20'}`}>{letter}</button>;
                 })}
               </div>
               <p aria-live="polite" className="mt-4 min-h-5 text-sm font-bold text-emerald-300">{feedback}</p>
-              <button type="button" onClick={() => setSelectedCells([])} className="mt-2 inline-flex items-center gap-2 text-xs text-white/45 hover:text-white"><RotateCcw size={13} /> Clear selection</button>
+              <button type="button" onClick={() => setSelectedCells([])} className="mt-2 inline-flex items-center gap-2 text-xs text-white/45 hover:text-white"><RotateCcw size={13} /> Limpar seleção</button>
             </div>
           ) : gameId === 'memory' ? (
             <div className="mx-auto max-w-lg text-center">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">Match the English word to its Portuguese meaning</p>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">Associe a palavra em inglês ao significado em português</p>
               <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {memoryOrder.map((cardIndex) => {
                   const isOpen = memoryOpen.includes(cardIndex) || memoryMatched.includes(cardIndex);
-                  return <button key={cardIndex} type="button" onClick={() => clickMemoryCard(cardIndex)} className={`flex min-h-20 items-center justify-center rounded-md border p-3 text-sm font-extrabold transition ${memoryMatched.includes(cardIndex) ? 'border-emerald-300/40 bg-emerald-300/10 text-emerald-200' : isOpen ? 'border-cyan-300/50 bg-cyan-300/10 text-cyan-100' : 'border-white/10 bg-white/[0.04] text-white hover:border-white/25'}`}>{isOpen ? MEMORY_CARDS[cardIndex].text : 'BIA'}</button>;
+                  return <button key={cardIndex} type="button" onClick={() => clickMemoryCard(cardIndex)} className={`flex min-h-20 items-center justify-center rounded-2xl border p-3 text-sm font-extrabold backdrop-blur-xl transition ${memoryMatched.includes(cardIndex) ? 'border-emerald-300/50 bg-emerald-300/20 text-emerald-100' : isOpen ? 'border-cyan-300/60 bg-cyan-300/20 text-white' : 'border-white/20 bg-white/10 text-white hover:border-white/40 hover:bg-white/20'}`}>{isOpen ? MEMORY_CARDS[cardIndex].text : 'BIA'}</button>;
                 })}
               </div>
               <p aria-live="polite" className="mt-4 min-h-5 text-sm font-bold text-emerald-300">{feedback}</p>
             </div>
           ) : gameId === 'sentence-scramble' ? (
             <div className="mx-auto max-w-xl text-center">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">Sentence {roundIndex + 1} of {SENTENCES.length} · +20 points</p>
-              <div className="mt-5 flex min-h-16 flex-wrap items-center justify-center gap-2 rounded-md border border-cyan-300/20 bg-cyan-300/[0.04] p-3">
-                {selectedWords.length ? selectedWords.map((word, index) => <button key={`${word}-${index}`} type="button" onClick={() => setSelectedWords((current) => current.filter((_, wordIndex) => wordIndex !== index))} className="rounded-sm bg-cyan-300/15 px-3 py-2 text-sm font-bold text-cyan-100">{word}</button>) : <span className="text-xs text-white/35">Build your sentence here</span>}
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">Frase {roundIndex + 1} de {SENTENCES.length} · +20 pontos</p>
+              <div className="mt-5 flex min-h-16 flex-wrap items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/10 p-3 backdrop-blur-xl">
+                {selectedWords.length ? selectedWords.map((word, index) => <button key={`${word}-${index}`} type="button" onClick={() => setSelectedWords((current) => current.filter((_, wordIndex) => wordIndex !== index))} className="rounded-full bg-cyan-300/25 px-3 py-2 text-sm font-bold text-white">{word}</button>) : <span className="text-xs text-white/50">Monte sua frase aqui</span>}
               </div>
               <div className="mt-4 flex flex-wrap justify-center gap-2">
-                {[...wrongSentenceWords].sort((left, right) => left.localeCompare(right)).map((word, index) => <button key={`${word}-${index}`} type="button" onClick={() => setSelectedWords((current) => [...current, word])} className="rounded-sm border border-white/10 bg-white/[0.04] px-3 py-2 text-sm font-semibold text-white/80 hover:border-white/30">{word}</button>)}
+                {[...wrongSentenceWords].sort((left, right) => left.localeCompare(right)).map((word, index) => <button key={`${word}-${index}`} type="button" onClick={() => setSelectedWords((current) => [...current, word])} className="rounded-full border border-white/20 bg-white/10 px-3 py-2 text-sm font-semibold text-white/85 backdrop-blur-xl hover:border-white/40 hover:bg-white/20">{word}</button>)}
               </div>
-              <button type="button" onClick={checkSentence} disabled={selectedWords.length !== currentSentence.length} className="mt-6 inline-flex items-center gap-2 rounded-md bg-amber-300 px-5 py-3 font-extrabold text-neutral-950 disabled:cursor-not-allowed disabled:opacity-40"><Check size={16} /> Check sentence</button>
+              <button type="button" onClick={checkSentence} disabled={selectedWords.length !== currentSentence.length} className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-blue-500 to-violet-500 px-5 py-3 font-extrabold text-white shadow-lg shadow-violet-500/25 disabled:cursor-not-allowed disabled:opacity-40"><Check size={16} /> Verificar frase</button>
               <p aria-live="polite" className="mt-4 min-h-5 text-sm font-bold text-emerald-300">{feedback}</p>
             </div>
           ) : gameId === 'flashcards' ? (
             <div className="mx-auto max-w-md text-center">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">Card {roundIndex + 1} of {FLASHCARDS.length}</p>
-              <button type="button" onClick={() => setFlipped((current) => !current)} className="mt-5 flex min-h-52 w-full flex-col items-center justify-center rounded-lg border border-amber-300/25 bg-gradient-to-br from-amber-300/[0.12] via-neutral-900 to-cyan-300/[0.08] p-6 shadow-xl">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">Cartão {roundIndex + 1} de {FLASHCARDS.length}</p>
+              <button type="button" onClick={() => setFlipped((current) => !current)} className="mt-5 flex min-h-52 w-full flex-col items-center justify-center rounded-3xl border border-white/25 bg-gradient-to-br from-amber-300/20 via-white/10 to-cyan-300/15 p-6 shadow-xl backdrop-blur-xl">
                 {flipped ? <><EyeOff className="mb-3 text-cyan-200" size={20} /><span className="text-2xl font-black text-white">{currentFlashcard.meaning}</span></> : <><Eye className="mb-3 text-amber-200" size={20} /><span className="text-3xl font-black text-white">{currentFlashcard.word}</span></>}
               </button>
               <div className="mt-4 flex justify-center gap-3">
@@ -486,7 +488,7 @@ export const LocalGameRunner: React.FC<LocalGameRunnerProps> = ({ gameId, title,
                   const nextIndex = roundIndex + 1;
                   if (nextIndex >= FLASHCARDS.length) complete(score);
                   else { setRoundIndex(nextIndex); setFlipped(false); }
-                }} className="rounded-md border border-white/15 px-4 py-2.5 text-sm font-bold text-white/70">Review again</button>
+                }} className="rounded-2xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-bold text-white/80 backdrop-blur-xl hover:bg-white/20">Revisar de novo</button>
                 <button type="button" onClick={() => {
                   celebrateCorrectAnswer();
                   const nextScore = score + 10;
@@ -494,39 +496,39 @@ export const LocalGameRunner: React.FC<LocalGameRunnerProps> = ({ gameId, title,
                   const nextIndex = roundIndex + 1;
                   if (nextIndex >= FLASHCARDS.length) complete(nextScore);
                   else { setRoundIndex(nextIndex); setFlipped(false); }
-                }} className="inline-flex items-center gap-2 rounded-md bg-amber-300 px-4 py-2.5 text-sm font-extrabold text-neutral-950">I know it <ArrowRight size={15} /></button>
+                }} className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-blue-500 to-violet-500 px-4 py-2.5 text-sm font-extrabold text-white shadow-lg shadow-violet-500/25">Eu sei <ArrowRight size={15} /></button>
               </div>
             </div>
           ) : gameId === 'yes-no-speed' ? (
             <div className="mx-auto max-w-xl text-center">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">Statement {roundIndex + 1} of {YES_NO_ROUNDS.length}</p>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">Afirmação {roundIndex + 1} de {YES_NO_ROUNDS.length}</p>
               <h2 className="mt-7 text-2xl font-black leading-snug text-white">{YES_NO_ROUNDS[roundIndex].statement}</h2>
               <div className="mt-7 flex justify-center gap-3">
-                <button type="button" onClick={() => handleYesNo(true)} className="rounded-md bg-emerald-300 px-7 py-3 font-extrabold text-neutral-950">Yes</button>
-                <button type="button" onClick={() => handleYesNo(false)} className="rounded-md bg-rose-300 px-7 py-3 font-extrabold text-neutral-950">No</button>
+                <button type="button" onClick={() => handleYesNo(true)} className="rounded-2xl bg-emerald-400/90 px-8 py-3 font-extrabold text-emerald-950 shadow-lg shadow-emerald-500/25 transition hover:brightness-110">Sim</button>
+                <button type="button" onClick={() => handleYesNo(false)} className="rounded-2xl bg-rose-400/90 px-8 py-3 font-extrabold text-rose-950 shadow-lg shadow-rose-500/25 transition hover:brightness-110">Não</button>
               </div>
               <p aria-live="polite" className="mt-4 min-h-5 text-sm font-bold text-emerald-300">{feedback}</p>
             </div>
           ) : gameId === 'hangman' ? (
             <div className="mx-auto max-w-xl text-center">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">Guess the word · 6 mistakes allowed</p>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">Adivinhe a palavra · 6 erros permitidos</p>
               <div className="mt-7 flex justify-center gap-2">
                 {currentHangmanWord.split('').map((letter, index) => <span key={`${letter}-${index}`} className="flex h-12 w-9 items-center justify-center border-b-2 border-cyan-300 text-xl font-black uppercase text-white">{hangmanGuesses.includes(letter) || finished ? letter : ''}</span>)}
               </div>
-              <p className="mt-4 text-xs text-white/50">Mistakes: {wrongHangmanGuesses} / 6</p>
+              <p className="mt-4 text-xs text-white/50">Erros: {wrongHangmanGuesses} / 6</p>
               <div className="mx-auto mt-6 grid max-w-md grid-cols-7 gap-2">
-                {'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map((letter) => <button key={letter} type="button" disabled={hangmanGuesses.includes(letter)} onClick={() => clickHangmanLetter(letter.toLowerCase())} className="rounded-sm border border-white/10 bg-white/[0.04] py-2 text-xs font-bold text-white/80 disabled:opacity-25">{letter}</button>)}
+                {'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map((letter) => <button key={letter} type="button" disabled={hangmanGuesses.includes(letter)} onClick={() => clickHangmanLetter(letter.toLowerCase())} className="rounded-lg border border-white/20 bg-white/10 py-2 text-xs font-bold text-white/85 backdrop-blur-xl hover:bg-white/20 disabled:opacity-25">{letter}</button>)}
               </div>
               <p aria-live="polite" className="mt-4 min-h-5 text-sm font-bold text-emerald-300">{feedback}</p>
             </div>
           ) : currentQuestion ? (
             <div className="mx-auto max-w-xl text-center">
-              {gameId === 'context-quest' && <p className="mb-5 rounded-md border border-white/10 bg-white/[0.035] p-4 text-left text-sm leading-6 text-white/70">{currentQuestion.prompt.split(' What does ')[0].split(' “')[0]}</p>}
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">Question {roundIndex + 1} of 5</p>
+              {gameId === 'context-quest' && <p className="mb-5 rounded-2xl border border-white/20 bg-white/10 p-4 text-left text-sm leading-6 text-white/80 backdrop-blur-xl">{currentQuestion.prompt.split(' What does ')[0].split(' “')[0]}</p>}
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">Pergunta {roundIndex + 1} de 5</p>
               <h2 className="mt-3 text-xl font-extrabold leading-7 text-white">{gameId === 'context-quest' ? currentQuestion.prompt.split(' What does ')[1] ? `What does ${currentQuestion.prompt.split(' What does ')[1]}` : currentQuestion.prompt : currentQuestion.prompt}</h2>
-              {gameId === 'audio-quiz' && <button type="button" onClick={() => listenToWord(currentQuestion.answer)} className="mx-auto mt-5 inline-flex items-center gap-2 rounded-md border border-cyan-300/30 bg-cyan-300/[0.08] px-4 py-2 text-sm font-bold text-cyan-100"><Volume2 size={16} /> Play pronunciation</button>}
+              {gameId === 'audio-quiz' && <button type="button" onClick={() => listenToWord(currentQuestion.answer)} className="mx-auto mt-5 inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/15 px-4 py-2 text-sm font-bold text-white backdrop-blur-xl hover:bg-white/25"><Volume2 size={16} /> Ouvir pronúncia</button>}
               <div className="mx-auto mt-6 grid max-w-md gap-2">
-                {currentQuestion.options.map((option) => <button key={option} type="button" onClick={() => answerChoice(currentQuestion, option, 10)} className="rounded-md border border-white/10 bg-white/[0.04] px-4 py-3 text-left text-sm font-semibold text-white/80 transition hover:border-cyan-300/40 hover:bg-cyan-300/[0.06]">{option}</button>)}
+                {currentQuestion.options.map((option) => <button key={option} type="button" onClick={() => answerChoice(currentQuestion, option, 10)} className="rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-left text-sm font-semibold text-white/90 backdrop-blur-xl transition hover:border-violet-300/60 hover:bg-white/20">{option}</button>)}
               </div>
               <p aria-live="polite" className="mt-4 min-h-5 text-sm font-bold text-emerald-300">{feedback}</p>
             </div>

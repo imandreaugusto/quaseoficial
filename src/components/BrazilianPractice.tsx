@@ -53,7 +53,7 @@ const PRACTICE_PORTALS: PracticePortal[] = [
     format: '1-on-1 Vídeo',
     level: 'Todos os Níveis',
     badge: 'Ambiente Recomendado',
-    gradient: 'from-amber-500/20 via-orange-500/15 to-neutral-950',
+    gradient: 'from-amber-500/20 via-orange-500/15 to-transparent',
     borderAccent: 'border-amber-500/50 hover:border-amber-400 shadow-[0_0_25px_rgba(245,158,11,0.18)]',
     glowColor: '#f59e0b',
     stats: 'Rodadas de 7 Min • Câmera & Mic • 100% Gratuito',
@@ -74,7 +74,7 @@ const PRACTICE_PORTALS: PracticePortal[] = [
     format: 'Mesas de Áudio',
     level: 'Iniciante ao Avançado',
     badge: 'Salas em Grupo',
-    gradient: 'from-blue-500/15 via-indigo-500/10 to-neutral-950',
+    gradient: 'from-blue-500/25 via-indigo-500/10 to-transparent',
     borderAccent: 'border-blue-500/40 hover:border-blue-400 shadow-[0_0_20px_rgba(59,130,246,0.12)]',
     glowColor: '#3b82f6',
     stats: 'Salas por Nível • Microfone Aberto • 24/7',
@@ -95,7 +95,7 @@ const PRACTICE_PORTALS: PracticePortal[] = [
     format: 'Salas Temáticas',
     level: 'Todos os Níveis',
     badge: 'Comunidade Fluente',
-    gradient: 'from-emerald-500/15 via-teal-500/10 to-neutral-950',
+    gradient: 'from-emerald-500/25 via-teal-500/10 to-transparent',
     borderAccent: 'border-emerald-500/40 hover:border-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.12)]',
     glowColor: '#10b981',
     stats: 'Tópicos Diários • Prática Guiada • Expressões',
@@ -116,7 +116,7 @@ const PRACTICE_PORTALS: PracticePortal[] = [
     format: 'Troca de Voz',
     level: 'Iniciante ao Avançado',
     badge: 'Voz & Conexão',
-    gradient: 'from-purple-500/15 via-pink-500/10 to-neutral-950',
+    gradient: 'from-purple-500/25 via-pink-500/10 to-transparent',
     borderAccent: 'border-purple-500/40 hover:border-purple-400 shadow-[0_0_20px_rgba(168,85,247,0.12)]',
     glowColor: '#a855f7',
     stats: 'Salas de Voz • Feedback Mútuo • Global',
@@ -137,7 +137,7 @@ const PRACTICE_PORTALS: PracticePortal[] = [
     format: 'Mesas de Áudio',
     level: 'Todos os Níveis',
     badge: 'Microfone Aberto',
-    gradient: 'from-rose-500/15 via-orange-500/10 to-neutral-950',
+    gradient: 'from-rose-500/25 via-orange-500/10 to-transparent',
     borderAccent: 'border-rose-500/40 hover:border-rose-400 shadow-[0_0_20px_rgba(244,63,94,0.12)]',
     glowColor: '#f43f5e',
     stats: 'Salas Dinâmicas • Microfone Aberto • Tópicos',
@@ -180,6 +180,24 @@ const ICEBREAKER_PROMPTS = [
 interface BrazilianPracticeProps {
   accentColor?: string;
 }
+
+// Logos opcionais: salve src/assets/images/practice/<id-do-ambiente>.png; sem arquivo, usa o favicon do próprio site.
+const PRACTICE_IMAGES = import.meta.glob('../assets/images/practice/*.{jpg,jpeg,png,webp,svg}', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
+
+const PortalLogo: React.FC<{ portal: PracticePortal; className?: string }> = ({ portal, className = 'h-12 w-12' }) => {
+  const [failed, setFailed] = useState(false);
+  const localLogo = Object.entries(PRACTICE_IMAGES).find(([path]) => path.split('/').pop()?.replace(/\.[^.]+$/, '') === portal.id)?.[1];
+  const src = localLogo || `${new URL(portal.url).origin}/favicon.ico`;
+  return (
+    <span className={`flex shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/25 bg-white/15 shadow-lg backdrop-blur-xl ${className}`} style={{ boxShadow: `0 0 22px ${portal.glowColor}40` }}>
+      {failed ? (
+        <span className="text-lg font-black text-white" aria-hidden="true">{portal.name.charAt(0)}</span>
+      ) : (
+        <img src={src} alt="" aria-hidden="true" loading="lazy" referrerPolicy="no-referrer" onError={() => setFailed(true)} className="h-3/4 w-3/4 object-contain" />
+      )}
+    </span>
+  );
+};
 
 export const BrazilianPractice: React.FC<BrazilianPracticeProps> = ({
   accentColor = '#f59e0b'
@@ -239,8 +257,11 @@ export const BrazilianPractice: React.FC<BrazilianPracticeProps> = ({
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-8 select-none z-10">
       
       {/* HEADER SECTION */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-white/10">
-        <div>
+      <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6 p-6 sm:p-8 rounded-3xl bg-white/[0.07] border border-white/20 backdrop-blur-2xl shadow-[0_8px_40px_rgba(0,0,0,0.2)] overflow-hidden">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/60 to-transparent" />
+        <div className="pointer-events-none absolute -left-16 -top-20 h-56 w-56 rounded-full bg-amber-400/20 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-20 right-10 h-56 w-56 rounded-full bg-violet-500/20 blur-3xl" />
+        <div className="relative">
           <div className="flex items-center gap-2 mb-1.5">
             <span className="px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 font-mono text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5">
               <Sparkles size={11} />
@@ -261,7 +282,7 @@ export const BrazilianPractice: React.FC<BrazilianPracticeProps> = ({
         </div>
 
         {/* PRATICE TIMER & SESSION METRICS */}
-        <div className="flex items-center gap-3 self-start md:self-auto bg-neutral-950/80 border border-white/15 p-3 rounded-2xl backdrop-blur-xl shadow-xl">
+        <div className="relative flex items-center gap-3 self-start md:self-auto bg-white/10 border border-white/20 p-3 rounded-2xl backdrop-blur-xl shadow-xl">
           <div className="flex flex-col pr-3 border-r border-white/10">
             <span className="text-[9px] uppercase tracking-wider text-white/40 font-mono font-bold">
               Tempo de Prática
@@ -305,13 +326,15 @@ export const BrazilianPractice: React.FC<BrazilianPracticeProps> = ({
       {(() => {
         const episoden = PRACTICE_PORTALS[0];
         return (
-          <div className="relative rounded-3xl bg-gradient-to-br from-neutral-950 via-neutral-900 to-neutral-950 border border-amber-500/40 p-6 sm:p-8 overflow-hidden shadow-[0_0_40px_rgba(245,158,11,0.12)]">
+          <div className="relative rounded-3xl bg-gradient-to-br from-amber-400/20 via-white/[0.08] to-orange-500/10 border border-amber-300/40 p-6 sm:p-8 overflow-hidden backdrop-blur-2xl shadow-[0_8px_40px_rgba(245,158,11,0.15)]">
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/70 to-transparent" />
             
             {/* Ambient Background Glow */}
             <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
             <div className="absolute -left-10 -bottom-10 w-60 h-60 bg-orange-500/10 rounded-full blur-2xl pointer-events-none" />
 
             <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+              <div className="hidden sm:block"><PortalLogo portal={episoden} className="h-24 w-24" /></div>
               <div className="flex-1 space-y-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="px-3 py-1 rounded-full bg-amber-500 text-neutral-950 font-mono text-[10px] font-extrabold uppercase tracking-widest flex items-center gap-1.5 shadow-md">
@@ -389,10 +412,13 @@ export const BrazilianPractice: React.FC<BrazilianPracticeProps> = ({
           {PRACTICE_PORTALS.slice(1).map((portal) => (
             <div
               key={portal.id}
-              className={`relative rounded-2xl bg-neutral-950/80 border p-5 flex flex-col justify-between backdrop-blur-xl transition-all duration-300 hover:scale-[1.01] ${portal.borderAccent}`}
+              className={`group relative rounded-2xl bg-white/[0.08] border p-5 flex flex-col justify-between backdrop-blur-xl overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:bg-white/[0.12] ${portal.borderAccent}`}
             >
-              <div className="space-y-3">
+              <div className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${portal.gradient}`} />
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/60 to-transparent" />
+              <div className="relative space-y-3">
                 <div className="flex items-center justify-between gap-2">
+                  <PortalLogo portal={portal} className="h-12 w-12" />
                   <span className="text-[9px] font-mono font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-white/10 border border-white/15 text-white/70">
                     {portal.format}
                   </span>
@@ -427,7 +453,7 @@ export const BrazilianPractice: React.FC<BrazilianPracticeProps> = ({
                 </div>
               </div>
 
-              <div className="pt-5 mt-4 border-t border-white/10 flex items-center justify-between gap-3">
+              <div className="relative pt-5 mt-4 border-t border-white/15 flex items-center justify-between gap-3">
                 <span className="text-[10px] font-mono text-white/40 truncate">
                   {portal.stats}
                 </span>
@@ -446,7 +472,8 @@ export const BrazilianPractice: React.FC<BrazilianPracticeProps> = ({
       </div>
 
       {/* QUICK CONVERSATION STARTERS (ICEBREAKERS FOR PRACTICE SESSIONS) */}
-      <div className="rounded-2xl bg-neutral-950/80 border border-white/15 p-5 sm:p-6 backdrop-blur-xl">
+      <div className="relative overflow-hidden rounded-3xl bg-white/[0.07] border border-white/20 p-5 sm:p-6 backdrop-blur-2xl shadow-[0_8px_40px_rgba(0,0,0,0.2)]">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/60 to-transparent" />
         <div className="flex items-center justify-between pb-3 mb-4 border-b border-white/10">
           <div className="flex items-center gap-2">
             <MessageSquare size={16} className="text-amber-400" />
@@ -463,7 +490,7 @@ export const BrazilianPractice: React.FC<BrazilianPracticeProps> = ({
           {ICEBREAKER_PROMPTS.map((prompt, idx) => (
             <div
               key={idx}
-              className="p-3.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 hover:border-amber-400/40 transition-all flex flex-col justify-between gap-3 group"
+              className="p-3.5 rounded-2xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/15 hover:border-amber-300/50 backdrop-blur-xl transition-all flex flex-col justify-between gap-3 group"
             >
               <div className="space-y-1">
                 <p className="text-xs font-medium text-white/90 leading-relaxed group-hover:text-amber-300 transition-colors">
