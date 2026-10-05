@@ -24,6 +24,7 @@ import { AuthModal } from './components/AuthModal';
 import { PixPaymentScreen } from './components/PixPaymentScreen';
 import { GlobalStreamOverlay } from './components/GlobalStreamOverlay';
 import { GlobalFloatingCamera } from './components/GlobalFloatingCamera';
+import { PageReveal } from './components/PageReveal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { BrazilianLogo } from './components/BrazilianLogo';
 import { CleanStudentStage } from './components/CleanStudentStage';
@@ -1091,6 +1092,7 @@ export default function App() {
                 className="w-full h-full page-motion"
               >
                 <ErrorBoundary fallbackTitle="Erro ao carregar este módulo">
+                  <PageReveal enabled={settings.animOn}>
                   {/* HOME TAB - Accessible to all authenticated users */}
                   {currentApp === 'home' && (
                     <Home
@@ -1284,6 +1286,7 @@ export default function App() {
                       accentColor={settings.accentColor}
                     />
                   )}
+                  </PageReveal>
                 </ErrorBoundary>
               </motion.div>
             </AnimatePresence>

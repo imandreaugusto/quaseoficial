@@ -226,7 +226,7 @@ export const CeoOverview: React.FC<CeoOverviewProps> = ({ users, pixPayments, co
   const mapCountries = data.countries.slice(0, 12);
 
   return (
-    <div ref={rootRef} className="space-y-4">
+    <div ref={rootRef} data-no-reveal className="space-y-4">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
         {kpis.map((kpi) => {
           const Icon = kpi.icon;
