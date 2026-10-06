@@ -193,6 +193,8 @@ export default function App() {
     progress: ReadClubProgress;
   } | null>(null);
   const pendingYoutubeLibraryRef = useRef<YouTubeLibraryItem[] | null>(null);
+  const sharedReadClubLibrarySnapshotRef = useRef('');
+  const sharedYoutubeLibrarySnapshotRef = useRef('');
 
   const queuePlatformSync = (payload: {
     classes: ClassItem[];
@@ -431,6 +433,7 @@ export default function App() {
           }
           if (shared.library) {
             setLibrary(shared.library);
+            sharedReadClubLibrarySnapshotRef.current = JSON.stringify(shared.library);
             localStorage.setItem('bia_readclub_library', JSON.stringify(shared.library));
           }
 
@@ -486,6 +489,7 @@ export default function App() {
         if (cancelled) return;
         if (shared && Array.isArray(shared.youtube_library)) {
           nextLibrary = shared.youtube_library;
+          sharedYoutubeLibrarySnapshotRef.current = JSON.stringify(nextLibrary);
         } else {
           const cachedRaw = localStorage.getItem('bia_youtube_library');
           if (cachedRaw) {
@@ -514,12 +518,93 @@ export default function App() {
       setYoutubeLibrary(nextLibrary);
       localStorage.setItem('bia_youtube_library', JSON.stringify(nextLibrary));
       setIsYoutubeLibraryLoaded(true);
-      if (shouldSaveLocalFallback) queueYoutubeLibrarySync(nextLibrary);
+      if (
+        shouldSaveLocalFallback &&
+        currentUser.role === 'admin' &&
+        isAuthorizedCeoEmail(currentUser.email)
+      ) {
+        sharedYoutubeLibrarySnapshotRef.current = JSON.stringify(nextLibrary);
+        queueYoutubeLibrarySync(nextLibrary);
+      }
     };
 
     void loadYoutubeLibrary();
     return () => {
       cancelled = true;
+    };
+  }, [currentUser?.auth_user_id, currentUser?.id]);
+
+  useEffect(() => {
+    const client = getSupabaseClient();
+    if (!client || !currentUser) return;
+
+    let cancelled = false;
+    let refreshInProgress = false;
+    const refreshSharedLibraries = async () => {
+      if (cancelled || refreshInProgress) return;
+      refreshInProgress = true;
+      try {
+        const [platform, music] = await Promise.all([
+          loadSharedContentFromSupabase<{ library?: StoryItem[] }>('platform'),
+          loadSharedContentFromSupabase<{ youtube_library?: YouTubeLibraryItem[] }>('youtube_library')
+        ]);
+        if (cancelled) return;
+
+        if (Array.isArray(platform?.library) && !pendingPlatformPayloadRef.current) {
+          const snapshot = JSON.stringify(platform.library);
+          if (snapshot !== sharedReadClubLibrarySnapshotRef.current) {
+            sharedReadClubLibrarySnapshotRef.current = snapshot;
+            setLibrary(platform.library);
+            localStorage.setItem('bia_readclub_library', snapshot);
+          }
+        }
+
+        if (Array.isArray(music?.youtube_library) && !pendingYoutubeLibraryRef.current) {
+          const snapshot = JSON.stringify(music.youtube_library);
+          if (snapshot !== sharedYoutubeLibrarySnapshotRef.current) {
+            sharedYoutubeLibrarySnapshotRef.current = snapshot;
+            setYoutubeLibrary(music.youtube_library);
+            localStorage.setItem('bia_youtube_library', snapshot);
+          }
+        }
+      } catch (error) {
+        console.error('Could not refresh shared learning libraries:', error);
+      } finally {
+        refreshInProgress = false;
+      }
+    };
+
+    const channel = client
+      .channel('shared-learning-libraries')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'bia_shared_content', filter: 'content_key=eq.platform' },
+        () => void refreshSharedLibraries()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'bia_shared_content', filter: 'content_key=eq.youtube_library' },
+        () => void refreshSharedLibraries()
+      )
+      .subscribe((status, error) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('Realtime library updates are unavailable; periodic refresh remains active.', error);
+        }
+      });
+
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void refreshSharedLibraries();
+    }, 15_000);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') void refreshSharedLibraries();
+    };
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+      void client.removeChannel(channel);
     };
   }, [currentUser?.auth_user_id, currentUser?.id]);
 
@@ -636,12 +721,14 @@ export default function App() {
 
   const handleUpdateLibrary = (next: StoryItem[]) => {
     setLibrary(next);
+    sharedReadClubLibrarySnapshotRef.current = JSON.stringify(next);
     queuePlatformSync({ classes, expenses, settings, library: next });
     localStorage.setItem('bia_readclub_library', JSON.stringify(next));
   };
 
   const handleUpdateYouTubeLibrary = (next: YouTubeLibraryItem[]) => {
     setYoutubeLibrary(next);
+    sharedYoutubeLibrarySnapshotRef.current = JSON.stringify(next);
     localStorage.setItem('bia_youtube_library', JSON.stringify(next));
     queueYoutubeLibrarySync(next);
   };

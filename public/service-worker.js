@@ -12,7 +12,7 @@ self.addEventListener('push', (event) => {
     badge: '/brazilian-in-action-icon.svg',
     tag: 'brazilian-friends-private-message',
     renotify: true,
-    vibrate: [160, 80, 160],
+    vibrate: [70],
     data: { url: payload.url || '/' }
   }));
 });

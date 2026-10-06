@@ -200,6 +200,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
   const composerInputRef = useRef<HTMLInputElement>(null);
   const shouldStickToBottomRef = useRef(true);
   const activePrivateFriendRef = useRef<string | null>(null);
+  const pendingCallInviteeRef = useRef<string | null>(null);
   const privateNotificationStateRef = useRef<PrivateNotificationState>({
     userId: '',
     cursor: '',
@@ -383,10 +384,12 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
       };
       let latestCreatedAt = nextState.cursor;
       const newlyUnreadMessages: PrivateNotification[] = [];
+      const newlyReceivedMessages: PrivateNotification[] = [];
 
       for (const message of result.data.messages || []) {
         if (!message.id || !message.sender_id || !message.created_at) continue;
         if (Date.parse(message.created_at) > Date.parse(latestCreatedAt)) latestCreatedAt = message.created_at;
+        newlyReceivedMessages.push(message);
 
         const readAt = nextState.readAtBySender[message.sender_id];
         if (activePrivateFriendRef.current === message.sender_id || (readAt && Date.parse(message.created_at) <= Date.parse(readAt))) {
@@ -406,16 +409,16 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
       setUnreadPrivateBySender(Object.fromEntries(
         Object.entries(nextState.unreadIdsBySender).map(([senderId, ids]) => [senderId, ids.length])
       ));
+      if (newlyReceivedMessages.length > 0 && document.visibilityState === 'visible') {
+        playPrivateMessageSound();
+        if (typeof navigator.vibrate === 'function') navigator.vibrate(70);
+      }
       if (newlyUnreadMessages.length > 0) {
         const latestMessage = newlyUnreadMessages[newlyUnreadMessages.length - 1];
         setPrivateMessageToast({
           senderId: latestMessage.sender_id,
           messageCount: newlyUnreadMessages.filter((message) => message.sender_id === latestMessage.sender_id).length
         });
-        if (!pushSubscribed) {
-          playPrivateMessageSound();
-          if (typeof navigator.vibrate === 'function') navigator.vibrate([120, 70, 120]);
-        }
       }
     };
 
@@ -425,7 +428,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
       cancelled = true;
       window.clearInterval(intervalId);
     };
-  }, [isSessionReady, pushSubscribed, socialUserId]);
+  }, [isSessionReady, socialUserId]);
 
   useEffect(() => {
     if (!privateMessageToast) return;
@@ -771,7 +774,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
     }
   };
 
-  const handleStartVideoCall = async () => {
+  const handleStartVideoCall = () => {
     if (!socialUserId || !selectedFriendId || isCallActionPending) return;
     if (typeof crypto.randomUUID !== 'function') {
       setError('Este navegador não permite criar uma sala segura para a chamada.');
@@ -780,15 +783,8 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
 
     setError('');
     setIsCallActionPending(true);
-    try {
-      const roomName = `brazilian-friends-${crypto.randomUUID()}`;
-      const sent = await sendCallInvitations(roomName, [selectedFriendId]);
-      if (!sent) return;
-      setActiveCallInvitees([selectedFriendId]);
-      setActiveCallRoom(roomName);
-    } finally {
-      setIsCallActionPending(false);
-    }
+    pendingCallInviteeRef.current = selectedFriendId;
+    setActiveCallRoom(`brazilian-friends-${crypto.randomUUID()}`);
   };
 
   const sendCallInvitations = async (roomName: string, inviteeIds: string[]) => {
@@ -823,6 +819,14 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
     } finally {
       setIsCallActionPending(false);
     }
+  };
+
+  const handleCallRoomJoined = async (roomName: string) => {
+    const inviteeId = pendingCallInviteeRef.current;
+    if (!inviteeId) return;
+    pendingCallInviteeRef.current = null;
+    await sendCallInvitations(roomName, [inviteeId]);
+    setIsCallActionPending(false);
   };
 
   const handleAcceptCallInvitation = async (invitation: CallInvitation) => {
@@ -876,7 +880,11 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
       : [...current, userId]);
   };
 
-  const closeActiveCall = useCallback(() => setActiveCallRoom(null), []);
+  const closeActiveCall = useCallback(() => {
+    pendingCallInviteeRef.current = null;
+    setIsCallActionPending(false);
+    setActiveCallRoom(null);
+  }, []);
   const openCallInviteDialog = useCallback(() => {
     setSelectedCallInvitees([]);
     setIsCallInviteDialogOpen(true);
@@ -1442,6 +1450,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
           roomName={activeCallRoom}
           displayName={publicName}
           onClose={closeActiveCall}
+          onJoined={handleCallRoomJoined}
           onInvite={openCallInviteDialog}
         />
       )}
@@ -1459,8 +1468,8 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
           >
             <header>
               <div>
-                <h2 id="friends-call-invite-title">Convidar colegas</h2>
-                <p>Os convidados recebem um aviso privado e entram nesta mesma sala.</p>
+                <h2 id="friends-call-invite-title">Convidar mais amigos</h2>
+                <p>Cada pessoa recebe um convite privado para entrar nesta chamada.</p>
               </div>
               <button
                 type="button"

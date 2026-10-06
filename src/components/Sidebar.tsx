@@ -254,6 +254,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             : ['brazilianfriends', ...parsed.adminAppOrder];
           if (!studentAppOrder.includes('braziliangames')) studentAppOrder.push('braziliangames');
           if (!adminAppOrder.includes('braziliangames')) adminAppOrder.push('braziliangames');
+          if (!adminAppOrder.includes('youtube')) adminAppOrder.push('youtube');
           if (!adminAppOrder.includes('feedback')) adminAppOrder.push('feedback');
           setAppConfig({
             ...parsed,

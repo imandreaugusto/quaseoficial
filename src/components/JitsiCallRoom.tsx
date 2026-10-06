@@ -10,6 +10,7 @@ interface JitsiCallRoomProps {
   roomName: string;
   displayName: string;
   onClose: () => void;
+  onJoined: (roomName: string) => void;
   onInvite: () => void;
 }
 
@@ -50,10 +51,15 @@ const loadJitsiApi = () => new Promise<void>((resolve, reject) => {
   script.addEventListener('error', () => reject(new Error('Não foi possível carregar a chamada de vídeo.')), { once: true });
 });
 
-export function JitsiCallRoom({ roomName, displayName, onClose, onInvite }: JitsiCallRoomProps) {
+export function JitsiCallRoom({ roomName, displayName, onClose, onJoined, onInvite }: JitsiCallRoomProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const onJoinedRef = useRef(onJoined);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    onJoinedRef.current = onJoined;
+  }, [onJoined]);
 
   useEffect(() => {
     let cancelled = false;
@@ -76,20 +82,25 @@ export function JitsiCallRoom({ roomName, displayName, onClose, onInvite }: Jits
           lang: 'pt-br',
           userInfo: { displayName: displayName.slice(0, 80) },
           configOverwrite: {
-            prejoinPageEnabled: true,
+            prejoinPageEnabled: false,
+            enableWelcomePage: false,
             startWithAudioMuted: false,
             startWithVideoMuted: false,
             disableDeepLinking: true,
+            disableInviteFunctions: true,
             fileRecordingsEnabled: false,
             liveStreamingEnabled: false,
             transcriptionEnabled: false,
             localRecording: false,
           },
           interfaceConfigOverwrite: {
-            TOOLBAR_BUTTONS: ['microphone', 'camera', 'hangup', 'chat', 'participants-pane', 'tileview', 'fullscreen', 'raisehand'],
+            TOOLBAR_BUTTONS: ['microphone', 'camera', 'hangup', 'participants-pane', 'tileview', 'fullscreen'],
           },
         });
-        api.addEventListener('videoConferenceJoined', () => setIsLoading(false));
+        api.addEventListener('videoConferenceJoined', () => {
+          setIsLoading(false);
+          onJoinedRef.current(roomName);
+        });
         api.addEventListener('readyToClose', onClose);
         api.addEventListener('videoConferenceLeft', onClose);
         setIsLoading(false);
@@ -112,13 +123,13 @@ export function JitsiCallRoom({ roomName, displayName, onClose, onInvite }: Jits
       <section className="friends-call-window">
         <header className="friends-call-header">
           <div>
-            <strong>Videochamada · Brazilian Friends</strong>
-            <span>As chamadas não são gravadas pelo Brazilian in Action.</span>
+            <strong>Ligação privada · Brazilian Friends</strong>
+            <span>Só participa quem receber um convite. A chamada não é gravada.</span>
           </div>
           <div className="friends-call-actions">
             <button type="button" onClick={onInvite} className="friends-call-invite" aria-label="Convidar colega para a chamada">
               <UserPlus size={16} />
-              <span>Convidar colega</span>
+              <span>Convidar mais amigos</span>
             </button>
             <button type="button" onClick={onClose} className="friends-call-close" aria-label="Encerrar chamada">
               <X size={17} />
