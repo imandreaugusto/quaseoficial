@@ -27,6 +27,8 @@ Para habilitar o perfil persistente solicitado aos assinantes, execute uma vez [
 
 Para habilitar as notificacoes push privadas, execute [`supabase/brazilian_friends_push_notifications.sql`](./supabase/brazilian_friends_push_notifications.sql) e configure `WEB_PUSH_PUBLIC_KEY` e `WEB_PUSH_PRIVATE_KEY` nas variaveis do Render. Gere o par uma vez com `npx web-push generate-vapid-keys`; mantenha a chave privada somente no Render. Cada usuario precisa ativar as notificacoes pelo botao de sino do Brazilian Friends. No iPhone/iPad, Web Push requer adicionar o site a Tela de Inicio e permitir notificacoes; o som e a vibracao dependem das configuracoes do sistema.
 
+Para convites individuais de videochamada, execute [`supabase/brazilian_friends_video_calls.sql`](./supabase/brazilian_friends_video_calls.sql). As chamadas sao incorporadas pelo Jitsi Meet publico (`meet.jit.si`); o aplicativo guarda somente convites temporarios, nao armazena nem grava audio/video. O uso do servico publico depende dos termos, capacidade e disponibilidade do Jitsi, e os participantes continuam usando sua propria conexao de internet. Nao inclua informacoes sensiveis em chamadas publicas.
+
 # Run and deploy your AI Studio app
 
 This contains everything you need to run your app locally.

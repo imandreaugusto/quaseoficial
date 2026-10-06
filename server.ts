@@ -936,6 +936,61 @@ async function startServer() {
   const friendsMessageFields = 'id,sender_id,receiver_id,body,created_at,expires_at';
   const isFriendUserId = (value: unknown): value is string =>
     typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+  const isFriendCallRoomName = (value: unknown): value is string =>
+    typeof value === 'string' &&
+    /^brazilian-friends-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+
+  const sendFriendsPushNotification = async (
+    recipientId: string,
+    payload: { title: string; body: string; url: string }
+  ) => {
+    if (!webPushConfigured) return;
+
+    try {
+      const query = new URLSearchParams({
+        select: 'endpoint,subscription',
+        user_id: `eq.${recipientId}`
+      });
+      const subscriptionsResponse = await supabaseServiceRequest(
+        `brazilian_friends_push_subscriptions?${query.toString()}`
+      );
+      if (!subscriptionsResponse.ok) {
+        console.error('Private notification subscription lookup failed:', subscriptionsResponse.status, await subscriptionsResponse.text());
+        return;
+      }
+
+      const subscriptions = await subscriptionsResponse.json() as {
+        endpoint: string;
+        subscription: webPush.PushSubscription;
+      }[];
+      const deliveries = await Promise.allSettled(subscriptions.map(({ subscription }) =>
+        webPush.sendNotification(subscription, JSON.stringify(payload), { TTL: 60, urgency: 'high' })
+      ));
+      const expiredEndpoints: string[] = [];
+      deliveries.forEach((delivery, index) => {
+        if (delivery.status !== 'rejected') return;
+        console.error('Private notification delivery failed:', delivery.reason);
+        if (delivery.reason instanceof webPush.WebPushError && [404, 410].includes(delivery.reason.statusCode)) {
+          expiredEndpoints.push(subscriptions[index].endpoint);
+        }
+      });
+
+      if (expiredEndpoints.length > 0) {
+        const staleQuery = new URLSearchParams({
+          endpoint: `in.(${expiredEndpoints.join(',')})`
+        });
+        const cleanupResponse = await supabaseServiceRequest(
+          `brazilian_friends_push_subscriptions?${staleQuery.toString()}`,
+          { method: 'DELETE' }
+        );
+        if (!cleanupResponse.ok) {
+          console.error('Expired private notification subscription cleanup failed:', cleanupResponse.status, await cleanupResponse.text());
+        }
+      }
+    } catch (error) {
+      console.error('Private notification delivery failed:', error);
+    }
+  };
 
   app.post('/api/friends/profile', async (req, res) => {
     try {
@@ -1085,6 +1140,179 @@ async function startServer() {
     }
   });
 
+  app.get('/api/friends/call-invitations', async (req, res) => {
+    try {
+      const authUser = await getSupabaseUserFromRequest(req);
+      if (!authUser?.id || !authUser.email_confirmed_at) {
+        return res.status(401).json({ error: 'Conecte sua conta Google para ver convites.' });
+      }
+      if (isRateLimited(`friends-call-invitations:${authUser.id}`, 30, 60_000)) {
+        return res.status(429).json({ error: 'Muitos pedidos de convites. Aguarde um momento.' });
+      }
+
+      const query = new URLSearchParams({
+        select: 'id,room_name,inviter_id,created_at,expires_at',
+        invitee_id: `eq.${authUser.id}`,
+        status: 'eq.pending',
+        expires_at: `gt.${new Date().toISOString()}`,
+        order: 'created_at.desc',
+        limit: '20'
+      });
+      const response = await supabaseServiceRequest(`brazilian_friends_call_invitations?${query.toString()}`);
+      if (!response.ok) {
+        console.error('Brazilian Friends call invitations read failed:', response.status, await response.text());
+        return res.status(502).json({ error: 'Não foi possível carregar os convites de chamada.' });
+      }
+      return res.json({ invitations: await response.json() });
+    } catch (error) {
+      console.error('Brazilian Friends call invitations read failed:', error);
+      return res.status(500).json({ error: 'Falha ao carregar os convites de chamada.' });
+    }
+  });
+
+  app.post('/api/friends/call-invitations', async (req, res) => {
+    try {
+      const authUser = await getSupabaseUserFromRequest(req);
+      if (!authUser?.id || !authUser.email_confirmed_at) {
+        return res.status(401).json({ error: 'Conecte sua conta Google para convidar colegas.' });
+      }
+      if (isRateLimited(`friends-call-invite-send:${authUser.id}`, 10, 60_000)) {
+        return res.status(429).json({ error: 'Muitos convites enviados. Aguarde um momento.' });
+      }
+
+      const roomName = req.body?.room_name;
+      const requestedInvitees: unknown = req.body?.invitee_ids;
+      if (!isFriendCallRoomName(roomName) || !Array.isArray(requestedInvitees) || requestedInvitees.length === 0 || requestedInvitees.length > 20) {
+        return res.status(400).json({ error: 'Convite de chamada inválido.' });
+      }
+      if (!requestedInvitees.every(isFriendUserId)) {
+        return res.status(400).json({ error: 'A lista de colegas contém um usuário inválido.' });
+      }
+      const inviteeIds = [...new Set(requestedInvitees as string[])];
+      if (inviteeIds.includes(authUser.id)) {
+        return res.status(400).json({ error: 'Você não pode convidar sua própria conta.' });
+      }
+
+      const profilesQuery = new URLSearchParams({
+        select: 'id',
+        id: `in.(${inviteeIds.join(',')})`
+      });
+      const profilesResponse = await supabaseServiceRequest(
+        `brazilian_friends_users?${profilesQuery.toString()}`
+      );
+      if (!profilesResponse.ok) {
+        console.error('Brazilian Friends call invitee lookup failed:', profilesResponse.status, await profilesResponse.text());
+        return res.status(502).json({ error: 'Não foi possível verificar os colegas selecionados.' });
+      }
+      const profiles = await profilesResponse.json() as { id: string }[];
+      if (profiles.length !== inviteeIds.length) {
+        return res.status(400).json({ error: 'Um ou mais colegas selecionados não estão disponíveis.' });
+      }
+
+      const now = Date.now();
+      const expiresAt = new Date(now + 60 * 60 * 1000).toISOString();
+      const insertResponse = await supabaseServiceRequest(
+        'brazilian_friends_call_invitations?on_conflict=room_name,invitee_id',
+        {
+        method: 'POST',
+        headers: { Prefer: 'resolution=ignore-duplicates,return=representation' },
+        body: JSON.stringify(inviteeIds.map((inviteeId) => ({
+          room_name: roomName,
+          inviter_id: authUser.id,
+          invitee_id: inviteeId,
+          expires_at: expiresAt
+        })))
+        }
+      );
+      if (!insertResponse.ok) {
+        console.error('Brazilian Friends call invitation save failed:', insertResponse.status, await insertResponse.text());
+        return res.status(502).json({ error: 'Não foi possível salvar os convites.' });
+      }
+      const invitations = await insertResponse.json() as {
+        id: string;
+        invitee_id: string;
+        room_name: string;
+      }[];
+
+      await Promise.all(invitations.map((invitation) => sendFriendsPushNotification(invitation.invitee_id, {
+        title: 'Convite para videochamada',
+        body: 'Um colega convidou você para uma chamada no Brazilian Friends.',
+        url: `/?open=friends&callInvite=${encodeURIComponent(invitation.id)}`
+      })));
+
+      return res.status(201).json({
+        invitations: invitations.map(({ id, invitee_id }) => ({ id, invitee_id })),
+        expires_at: expiresAt
+      });
+    } catch (error) {
+      console.error('Brazilian Friends call invitation creation failed:', error);
+      return res.status(500).json({ error: 'Falha ao enviar os convites de chamada.' });
+    }
+  });
+
+  app.post('/api/friends/call-invitations/:id/accept', async (req, res) => {
+    try {
+      const authUser = await getSupabaseUserFromRequest(req);
+      if (!authUser?.id || !authUser.email_confirmed_at) {
+        return res.status(401).json({ error: 'Conecte sua conta Google para aceitar o convite.' });
+      }
+      if (!isFriendUserId(req.params.id)) return res.status(400).json({ error: 'Convite inválido.' });
+
+      const query = new URLSearchParams({
+        id: `eq.${req.params.id}`,
+        invitee_id: `eq.${authUser.id}`,
+        status: 'eq.pending',
+        expires_at: `gt.${new Date().toISOString()}`,
+        select: 'id,room_name,inviter_id,created_at,expires_at'
+      });
+      const response = await supabaseServiceRequest(`brazilian_friends_call_invitations?${query.toString()}`, {
+        method: 'PATCH',
+        headers: { Prefer: 'return=representation' },
+        body: JSON.stringify({ status: 'accepted', accepted_at: new Date().toISOString() })
+      });
+      if (!response.ok) {
+        console.error('Brazilian Friends call invitation acceptance failed:', response.status, await response.text());
+        return res.status(502).json({ error: 'Não foi possível aceitar o convite.' });
+      }
+      const invitations = await response.json() as Record<string, unknown>[];
+      if (!invitations[0]) return res.status(404).json({ error: 'Este convite expirou ou não está mais disponível.' });
+      return res.json({ invitation: invitations[0] });
+    } catch (error) {
+      console.error('Brazilian Friends call invitation acceptance failed:', error);
+      return res.status(500).json({ error: 'Falha ao aceitar o convite.' });
+    }
+  });
+
+  app.post('/api/friends/call-invitations/:id/decline', async (req, res) => {
+    try {
+      const authUser = await getSupabaseUserFromRequest(req);
+      if (!authUser?.id || !authUser.email_confirmed_at) {
+        return res.status(401).json({ error: 'Conecte sua conta Google para responder ao convite.' });
+      }
+      if (!isFriendUserId(req.params.id)) return res.status(400).json({ error: 'Convite inválido.' });
+
+      const query = new URLSearchParams({
+        id: `eq.${req.params.id}`,
+        invitee_id: `eq.${authUser.id}`,
+        status: 'eq.pending',
+        select: 'id'
+      });
+      const response = await supabaseServiceRequest(`brazilian_friends_call_invitations?${query.toString()}`, {
+        method: 'PATCH',
+        headers: { Prefer: 'return=representation' },
+        body: JSON.stringify({ status: 'declined' })
+      });
+      if (!response.ok) {
+        console.error('Brazilian Friends call invitation decline failed:', response.status, await response.text());
+        return res.status(502).json({ error: 'Não foi possível recusar o convite.' });
+      }
+      return res.json({ ok: true });
+    } catch (error) {
+      console.error('Brazilian Friends call invitation decline failed:', error);
+      return res.status(500).json({ error: 'Falha ao recusar o convite.' });
+    }
+  });
+
   app.get('/api/friends/messages', async (req, res) => {
     try {
       const authUser = await getSupabaseUserFromRequest(req);
@@ -1182,52 +1410,12 @@ async function startServer() {
       }
       const messages = await messageResponse.json() as Record<string, unknown>[];
 
-      if (receiverId && webPushConfigured) {
-        try {
-          const query = new URLSearchParams({
-            select: 'endpoint,subscription',
-            user_id: `eq.${receiverId}`
-          });
-          const subscriptionsResponse = await supabaseServiceRequest(`brazilian_friends_push_subscriptions?${query.toString()}`);
-          if (!subscriptionsResponse.ok) {
-            console.error('Private message push lookup failed:', subscriptionsResponse.status, await subscriptionsResponse.text());
-          } else {
-            const subscriptions = await subscriptionsResponse.json() as {
-              endpoint: string;
-              subscription: webPush.PushSubscription;
-            }[];
-            const pushPayload = JSON.stringify({
-              title: 'Mensagem privada · Brazilian Friends',
-              body: 'Você recebeu uma nova mensagem privada.',
-              url: `/?open=friends&friend=${encodeURIComponent(authUser.id)}`
-            });
-            const deliveries = await Promise.allSettled(subscriptions.map(({ subscription }) =>
-              webPush.sendNotification(subscription, pushPayload, { TTL: 60, urgency: 'high' })
-            ));
-            const expiredEndpoints: string[] = [];
-            deliveries.forEach((delivery, index) => {
-              if (delivery.status === 'rejected') {
-                const failure = delivery.reason;
-                console.error('Private message push delivery failed:', failure);
-                if (failure instanceof webPush.WebPushError && [404, 410].includes(failure.statusCode)) {
-                  expiredEndpoints.push(subscriptions[index].endpoint);
-                }
-              }
-            });
-            if (expiredEndpoints.length > 0) {
-              const staleQuery = new URLSearchParams({ endpoint: `in.(${expiredEndpoints.join(',')})` });
-              const cleanupResponse = await supabaseServiceRequest(
-                `brazilian_friends_push_subscriptions?${staleQuery.toString()}`,
-                { method: 'DELETE' }
-              );
-              if (!cleanupResponse.ok) {
-                console.error('Expired private message push subscription cleanup failed:', cleanupResponse.status, await cleanupResponse.text());
-              }
-            }
-          }
-        } catch (pushError) {
-          console.error('Private message was saved, but push notification delivery failed:', pushError);
-        }
+      if (receiverId) {
+        await sendFriendsPushNotification(receiverId, {
+          title: 'Mensagem privada · Brazilian Friends',
+          body: 'Você recebeu uma nova mensagem privada.',
+          url: `/?open=friends&friend=${encodeURIComponent(authUser.id)}`
+        });
       }
 
       return res.status(201).json({ message: messages[0] || null });

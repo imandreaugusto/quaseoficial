@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { RealtimeChannel, Session } from '@supabase/supabase-js';
-import { ArrowLeft, Bell, BellOff, Camera, ChevronDown, Info, MessageCircle, MessageCircleMore, Pin, PinOff, Send, Smile, Users, WifiOff, X } from 'lucide-react';
+import { ArrowLeft, Bell, BellOff, Camera, Check, ChevronDown, Info, Loader2, MessageCircle, MessageCircleMore, Pin, PinOff, Send, Smile, UserPlus, Users, Video, WifiOff, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile } from '../types';
 import { BrazilianLogo } from './BrazilianLogo';
@@ -9,6 +9,7 @@ import { CEO_EMAIL } from '../utils/security';
 import { apiFetch } from '../lib/api';
 import { playPrivateMessageSound } from '../lib/menuSounds';
 import { getCountryFlag, getCountryName } from '../utils/countries';
+import { JitsiCallRoom } from './JitsiCallRoom';
 
 const QUICK_EMOJIS = [
   '😀', '😂', '😍', '😊', '😉', '😎', '🥳', '😢',
@@ -61,6 +62,14 @@ interface PrivateNotification {
 interface PrivateMessageToast {
   senderId: string;
   messageCount: number;
+}
+
+interface CallInvitation {
+  id: string;
+  room_name: string;
+  inviter_id: string;
+  created_at: string;
+  expires_at: string;
 }
 
 interface PrivateNotificationState {
@@ -169,6 +178,12 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
   const [pushConfigured, setPushConfigured] = useState(false);
   const [pushSubscribed, setPushSubscribed] = useState(false);
   const [isPushActionPending, setIsPushActionPending] = useState(false);
+  const [incomingCallInvitations, setIncomingCallInvitations] = useState<CallInvitation[]>([]);
+  const [activeCallRoom, setActiveCallRoom] = useState<string | null>(null);
+  const [activeCallInvitees, setActiveCallInvitees] = useState<string[]>([]);
+  const [isCallInviteDialogOpen, setIsCallInviteDialogOpen] = useState(false);
+  const [selectedCallInvitees, setSelectedCallInvitees] = useState<string[]>([]);
+  const [isCallActionPending, setIsCallActionPending] = useState(false);
   const [draft, setDraft] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -756,6 +771,141 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
     }
   };
 
+  const handleStartVideoCall = async () => {
+    if (!socialUserId || !selectedFriendId || isCallActionPending) return;
+    if (typeof crypto.randomUUID !== 'function') {
+      setError('Este navegador não permite criar uma sala segura para a chamada.');
+      return;
+    }
+
+    setError('');
+    setIsCallActionPending(true);
+    try {
+      const roomName = `brazilian-friends-${crypto.randomUUID()}`;
+      const sent = await sendCallInvitations(roomName, [selectedFriendId]);
+      if (!sent) return;
+      setActiveCallInvitees([selectedFriendId]);
+      setActiveCallRoom(roomName);
+    } finally {
+      setIsCallActionPending(false);
+    }
+  };
+
+  const sendCallInvitations = async (roomName: string, inviteeIds: string[]) => {
+    const client = getSupabaseClient();
+    if (!client || !inviteeIds.length) return false;
+    const result = await requestFriendsApi<{ invitations: { id: string; invitee_id: string }[] }>(
+      client,
+      '/api/friends/call-invitations',
+      {
+        method: 'POST',
+        body: JSON.stringify({ room_name: roomName, invitee_ids: inviteeIds })
+      }
+    );
+    if (result.error || !result.data) {
+      setError(result.error || 'Não foi possível enviar os convites para a chamada.');
+      return false;
+    }
+    setActiveCallInvitees((current) => [...new Set([...current, ...inviteeIds])]);
+    return true;
+  };
+
+  const handleSendCallInvitations = async () => {
+    if (!activeCallRoom || isCallActionPending || selectedCallInvitees.length === 0) return;
+    setError('');
+    setIsCallActionPending(true);
+    try {
+      const sent = await sendCallInvitations(activeCallRoom, selectedCallInvitees);
+      if (sent) {
+        setIsCallInviteDialogOpen(false);
+        setSelectedCallInvitees([]);
+      }
+    } finally {
+      setIsCallActionPending(false);
+    }
+  };
+
+  const handleAcceptCallInvitation = async (invitation: CallInvitation) => {
+    const client = getSupabaseClient();
+    if (!client || isCallActionPending) return;
+    setError('');
+    setIsCallActionPending(true);
+    try {
+      const result = await requestFriendsApi<{ invitation: CallInvitation }>(
+        client,
+        `/api/friends/call-invitations/${encodeURIComponent(invitation.id)}/accept`,
+        { method: 'POST' }
+      );
+      if (result.error || !result.data?.invitation) {
+        setError(result.error || 'Este convite não está mais disponível.');
+        return;
+      }
+      setSelectedFriendId(result.data.invitation.inviter_id);
+      setActiveCallInvitees([result.data.invitation.inviter_id]);
+      setActiveCallRoom(result.data.invitation.room_name);
+      setIncomingCallInvitations((current) => current.filter((item) => item.id !== invitation.id));
+    } finally {
+      setIsCallActionPending(false);
+    }
+  };
+
+  const handleDeclineCallInvitation = async (invitation: CallInvitation) => {
+    const client = getSupabaseClient();
+    if (!client || isCallActionPending) return;
+    setError('');
+    setIsCallActionPending(true);
+    try {
+      const result = await requestFriendsApi<unknown>(
+        client,
+        `/api/friends/call-invitations/${encodeURIComponent(invitation.id)}/decline`,
+        { method: 'POST' }
+      );
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      setIncomingCallInvitations((current) => current.filter((item) => item.id !== invitation.id));
+    } finally {
+      setIsCallActionPending(false);
+    }
+  };
+
+  const toggleCallInvitee = (userId: string) => {
+    setSelectedCallInvitees((current) => current.includes(userId)
+      ? current.filter((id) => id !== userId)
+      : [...current, userId]);
+  };
+
+  const closeActiveCall = useCallback(() => setActiveCallRoom(null), []);
+  const openCallInviteDialog = useCallback(() => {
+    setSelectedCallInvitees([]);
+    setIsCallInviteDialogOpen(true);
+  }, []);
+
+  useEffect(() => {
+    const client = getSupabaseClient();
+    if (!client || !isSessionReady || !socialUserId) {
+      setIncomingCallInvitations([]);
+      return;
+    }
+
+    let cancelled = false;
+    const loadInvitations = async () => {
+      const result = await requestFriendsApi<{ invitations: CallInvitation[] }>(
+        client,
+        '/api/friends/call-invitations'
+      );
+      if (cancelled || result.error || !result.data) return;
+      setIncomingCallInvitations(result.data.invitations || []);
+    };
+    void loadInvitations();
+    const pollingId = window.setInterval(() => void loadInvitations(), 15_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(pollingId);
+    };
+  }, [isSessionReady, socialUserId]);
+
   const { url: configuredUrl, anonKey: configuredAnonKey } = getSupabaseConfig();
   const publicName = getPublicName(currentUser);
   const canManagePinnedMessages = currentUser.email.trim().toLowerCase() === CEO_EMAIL.toLowerCase();
@@ -997,6 +1147,20 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
             </div>
 
             <div className="friends-header-actions">
+              {selectedFriend && (
+                <button
+                  type="button"
+                  className="friends-header-action-button friends-video-call-button"
+                  onClick={() => activeCallRoom
+                    ? openCallInviteDialog()
+                    : void handleStartVideoCall()}
+                  disabled={isCallActionPending}
+                  aria-label={activeCallRoom ? 'Adicionar colegas à chamada' : `Iniciar videochamada com ${selectedFriend.full_name}`}
+                >
+                  {isCallActionPending ? <Loader2 size={15} className="animate-spin" /> : activeCallRoom ? <UserPlus size={15} /> : <Video size={15} />}
+                  <span>{activeCallRoom ? 'Adicionar à chamada' : 'Videochamada'}</span>
+                </button>
+              )}
               {socialUserId && pushSupported && pushConfigured && (
                 <button
                   type="button"
@@ -1031,6 +1195,20 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
               </span>
             </div>
 
+            {selectedFriend && (
+              <button
+                type="button"
+                className="friends-mobile-call-button"
+                onClick={() => activeCallRoom
+                  ? openCallInviteDialog()
+                  : void handleStartVideoCall()}
+                disabled={isCallActionPending}
+                aria-label={activeCallRoom ? 'Adicionar colegas à chamada' : `Iniciar videochamada com ${selectedFriend.full_name}`}
+              >
+                {isCallActionPending ? <Loader2 size={15} className="animate-spin" /> : activeCallRoom ? <UserPlus size={15} /> : <Video size={15} />}
+                <span>{activeCallRoom ? 'Convidar' : 'Vídeo'}</span>
+              </button>
+            )}
             {!selectedFriend && <button type="button" className="friends-online-trigger" onClick={() => socialUserId ? setIsPeopleDrawerOpen(true) : void handleFriendsSignIn()} disabled={!isSessionReady || isConnectingToChat} aria-label={totalUnreadPrivateCount ? `${onlineFriends.length} pessoas online, ${totalUnreadPrivateCount} mensagens privadas não lidas` : `${onlineFriends.length} pessoas online`}><Users size={16} /><span>{socialUserId ? `${onlineFriends.length} people online` : isConnectingToChat ? 'Abrindo Google...' : 'Conectar para ficar online'}</span>{totalUnreadPrivateCount > 0 && <span className="friends-private-total-badge">{totalUnreadPrivateCount > 9 ? '9+' : totalUnreadPrivateCount}</span>}<ChevronDown size={14} /></button>}
             {selectedFriend && <button type="button" className="friends-mobile-back-button" onClick={() => setSelectedFriendId(null)}><ArrowLeft size={15} /><span>Public chat</span></button>}
             {selectedFriend && <button type="button" className="friends-selected-chip" onClick={() => setSelectedFriendId(null)}><ArrowLeft size={13} /> {selectedFriend.full_name}</button>}
@@ -1075,6 +1253,40 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
               </motion.aside>
             )}
           </AnimatePresence>
+
+          {incomingCallInvitations[0] && (
+            <motion.aside
+              className="friends-call-incoming"
+              role="status"
+              aria-live="polite"
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <Video size={17} />
+              <p>
+                <strong>{profiles.find((profile) => profile.id === incomingCallInvitations[0].inviter_id)?.full_name || 'Um colega'}</strong>
+                {' convidou você para uma videochamada.'}
+              </p>
+              <button
+                type="button"
+                className="friends-call-accept"
+                onClick={() => void handleAcceptCallInvitation(incomingCallInvitations[0])}
+                disabled={isCallActionPending}
+              >
+                {isCallActionPending ? <Loader2 size={14} className="animate-spin" /> : <Video size={14} />}
+                Aceitar
+              </button>
+              <button
+                type="button"
+                className="friends-call-decline"
+                onClick={() => void handleDeclineCallInvitation(incomingCallInvitations[0])}
+                disabled={isCallActionPending}
+                aria-label="Recusar convite de videochamada"
+              >
+                <X size={15} />
+              </button>
+            </motion.aside>
+          )}
 
           {!selectedFriend && pinnedMessages.length > 0 && (
             <section className="friends-pinned-messages" aria-label="Mensagens fixadas">
@@ -1225,6 +1437,72 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
         </main>
       </div>
       {isPeopleDrawerOpen && <div className="friends-drawer-backdrop" onClick={() => setIsPeopleDrawerOpen(false)}><div onClick={(event) => event.stopPropagation()}>{renderPeople(true)}</div></div>}
+      {activeCallRoom && (
+        <JitsiCallRoom
+          roomName={activeCallRoom}
+          displayName={publicName}
+          onClose={closeActiveCall}
+          onInvite={openCallInviteDialog}
+        />
+      )}
+      {isCallInviteDialogOpen && activeCallRoom && (
+        <div
+          className="friends-call-invite-backdrop"
+          onClick={() => setIsCallInviteDialogOpen(false)}
+        >
+          <section
+            className="friends-call-invite-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="friends-call-invite-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <header>
+              <div>
+                <h2 id="friends-call-invite-title">Convidar colegas</h2>
+                <p>Os convidados recebem um aviso privado e entram nesta mesma sala.</p>
+              </div>
+              <button
+                type="button"
+                className="friends-icon-button"
+                onClick={() => setIsCallInviteDialogOpen(false)}
+                aria-label="Fechar convites"
+              >
+                <X size={16} />
+              </button>
+            </header>
+            <div className="friends-call-invite-list">
+              {profiles
+                .filter((profile) => profile.id !== socialUserId && !activeCallInvitees.includes(profile.id))
+                .map((profile) => (
+                  <label key={profile.id} className="friends-call-invite-person">
+                    <input
+                      type="checkbox"
+                      checked={selectedCallInvitees.includes(profile.id)}
+                      onChange={() => toggleCallInvitee(profile.id)}
+                    />
+                    {renderAvatar(profile.full_name, profile.photo_url, 'friends-call-invite-avatar')}
+                    <span>{profile.full_name}</span>
+                    <small>{onlineUsers[profile.id] ? 'Online' : 'Offline'}</small>
+                  </label>
+                ))}
+              {profiles.filter((profile) => profile.id !== socialUserId && !activeCallInvitees.includes(profile.id)).length === 0 && (
+                <p className="friends-call-invite-empty">Não há outros colegas para convidar.</p>
+              )}
+            </div>
+            {error && <p className="friends-call-invite-error" role="alert">{error}</p>}
+            <button
+              type="button"
+              className="friends-call-invite-submit"
+              onClick={() => void handleSendCallInvitations()}
+              disabled={isCallActionPending || selectedCallInvitees.length === 0}
+            >
+              {isCallActionPending ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+              Enviar convite{selectedCallInvitees.length === 1 ? '' : 's'} ({selectedCallInvitees.length})
+            </button>
+          </section>
+        </div>
+      )}
       {profilePreview && (
         <div className="friends-profile-preview-backdrop" onClick={() => setProfilePreviewId(null)}>
           <section className="friends-profile-preview" role="dialog" aria-modal="true" aria-labelledby="friends-profile-preview-name" onClick={(event) => event.stopPropagation()}>
