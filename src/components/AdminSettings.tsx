@@ -200,6 +200,8 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
       youtube: true
     }
   });
+  const [appConfigDirty, setAppConfigDirty] = useState(false);
+  const [appConfigSaveMessage, setAppConfigSaveMessage] = useState<string | null>(null);
 
   // Gateway Settings State
   const [gatewaySettings, setGatewaySettings] = useState<GatewaySettings>({
@@ -668,6 +670,20 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
     setAppConfig(newConfig);
     localStorage.setItem('bia_global_app_config', JSON.stringify(newConfig));
     window.dispatchEvent(new Event('bia_app_config_changed'));
+    setAppConfigDirty(false);
+    setAppConfigSaveMessage('Organização salva e aplicada aos menus.');
+  };
+
+  const handleSaveAppConfigDraft = (newConfig: GlobalAppConfig) => {
+    setAppConfig(newConfig);
+    setAppConfigDirty(true);
+    setAppConfigSaveMessage(null);
+  };
+
+  const handleConfirmSaveAppConfig = () => {
+    if (!appConfigDirty) return;
+    if (!window.confirm('Confirmar a atualização das organizações dos menus do aluno e do CEO?')) return;
+    handleSaveAppConfig(appConfig);
   };
 
   // Reorder Student Apps by Up/Down or Direct Position
@@ -678,7 +694,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
     const temp = newOrder[index];
     newOrder[index] = newOrder[targetIdx];
     newOrder[targetIdx] = temp;
-    handleSaveAppConfig({ ...appConfig, studentAppOrder: newOrder });
+    handleSaveAppConfigDraft({ ...appConfig, studentAppOrder: newOrder });
   };
 
   const handleSetStudentAppPosition = (appId: string, newPosition: number) => {
@@ -687,7 +703,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
     const newOrder = [...appConfig.studentAppOrder];
     newOrder.splice(currentIdx, 1);
     newOrder.splice(newPosition, 0, appId);
-    handleSaveAppConfig({ ...appConfig, studentAppOrder: newOrder });
+    handleSaveAppConfigDraft({ ...appConfig, studentAppOrder: newOrder });
   };
 
   // Reorder Admin Apps by Up/Down or Direct Position
@@ -698,7 +714,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
     const temp = newOrder[index];
     newOrder[index] = newOrder[targetIdx];
     newOrder[targetIdx] = temp;
-    handleSaveAppConfig({ ...appConfig, adminAppOrder: newOrder });
+    handleSaveAppConfigDraft({ ...appConfig, adminAppOrder: newOrder });
   };
 
   const handleSetAdminAppPosition = (appId: string, newPosition: number) => {
@@ -707,7 +723,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
     const newOrder = [...appConfig.adminAppOrder];
     newOrder.splice(currentIdx, 1);
     newOrder.splice(newPosition, 0, appId);
-    handleSaveAppConfig({ ...appConfig, adminAppOrder: newOrder });
+    handleSaveAppConfigDraft({ ...appConfig, adminAppOrder: newOrder });
   };
 
   // Toggle Global Availability for Students
@@ -716,7 +732,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
       ...appConfig.studentGlobalEnabled,
       [appId]: !appConfig.studentGlobalEnabled[appId]
     };
-    handleSaveAppConfig({ ...appConfig, studentGlobalEnabled: newEnabled });
+    handleSaveAppConfigDraft({ ...appConfig, studentGlobalEnabled: newEnabled });
   };
 
   // Reset to Default Order
@@ -736,7 +752,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
         youtube: true
       }
     };
-    handleSaveAppConfig(defaultConfig);
+    handleSaveAppConfigDraft(defaultConfig);
   };
 
   const filteredUsers = users.filter((u) => {
@@ -1451,6 +1467,15 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
             </button>
           </div>
 
+          {(appConfigDirty || appConfigSaveMessage) && (
+            <p
+              role="status"
+              className={`text-sm ${appConfigDirty ? 'text-amber-200' : 'text-emerald-300'}`}
+            >
+              {appConfigDirty ? 'Há alterações de organização aguardando confirmação e salvamento.' : appConfigSaveMessage}
+            </p>
+          )}
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* 1. PAINEL DE ORDEM: ALUNO */}
             <div className="glass-card p-5 sm:p-6 rounded-3xl border border-blue-500/30 space-y-4">
@@ -1464,9 +1489,20 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                     <p className="text-[11px] text-white/50">Ordem e visibilidade global de apps para os alunos</p>
                   </div>
                 </div>
-                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                  {appConfig.studentAppOrder.length} Módulos
-                </span>
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                    {appConfig.studentAppOrder.length} Módulos
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleConfirmSaveAppConfig}
+                    disabled={!appConfigDirty}
+                    className="inline-flex items-center gap-2 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-1.5 text-[11px] font-bold text-emerald-200 transition-colors hover:bg-emerald-400/20 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <CheckCircle size={14} />
+                    Salvar alterações
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-2.5">
@@ -1583,11 +1619,12 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
               <div className="flex justify-end">
                 <button
                   type="button"
-                  onClick={() => handleSaveAppConfig(appConfig)}
-                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-emerald-400/30 bg-emerald-400/10 text-emerald-200 text-[11px] font-bold hover:bg-emerald-400/20 transition-colors"
+                  onClick={handleConfirmSaveAppConfig}
+                  disabled={!appConfigDirty}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-emerald-400/30 bg-emerald-400/10 text-emerald-200 text-[11px] font-bold transition-colors hover:bg-emerald-400/20 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <CheckCircle size={14} />
-                  Aplicar alterações
+                  Salvar alterações
                 </button>
               </div>
 

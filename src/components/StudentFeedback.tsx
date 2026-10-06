@@ -3,6 +3,7 @@ import { CheckCircle, Loader2, MessageSquareText, Send } from 'lucide-react';
 import type { UserProfile } from '../types';
 import {
   loadStudentFeedback,
+  markStudentFeedbackRepliesSeen,
   StudentFeedbackRecord,
   submitStudentFeedback,
 } from '../utils/supabaseClient';
@@ -35,7 +36,20 @@ export const StudentFeedback: React.FC<StudentFeedbackProps> = ({ currentUser, a
 
   const refreshHistory = async () => {
     try {
-      setHistory(await loadStudentFeedback());
+      const records = await loadStudentFeedback();
+      setHistory(records);
+      const unreadReplyIds = records
+        .filter((record) => Boolean(record.admin_reply?.trim()) && !record.student_reply_seen_at)
+        .map((record) => record.id);
+      if (unreadReplyIds.length > 0) {
+        await markStudentFeedbackRepliesSeen(unreadReplyIds);
+        const seenAt = new Date().toISOString();
+        setHistory((current) => current.map((record) =>
+          unreadReplyIds.includes(record.id)
+            ? { ...record, student_reply_seen_at: seenAt }
+            : record
+        ));
+      }
     } catch (error) {
       console.error('Could not load your feedback history:', error);
       setErrorMessage('Não foi possível carregar seus feedbacks. Tente novamente mais tarde.');

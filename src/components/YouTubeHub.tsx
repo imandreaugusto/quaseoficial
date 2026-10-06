@@ -56,7 +56,7 @@ export interface YouTubeLibraryItem {
   createdAt?: string;
 }
 
-const DEFAULT_YOUTUBE_LIBRARY: YouTubeLibraryItem[] = [
+export const DEFAULT_YOUTUBE_LIBRARY: YouTubeLibraryItem[] = [
   {
     id: 'yt-music-1',
     title: 'Garota de Ipanema',
@@ -253,8 +253,11 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
     setIsEditingLyrics(false);
   }, [activeItem]);
 
-  // Initial Load from LocalStorage & Global CEO-managed cloud sync
+  // Standalone mode retains legacy cloud loading; App-controlled mode uses its
+  // Supabase-backed library exclusively to avoid stale sources restoring deletions.
   useEffect(() => {
+    if (onLibraryUpdate) return;
+
     const stored = localStorage.getItem('bia_youtube_library');
     if (stored) {
       try {
@@ -305,11 +308,15 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
     return () => unsubAuth();
   }, []);
 
-  // Load initial library from App.tsx if provided via Supabase sync
+  // App supplies the authoritative Supabase library, including an empty list.
   useEffect(() => {
-    if (initialLibrary && initialLibrary.length > 0) {
+    if (initialLibrary) {
       setLibrary(initialLibrary);
-      setActiveItem(initialLibrary[0]);
+      setActiveItem((current) =>
+        initialLibrary.find((item) => item.id === current.id) ||
+        initialLibrary[0] ||
+        DEFAULT_YOUTUBE_LIBRARY[0]
+      );
     }
   }, [initialLibrary]);
 
@@ -450,8 +457,8 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
     if (confirm('Deseja remover este item da biblioteca?')) {
       const updated = library.filter((item) => item.id !== idToDelete);
       saveLibraryState(updated);
-      if (activeItem.id === idToDelete && updated.length > 0) {
-        setActiveItem(updated[0]);
+      if (activeItem.id === idToDelete) {
+        setActiveItem(updated[0] || DEFAULT_YOUTUBE_LIBRARY[0]);
       }
     }
   };
@@ -712,7 +719,26 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
         </div>
       )}
 
-      {/* MAIN LAYOUT */}
+      {library.length === 0 ? (
+        <div className="flex min-h-64 flex-col items-center justify-center gap-4 rounded-2xl border border-white/10 bg-neutral-950/80 p-8 text-center">
+          <Music size={30} className="text-amber-400" />
+          <div>
+            <h2 className="text-lg font-semibold text-white">Biblioteca vazia</h2>
+            <p className="mt-1 text-sm text-white/60">Nenhuma música ou vídeo foi cadastrado.</p>
+          </div>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => handleOpenModal()}
+              className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-black hover:bg-amber-400"
+            >
+              <Plus size={15} />
+              Cadastrar música ou vídeo
+            </button>
+          )}
+        </div>
+      ) : (
+      /* MAIN LAYOUT */
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* LEFT / MAIN COLUMN: VIDEO PLAYER & LYRICS */}
         <div className="lg:col-span-7 xl:col-span-8 flex flex-col gap-5">
@@ -1324,6 +1350,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
           </div>
         </div>
       </div>
+      )}
 
       {/* WORD TRANSLATION TOOLTIP (OVERLAY WITH HIGH Z-INDEX & ADAPTIVE POSITION - AUTO CLOSES IN 5 SECONDS) */}
       <AnimatePresence>

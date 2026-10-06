@@ -12,7 +12,7 @@ import { BrazilianQuiz } from './components/BrazilianQuiz';
 import { BrazilianGames } from './components/BrazilianGames';
 import { BrazilianTradutor } from './components/BrazilianTradutor';
 import { BiaCompare } from './components/BiaCompare';
-import { YouTubeHub } from './components/YouTubeHub';
+import { DEFAULT_YOUTUBE_LIBRARY, YouTubeHub, type YouTubeLibraryItem } from './components/YouTubeHub';
 import { BrazilianPractice } from './components/BrazilianPractice';
 import { BrazilianStories, StoryRecordingBar } from './components/BrazilianStories';
 import { BrazilianFriends } from './components/BrazilianFriends';
@@ -20,8 +20,10 @@ import { StreamStudio } from './components/StreamStudio';
 import { AdminSettings } from './components/AdminSettings';
 import { AdminFeedbackPanel } from './components/AdminFeedbackPanel';
 import { StudentFeedback } from './components/StudentFeedback';
+import { StudentFeedbackNotifications } from './components/StudentFeedbackNotifications';
 import { AuthModal } from './components/AuthModal';
 import { PixPaymentScreen } from './components/PixPaymentScreen';
+import { StudentProfileOnboarding } from './components/StudentProfileOnboarding';
 import { GlobalStreamOverlay } from './components/GlobalStreamOverlay';
 import { GlobalFloatingCamera } from './components/GlobalFloatingCamera';
 import { PageReveal } from './components/PageReveal';
@@ -36,6 +38,7 @@ import { LayoutPositionProvider } from './lib/LayoutPositionContext';
 import {
   loadSharedContentFromSupabase,
   loadStudentProgressFromSupabase,
+  removeCurrentDevicePrivatePushSubscription,
   syncSharedContentToSupabase,
   syncStudentProgressToSupabase,
 } from './utils/supabaseClient';
@@ -68,6 +71,24 @@ const DEFAULT_SETTINGS: AppSettings = {
   compactStreamOverlay: false,
   bgInterval: 8,
 };
+
+const getRequestedStartupApp = () =>
+  new URLSearchParams(window.location.search).get('open') === 'friends' ? 'friends' : 'home';
+
+type ReadClubProgress = {
+  sessions: ReadSession[];
+  glossary: Record<string, GlossaryEntry>;
+  learnedWords: Record<number, string[]>;
+};
+
+const createEmptyReadClubProgress = (): ReadClubProgress => ({
+  sessions: [],
+  glossary: {},
+  learnedWords: {},
+});
+
+const getReadClubProgressCacheKey = (userId: string) =>
+  `bia_readclub_progress_${encodeURIComponent(userId)}`;
 
 // Dynamic Landmark Controls Subcomponent (Displays current city name automatically)
 const LandmarkControlsWidget: React.FC<{
@@ -112,7 +133,7 @@ export default function App() {
   const [isBooting, setIsBooting] = useState(true);
   const [cloudSaveStatus, setCloudSaveStatus] = useState<'saving' | 'saved' | 'error' | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
-  const [currentApp, setCurrentApp] = useState<string>('home');
+  const [currentApp, setCurrentApp] = useState<string>(getRequestedStartupApp);
   const [quickTradutorModalOpen, setQuickTradutorModalOpen] = useState(false);
   const [isStudentPreviewMode, setIsStudentPreviewMode] = useState(false);
 
@@ -130,9 +151,11 @@ export default function App() {
   const [sessions, setSessions] = useState<ReadSession[]>([]);
   const [glossary, setGlossary] = useState<Record<string, GlossaryEntry>>({});
   const [learnedWords, setLearnedWords] = useState<Record<number, string[]>>({});
+  const [readClubProgressUserId, setReadClubProgressUserId] = useState<string | null>(null);
 
   // YouTube Hub persistent database (separate from ReadClub)
-  const [youtubeLibrary, setYoutubeLibrary] = useState<unknown[]>([]);
+  const [youtubeLibrary, setYoutubeLibrary] = useState<YouTubeLibraryItem[]>([]);
+  const [isYoutubeLibraryLoaded, setIsYoutubeLibraryLoaded] = useState(false);
 
   // Global Stream Studio Overlay State
   const [streamActive, setStreamActive] = useState(false);
@@ -157,17 +180,19 @@ export default function App() {
   const alarmPlayedRef = useRef<Record<string, boolean>>({});
   const platformSyncQueueRef = useRef(Promise.resolve());
   const progressSyncQueueRef = useRef(Promise.resolve());
+  const youtubeSyncQueueRef = useRef(Promise.resolve());
   const pendingPlatformPayloadRef = useRef<{
     classes: ClassItem[];
     expenses: ExpenseItem[];
     settings: AppSettings;
     library: StoryItem[];
   } | null>(null);
-  const progressRef = useRef({ sessions, glossary, learnedWords });
+  const progressRef = useRef<ReadClubProgress>(createEmptyReadClubProgress());
   const pendingProgressRef = useRef<{
     userId: string;
-    progress: { sessions: ReadSession[]; glossary: Record<string, GlossaryEntry>; learnedWords: Record<number, string[]> };
+    progress: ReadClubProgress;
   } | null>(null);
+  const pendingYoutubeLibraryRef = useRef<YouTubeLibraryItem[] | null>(null);
 
   const queuePlatformSync = (payload: {
     classes: ClassItem[];
@@ -214,11 +239,30 @@ export default function App() {
       });
   };
 
+  const queueYoutubeLibrarySync = (nextLibrary: YouTubeLibraryItem[]) => {
+    pendingYoutubeLibraryRef.current = nextLibrary;
+    setCloudSaveStatus('saving');
+    youtubeSyncQueueRef.current = youtubeSyncQueueRef.current
+      .catch(() => undefined)
+      .then(() => syncSharedContentToSupabase('youtube_library', { youtube_library: nextLibrary }))
+      .then(() => {
+        if (pendingYoutubeLibraryRef.current === nextLibrary) {
+          pendingYoutubeLibraryRef.current = null;
+          if (!pendingPlatformPayloadRef.current && !pendingProgressRef.current) setCloudSaveStatus('saved');
+        }
+      })
+      .catch((error) => {
+        console.error('Brazilian Music library cloud save failed:', error);
+        setCloudSaveStatus('error');
+      });
+  };
+
   const retryPendingCloudSaves = () => {
     if (pendingPlatformPayloadRef.current) queuePlatformSync(pendingPlatformPayloadRef.current);
     if (pendingProgressRef.current) {
       queueProgressSync(pendingProgressRef.current.userId, pendingProgressRef.current.progress);
     }
+    if (pendingYoutubeLibraryRef.current) queueYoutubeLibrarySync(pendingYoutubeLibraryRef.current);
   };
 
   useEffect(() => {
@@ -261,7 +305,7 @@ export default function App() {
               return;
             }
             setCurrentUser(hydratedUser);
-            setCurrentApp('home');
+            setCurrentApp(getRequestedStartupApp());
           })
           .finally(() => setIsBooting(false));
       } catch (e) {
@@ -303,8 +347,62 @@ export default function App() {
     if (!currentUser) return;
 
     let cancelled = false;
+    const authUserId = currentUser.auth_user_id || currentUser.id;
+    setReadClubProgressUserId(null);
+    const emptyProgress = createEmptyReadClubProgress();
+    progressRef.current = emptyProgress;
+    setSessions(emptyProgress.sessions);
+    setGlossary(emptyProgress.glossary);
+    setLearnedWords(emptyProgress.learnedWords);
+
     const loadCloudContent = async () => {
       try {
+        let progress: {
+          sessions?: ReadSession[] | null;
+          glossary?: Record<string, GlossaryEntry> | null;
+          learned_words?: Record<number, string[]> | null;
+        } | null = null;
+        let progressLoadFailed = false;
+        try {
+          progress = await loadStudentProgressFromSupabase(authUserId);
+        } catch (error) {
+          progressLoadFailed = true;
+          console.error('Could not load this user’s Read Club progress:', error);
+        }
+        if (cancelled) return;
+
+        const progressCacheKey = getReadClubProgressCacheKey(authUserId);
+        let cachedProgress: ReadClubProgress | null = null;
+        const cachedProgressRaw = localStorage.getItem(progressCacheKey);
+        if (cachedProgressRaw) {
+          try {
+            const parsed = JSON.parse(cachedProgressRaw) as Partial<ReadClubProgress>;
+            cachedProgress = {
+              sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [],
+              glossary: parsed.glossary && typeof parsed.glossary === 'object' ? parsed.glossary : {},
+              learnedWords: parsed.learnedWords && typeof parsed.learnedWords === 'object' ? parsed.learnedWords : {},
+            };
+          } catch (error) {
+            console.warn('This user’s local Read Club progress cache is invalid:', error);
+          }
+        }
+
+        const nextProgress: ReadClubProgress = progress
+          ? {
+              sessions: progress.sessions || [],
+              glossary: progress.glossary || {},
+              learnedWords: progress.learned_words || {},
+            }
+          : cachedProgress || createEmptyReadClubProgress();
+        progressRef.current = nextProgress;
+        setSessions(nextProgress.sessions);
+        setGlossary(nextProgress.glossary);
+        setLearnedWords(nextProgress.learnedWords);
+        localStorage.setItem(progressCacheKey, JSON.stringify(nextProgress));
+        setReadClubProgressUserId(authUserId);
+        if (!progress && cachedProgress) queueProgressSync(authUserId, nextProgress);
+        if (progressLoadFailed) setCloudSaveStatus('error');
+
         const shared = await loadSharedContentFromSupabase<{
           classes?: ClassItem[];
           expenses?: ExpenseItem[];
@@ -363,48 +461,6 @@ export default function App() {
           });
         }
 
-        const authUserId = currentUser.auth_user_id || currentUser.id;
-        const progress = await loadStudentProgressFromSupabase(authUserId) as {
-          sessions?: ReadSession[];
-          glossary?: Record<string, GlossaryEntry>;
-          learned_words?: Record<number, string[]>;
-        } | null;
-        if (cancelled) return;
-
-        if (progress) {
-          const nextProgress = {
-            sessions: progress.sessions || [],
-            glossary: progress.glossary || {},
-            learnedWords: progress.learned_words || {},
-          };
-          progressRef.current = nextProgress;
-          setSessions(nextProgress.sessions);
-          setGlossary(nextProgress.glossary);
-          setLearnedWords(nextProgress.learnedWords);
-          localStorage.setItem('bia_readclub_sessions', JSON.stringify(nextProgress.sessions));
-          localStorage.setItem('bia_readclub_glossary', JSON.stringify(nextProgress.glossary));
-          localStorage.setItem('bia_readclub_learned', JSON.stringify(nextProgress.learnedWords));
-        } else {
-          const localProgress = {
-            sessions: JSON.parse(localStorage.getItem('bia_readclub_sessions') || '[]') as ReadSession[],
-            glossary: JSON.parse(localStorage.getItem('bia_readclub_glossary') || '{}') as Record<string, GlossaryEntry>,
-            learnedWords: JSON.parse(localStorage.getItem('bia_readclub_learned') || '{}') as Record<number, string[]>,
-          };
-          progressRef.current = localProgress;
-          queueProgressSync(authUserId, localProgress);
-        }
-
-        // Load YouTube Library from Supabase
-        try {
-          const youtubeData = await loadSharedContentFromSupabase<{ youtube_library?: unknown[] }>('youtube_library');
-          if (cancelled) return;
-          if (youtubeData?.youtube_library && Array.isArray(youtubeData.youtube_library)) {
-            setYoutubeLibrary(youtubeData.youtube_library);
-            localStorage.setItem('bia_youtube_library', JSON.stringify(youtubeData.youtube_library));
-          }
-        } catch (error) {
-          console.warn('YouTube library cloud load failed:', error);
-        }
       } catch (error) {
         console.error('Could not load cloud-saved platform data:', error);
         if (!cancelled) setCloudSaveStatus('error');
@@ -415,7 +471,57 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [currentUser?.id]);
+  }, [currentUser?.auth_user_id, currentUser?.id]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+
+    let cancelled = false;
+    setIsYoutubeLibraryLoaded(false);
+    const loadYoutubeLibrary = async () => {
+      let nextLibrary = DEFAULT_YOUTUBE_LIBRARY;
+      let shouldSaveLocalFallback = false;
+      try {
+        const shared = await loadSharedContentFromSupabase<{ youtube_library?: YouTubeLibraryItem[] }>('youtube_library');
+        if (cancelled) return;
+        if (shared && Array.isArray(shared.youtube_library)) {
+          nextLibrary = shared.youtube_library;
+        } else {
+          const cachedRaw = localStorage.getItem('bia_youtube_library');
+          if (cachedRaw) {
+            const cached: unknown = JSON.parse(cachedRaw);
+            if (!Array.isArray(cached)) throw new Error('A biblioteca local de músicas está inválida.');
+            nextLibrary = cached as YouTubeLibraryItem[];
+            shouldSaveLocalFallback = true;
+          }
+        }
+      } catch (error) {
+        console.error('Could not load the Brazilian Music library from Supabase:', error);
+        setCloudSaveStatus('error');
+        const cachedRaw = localStorage.getItem('bia_youtube_library');
+        if (cachedRaw) {
+          try {
+            const cached: unknown = JSON.parse(cachedRaw);
+            if (!Array.isArray(cached)) throw new Error('A biblioteca local de músicas está inválida.');
+            nextLibrary = cached as YouTubeLibraryItem[];
+          } catch (cacheError) {
+            console.error('Could not restore the local Brazilian Music library:', cacheError);
+          }
+        }
+      }
+
+      if (cancelled) return;
+      setYoutubeLibrary(nextLibrary);
+      localStorage.setItem('bia_youtube_library', JSON.stringify(nextLibrary));
+      setIsYoutubeLibraryLoaded(true);
+      if (shouldSaveLocalFallback) queueYoutubeLibrarySync(nextLibrary);
+    };
+
+    void loadYoutubeLibrary();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser?.auth_user_id, currentUser?.id]);
 
   // 1. Initial Load of Local Databases
   useEffect(() => {
@@ -471,20 +577,6 @@ export default function App() {
         localStorage.setItem('bia_readclub_library', JSON.stringify(INITIAL_READ_LIBRARY));
       }
 
-      const storedSessions = localStorage.getItem('bia_readclub_sessions');
-      if (storedSessions) {
-        setSessions(JSON.parse(storedSessions));
-      }
-
-      const storedGlossary = localStorage.getItem('bia_readclub_glossary');
-      if (storedGlossary) {
-        setGlossary(JSON.parse(storedGlossary));
-      }
-
-      const storedLearned = localStorage.getItem('bia_readclub_learned');
-      if (storedLearned) {
-        setLearnedWords(JSON.parse(storedLearned));
-      }
     } catch (e) {
       console.error('Error loading initial data:', e);
     }
@@ -548,41 +640,40 @@ export default function App() {
     localStorage.setItem('bia_readclub_library', JSON.stringify(next));
   };
 
-  const handleUpdateYouTubeLibrary = (next: unknown[]) => {
+  const handleUpdateYouTubeLibrary = (next: YouTubeLibraryItem[]) => {
     setYoutubeLibrary(next);
-    try {
-      const videoSyncPayload = { youtube_library: next, updated_at: new Date().toISOString() };
-      syncSharedContentToSupabase('youtube_library', videoSyncPayload).catch((error) => {
-        console.warn('YouTube library cloud sync failed:', error);
-      });
-    } catch (e) {
-      console.error('YouTube library sync error:', e);
-    }
     localStorage.setItem('bia_youtube_library', JSON.stringify(next));
+    queueYoutubeLibrarySync(next);
   };
 
   const handleUpdateSessions = (next: ReadSession[]) => {
+    const userId = currentUser?.auth_user_id || currentUser?.id;
+    if (!userId || readClubProgressUserId !== userId) return;
     setSessions(next);
     const updated = { ...progressRef.current, sessions: next };
     progressRef.current = updated;
-    if (currentUser) queueProgressSync(currentUser.auth_user_id || currentUser.id, updated);
-    localStorage.setItem('bia_readclub_sessions', JSON.stringify(next));
+    queueProgressSync(userId, updated);
+    localStorage.setItem(getReadClubProgressCacheKey(userId), JSON.stringify(updated));
   };
 
   const handleUpdateGlossary = (next: Record<string, GlossaryEntry>) => {
+    const userId = currentUser?.auth_user_id || currentUser?.id;
+    if (!userId || readClubProgressUserId !== userId) return;
     setGlossary(next);
     const updated = { ...progressRef.current, glossary: next };
     progressRef.current = updated;
-    if (currentUser) queueProgressSync(currentUser.auth_user_id || currentUser.id, updated);
-    localStorage.setItem('bia_readclub_glossary', JSON.stringify(next));
+    queueProgressSync(userId, updated);
+    localStorage.setItem(getReadClubProgressCacheKey(userId), JSON.stringify(updated));
   };
 
   const handleUpdateLearnedWords = (next: Record<number, string[]>) => {
+    const userId = currentUser?.auth_user_id || currentUser?.id;
+    if (!userId || readClubProgressUserId !== userId) return;
     setLearnedWords(next);
     const updated = { ...progressRef.current, learnedWords: next };
     progressRef.current = updated;
-    if (currentUser) queueProgressSync(currentUser.auth_user_id || currentUser.id, updated);
-    localStorage.setItem('bia_readclub_learned', JSON.stringify(next));
+    queueProgressSync(userId, updated);
+    localStorage.setItem(getReadClubProgressCacheKey(userId), JSON.stringify(updated));
   };
 
   // Class & Expense actions with immediate state reflection
@@ -808,8 +899,20 @@ export default function App() {
 
   const handleLogout = async () => {
     const client = getSupabaseClient();
-    if (client) await client.auth.signOut();
+    if (client) {
+      try {
+        await removeCurrentDevicePrivatePushSubscription();
+      } catch (error) {
+        console.error('Could not remove private push subscription during logout:', error);
+      }
+      await client.auth.signOut();
+    }
     localStorage.removeItem('bia_current_user');
+    setReadClubProgressUserId(null);
+    progressRef.current = createEmptyReadClubProgress();
+    setSessions([]);
+    setGlossary({});
+    setLearnedWords({});
     setCurrentUser(null);
     setIsAuthModalOpen(true);
   };
@@ -881,7 +984,7 @@ export default function App() {
     }
     setCurrentUser(hydrated);
     setIsAuthModalOpen(false);
-    setCurrentApp('home');
+    setCurrentApp(getRequestedStartupApp());
   };
 
   const handlePaymentSuccess = async () => {
@@ -890,6 +993,24 @@ export default function App() {
     if (verified.status !== 'active') return;
     setCurrentUser(verified);
     localStorage.setItem('bia_current_user', JSON.stringify(verified));
+  };
+
+  const handleStudentProfileSaved = (profile: UserProfile) => {
+    localStorage.setItem('bia_current_user', JSON.stringify(profile));
+    const usersRaw = localStorage.getItem('bia_users_database');
+    if (usersRaw) {
+      try {
+        const users = JSON.parse(usersRaw) as UserProfile[];
+        const userIndex = users.findIndex((user) => user.email.toLowerCase() === profile.email.toLowerCase());
+        if (userIndex >= 0) {
+          users[userIndex] = { ...users[userIndex], ...profile };
+          localStorage.setItem('bia_users_database', JSON.stringify(users));
+        }
+      } catch (error) {
+        console.error('Could not update the local user profile cache:', error);
+      }
+    }
+    setCurrentUser(profile);
   };
 
   const handleRealtimeSubscriptionUpdate = (subscription: { status: string; subscription_expires_at?: string | null }) => {
@@ -908,6 +1029,22 @@ export default function App() {
   const effectiveIsAdmin = isAdmin && !isStudentPreviewMode;
   const isStudent = currentUser?.role === 'student' || !isAdmin;
   const isSubscriptionActive = currentUser?.status === 'active' || isAdmin;
+  const needsStudentProfile = Boolean(
+    currentUser &&
+    isSubscriptionActive &&
+    !isAdmin &&
+    (
+      !currentUser.first_name?.trim() ||
+      !currentUser.last_name?.trim() ||
+      !currentUser.profile_state?.trim() ||
+      !currentUser.profile_city?.trim() ||
+      !currentUser.profile_country?.trim()
+    )
+  );
+  const activeReadClubUserId = currentUser?.auth_user_id || currentUser?.id || null;
+  const isReadClubProgressReady = Boolean(
+    activeReadClubUserId && readClubProgressUserId === activeReadClubUserId
+  );
 
   const lockHomeScroll = Boolean(currentUser && currentApp === 'home' && isSubscriptionActive);
 
@@ -1095,6 +1232,18 @@ export default function App() {
             onAuthSuccess={handleAuthSuccess}
           />
 
+          {currentUser && isSubscriptionActive && needsStudentProfile && (
+            <StudentProfileOnboarding user={currentUser} onSaved={handleStudentProfileSaved} />
+          )}
+
+          {currentUser && isSubscriptionActive && !isAdmin && !needsStudentProfile && (
+            <StudentFeedbackNotifications
+              user={currentUser}
+              isFeedbackOpen={currentApp === 'feedback'}
+              onOpenFeedback={() => setCurrentApp('feedback')}
+            />
+          )}
+
           {/* 2. PIX PAYMENT SCREEN (For Students with pending or expired subscriptions) */}
           {currentUser && isStudent && !isSubscriptionActive && (
             <PixPaymentScreen
@@ -1106,7 +1255,7 @@ export default function App() {
           )}
 
           {/* 3. PROTECTED PLATFORM CONTENT (Strictly Rendered only when authenticated & active) */}
-          {currentUser && isSubscriptionActive && (
+          {currentUser && isSubscriptionActive && !needsStudentProfile && (
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentApp}
@@ -1246,25 +1395,31 @@ export default function App() {
 
                   {/* STUDENT & ADMIN SHARED PRACTICAL TABS */}
                   {currentApp === 'readclub' && (isAdmin || perms.readclub) && (
-                    <ReadClub
-                      library={library}
-                      canManageLibrary={effectiveIsAdmin}
-                      onAddStory={handleAddStory}
-                      onUpdateStory={handleUpdateStory}
-                      onDeleteStory={handleDeleteStory}
-                      sessions={sessions}
-                      onSaveSession={handleSaveSession}
-                      onDeleteSession={handleDeleteSession}
-                      glossary={glossary}
-                      onAddGlossary={handleAddGlossary}
-                      onRemoveGlossary={handleRemoveGlossary}
-                      onClearGlossary={handleClearGlossary}
-                      learnedWords={learnedWords}
-                      onToggleLearnedWord={handleToggleLearnedWord}
-                      onUpdateLearnedWords={handleUpdateLearnedWords}
-                      heightClass="h-[calc(100dvh-7.5rem)] sm:h-[calc(100dvh-8rem)]"
-                      accentColor={settings.accentColor}
-                    />
+                    isReadClubProgressReady ? (
+                      <ReadClub
+                        library={library}
+                        canManageLibrary={effectiveIsAdmin}
+                        onAddStory={handleAddStory}
+                        onUpdateStory={handleUpdateStory}
+                        onDeleteStory={handleDeleteStory}
+                        sessions={sessions}
+                        onSaveSession={handleSaveSession}
+                        onDeleteSession={handleDeleteSession}
+                        glossary={glossary}
+                        onAddGlossary={handleAddGlossary}
+                        onRemoveGlossary={handleRemoveGlossary}
+                        onClearGlossary={handleClearGlossary}
+                        learnedWords={learnedWords}
+                        onToggleLearnedWord={handleToggleLearnedWord}
+                        onUpdateLearnedWords={handleUpdateLearnedWords}
+                        heightClass="h-[calc(100dvh-7.5rem)] sm:h-[calc(100dvh-8rem)]"
+                        accentColor={settings.accentColor}
+                      />
+                    ) : (
+                      <div className="flex h-[calc(100dvh-8rem)] items-center justify-center text-sm text-white/70">
+                        Carregando seu progresso individual...
+                      </div>
+                    )
                   )}
 
                   {currentApp === 'board' && (isAdmin || perms.board) && (
@@ -1292,7 +1447,16 @@ export default function App() {
                   )}
 
                   {currentApp === 'youtube' && (isAdmin || perms.youtube) && (
-                    <YouTubeHub accentColor={settings.accentColor} canEdit={effectiveIsAdmin} onLibraryUpdate={handleUpdateYouTubeLibrary} initialLibrary={youtubeLibrary as any} />
+                    isYoutubeLibraryLoaded
+                      ? (
+                        <YouTubeHub
+                          accentColor={settings.accentColor}
+                          canEdit={effectiveIsAdmin}
+                          onLibraryUpdate={handleUpdateYouTubeLibrary}
+                          initialLibrary={youtubeLibrary}
+                        />
+                      )
+                      : <div className="flex min-h-64 items-center justify-center text-sm text-white/70">Carregando Brazilian Music...</div>
                   )}
 
                   {currentApp === 'practice' && (isAdmin || perms.practice !== false) && (

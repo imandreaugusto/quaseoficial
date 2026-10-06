@@ -166,6 +166,11 @@ export interface UserProfile {
   email: string;
   password?: string;
   full_name?: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  profile_state?: string | null;
+  profile_city?: string | null;
+  profile_country?: string | null;
   photo_url?: string;
   status_message?: string;
   role: UserRole;

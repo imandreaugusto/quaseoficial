@@ -57,7 +57,11 @@ export const AdminFeedbackPanel: React.FC = () => {
       setFeedback((previous) => previous.map((record) => record.id === item.id
         ? { ...record, status: draft.status, admin_reply: draft.reply.trim() || null, updated_at: new Date().toISOString() }
         : record));
-      setMessage({ text: 'Status e resposta salvos.' });
+      setDrafts((previous) => ({
+        ...previous,
+        [item.id]: { ...draft, reply: '' },
+      }));
+      setMessage({ text: 'Resposta enviada e acompanhamento salvo.' });
     } catch (error) {
       console.error('Could not save the feedback response:', error);
       setMessage({

@@ -3,6 +3,7 @@ import path from 'path';
 import http from 'http';
 import { spawn } from 'child_process';
 import { WebSocketServer, WebSocket } from 'ws';
+import * as webPush from 'web-push';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type } from '@google/genai';
 import { randomUUID } from 'node:crypto';
@@ -24,6 +25,16 @@ async function startServer() {
   const app = express();
   const server = http.createServer(app);
   const PORT = Number(process.env.PORT) || 3000;
+  const webPushPublicKey = process.env.WEB_PUSH_PUBLIC_KEY || '';
+  const webPushPrivateKey = process.env.WEB_PUSH_PRIVATE_KEY || '';
+  const webPushConfigured = Boolean(webPushPublicKey && webPushPrivateKey);
+  if (webPushConfigured) {
+    webPush.setVapidDetails(
+      'https://brazilian-in-action-i036.onrender.com/',
+      webPushPublicKey,
+      webPushPrivateKey
+    );
+  }
 
   // Set up WebSocket server for direct RTMP streaming via FFmpeg
   const wss = new WebSocketServer({ server, path: '/api/rtmp-stream' });
@@ -170,7 +181,7 @@ async function startServer() {
     ipRegion: string | null;
     ipCity: string | null;
   }) => {
-    const select = 'id,auth_user_id,email,full_name,photo_url,role,status,data_expiracao,email_verified,permissions,ip_country,ip_region,ip_city,location_consent,created_at,updated_at';
+    const select = 'id,auth_user_id,email,full_name,first_name,last_name,profile_state,profile_city,profile_country,photo_url,role,status,data_expiracao,email_verified,permissions,ip_country,ip_region,ip_city,location_consent,created_at,updated_at';
     const findProfile = async (filter: string) => {
       const response = await supabaseServiceRequest(`profiles?${filter}&select=${select}&limit=1`);
       if (!response.ok) throw new Error(`Supabase profile lookup failed (${response.status}): ${await response.text()}`);
@@ -198,7 +209,7 @@ async function startServer() {
       auth_user_id: profileData.id,
       email: profileData.email,
       full_name: profileData.fullName || savedProfile?.full_name || profileData.email.split('@')[0],
-      photo_url: profileData.photoUrl || savedProfile?.photo_url || null,
+      photo_url: savedProfile?.photo_url || profileData.photoUrl || null,
       email_verified: true,
       location_consent: Boolean(savedProfile?.location_consent || profileData.locationConsent),
       ...(profileData.locationConsent ? {
@@ -420,7 +431,8 @@ async function startServer() {
       status: 'ok', 
       time: new Date().toISOString(),
       supabaseConfigured: Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY),
-      abatePayConfigured: Boolean(process.env.ABACATEPAY_API_KEY || process.env.ABATEPAY_TOKEN)
+      abatePayConfigured: Boolean(process.env.ABACATEPAY_API_KEY || process.env.ABATEPAY_TOKEN),
+      webPushConfigured
     });
   });
 
@@ -431,7 +443,8 @@ async function startServer() {
     return res.json({
       url: url?.replace(/\/$/, '') || null,
       anonKey: anonKey || null,
-      appUrl: process.env.PUBLIC_APP_URL || null
+      appUrl: process.env.PUBLIC_APP_URL || null,
+      webPushPublicKey: webPushConfigured ? webPushPublicKey : null
     });
   });
 
@@ -452,11 +465,27 @@ async function startServer() {
       const metadataName = typeof metadata.full_name === 'string'
         ? metadata.full_name
         : typeof metadata.name === 'string' ? metadata.name : '';
+      const savedProfileResponse = await supabaseServiceRequest(
+        `profiles?auth_user_id=eq.${encodeURIComponent(authUser.id)}&select=id,email,photo_url&limit=1`
+      );
+      if (!savedProfileResponse.ok) {
+        throw new Error(`Supabase profile lookup failed (${savedProfileResponse.status}): ${await savedProfileResponse.text()}`);
+      }
+      let existingProfile = (await savedProfileResponse.json() as Record<string, unknown>[])[0] || null;
+      if (!existingProfile) {
+        const emailProfileResponse = await supabaseServiceRequest(
+          `profiles?email=ilike.${encodeURIComponent(email)}&select=id,email,photo_url&limit=1`
+        );
+        if (!emailProfileResponse.ok) {
+          throw new Error(`Supabase profile lookup failed (${emailProfileResponse.status}): ${await emailProfileResponse.text()}`);
+        }
+        existingProfile = (await emailProfileResponse.json() as Record<string, unknown>[])[0] || null;
+      }
       const profilePayload = {
         p_id: authUser.id,
         p_email: email,
         p_full_name: submittedName || metadataName || null,
-        p_photo_url: metadata.avatar_url || metadata.picture || null,
+        p_photo_url: existingProfile?.photo_url || metadata.avatar_url || metadata.picture || null,
         p_location_consent: locationConsent,
         p_ip_country: locationConsent ? req.body?.ip_country || null : null,
         p_ip_region: locationConsent ? req.body?.ip_region || null : null,
@@ -495,6 +524,69 @@ async function startServer() {
   };
   app.post('/api/auth/profile', registerAuthenticatedProfile);
   app.post('/api/auth/google/profile', registerAuthenticatedProfile);
+
+  app.post('/api/auth/profile/details', async (req, res) => {
+    try {
+      const authUser = await getSupabaseUserFromRequest(req);
+      if (!authUser?.id || !authUser.email_confirmed_at) {
+        return res.status(401).json({ error: 'Confirme seu e-mail e entre novamente para salvar o perfil.' });
+      }
+      if (isRateLimited(`auth-profile-details:${authUser.id}`, 10, 60_000)) {
+        return res.status(429).json({ error: 'Muitas tentativas. Aguarde e tente novamente.' });
+      }
+
+      const fields = {
+        first_name: typeof req.body?.firstName === 'string' ? req.body.firstName.trim() : '',
+        last_name: typeof req.body?.lastName === 'string' ? req.body.lastName.trim() : '',
+        profile_state: typeof req.body?.state === 'string' ? req.body.state.trim() : '',
+        profile_city: typeof req.body?.city === 'string' ? req.body.city.trim() : '',
+        profile_country: typeof req.body?.country === 'string' ? req.body.country.trim() : ''
+      };
+      if (
+        !fields.first_name || fields.first_name.length > 80 ||
+        !fields.last_name || fields.last_name.length > 80 ||
+        !fields.profile_state || fields.profile_state.length > 100 ||
+        !fields.profile_city || fields.profile_city.length > 100 ||
+        !fields.profile_country || fields.profile_country.length > 100
+      ) {
+        return res.status(400).json({ error: 'Preencha nome, sobrenome, estado/região, cidade e país.' });
+      }
+
+      const photoUrl = typeof req.body?.photoUrl === 'string' ? req.body.photoUrl : null;
+      const validPhotoUrl = !photoUrl ||
+        (photoUrl.length <= 70_000 &&
+          (/^https:\/\/[^\s]+$/i.test(photoUrl) ||
+            /^data:image\/jpeg;base64,[A-Za-z0-9+/]+=*$/.test(photoUrl)));
+      if (!validPhotoUrl) {
+        return res.status(400).json({ error: 'A foto não é válida ou ficou grande demais. Escolha outra imagem.' });
+      }
+
+      const profileResponse = await supabaseServiceRequest('rpc/save_bia_student_profile', {
+        method: 'POST',
+        body: JSON.stringify({
+          p_auth_user_id: authUser.id,
+          p_first_name: fields.first_name,
+          p_last_name: fields.last_name,
+          p_profile_state: fields.profile_state,
+          p_profile_city: fields.profile_city,
+          p_profile_country: fields.profile_country,
+          p_photo_url: photoUrl
+        })
+      });
+      if (!profileResponse.ok) {
+        console.error('Student profile save failed:', profileResponse.status, await profileResponse.text());
+        return res.status(502).json({ error: 'Não foi possível salvar o perfil. Tente novamente em instantes.' });
+      }
+
+      const result = await profileResponse.json() as Record<string, unknown>[];
+      const profile = Array.isArray(result) ? result[0] : result;
+      if (!profile) return res.status(502).json({ error: 'O servidor não confirmou o perfil salvo.' });
+      return res.json({ profile });
+    } catch (error: any) {
+      console.error('Student profile save failed:', error.message);
+      return res.status(500).json({ error: 'Falha ao salvar o perfil. Tente novamente.' });
+    }
+  });
 
   app.get('/api/trial-coupons/:code', async (req, res) => {
     try {
@@ -840,7 +932,7 @@ async function startServer() {
     }
   });
 
-  const friendsProfileFields = 'id,full_name,photo_url,status_message';
+  const friendsProfileFields = 'id,full_name,photo_url,status_message,first_name,last_name,profile_state,profile_city,profile_country';
   const friendsMessageFields = 'id,sender_id,receiver_id,body,created_at,expires_at';
   const isFriendUserId = (value: unknown): value is string =>
     typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
@@ -912,6 +1004,84 @@ async function startServer() {
     } catch (error: any) {
       console.error('Brazilian Friends profiles endpoint failed:', error.message);
       return res.status(500).json({ error: 'Falha ao carregar os perfis do chat.' });
+    }
+  });
+
+  app.post('/api/friends/push-subscriptions', async (req, res) => {
+    try {
+      const authUser = await getSupabaseUserFromRequest(req);
+      if (!authUser?.id || !authUser.email_confirmed_at) {
+        return res.status(401).json({ error: 'Conecte sua conta para ativar notificações privadas.' });
+      }
+      if (!webPushConfigured) return res.status(503).json({ error: 'As notificações push ainda não estão configuradas no servidor.' });
+      if (isRateLimited(`friends-push-subscription:${authUser.id}`, 10, 60_000)) {
+        return res.status(429).json({ error: 'Muitas alterações de notificações. Aguarde um momento.' });
+      }
+
+      const endpoint = typeof req.body?.endpoint === 'string' ? req.body.endpoint.trim() : '';
+      const p256dh = typeof req.body?.keys?.p256dh === 'string' ? req.body.keys.p256dh : '';
+      const auth = typeof req.body?.keys?.auth === 'string' ? req.body.keys.auth : '';
+      let isSecureEndpoint = false;
+      try {
+        isSecureEndpoint = new URL(endpoint).protocol === 'https:';
+      } catch {
+        isSecureEndpoint = false;
+      }
+      if (!isSecureEndpoint || endpoint.length > 2048 || !p256dh || p256dh.length > 256 || !auth || auth.length > 256) {
+        return res.status(400).json({ error: 'Inscrição de notificações inválida.' });
+      }
+
+      const subscription: webPush.PushSubscription = {
+        endpoint,
+        expirationTime: typeof req.body?.expirationTime === 'number' ? req.body.expirationTime : null,
+        keys: { p256dh, auth }
+      };
+      const query = new URLSearchParams({ on_conflict: 'endpoint' });
+      const response = await supabaseServiceRequest(`brazilian_friends_push_subscriptions?${query.toString()}`, {
+        method: 'POST',
+        headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify({
+          user_id: authUser.id,
+          endpoint,
+          subscription,
+          updated_at: new Date().toISOString()
+        })
+      });
+      if (!response.ok) {
+        console.error('Brazilian Friends push subscription save failed:', response.status, await response.text());
+        return res.status(502).json({ error: 'Não foi possível ativar as notificações.' });
+      }
+      return res.json({ ok: true });
+    } catch (error: any) {
+      console.error('Brazilian Friends push subscription save failed:', error.message);
+      return res.status(500).json({ error: 'Falha ao ativar as notificações.' });
+    }
+  });
+
+  app.delete('/api/friends/push-subscriptions', async (req, res) => {
+    try {
+      const authUser = await getSupabaseUserFromRequest(req);
+      if (!authUser?.id || !authUser.email_confirmed_at) {
+        return res.status(401).json({ error: 'Conecte sua conta para alterar as notificações.' });
+      }
+      const endpoint = typeof req.body?.endpoint === 'string' ? req.body.endpoint.trim() : '';
+      if (!endpoint || endpoint.length > 2048) return res.status(400).json({ error: 'Inscrição de notificações inválida.' });
+
+      const query = new URLSearchParams({
+        user_id: `eq.${authUser.id}`,
+        endpoint: `eq.${endpoint}`
+      });
+      const response = await supabaseServiceRequest(`brazilian_friends_push_subscriptions?${query.toString()}`, {
+        method: 'DELETE'
+      });
+      if (!response.ok) {
+        console.error('Brazilian Friends push subscription deletion failed:', response.status, await response.text());
+        return res.status(502).json({ error: 'Não foi possível desativar as notificações.' });
+      }
+      return res.json({ ok: true });
+    } catch (error: any) {
+      console.error('Brazilian Friends push subscription deletion failed:', error.message);
+      return res.status(500).json({ error: 'Falha ao desativar as notificações.' });
     }
   });
 
@@ -1011,6 +1181,55 @@ async function startServer() {
         return res.status(502).json({ error: 'Não foi possível enviar a mensagem.' });
       }
       const messages = await messageResponse.json() as Record<string, unknown>[];
+
+      if (receiverId && webPushConfigured) {
+        try {
+          const query = new URLSearchParams({
+            select: 'endpoint,subscription',
+            user_id: `eq.${receiverId}`
+          });
+          const subscriptionsResponse = await supabaseServiceRequest(`brazilian_friends_push_subscriptions?${query.toString()}`);
+          if (!subscriptionsResponse.ok) {
+            console.error('Private message push lookup failed:', subscriptionsResponse.status, await subscriptionsResponse.text());
+          } else {
+            const subscriptions = await subscriptionsResponse.json() as {
+              endpoint: string;
+              subscription: webPush.PushSubscription;
+            }[];
+            const pushPayload = JSON.stringify({
+              title: 'Mensagem privada · Brazilian Friends',
+              body: 'Você recebeu uma nova mensagem privada.',
+              url: `/?open=friends&friend=${encodeURIComponent(authUser.id)}`
+            });
+            const deliveries = await Promise.allSettled(subscriptions.map(({ subscription }) =>
+              webPush.sendNotification(subscription, pushPayload, { TTL: 60, urgency: 'high' })
+            ));
+            const expiredEndpoints: string[] = [];
+            deliveries.forEach((delivery, index) => {
+              if (delivery.status === 'rejected') {
+                const failure = delivery.reason;
+                console.error('Private message push delivery failed:', failure);
+                if (failure instanceof webPush.WebPushError && [404, 410].includes(failure.statusCode)) {
+                  expiredEndpoints.push(subscriptions[index].endpoint);
+                }
+              }
+            });
+            if (expiredEndpoints.length > 0) {
+              const staleQuery = new URLSearchParams({ endpoint: `in.(${expiredEndpoints.join(',')})` });
+              const cleanupResponse = await supabaseServiceRequest(
+                `brazilian_friends_push_subscriptions?${staleQuery.toString()}`,
+                { method: 'DELETE' }
+              );
+              if (!cleanupResponse.ok) {
+                console.error('Expired private message push subscription cleanup failed:', cleanupResponse.status, await cleanupResponse.text());
+              }
+            }
+          }
+        } catch (pushError) {
+          console.error('Private message was saved, but push notification delivery failed:', pushError);
+        }
+      }
+
       return res.status(201).json({ message: messages[0] || null });
     } catch (error: any) {
       console.error('Brazilian Friends message endpoint failed:', error.message);

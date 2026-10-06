@@ -19,9 +19,13 @@ Se um deploy falhar, consulte os eventos e logs do servico no Render. As verific
 
 Para habilitar a sincronizacao global de aulas, biblioteca do Read Club/Brazilian Music e progresso individual dos alunos, execute uma vez o script [`supabase/enable_platform_autosave.sql`](./supabase/enable_platform_autosave.sql) no SQL Editor do projeto Supabase. O script permite leitura para usuarios autenticados e restringe alteracoes do conteudo compartilhado aos e-mails administrativos autorizados.
 
-Para receber feedback dos alunos, execute tambem [`supabase/enable_student_feedback.sql`](./supabase/enable_student_feedback.sql) no SQL Editor. Cada aluno pode ver apenas seus proprios envios; a leitura geral e as respostas ficam restritas aos administradores autorizados.
+Para receber feedback dos alunos, execute tambem [`supabase/enable_student_feedback.sql`](./supabase/enable_student_feedback.sql) no SQL Editor. Cada aluno pode ver apenas seus proprios envios; a leitura geral e as respostas ficam restritas aos administradores autorizados. O mesmo script habilita notificacoes individuais, sem som, quando uma resposta e enviada ou atualizada.
 
 Para atualizar os cupons de degustacao para dois dias e limitar cada conta a um unico resgate, execute [`supabase/trial_coupon_two_day_single_use.sql`](./supabase/trial_coupon_two_day_single_use.sql) no SQL Editor.
+
+Para habilitar o perfil persistente solicitado aos assinantes, execute uma vez [`supabase/student_onboarding_profile.sql`](./supabase/student_onboarding_profile.sql) no SQL Editor do Supabase.
+
+Para habilitar as notificacoes push privadas, execute [`supabase/brazilian_friends_push_notifications.sql`](./supabase/brazilian_friends_push_notifications.sql) e configure `WEB_PUSH_PUBLIC_KEY` e `WEB_PUSH_PRIVATE_KEY` nas variaveis do Render. Gere o par uma vez com `npx web-push generate-vapid-keys`; mantenha a chave privada somente no Render. Cada usuario precisa ativar as notificacoes pelo botao de sino do Brazilian Friends. No iPhone/iPad, Web Push requer adicionar o site a Tela de Inicio e permitir notificacoes; o som e a vibracao dependem das configuracoes do sistema.
 
 # Run and deploy your AI Studio app
 

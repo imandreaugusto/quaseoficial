@@ -6,7 +6,12 @@ create table if not exists profiles (
   auth_user_id text,
   email text not null unique,
   full_name text,
+  first_name text,
+  last_name text,
   photo_url text,
+  profile_state text,
+  profile_city text,
+  profile_country text,
   location_consent boolean not null default false,
   role text not null default 'student' check (role in ('student', 'admin')),
   status text not null default 'pending' check (status in ('pending', 'active', 'expired', 'trial')),
@@ -28,8 +33,13 @@ create table if not exists profiles (
 );
 
 alter table profiles add column if not exists full_name text;
+alter table profiles add column if not exists first_name text;
+alter table profiles add column if not exists last_name text;
 alter table profiles add column if not exists auth_user_id text;
 alter table profiles add column if not exists photo_url text;
+alter table profiles add column if not exists profile_state text;
+alter table profiles add column if not exists profile_city text;
+alter table profiles add column if not exists profile_country text;
 alter table profiles add column if not exists location_consent boolean not null default false;
 alter table profiles add column if not exists role text not null default 'student';
 alter table profiles add column if not exists status text not null default 'pending';

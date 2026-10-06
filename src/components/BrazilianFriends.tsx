@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { RealtimeChannel, Session } from '@supabase/supabase-js';
-import { ArrowLeft, Camera, ChevronDown, Info, MessageCircle, MessageCircleMore, Pin, PinOff, Send, Smile, Users, WifiOff, X } from 'lucide-react';
+import { ArrowLeft, Bell, BellOff, Camera, ChevronDown, Info, MessageCircle, MessageCircleMore, Pin, PinOff, Send, Smile, Users, WifiOff, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile } from '../types';
 import { BrazilianLogo } from './BrazilianLogo';
@@ -8,6 +8,7 @@ import { getSupabaseClient, getSupabaseConfig, signInWithGoogle } from '../utils
 import { CEO_EMAIL } from '../utils/security';
 import { apiFetch } from '../lib/api';
 import { playPrivateMessageSound } from '../lib/menuSounds';
+import { getCountryFlag, getCountryName } from '../utils/countries';
 
 const QUICK_EMOJIS = [
   '😀', '😂', '😍', '😊', '😉', '😎', '🥳', '😢',
@@ -28,6 +29,11 @@ interface FriendProfile {
   status_message?: string | null;
   ip_region?: string | null;
   ip_country?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  profile_state?: string | null;
+  profile_city?: string | null;
+  profile_country?: string | null;
 }
 
 interface FriendMessage {
@@ -75,27 +81,10 @@ interface PresencePayload {
 
 const PRESENCE_CHANNEL = 'online-users';
 
-const COUNTRY_CODES: Record<string, string> = {
-  argentina: 'AR', australia: 'AU', austria: 'AT', belgium: 'BE', bolivia: 'BO', brazil: 'BR', brasil: 'BR',
-  canada: 'CA', chile: 'CL', china: 'CN', colombia: 'CO', costa_rica: 'CR', croatia: 'HR', cuba: 'CU',
-  czechia: 'CZ', denmark: 'DK', ecuador: 'EC', egypt: 'EG', finland: 'FI', france: 'FR', germany: 'DE',
-  greece: 'GR', india: 'IN', indonesia: 'ID', ireland: 'IE', israel: 'IL', italy: 'IT', japan: 'JP',
-  mexico: 'MX', morocco: 'MA', netherlands: 'NL', new_zealand: 'NZ', nigeria: 'NG', norway: 'NO',
-  panama: 'PA', paraguay: 'PY', peru: 'PE', philippines: 'PH', poland: 'PL', portugal: 'PT', romania: 'RO',
-  russia: 'RU', south_africa: 'ZA', south_korea: 'KR', spain: 'ES', sweden: 'SE', switzerland: 'CH',
-  thailand: 'TH', turkey: 'TR', ukraine: 'UA', united_arab_emirates: 'AE', united_kingdom: 'GB',
-  united_states: 'US', uruguay: 'UY', venezuela: 'VE', vietnam: 'VN'
-};
-
-const normalizeCountry = (country?: string | null) =>
-  country?.trim().toLocaleLowerCase('en-US').replace(/[\s-]+/g, '_') || '';
-
-const getCountryFlag = (country?: string | null) => {
-  const normalized = country?.trim().toUpperCase() || '';
-  const code = /^[A-Z]{2}$/.test(normalized) ? normalized : COUNTRY_CODES[normalizeCountry(country)];
-  return code
-    ? String.fromCodePoint(...[...code].map((letter) => 127397 + letter.charCodeAt(0)))
-    : '🌐';
+const decodeVapidPublicKey = (encodedKey: string) => {
+  const base64 = encodedKey.replace(/-/g, '+').replace(/_/g, '/');
+  const raw = window.atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, '='));
+  return Uint8Array.from(raw, (character) => character.charCodeAt(0));
 };
 
 const formatLocation = (profile: Pick<FriendProfile, 'ip_region' | 'ip_country'>) =>
@@ -176,6 +165,10 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
   const [pinnedMessages, setPinnedMessages] = useState<PinnedMessage[]>([]);
   const [unreadPrivateBySender, setUnreadPrivateBySender] = useState<Record<string, number>>({});
   const [privateMessageToast, setPrivateMessageToast] = useState<PrivateMessageToast | null>(null);
+  const [pushSupported, setPushSupported] = useState(false);
+  const [pushConfigured, setPushConfigured] = useState(false);
+  const [pushSubscribed, setPushSubscribed] = useState(false);
+  const [isPushActionPending, setIsPushActionPending] = useState(false);
   const [draft, setDraft] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -239,7 +232,32 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
       setIsSessionReady(true);
     };
 
-    void client.auth.getSession().then(({ data }) => updateSession(data.session));
+    const restoreSession = async () => {
+      const { data, error } = await client.auth.getSession();
+      if (error) {
+        console.error('Could not restore Brazilian Friends authentication session:', error);
+        updateSession(null);
+        return;
+      }
+      if (data.session) {
+        updateSession(data.session);
+        return;
+      }
+      if (!currentUser.auth_user_id) {
+        updateSession(null);
+        return;
+      }
+
+      const { data: refreshedData, error: refreshError } = await client.auth.refreshSession();
+      if (refreshError) {
+        console.warn('Brazilian Friends has no restorable authentication session:', refreshError);
+      }
+      updateSession(refreshedData.session);
+    };
+    void restoreSession().catch((error) => {
+      console.error('Brazilian Friends session restoration failed:', error);
+      updateSession(null);
+    });
     const { data: listener } = client.auth.onAuthStateChange((_event, session) => updateSession(session));
 
     return () => {
@@ -247,6 +265,41 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
       listener.subscription.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    const supported = 'serviceWorker' in navigator &&
+      'PushManager' in window &&
+      'Notification' in window;
+    setPushSupported(supported);
+    if (!supported) return;
+
+    let cancelled = false;
+    void apiFetch('/api/public-config')
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Web Push public configuration request failed.');
+        return await response.json() as { webPushPublicKey?: string | null };
+      })
+      .then((config) => {
+        if (!cancelled) setPushConfigured(Boolean(config.webPushPublicKey));
+      })
+      .catch((error) => {
+        console.warn('Could not load Brazilian Friends push configuration:', error);
+      });
+    void navigator.serviceWorker.getRegistration('/')
+      .then((registration) => registration?.pushManager.getSubscription() || null)
+      .then((subscription) => {
+        const subscribedUserId = localStorage.getItem('bia_friends_push_user_id');
+        if (!cancelled) {
+          setPushSubscribed(Boolean(subscription && subscribedUserId === currentUser.auth_user_id));
+        }
+      })
+      .catch((error) => {
+        console.warn('Could not restore Brazilian Friends push subscription:', error);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser.auth_user_id]);
 
   useEffect(() => {
     activePrivateFriendRef.current = selectedFriendId;
@@ -344,7 +397,10 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
           senderId: latestMessage.sender_id,
           messageCount: newlyUnreadMessages.filter((message) => message.sender_id === latestMessage.sender_id).length
         });
-        playPrivateMessageSound();
+        if (!pushSubscribed) {
+          playPrivateMessageSound();
+          if (typeof navigator.vibrate === 'function') navigator.vibrate([120, 70, 120]);
+        }
       }
     };
 
@@ -354,7 +410,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
       cancelled = true;
       window.clearInterval(intervalId);
     };
-  }, [isSessionReady, socialUserId]);
+  }, [isSessionReady, pushSubscribed, socialUserId]);
 
   useEffect(() => {
     if (!privateMessageToast) return;
@@ -381,7 +437,19 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
   const profilePreview = profiles.find((profile) => profile.id === profilePreviewId) || null;
   const profilePreviewPresence = profilePreviewId ? onlineUsers[profilePreviewId] : undefined;
   const isProfilePreviewOnline = Boolean(profilePreviewPresence);
-  const profilePreviewDetails = profilePreviewPresence || profilePreview;
+  const profilePreviewDetails = profilePreview
+    ? { ...profilePreview, ...profilePreviewPresence }
+    : null;
+  const profilePreviewName = profilePreviewDetails
+    ? [profilePreviewDetails.first_name, profilePreviewDetails.last_name].filter(Boolean).join(' ') ||
+      profilePreviewDetails.full_name
+    : '';
+  const fallbackPreviewNameParts = profilePreview?.full_name.trim().split(/\s+/) || [];
+  const profilePreviewFirstName = profilePreviewDetails?.first_name || fallbackPreviewNameParts[0] || '';
+  const profilePreviewLastName = profilePreviewDetails?.last_name || fallbackPreviewNameParts.slice(1).join(' ');
+  const profilePreviewCountry = profilePreviewDetails?.profile_country || profilePreviewDetails?.ip_country || '';
+  const profilePreviewState = profilePreviewDetails?.profile_state || profilePreviewDetails?.ip_region || '';
+  const profilePreviewCity = profilePreviewDetails?.profile_city || '';
   const selectedFriendPresence = selectedFriendId ? onlineUsers[selectedFriendId] : undefined;
   const selectedFriendDetails = selectedFriendPresence || selectedFriend;
   const onlineFriends = useMemo(
@@ -486,6 +554,21 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
   }, [currentUser, isSessionReady, socialUserId]);
 
   useEffect(() => {
+    if (!socialUserId || profiles.length === 0) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('open') !== 'friends') return;
+    const senderId = params.get('friend');
+    if (!senderId || !profiles.some((profile) => profile.id === senderId)) return;
+
+    setSelectedFriendId(senderId);
+    params.delete('open');
+    params.delete('friend');
+    const remainingQuery = params.toString();
+    const nextUrl = `${window.location.pathname}${remainingQuery ? `?${remainingQuery}` : ''}${window.location.hash}`;
+    window.history.replaceState(window.history.state, '', nextUrl);
+  }, [profiles, socialUserId]);
+
+  useEffect(() => {
     const client = getSupabaseClient();
     if (!client) {
       setIsLoadingMessages(false);
@@ -584,12 +667,92 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
     if (isConnectingToChat) return;
     setError('');
     setIsConnectingToChat(true);
+    const client = getSupabaseClient();
+    if (client) {
+      const { data: sessionData, error: sessionError } = await client.auth.getSession();
+      if (sessionError) {
+        console.error('Could not restore Brazilian Friends authentication session:', sessionError);
+      } else if (sessionData.session?.user.id) {
+        setSessionUserId(sessionData.session.user.id);
+        setIsConnectingToChat(false);
+        return;
+      }
+    }
     const result = await signInWithGoogle();
     if (!result.ok) {
       setIsConnectingToChat(false);
       setError(result.reason === 'offline'
         ? 'O login para o chat não está disponível agora.'
         : result.message || 'Não foi possível iniciar o login para o chat.');
+    }
+  };
+
+  const handlePushSubscriptionToggle = async () => {
+    const client = getSupabaseClient();
+    if (!client || !socialUserId || isPushActionPending) return;
+    setError('');
+    setIsPushActionPending(true);
+    try {
+      if (pushSubscribed) {
+        const registration = await navigator.serviceWorker.register('/service-worker.js');
+        const subscription = await registration.pushManager.getSubscription();
+        if (subscription) {
+          const result = await requestFriendsApi(client, '/api/friends/push-subscriptions', {
+            method: 'DELETE',
+            body: JSON.stringify({ endpoint: subscription.endpoint })
+          });
+          if (result.error) throw new Error(result.error);
+          await subscription.unsubscribe();
+        }
+        setPushSubscribed(false);
+        localStorage.removeItem('bia_friends_push_user_id');
+        return;
+      }
+
+      if (
+        /iPhone|iPad|iPod/i.test(navigator.userAgent) &&
+        !window.matchMedia('(display-mode: standalone)').matches
+      ) {
+        throw new Error('No iPhone/iPad, adicione este site à Tela de Início antes de ativar o Web Push.');
+      }
+
+      const permission = Notification.permission === 'default'
+        ? await Notification.requestPermission()
+        : Notification.permission;
+      if (permission !== 'granted') {
+        throw new Error(permission === 'denied'
+          ? 'As notificações estão bloqueadas nas configurações deste navegador.'
+          : 'Permita as notificações para ativar os avisos privados.');
+      }
+
+      const registration = await navigator.serviceWorker.register('/service-worker.js');
+      const publicConfigResponse = await apiFetch('/api/public-config');
+      const publicConfig = await publicConfigResponse.json().catch(() => ({})) as { webPushPublicKey?: string | null };
+      if (!publicConfigResponse.ok || !publicConfig.webPushPublicKey) {
+        throw new Error('As notificações push ainda não foram configuradas no servidor.');
+      }
+
+      let subscription = await registration.pushManager.getSubscription();
+      if (!subscription) {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: decodeVapidPublicKey(publicConfig.webPushPublicKey)
+        });
+      }
+      const result = await requestFriendsApi(client, '/api/friends/push-subscriptions', {
+        method: 'POST',
+        body: JSON.stringify(subscription.toJSON())
+      });
+      if (result.error) {
+        await subscription.unsubscribe();
+        throw new Error(result.error);
+      }
+      setPushSubscribed(true);
+      localStorage.setItem('bia_friends_push_user_id', socialUserId);
+    } catch (pushError) {
+      setError(pushError instanceof Error ? pushError.message : 'Não foi possível alterar as notificações.');
+    } finally {
+      setIsPushActionPending(false);
     }
   };
 
@@ -834,6 +997,19 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
             </div>
 
             <div className="friends-header-actions">
+              {socialUserId && pushSupported && pushConfigured && (
+                <button
+                  type="button"
+                  className="friends-header-action-button friends-header-notifications"
+                  onClick={() => void handlePushSubscriptionToggle()}
+                  disabled={isPushActionPending || isLoading}
+                  aria-label={pushSubscribed ? 'Desativar notificações de mensagens privadas' : 'Ativar notificações de mensagens privadas'}
+                  title={pushSubscribed ? 'Desativar avisos de mensagens privadas' : 'Ativar avisos de mensagens privadas'}
+                >
+                  {pushSubscribed ? <BellOff size={15} /> : <Bell size={15} />}
+                  <span>{isPushActionPending ? 'Aguarde...' : pushSubscribed ? 'Avisos ativos' : 'Ativar avisos'}</span>
+                </button>
+              )}
               <a
                 href="https://chat.whatsapp.com/DGnejSTzsBKKN02aH0tU8A"
                 target="_blank"
@@ -941,7 +1117,20 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
                   className={`friends-message-row ${ownMessage ? 'friends-message-row-own' : ''}`}
                 >
                   <div className="friends-message-group">
-                    <div className="friends-message-meta"><strong>{senderName}</strong><span>{senderLocation}</span></div>
+                    <div className="friends-message-meta">
+                      {ownMessage
+                        ? <strong>{senderName}</strong>
+                        : (
+                          <button
+                            type="button"
+                            className="friends-message-profile-link"
+                            onClick={() => setProfilePreviewId(message.sender_id)}
+                          >
+                            {senderName}
+                          </button>
+                        )}
+                      <span>{senderLocation}</span>
+                    </div>
                     <div className={`friends-message-bubble ${ownMessage ? 'friends-message-bubble-own' : ''}`} style={ownMessage ? { '--bubble-accent': accentColor } as React.CSSProperties : undefined}>
                       <p>{message.body}</p>
                       {canManagePinnedMessages && !selectedFriend && <button type="button" className="friends-message-pin" onClick={() => void pinMessage(message.body)} aria-label="Fixar mensagem" title="Fixar mensagem"><Pin size={13} /></button>}
@@ -1043,14 +1232,24 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
               <X size={17} />
             </button>
             <div className="friends-profile-preview-avatar-wrap">
-              {renderAvatar(profilePreviewDetails?.full_name || profilePreview.full_name, profilePreviewDetails?.photo_url || profilePreview.photo_url, 'friends-profile-preview-avatar')}
+              {renderAvatar(profilePreviewName, profilePreviewDetails?.photo_url || profilePreview.photo_url, 'friends-profile-preview-avatar')}
               {isProfilePreviewOnline && <span className="friends-profile-preview-status" />}
             </div>
-            <h2 id="friends-profile-preview-name">{profilePreviewDetails?.full_name || profilePreview.full_name}</h2>
+            <h2 id="friends-profile-preview-name">{profilePreviewName}</h2>
             <p className="friends-profile-preview-location">
               <span className={`friends-list-status-dot ${isProfilePreviewOnline ? 'friends-list-status-online' : ''}`} />
-              {isProfilePreviewOnline ? 'Online' : 'Offline'} · {getCountryFlag(profilePreviewDetails?.ip_country)} {formatMobileLocation(profilePreviewDetails || profilePreview)}
+              {isProfilePreviewOnline ? 'Online' : 'Offline'}
             </p>
+            <dl className="friends-profile-preview-details">
+              <div><dt>Nome</dt><dd>{profilePreviewFirstName || 'Não informado'}</dd></div>
+              <div><dt>Sobrenome</dt><dd>{profilePreviewLastName || 'Não informado'}</dd></div>
+              <div><dt>Cidade</dt><dd>{profilePreviewCity || 'Não informada'}</dd></div>
+              <div><dt>Estado / região</dt><dd>{profilePreviewState || 'Não informado'}</dd></div>
+              <div>
+                <dt>País</dt>
+                <dd>{getCountryFlag(profilePreviewCountry)} {getCountryName(profilePreviewCountry) || 'Não informado'}</dd>
+              </div>
+            </dl>
             <p className="friends-profile-preview-bio">
               {profilePreviewDetails?.status_message || profilePreview.status_message || 'Ainda não adicionou uma descrição.'}
             </p>
@@ -1064,7 +1263,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
               }}
             >
               <MessageCircle size={16} />
-              <span>Message {profilePreviewDetails?.full_name || profilePreview.full_name}</span>
+              <span>Conversar no privado com {profilePreviewName}</span>
             </button>
           </section>
         </div>

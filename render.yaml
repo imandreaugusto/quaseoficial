@@ -13,6 +13,10 @@ services:
         value: https://brazilian-in-action-i036.onrender.com
       - key: PUBLIC_APP_URL
         value: https://brazilian-in-action-i036.onrender.com
+      - key: WEB_PUSH_PUBLIC_KEY
+        sync: false
+      - key: WEB_PUSH_PRIVATE_KEY
+        sync: false
       - key: ABATEPAY_TOKEN
         sync: false
       - key: ABACATEPAY_WEBHOOK_SECRET

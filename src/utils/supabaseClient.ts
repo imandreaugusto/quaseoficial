@@ -19,6 +19,7 @@ export interface StudentFeedbackRecord {
   };
   status: 'new' | 'reviewing' | 'answered';
   admin_reply: string | null;
+  student_reply_seen_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -135,6 +136,54 @@ export const registerAuthenticatedProfile = async (
 };
 
 export const registerGoogleProfile = registerAuthenticatedProfile;
+
+export const saveStudentOnboardingProfile = async (profile: {
+  firstName: string;
+  lastName: string;
+  state: string;
+  city: string;
+  country: string;
+  photoUrl: string | null;
+}): Promise<UserProfile> => {
+  const accessToken = await getAuthenticatedAccessToken();
+  const response = await apiFetch('/api/auth/profile/details', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`
+    },
+    body: JSON.stringify(profile)
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || !result.profile) {
+    throw new Error(result.error || 'Não foi possível salvar seu perfil.');
+  }
+  return result.profile as UserProfile;
+};
+
+export const removeCurrentDevicePrivatePushSubscription = async () => {
+  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
+  const registration = await navigator.serviceWorker.getRegistration('/');
+  const subscription = await registration?.pushManager.getSubscription();
+  if (!subscription) return;
+
+  try {
+    const accessToken = await getAuthenticatedAccessToken();
+    const response = await apiFetch('/api/friends/push-subscriptions', {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({ endpoint: subscription.endpoint })
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || 'Não foi possível desativar a inscrição push no servidor.');
+  } finally {
+    await subscription.unsubscribe();
+    localStorage.removeItem('bia_friends_push_user_id');
+  }
+};
 
 export const redeemAuthenticatedTrialCoupon = async (code: string) => {
   const accessToken = await getAuthenticatedAccessToken();
@@ -485,7 +534,7 @@ export const loadStudentFeedback = async () => {
 
   const { data, error } = await client
     .from('bia_student_feedback')
-    .select('id, auth_user_id, student_name, student_email, answers, status, admin_reply, created_at, updated_at')
+    .select('id, auth_user_id, student_name, student_email, answers, status, admin_reply, student_reply_seen_at, created_at, updated_at')
     .eq('auth_user_id', authData.user.id)
     .order('created_at', { ascending: false });
 
@@ -496,13 +545,29 @@ export const loadStudentFeedback = async () => {
   return (data || []) as StudentFeedbackRecord[];
 };
 
+export const markStudentFeedbackRepliesSeen = async (feedbackIds: string[]) => {
+  if (feedbackIds.length === 0) return [];
+  const client = getSupabaseClient();
+  if (!client) throw new Error('Supabase não está configurado para atualizar as notificações.');
+
+  const { data, error } = await client.rpc('mark_my_feedback_replies_seen', {
+    p_feedback_ids: feedbackIds
+  });
+  if (error) {
+    console.error('Student feedback notification acknowledgement failed:', error);
+    throw error;
+  }
+  return (data || []) as string[];
+};
+
+
 export const loadAllStudentFeedback = async () => {
   const client = getSupabaseClient();
   if (!client) throw new Error('Supabase não está configurado para carregar feedbacks.');
 
   const { data, error } = await client
     .from('bia_student_feedback')
-    .select('id, auth_user_id, student_name, student_email, answers, status, admin_reply, created_at, updated_at')
+    .select('id, auth_user_id, student_name, student_email, answers, status, admin_reply, student_reply_seen_at, created_at, updated_at')
     .order('created_at', { ascending: false });
 
   if (error) {
