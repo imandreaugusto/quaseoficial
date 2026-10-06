@@ -129,7 +129,7 @@ export function JitsiCallRoom({ roomName, displayName, onClose, onInvite }: Jits
           {isLoading && !error && (
             <div className="friends-call-loading">
               <Loader2 size={22} className="animate-spin" />
-              <span>Conectando à sala segura...</span>
+              <span>Conectando à videochamada...</span>
             </div>
           )}
           {error && <p className="friends-call-error" role="alert">{error}</p>}
