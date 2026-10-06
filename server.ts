@@ -992,6 +992,48 @@ async function startServer() {
     }
   };
 
+  app.post('/api/admin/updates-push', async (req, res) => {
+    try {
+      const authUser = await getSupabaseUserFromRequest(req);
+      const email = normalizeEmail(authUser?.email);
+      const authorizedEmails = [
+        CEO_EMAIL,
+        'brazilianinaction@gmail.com',
+        'brazilianinactionidiomas@gmail.com'
+      ];
+      if (!authUser?.id || !authUser.email_confirmed_at || !email || !authorizedEmails.includes(email)) {
+        return res.status(403).json({ error: 'Somente uma conta administrativa autorizada pode publicar avisos.' });
+      }
+      if (isRateLimited(`admin-updates-push:${authUser.id}`, 5, 5 * 60_000)) {
+        return res.status(429).json({ error: 'Muitos avisos enviados. Aguarde antes de publicar outro.' });
+      }
+      if (!webPushConfigured) {
+        return res.status(503).json({ error: 'As notificações para o telefone ainda não estão configuradas.' });
+      }
+
+      const title = typeof req.body?.title === 'string' ? req.body.title.trim().slice(0, 80) : '';
+      const body = typeof req.body?.body === 'string' ? req.body.body.trim().slice(0, 1200) : '';
+      if (!title || !body) return res.status(400).json({ error: 'O título e o texto do aviso são obrigatórios.' });
+
+      const response = await supabaseServiceRequest('brazilian_friends_push_subscriptions?select=user_id');
+      if (!response.ok) {
+        console.error('Platform update notification subscriber lookup failed:', response.status, await response.text());
+        return res.status(502).json({ error: 'Não foi possível localizar os dispositivos inscritos.' });
+      }
+      const subscriptions = await response.json() as { user_id: string }[];
+      const recipients = [...new Set(subscriptions.map((subscription) => subscription.user_id).filter(Boolean))];
+      await Promise.all(recipients.map((recipientId) => sendFriendsPushNotification(recipientId, {
+        title: `Brazilian in Action · ${title}`,
+        body,
+        url: '/'
+      })));
+      return res.json({ ok: true, recipientCount: recipients.length });
+    } catch (error) {
+      console.error('Platform update notification broadcast failed:', error);
+      return res.status(500).json({ error: 'Falha ao enviar notificações da plataforma.' });
+    }
+  });
+
   app.post('/api/friends/profile', async (req, res) => {
     try {
       const authUser = await getSupabaseUserFromRequest(req);

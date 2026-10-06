@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { RealtimeChannel, Session } from '@supabase/supabase-js';
+import type { Session } from '@supabase/supabase-js';
 import { ArrowLeft, Bell, BellOff, Camera, Check, ChevronDown, Info, Loader2, MessageCircle, MessageCircleMore, Pin, PinOff, Send, Smile, UserPlus, Users, Video, WifiOff, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile } from '../types';
@@ -87,8 +87,6 @@ interface PresencePayload {
   ip_region?: string | null;
   ip_country?: string | null;
 }
-
-const PRESENCE_CHANNEL = 'online-users';
 
 const decodeVapidPublicKey = (encodedKey: string) => {
   const base64 = encodedKey.replace(/-/g, '+').replace(/_/g, '/');
@@ -207,7 +205,6 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
     unreadIdsBySender: {},
     readAtBySender: {}
   });
-  const presenceChannelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
     const shell = friendsShellRef.current;
@@ -527,49 +524,23 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
         setProfiles((data || []) as FriendProfile[]);
       }
       setIsLoading(false);
-
-      const channel = client.channel(PRESENCE_CHANNEL, {
-        config: { presence: { key: socialUserId } }
-      });
-      presenceChannelRef.current = channel;
-
-      const updatePresence = () => {
-        const state = channel.presenceState<PresencePayload>();
-        const nextUsers: Record<string, PresencePayload> = {};
-        Object.values(state).flat().forEach((presence) => {
-          if (presence.user_id) nextUsers[presence.user_id] = presence;
-        });
-        setOnlineUsers(nextUsers);
-      };
-
-      channel
-        .on('presence', { event: 'sync' }, updatePresence)
-        .on('presence', { event: 'join' }, updatePresence)
-        .on('presence', { event: 'leave' }, updatePresence)
-        .subscribe(async (status) => {
-          if (status === 'SUBSCRIBED') {
-            await channel.track({
-              user_id: socialUserId,
-              full_name: profile.full_name,
-              photo_url: profile.photo_url,
-              status_message: profile.status_message,
-              ip_region: currentUser.location_consent ? currentUser.ip_region || null : null,
-              ip_country: currentUser.location_consent ? currentUser.ip_country || null : null
-            });
-            updatePresence();
-          }
-        });
     };
 
     void syncProfileAndPresence();
     return () => {
       cancelled = true;
-      if (presenceChannelRef.current) {
-        void client.removeChannel(presenceChannelRef.current);
-        presenceChannelRef.current = null;
-      }
     };
   }, [currentUser, isSessionReady, socialUserId]);
+
+  useEffect(() => {
+    const updatePresence = (event: Event) => {
+      const presenceEvent = event as CustomEvent<Record<string, PresencePayload>>;
+      setOnlineUsers(presenceEvent.detail || {});
+    };
+    window.addEventListener('brazilian-friends-presence', updatePresence);
+    window.dispatchEvent(new Event('brazilian-friends-presence-request'));
+    return () => window.removeEventListener('brazilian-friends-presence', updatePresence);
+  }, []);
 
   useEffect(() => {
     if (!socialUserId || profiles.length === 0) return;

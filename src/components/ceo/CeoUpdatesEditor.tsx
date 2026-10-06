@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { BellRing, Check, EyeOff, Loader2, Send, Sparkles } from 'lucide-react';
 import { loadUpdatesNotice, saveUpdatesNotice, UpdatesNotice } from '../../lib/updatesNotice';
+import { apiFetch } from '../../lib/api';
+import { getSupabaseClient } from '../../utils/supabaseClient';
 
 const GLASS = 'rounded-3xl border border-white/25 bg-slate-950/30 backdrop-blur-2xl shadow-[0_8px_40px_rgba(0,0,0,0.25)]';
 
@@ -21,15 +23,35 @@ export const CeoUpdatesEditor: React.FC = () => {
     });
   }, []);
 
-  const persist = async (notice: UpdatesNotice, successText: string) => {
+  const persist = async (notice: UpdatesNotice, successText: string, notifyPhones = false) => {
     setBusy(true);
     setMessage(null);
     try {
       await saveUpdatesNotice(notice);
       setCurrent(notice);
+      if (notifyPhones) {
+        const client = getSupabaseClient();
+        if (!client) throw new Error('O aviso foi publicado, mas o serviço de notificações não está disponível.');
+        const { data, error } = await client.auth.getSession();
+        if (error) throw error;
+        const accessToken = data.session?.access_token;
+        if (!accessToken) throw new Error('O aviso foi publicado, mas a sessão expirou antes do envio das notificações.');
+        const response = await apiFetch('/api/admin/updates-push', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+          body: JSON.stringify({ title: notice.title, body: notice.body })
+        });
+        if (!response.ok) {
+          const result = await response.json().catch(() => ({})) as { error?: string };
+          throw new Error(result.error || 'O aviso foi publicado, mas não foi possível notificar os telefones.');
+        }
+      }
       setMessage({ type: 'success', text: successText });
-    } catch {
-      setMessage({ type: 'error', text: 'Não foi possível salvar agora. Confira a conexão e tente de novo.' });
+    } catch (error) {
+      setMessage({
+        type: 'error',
+        text: error instanceof Error ? error.message : 'Não foi possível salvar agora. Confira a conexão e tente de novo.'
+      });
     } finally {
       setBusy(false);
     }
@@ -38,7 +60,8 @@ export const CeoUpdatesEditor: React.FC = () => {
   const publish = () =>
     persist(
       { id: `new-${Date.now()}`, title: title.trim(), body: body.trim(), publishedAt: new Date().toISOString(), active: true },
-      'Publicado! O selo NEW aparece para cada assinante nas 2 próximas visitas.'
+      'Publicado! O aviso aparece na plataforma e foi enviado aos dispositivos inscritos.',
+      true
     );
 
   const unpublish = () => (current ? persist({ ...current, active: false }, 'Aviso despublicado. O selo NEW não aparece mais.') : Promise.resolve());
@@ -51,7 +74,7 @@ export const CeoUpdatesEditor: React.FC = () => {
           <h2 className="text-lg font-extrabold text-white">Novidades da plataforma</h2>
         </div>
         <p className="text-xs leading-relaxed text-white/65">
-          Escreva as atualizações, novos menus e o que vem por aí. Cada assinante vê o selo NEW na Home nas 2 primeiras visitas depois de você publicar e pode fechar quando quiser.
+          Escreva as atualizações, novos menus e o que vem por aí. O aviso é exibido na plataforma e enviado aos dispositivos que ativaram as notificações; o selo NEW continua disponível na Home.
         </p>
         <label className="block">
           <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-white/60">Título</span>

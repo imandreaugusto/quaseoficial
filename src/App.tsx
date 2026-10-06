@@ -21,6 +21,7 @@ import { AdminSettings } from './components/AdminSettings';
 import { AdminFeedbackPanel } from './components/AdminFeedbackPanel';
 import { StudentFeedback } from './components/StudentFeedback';
 import { StudentFeedbackNotifications } from './components/StudentFeedbackNotifications';
+import { BrazilianFriendsGlobalStatus } from './components/BrazilianFriendsGlobalStatus';
 import { AuthModal } from './components/AuthModal';
 import { PixPaymentScreen } from './components/PixPaymentScreen';
 import { StudentProfileOnboarding } from './components/StudentProfileOnboarding';
@@ -1321,6 +1322,22 @@ export default function App() {
 
           {currentUser && isSubscriptionActive && needsStudentProfile && (
             <StudentProfileOnboarding user={currentUser} onSaved={handleStudentProfileSaved} />
+          )}
+
+          {currentUser && isSubscriptionActive && !needsStudentProfile && (
+            <BrazilianFriendsGlobalStatus
+              user={currentUser}
+              currentApp={currentApp}
+              onOpenFriends={(friendId) => {
+                const url = new URL(window.location.href);
+                url.searchParams.set('open', 'friends');
+                if (friendId) url.searchParams.set('friend', friendId);
+                else url.searchParams.delete('friend');
+                window.history.replaceState({}, '', url);
+                setCurrentApp('brazilianfriends');
+              }}
+              onOpenHome={() => setCurrentApp('home')}
+            />
           )}
 
           {currentUser && isSubscriptionActive && !isAdmin && !needsStudentProfile && (
