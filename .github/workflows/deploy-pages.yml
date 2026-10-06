@@ -1,4 +1,4 @@
-name: Deploy site de demonstracao
+name: Validar projeto
 
 on:
   push:
@@ -7,19 +7,10 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: true
 
 jobs:
-  build-and-deploy:
+  validate:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Baixar codigo
         uses: actions/checkout@v4
@@ -43,19 +34,4 @@ jobs:
         run: npm run test:games
 
       - name: Gerar site
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: npm run build:client
-
-      - name: Configurar GitHub Pages
-        uses: actions/configure-pages@v5
-
-      - name: Preparar artefato
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
-
-      - name: Publicar
-        id: deployment
-        uses: actions/deploy-pages@v4

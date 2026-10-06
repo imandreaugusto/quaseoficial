@@ -4,16 +4,16 @@
 
 # Brazilian in Action
 
-Aplicativo React + Vite + TypeScript com API Node/Express, publicado em GitHub Pages e Render.
+Aplicativo React + Vite + TypeScript com API Node/Express, publicado no Render. O codigo-fonte e mantido no GitHub.
 
 ## Publicacao automatica
 
-- Cada push em `main` executa `.github/workflows/deploy-pages.yml`: instala dependencias, verifica TypeScript, executa os testes e publica o frontend no GitHub Pages.
-- O `render.yaml` configura o servico `brazilian-in-action` para atualizar a API no Render depois que as verificacoes do commit passarem.
-- Para manter a publicacao automatica, o servico Render deve permanecer conectado ao repositorio `imandreaugusto/quaseoficial`, branch `main`, e o GitHub Pages deve continuar habilitado para o workflow.
-- As chaves do GitHub Actions ficam nos Secrets do repositorio; as credenciais da API ficam nas variaveis de ambiente do Render. Nunca versione arquivos `.env`.
+- Cada push em `main` executa `.github/workflows/deploy-pages.yml` para validar TypeScript, testes e build; esse workflow nao publica no GitHub Pages.
+- O `render.yaml` configura o servico `brazilian-in-action` para publicar cada commit da branch `main`, sem aguardar verificacoes do GitHub Actions.
+- O endereco oficial do aplicativo e https://brazilian-in-action-i036.onrender.com/.
+- O servico Render precisa permanecer conectado ao repositorio `imandreaugusto/quaseoficial`, branch `main`, e sincronizado com o `render.yaml`. As credenciais da API ficam nas variaveis de ambiente do Render. Nunca versione arquivos `.env`.
 
-Se um deploy falhar, consulte a execucao mais recente na aba **Actions** do GitHub e os eventos do servico no Render antes de tentar novamente.
+Se um deploy falhar, consulte os eventos e logs do servico no Render. As verificacoes do GitHub Actions sao independentes e nao bloqueiam a publicacao no Render.
 
 ## Salvamento automatico entre dispositivos
 

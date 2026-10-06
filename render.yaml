@@ -2,7 +2,7 @@ services:
   - type: web
     name: brazilian-in-action
     runtime: node
-    autoDeployTrigger: checksPass
+    autoDeployTrigger: commit
     buildCommand: npm ci && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
@@ -12,7 +12,7 @@ services:
       - key: API_PUBLIC_URL
         value: https://brazilian-in-action-i036.onrender.com
       - key: PUBLIC_APP_URL
-        value: https://imandreaugusto.github.io/quaseoficial/
+        value: https://brazilian-in-action-i036.onrender.com
       - key: ABATEPAY_TOKEN
         sync: false
       - key: ABACATEPAY_WEBHOOK_SECRET
