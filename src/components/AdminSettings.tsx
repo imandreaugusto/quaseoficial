@@ -572,21 +572,28 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
     }
   };
 
-  // Share Coupon Link directly to WhatsApp
-  const handleShareCouponWhatsApp = (coupon: TrialCoupon) => {
+  const getCouponInvitationMessage = (coupon: TrialCoupon) => {
     const origin = window.location.origin + window.location.pathname;
     const link = `${origin}?promo=${coupon.code}`;
-    const message = `Olá! Aqui está seu link exclusivo de *${coupon.days} dias gratuitos* na plataforma Brazilian in Action:\n\n${link}\n\nSeu código promocional único: *${coupon.code}*\n(Código de uso pessoal e individual). Aproveite!`;
+    return `Olá! Você recebeu um convite exclusivo para experimentar o Brazilian in Action por *${coupon.days} dias grátis* 🎁\n\n🔑 *CÓDIGO DO CUPOM (uso pessoal):*\n*${coupon.code}*\n\n👉 *Toque no link para resgatar:*\n${link}\n\nO código acima é individual. Aproveite!`;
+  };
+
+  // Share the same clearly labeled coupon invitation through either channel.
+  const handleShareCouponWhatsApp = (coupon: TrialCoupon) => {
+    const message = getCouponInvitationMessage(coupon);
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`, '_blank');
   };
 
-  // Copy Coupon Link
-  const handleCopyCouponLink = (coupon: TrialCoupon) => {
-    const origin = window.location.origin + window.location.pathname;
-    const link = `${origin}?promo=${coupon.code}`;
-    navigator.clipboard.writeText(link);
-    setCopiedCouponId(coupon.id);
-    setTimeout(() => setCopiedCouponId(null), 2000);
+  const handleCopyCouponInvitation = async (coupon: TrialCoupon) => {
+    try {
+      await navigator.clipboard.writeText(getCouponInvitationMessage(coupon));
+      setCopiedCouponId(coupon.id);
+      setCouponManagementMessage({ text: 'Convite completo copiado, incluindo o código do cupom.', type: 'success' });
+      window.setTimeout(() => setCopiedCouponId(null), 2500);
+    } catch (error) {
+      console.error('Could not copy coupon invitation:', error);
+      setCouponManagementMessage({ text: 'Não foi possível copiar o convite. Tente novamente neste navegador.', type: 'error' });
+    }
   };
 
   // Feature Flipping toggle for an individual student
@@ -2161,15 +2168,15 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                               <span className="hidden sm:inline">Enviar no WhatsApp</span>
                             </button>
 
-                            {/* Copy Link */}
+                            {/* Copy the full invitation for sharing in any channel */}
                             <button
                               type="button"
-                              onClick={() => handleCopyCouponLink(coupon)}
+                              onClick={() => void handleCopyCouponInvitation(coupon)}
                               className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer border border-white/10"
-                              title="Copiar Link de Convite"
+                              title="Copiar convite completo com o código do cupom"
                             >
                               {isCopied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
-                              <span>{isCopied ? 'Link Copiado!' : 'Copiar Link'}</span>
+                              <span>{isCopied ? 'Convite Copiado!' : 'Copiar Convite'}</span>
                             </button>
                           </>
                         )}
