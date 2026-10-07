@@ -75,6 +75,7 @@ const NavButton: React.FC<{
 }> = ({ item, isActive, accentColor, onClick }) => {
   const btnRef = useRef<HTMLButtonElement | null>(null);
   const iconRef = useRef<HTMLSpanElement | null>(null);
+  const isPlatformBrand = item.label.startsWith('Brazilian ') || item.label === 'Read Club' || item.label === 'BIA Compare';
 
   // 1. Ao passar o mouse: toca o som e aciona o GSAP
   const handleMouseEnter = () => {
@@ -173,11 +174,12 @@ const NavButton: React.FC<{
         />
       </span>
       <span
-        className="text-sm tracking-wide flex-1 text-left font-semibold menu-cinematic-text"
+        className={`text-sm tracking-wide flex-1 text-left font-semibold menu-cinematic-text ${isPlatformBrand ? 'notranslate' : ''}`}
         style={{
           color: isActive ? '#ffffff' : 'rgba(255,255,255,0.82)',
           fontWeight: isActive ? 800 : 600,
         }}
+        translate={isPlatformBrand ? 'no' : undefined}
       >
         {item.label}
       </span>

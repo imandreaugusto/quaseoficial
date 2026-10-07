@@ -1,17 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
-import { Loader2, UserPlus, X } from 'lucide-react';
+import { Loader2, X } from 'lucide-react';
+import gsap from 'gsap';
 
 interface JitsiApiInstance {
-  addEventListener: (event: string, listener: () => void) => void;
+  addEventListener: (event: string, listener: (...args: unknown[]) => void) => void;
   dispose: () => void;
 }
 
 interface JitsiCallRoomProps {
   roomName: string;
   displayName: string;
+  remoteName: string;
   onClose: () => void;
   onJoined: (roomName: string) => void;
-  onInvite: () => void;
 }
 
 declare global {
@@ -51,10 +52,14 @@ const loadJitsiApi = () => new Promise<void>((resolve, reject) => {
   script.addEventListener('error', () => reject(new Error('Não foi possível carregar a chamada de vídeo.')), { once: true });
 });
 
-export function JitsiCallRoom({ roomName, displayName, onClose, onJoined, onInvite }: JitsiCallRoomProps) {
+export function JitsiCallRoom({ roomName, displayName, remoteName, onClose, onJoined }: JitsiCallRoomProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
+  const windowRef = useRef<HTMLElement>(null);
   const onJoinedRef = useRef(onJoined);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasJoined, setHasJoined] = useState(false);
+  const [hasRemoteJoined, setHasRemoteJoined] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -62,8 +67,27 @@ export function JitsiCallRoom({ roomName, displayName, onClose, onJoined, onInvi
   }, [onJoined]);
 
   useEffect(() => {
+    const backdrop = backdropRef.current;
+    const callWindow = windowRef.current;
+    if (!backdrop || !callWindow) return;
+
+    const context = gsap.context(() => {
+      gsap.fromTo(backdrop, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.25, ease: 'power2.out' });
+      gsap.fromTo(callWindow, { autoAlpha: 0, scale: 0.96, y: 14 }, {
+        autoAlpha: 1,
+        scale: 1,
+        y: 0,
+        duration: 0.38,
+        ease: 'power3.out'
+      });
+    }, backdrop);
+    return () => context.revert();
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     let api: JitsiApiInstance | null = null;
+    let connectionTimeoutId: number | undefined;
 
     void loadJitsiApi()
       .then(() => {
@@ -98,12 +122,21 @@ export function JitsiCallRoom({ roomName, displayName, onClose, onJoined, onInvi
           },
         });
         api.addEventListener('videoConferenceJoined', () => {
+          window.clearTimeout(connectionTimeoutId);
+          setHasJoined(true);
           setIsLoading(false);
+          setError('');
           onJoinedRef.current(roomName);
         });
+        api.addEventListener('participantJoined', () => setHasRemoteJoined(true));
         api.addEventListener('readyToClose', onClose);
         api.addEventListener('videoConferenceLeft', onClose);
-        setIsLoading(false);
+        connectionTimeoutId = window.setTimeout(() => {
+          if (!cancelled) {
+            setError('A chamada está demorando para conectar. Verifique sua conexão e tente novamente.');
+            setIsLoading(false);
+          }
+        }, 30_000);
       })
       .catch((loadError: unknown) => {
         if (!cancelled) {
@@ -114,23 +147,20 @@ export function JitsiCallRoom({ roomName, displayName, onClose, onJoined, onInvi
 
     return () => {
       cancelled = true;
+      window.clearTimeout(connectionTimeoutId);
       api?.dispose();
     };
   }, [displayName, onClose, roomName]);
 
   return (
-    <div className="friends-call-backdrop" role="dialog" aria-modal="true" aria-label="Videochamada do Brazilian Friends">
-      <section className="friends-call-window">
+    <div ref={backdropRef} className="friends-call-backdrop" role="dialog" aria-modal="true" aria-label="Videochamada do Brazilian Friends">
+      <section ref={windowRef} className="friends-call-window">
         <header className="friends-call-header">
           <div>
-            <strong>Ligação privada · Brazilian Friends</strong>
-            <span>Só participa quem receber um convite. A chamada não é gravada.</span>
+            <strong>{remoteName}</strong>
+            <span>{error ? 'Não foi possível conectar' : hasRemoteJoined ? 'Conectado' : hasJoined ? 'Chamando...' : 'Conectando...'}</span>
           </div>
           <div className="friends-call-actions">
-            <button type="button" onClick={onInvite} className="friends-call-invite" aria-label="Convidar colega para a chamada">
-              <UserPlus size={16} />
-              <span>Convidar mais amigos</span>
-            </button>
             <button type="button" onClick={onClose} className="friends-call-close" aria-label="Encerrar chamada">
               <X size={17} />
             </button>

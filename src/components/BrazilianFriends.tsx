@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { ArrowLeft, Bell, BellOff, Camera, Check, ChevronDown, Info, Loader2, MessageCircle, MessageCircleMore, Pin, PinOff, Send, Smile, UserPlus, Users, Video, WifiOff, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import gsap from 'gsap';
 import { UserProfile } from '../types';
 import { BrazilianLogo } from './BrazilianLogo';
 import { getSupabaseClient, getSupabaseConfig, signInWithGoogle } from '../utils/supabaseClient';
@@ -178,6 +179,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
   const [isPushActionPending, setIsPushActionPending] = useState(false);
   const [incomingCallInvitations, setIncomingCallInvitations] = useState<CallInvitation[]>([]);
   const [activeCallRoom, setActiveCallRoom] = useState<string | null>(null);
+  const [activeCallPeerName, setActiveCallPeerName] = useState('');
   const [activeCallInvitees, setActiveCallInvitees] = useState<string[]>([]);
   const [isCallInviteDialogOpen, setIsCallInviteDialogOpen] = useState(false);
   const [selectedCallInvitees, setSelectedCallInvitees] = useState<string[]>([]);
@@ -199,6 +201,9 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
   const shouldStickToBottomRef = useRef(true);
   const activePrivateFriendRef = useRef<string | null>(null);
   const pendingCallInviteeRef = useRef<string | null>(null);
+  const incomingCallRef = useRef<HTMLDivElement>(null);
+  const profilesRef = useRef(profiles);
+  profilesRef.current = profiles;
   const privateNotificationStateRef = useRef<PrivateNotificationState>({
     userId: '',
     cursor: '',
@@ -426,6 +431,31 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
       window.clearInterval(intervalId);
     };
   }, [isSessionReady, socialUserId]);
+
+  useEffect(() => {
+    const incomingCall = incomingCallRef.current;
+    if (!incomingCall) return;
+
+    const context = gsap.context(() => {
+      gsap.fromTo(incomingCall, { autoAlpha: 0, scale: 0.92, y: 18 }, {
+        autoAlpha: 1,
+        scale: 1,
+        y: 0,
+        duration: 0.35,
+        ease: 'power3.out'
+      });
+      gsap.fromTo('[data-call-ring]', { scale: 0.72, autoAlpha: 0.65 }, {
+        scale: 1.5,
+        autoAlpha: 0,
+        duration: 1.6,
+        stagger: 0.55,
+        repeat: -1,
+        ease: 'power1.out'
+      });
+    }, incomingCall);
+
+    return () => context.revert();
+  }, [incomingCallInvitations[0]?.id]);
 
   useEffect(() => {
     if (!privateMessageToast) return;
@@ -755,6 +785,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
     setError('');
     setIsCallActionPending(true);
     pendingCallInviteeRef.current = selectedFriendId;
+    setActiveCallPeerName(profiles.find((profile) => profile.id === selectedFriendId)?.full_name || 'Chamada privada');
     setActiveCallRoom(`brazilian-friends-${crypto.randomUUID()}`);
   };
 
@@ -817,8 +848,12 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
       }
       setSelectedFriendId(result.data.invitation.inviter_id);
       setActiveCallInvitees([result.data.invitation.inviter_id]);
+      setActiveCallPeerName(profilesRef.current.find((profile) => profile.id === result.data?.invitation.inviter_id)?.full_name || 'Chamada privada');
       setActiveCallRoom(result.data.invitation.room_name);
       setIncomingCallInvitations((current) => current.filter((item) => item.id !== invitation.id));
+      const url = new URL(window.location.href);
+      url.searchParams.delete('callInvite');
+      window.history.replaceState(window.history.state, '', url);
     } finally {
       setIsCallActionPending(false);
     }
@@ -840,6 +875,9 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
         return;
       }
       setIncomingCallInvitations((current) => current.filter((item) => item.id !== invitation.id));
+      const url = new URL(window.location.href);
+      url.searchParams.delete('callInvite');
+      window.history.replaceState(window.history.state, '', url);
     } finally {
       setIsCallActionPending(false);
     }
@@ -855,6 +893,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
     pendingCallInviteeRef.current = null;
     setIsCallActionPending(false);
     setActiveCallRoom(null);
+    setActiveCallPeerName('');
   }, []);
   const openCallInviteDialog = useCallback(() => {
     setSelectedCallInvitees([]);
@@ -875,10 +914,24 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
         '/api/friends/call-invitations'
       );
       if (cancelled || result.error || !result.data) return;
-      setIncomingCallInvitations(result.data.invitations || []);
+      const requestedInvitationId = new URLSearchParams(window.location.search).get('callInvite');
+      const requestedCallAction = new URLSearchParams(window.location.search).get('callAction');
+      const invitations = result.data.invitations || [];
+      setIncomingCallInvitations(requestedInvitationId
+        ? [...invitations].sort((a, b) => Number(b.id === requestedInvitationId) - Number(a.id === requestedInvitationId))
+        : invitations);
+      const requestedInvitation = invitations.find((invitation) => invitation.id === requestedInvitationId);
+      if (requestedInvitation && (requestedCallAction === 'accept' || requestedCallAction === 'decline')) {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('callInvite');
+        url.searchParams.delete('callAction');
+        window.history.replaceState(window.history.state, '', url);
+        if (requestedCallAction === 'accept') void handleAcceptCallInvitation(requestedInvitation);
+        else void handleDeclineCallInvitation(requestedInvitation);
+      }
     };
     void loadInvitations();
-    const pollingId = window.setInterval(() => void loadInvitations(), 15_000);
+    const pollingId = window.setInterval(() => void loadInvitations(), 5_000);
     return () => {
       cancelled = true;
       window.clearInterval(pollingId);
@@ -1033,7 +1086,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
       <div className="friends-people-heading">
         <BrazilianLogo size="sm" variant="full" showText={false} className="friends-official-logo" />
         <div>
-          <p className="friends-brand-name">Brazilian Friends</p>
+          <p className="friends-brand-name notranslate" translate="no">Brazilian Friends</p>
           <p className="friends-brand-subtitle">Connect · Chat · Make Friends</p>
         </div>
         {mobile && <button type="button" className="friends-icon-button" onClick={() => setIsPeopleDrawerOpen(false)} aria-label="Close people list"><X size={17} /></button>}
@@ -1185,7 +1238,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
                 aria-label={activeCallRoom ? 'Adicionar colegas à chamada' : `Iniciar videochamada com ${selectedFriend.full_name}`}
               >
                 {isCallActionPending ? <Loader2 size={15} className="animate-spin" /> : activeCallRoom ? <UserPlus size={15} /> : <Video size={15} />}
-                <span>{activeCallRoom ? 'Convidar' : 'Vídeo'}</span>
+                <span>{activeCallRoom ? 'Convidar' : 'Ligar'}</span>
               </button>
             )}
             {!selectedFriend && <button type="button" className="friends-online-trigger" onClick={() => socialUserId ? setIsPeopleDrawerOpen(true) : void handleFriendsSignIn()} disabled={!isSessionReady || isConnectingToChat} aria-label={totalUnreadPrivateCount ? `${onlineFriends.length} pessoas online, ${totalUnreadPrivateCount} mensagens privadas não lidas` : `${onlineFriends.length} pessoas online`}><Users size={16} /><span>{socialUserId ? `${onlineFriends.length} people online` : isConnectingToChat ? 'Abrindo Google...' : 'Conectar para ficar online'}</span>{totalUnreadPrivateCount > 0 && <span className="friends-private-total-badge">{totalUnreadPrivateCount > 9 ? '9+' : totalUnreadPrivateCount}</span>}<ChevronDown size={14} /></button>}
@@ -1234,37 +1287,59 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
           </AnimatePresence>
 
           {incomingCallInvitations[0] && (
-            <motion.aside
+            <section
+              ref={incomingCallRef}
               className="friends-call-incoming"
-              role="status"
-              aria-live="polite"
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="friends-call-incoming-name"
             >
-              <Video size={17} />
-              <p>
-                <strong>{profiles.find((profile) => profile.id === incomingCallInvitations[0].inviter_id)?.full_name || 'Um colega'}</strong>
-                {' convidou você para uma videochamada.'}
-              </p>
-              <button
-                type="button"
-                className="friends-call-accept"
-                onClick={() => void handleAcceptCallInvitation(incomingCallInvitations[0])}
-                disabled={isCallActionPending}
-              >
-                {isCallActionPending ? <Loader2 size={14} className="animate-spin" /> : <Video size={14} />}
-                Aceitar
-              </button>
-              <button
-                type="button"
-                className="friends-call-decline"
-                onClick={() => void handleDeclineCallInvitation(incomingCallInvitations[0])}
-                disabled={isCallActionPending}
-                aria-label="Recusar convite de videochamada"
-              >
-                <X size={15} />
-              </button>
-            </motion.aside>
+              {(() => {
+                const caller = profiles.find((profile) => profile.id === incomingCallInvitations[0].inviter_id);
+                const callerName = caller?.full_name || 'Um colega';
+                return (
+                  <>
+                    <button
+                      type="button"
+                      className="friends-call-incoming-dismiss"
+                      onClick={() => void handleDeclineCallInvitation(incomingCallInvitations[0])}
+                      disabled={isCallActionPending}
+                      aria-label="Recusar chamada"
+                    >
+                      <X size={19} />
+                    </button>
+                    <div className="friends-call-avatar-wrap" aria-hidden="true">
+                      <span data-call-ring />
+                      <span data-call-ring />
+                      {renderAvatar(callerName, caller?.photo_url, 'friends-call-avatar')}
+                    </div>
+                    <p className="friends-call-incoming-status">CHAMADA DE VÍDEO</p>
+                    <h2 id="friends-call-incoming-name">{callerName}</h2>
+                    <p className="friends-call-incoming-copy">está ligando para você</p>
+                    <div className="friends-call-incoming-actions">
+                      <button
+                        type="button"
+                        className="friends-call-decline"
+                        onClick={() => void handleDeclineCallInvitation(incomingCallInvitations[0])}
+                        disabled={isCallActionPending}
+                      >
+                        <X size={20} />
+                        <span>Recusar</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="friends-call-accept"
+                        onClick={() => void handleAcceptCallInvitation(incomingCallInvitations[0])}
+                        disabled={isCallActionPending}
+                      >
+                        {isCallActionPending ? <Loader2 size={20} className="animate-spin" /> : <Video size={20} />}
+                        <span>Atender</span>
+                      </button>
+                    </div>
+                  </>
+                );
+              })()}
+            </section>
           )}
 
           {!selectedFriend && pinnedMessages.length > 0 && (
@@ -1420,9 +1495,9 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
         <JitsiCallRoom
           roomName={activeCallRoom}
           displayName={publicName}
+          remoteName={activeCallPeerName}
           onClose={closeActiveCall}
           onJoined={handleCallRoomJoined}
-          onInvite={openCallInviteDialog}
         />
       )}
       {isCallInviteDialogOpen && activeCallRoom && (

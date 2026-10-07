@@ -138,7 +138,7 @@ export const BrazilianLogo: React.FC<BrazilianLogoProps> = ({
       {renderIconicB()}
 
       {/* Brand Typography (BRAZILIAN IN ACTION) */}
-      <div className="flex flex-col justify-center leading-none tracking-tight">
+      <div className="flex flex-col justify-center leading-none tracking-tight notranslate" translate="no">
         {/* Upper Line: BRAZILIAN */}
         <div className="flex items-center gap-1">
           <span

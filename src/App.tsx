@@ -1207,7 +1207,7 @@ export default function App() {
         >
           <div className="h-14 w-14 rounded-full border border-white/20 border-t-amber-400 animate-spin" />
           <div>
-            <p className="text-[11px] uppercase tracking-[0.35em] text-white/60 menu-cinematic-text">Brazilian in Action</p>
+            <p className="text-[11px] uppercase tracking-[0.35em] text-white/60 menu-cinematic-text notranslate" translate="no">Brazilian in Action</p>
             <p className="mt-2 text-sm text-white/40">Preparing your learning space...</p>
           </div>
         </motion.div>
@@ -1560,7 +1560,7 @@ export default function App() {
                           initialLibrary={youtubeLibrary}
                         />
                       )
-                      : <div className="flex min-h-64 items-center justify-center text-sm text-white/70">Carregando Brazilian Music...</div>
+                      : <div className="flex min-h-64 items-center justify-center text-sm text-white/70">Carregando <span className="notranslate" translate="no">Brazilian Music</span>...</div>
                   )}
 
                   {currentApp === 'practice' && (isAdmin || perms.practice !== false) && (

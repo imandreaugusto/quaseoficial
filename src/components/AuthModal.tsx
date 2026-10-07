@@ -453,6 +453,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           onClick={handleEasterEggClick}
           className="cursor-pointer select-none mb-3 flex flex-col items-center group transition-transform active:scale-95 text-center relative"
           title="Brazilian in Action"
+          translate="no"
         >
           <div className="relative mb-2">
             <div className="p-2.5 rounded-3xl bg-transparent flex items-center justify-center group-hover:scale-105 transition-all">
@@ -680,7 +681,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             }`}
           >
             {loading ? (
-              <span className="animate-pulse">Brazilian in Action...</span>
+              <span className="animate-pulse"><span className="notranslate" translate="no">Brazilian in Action</span>...</span>
             ) : isSignUp ? (
               couponState.status === 'valid' ? (
                 <>

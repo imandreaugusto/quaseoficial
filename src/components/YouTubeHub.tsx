@@ -644,12 +644,12 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                 <div>
                   <div className="flex items-center gap-2 mb-0.5">
                     <span className="text-[10px] font-mono font-medium text-red-400 uppercase tracking-wider">
-                      Brazilian Music & Vídeos
+                      <span className="notranslate" translate="no">Brazilian Music</span> & Vídeos
                     </span>
                     <span className="text-[10px] font-mono text-white/40 hidden sm:inline">• @brazilianinaction</span>
                   </div>
                   <h1 className="text-lg md:text-xl font-bold text-white tracking-tight">
-                    Brazilian Music • Player, Letras & Tradução Bilíngue
+                    <span className="notranslate" translate="no">Brazilian Music</span> • Player, Letras & Tradução Bilíngue
                   </h1>
                 </div>
               </div>
@@ -706,7 +706,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
         <div className="flex items-center justify-between bg-neutral-900/60 border border-white/10 rounded-xl px-4 py-2">
           <div className="flex items-center gap-2 text-xs text-white/70 font-mono">
             <Youtube size={15} className="text-red-500" />
-            <span className="font-semibold text-white">Brazilian Music & Biblioteca</span>
+            <span className="font-semibold text-white"><span className="notranslate" translate="no">Brazilian Music</span> & Biblioteca</span>
           </div>
           <button
             type="button"

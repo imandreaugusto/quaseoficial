@@ -942,7 +942,14 @@ async function startServer() {
 
   const sendFriendsPushNotification = async (
     recipientId: string,
-    payload: { title: string; body: string; url: string }
+    payload: {
+      title: string;
+      body: string;
+      url: string;
+      tag?: string;
+      requireInteraction?: boolean;
+      actions?: { action: string; title: string }[];
+    }
   ) => {
     if (!webPushConfigured) return;
 
@@ -1275,11 +1282,32 @@ async function startServer() {
         invitee_id: string;
         room_name: string;
       }[];
+      const inviterQuery = new URLSearchParams({
+        select: 'full_name',
+        id: `eq.${authUser.id}`,
+        limit: '1'
+      });
+      const inviterResponse = await supabaseServiceRequest(
+        `brazilian_friends_users?${inviterQuery.toString()}`
+      );
+      let inviterName = authUser.email?.split('@')[0] || 'Um colega';
+      if (inviterResponse.ok) {
+        const inviterProfiles = await inviterResponse.json() as { full_name?: string | null }[];
+        inviterName = inviterProfiles[0]?.full_name?.trim().slice(0, 80) || inviterName;
+      } else {
+        console.error('Brazilian Friends call inviter lookup failed:', inviterResponse.status, await inviterResponse.text());
+      }
 
       await Promise.all(invitations.map((invitation) => sendFriendsPushNotification(invitation.invitee_id, {
         title: 'Convite para videochamada',
-        body: 'Um colega convidou você para uma chamada no Brazilian Friends.',
-        url: `/?open=friends&callInvite=${encodeURIComponent(invitation.id)}`
+        body: `${inviterName} está ligando para você.`,
+        url: `/?open=friends&callInvite=${encodeURIComponent(invitation.id)}`,
+        tag: `brazilian-friends-call-${invitation.id}`,
+        requireInteraction: true,
+        actions: [
+          { action: 'accept', title: 'Atender' },
+          { action: 'decline', title: 'Recusar' }
+        ]
       })));
 
       return res.status(201).json({

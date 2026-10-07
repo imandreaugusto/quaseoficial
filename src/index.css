@@ -334,13 +334,21 @@ input, textarea, select {
 .friends-private-toast-open { padding: 0.35rem 0.45rem; border-radius: 0.5rem; font-size: 0.65rem; font-weight: 700; }
 .friends-private-toast-open:hover, .friends-private-toast-close:hover { color: white; background: rgba(255, 255, 255, 0.1); }
 .friends-private-toast-close { width: 1.5rem; height: 1.5rem; border-radius: 0.45rem; }
-.friends-call-incoming { position: absolute; top: 8.4rem; right: clamp(0.75rem, 2vw, 1.5rem); z-index: 6; display: flex; max-width: min(31rem, calc(100% - 1.5rem)); align-items: center; gap: 0.65rem; padding: 0.7rem 0.8rem; border: 1px solid rgba(103, 180, 255, 0.35); border-radius: 0.9rem; color: rgba(244, 250, 255, 0.94); background: rgba(11, 28, 54, 0.96); box-shadow: 0 10px 28px rgba(0, 0, 0, 0.32); backdrop-filter: blur(16px); }
-.friends-call-incoming > svg { flex: 0 0 auto; color: #8ec7ff; }
-.friends-call-incoming p { min-width: 0; flex: 1; margin: 0; font-size: 0.7rem; line-height: 1.4; }
-.friends-call-incoming p strong { color: white; }
-.friends-call-accept, .friends-call-decline { display: inline-flex; min-height: 2rem; flex: 0 0 auto; align-items: center; justify-content: center; gap: 0.35rem; border: 0; border-radius: 0.6rem; cursor: pointer; }
-.friends-call-accept { padding: 0 0.65rem; color: #081b25; background: #89d5ca; font-size: 0.67rem; font-weight: 700; }
-.friends-call-decline { width: 2rem; color: rgba(236, 244, 255, 0.78); background: rgba(255, 255, 255, 0.08); }
+.friends-call-incoming { position: fixed; inset: 0; z-index: calc(var(--layer-auth) + 20); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.7rem; overflow: hidden; padding: max(2rem, env(safe-area-inset-top)) max(1.25rem, env(safe-area-inset-right)) max(2rem, env(safe-area-inset-bottom)) max(1.25rem, env(safe-area-inset-left)); color: white; text-align: center; background: radial-gradient(ellipse at 50% 42%, rgba(31, 71, 121, 0.78), rgba(8, 15, 34, 0.98) 62%); }
+.friends-call-incoming-dismiss { position: absolute; top: max(1rem, env(safe-area-inset-top)); right: max(1rem, env(safe-area-inset-right)); display: grid; width: 2.75rem; height: 2.75rem; place-items: center; border: 1px solid rgba(255,255,255,0.12); border-radius: 50%; color: rgba(255,255,255,0.72); background: rgba(255,255,255,0.08); cursor: pointer; }
+.friends-call-avatar-wrap { position: relative; display: grid; width: 7rem; height: 7rem; place-items: center; margin-bottom: 1.2rem; }
+.friends-call-avatar-wrap [data-call-ring] { position: absolute; inset: 0; border: 1px solid rgba(132, 202, 255, 0.62); border-radius: 50%; pointer-events: none; }
+.friends-call-avatar { position: relative; z-index: 1; display: grid !important; width: 5.25rem !important; height: 5.25rem !important; place-items: center; overflow: hidden; border: 2px solid rgba(255,255,255,0.8); border-radius: 50%; color: white; font-size: 1.35rem !important; box-shadow: 0 0 40px rgba(85, 165, 255, 0.4); }
+.friends-call-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.friends-call-incoming-status { margin: 0; color: #9acaff; font-size: 0.68rem; font-weight: 750; letter-spacing: 0.2em; }
+.friends-call-incoming h2 { max-width: min(90vw, 30rem); margin: 0; overflow: hidden; font-size: clamp(1.8rem, 6vw, 2.6rem); font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.friends-call-incoming-copy { margin: 0; color: rgba(225,235,255,0.64); font-size: 0.9rem; }
+.friends-call-incoming-actions { display: flex; align-items: center; justify-content: center; gap: clamp(3rem, 16vw, 7rem); margin-top: clamp(3rem, 12vh, 6rem); }
+.friends-call-accept, .friends-call-decline { display: flex; min-width: 4.75rem; flex-direction: column; align-items: center; gap: 0.65rem; border: 0; color: white; background: transparent; font: inherit; font-size: 0.72rem; font-weight: 650; cursor: pointer; }
+.friends-call-accept > svg, .friends-call-decline > svg { display: grid; width: 4rem; height: 4rem; padding: 1.15rem; border-radius: 50%; box-shadow: 0 10px 28px rgba(0,0,0,0.3); }
+.friends-call-accept > svg { color: white; background: #26bd68; }
+.friends-call-decline > svg { color: white; background: #f04452; }
+.friends-call-incoming-actions button:disabled, .friends-call-incoming-dismiss:disabled { cursor: wait; opacity: 0.65; }
 .friends-call-accept:disabled, .friends-call-decline:disabled { cursor: wait; opacity: 0.55; }
 .friends-pinned-message { display: flex; align-items: flex-start; gap: 0.55rem; padding: 0.65rem 0.75rem; border: 1px solid rgba(255, 209, 102, 0.4); border-radius: 0.7rem; color: #fff2c9; background: rgba(136, 96, 22, 0.28); font-size: 0.72rem; }
 .friends-pinned-message p { flex: 1; margin: 0; overflow-wrap: anywhere; line-height: 1.35; }
@@ -481,8 +489,7 @@ input, textarea, select {
   .friends-call-header span { max-width: 14rem; font-size: 0.56rem; }
   .friends-call-invite { min-height: 2rem; padding-inline: 0.5rem; font-size: 0.6rem; }
   .friends-call-close { width: 2rem; min-height: 2rem; }
-  .friends-call-incoming { top: 4.5rem; right: 0.5rem; gap: 0.45rem; padding: 0.55rem; }
-  .friends-call-incoming p { font-size: 0.64rem; }
+  .friends-call-incoming { gap: 0.65rem; }
   .friends-profile-preview { position: relative; display: flex; width: min(100%, 32rem); max-height: min(78dvh, 42rem); flex-direction: column; align-items: center; gap: 0.7rem; overflow-y: auto; padding: 2.1rem 1.4rem calc(1.25rem + env(safe-area-inset-bottom)); border: 1px solid rgba(218,229,255,0.24); border-bottom: 0; border-radius: 1.5rem 1.5rem 0 0; color: white; text-align: center; background: linear-gradient(150deg, rgba(18,34,73,0.94), rgba(21,19,47,0.96) 62%, rgba(26,28,51,0.96)); box-shadow: 0 -18px 60px rgba(1,5,21,0.55); backdrop-filter: blur(24px); }
   .friends-profile-preview-close { position: absolute; top: 0.65rem; right: 0.7rem; }
   .friends-profile-preview-avatar-wrap { position: relative; display: grid; place-items: center; margin-bottom: 0.3rem; }
