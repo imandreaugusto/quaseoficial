@@ -439,9 +439,9 @@ export const BrazilianStories: React.FC<BrazilianStoriesProps> = ({
                   </div>
                   <div className="space-y-1 p-4">
                     <span className="inline-block rounded-full border border-white/20 bg-white/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white/70">{CATEGORY_LABELS[story.category] || 'Story'}</span>
-                    <h3 className="text-sm font-bold leading-snug text-white">{story.title}</h3>
+                    <h3 className="notranslate text-sm font-bold leading-snug text-white" translate="no">{story.title}</h3>
                     <p className="text-xs text-white/65">
-                      {story.studentName}
+                      <span className="notranslate" translate="no">{story.studentName}</span>
                       {story.instagramHandle && <span className="ml-1.5 font-mono text-fuchsia-200">{story.instagramHandle}</span>}
                     </p>
                     <a href={story.videoUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-violet-200 hover:text-white"><Instagram size={11} /> Ver no Instagram</a>
@@ -457,7 +457,7 @@ export const BrazilianStories: React.FC<BrazilianStoriesProps> = ({
               <ul className="divide-y divide-white/10">
                 {myStories.map((story) => (
                   <li key={story.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
-                    <span className="truncate text-white/85">{story.title} <span className="text-xs text-white/45">· {formatDate(story.createdAt)}</span></span>
+                    <span className="truncate text-white/85"><span className="notranslate" translate="no">{story.title}</span> <span className="text-xs text-white/45">· {formatDate(story.createdAt)}</span></span>
                     <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${STATUS_CLASSES[story.status]}`}>{STATUS_LABELS[story.status]}</span>
                   </li>
                 ))}
@@ -703,8 +703,8 @@ export const BrazilianStories: React.FC<BrazilianStoriesProps> = ({
             stories.map((story) => (
               <div key={story.id} className="flex flex-col gap-4 rounded-2xl border border-white/20 bg-white/[0.08] p-4 backdrop-blur-xl sm:flex-row sm:items-center">
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-bold text-white">{story.studentName} {story.instagramHandle && <span className="ml-1 font-mono text-xs text-fuchsia-200">{story.instagramHandle}</span>}</p>
-                  <p className="mt-0.5 text-xs text-white/65">{story.title} · {formatDate(story.createdAt)}{story.promptUsed && !story.videoUrl ? ` · ${story.promptUsed}` : ''}</p>
+                  <p className="text-sm font-bold text-white"><span className="notranslate" translate="no">{story.studentName}</span> {story.instagramHandle && <span className="notranslate ml-1 font-mono text-xs text-fuchsia-200" translate="no">{story.instagramHandle}</span>}</p>
+                  <p className="mt-0.5 text-xs text-white/65"><span className="notranslate" translate="no">{story.title}</span> · {formatDate(story.createdAt)}{story.promptUsed && !story.videoUrl && <> · <span className="notranslate" translate="no">{story.promptUsed}</span></>}</p>
                   {story.videoUrl && <a href={story.videoUrl} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-violet-200 hover:text-white"><Instagram size={11} /> Abrir no Instagram</a>}
                   <span className={`mt-2 block w-fit rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${story.videoUrl ? STATUS_CLASSES[story.status] : 'border-white/20 bg-white/10 text-white/60'}`}>{story.videoUrl ? STATUS_LABELS[story.status] : 'Registro'}</span>
                 </div>

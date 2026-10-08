@@ -26,7 +26,10 @@ import {
   Globe,
   Instagram,
   Gamepad2,
-  MessageSquareText
+  MessageSquareText,
+  Download,
+  Share,
+  Plus
 } from 'lucide-react';
 import { UserProfile, GlobalAppConfig } from '../types';
 import { BrazilianLogo } from './BrazilianLogo';
@@ -66,6 +69,15 @@ type NavItem = {
   label: string;
   icon: React.ComponentType<{ size?: number; style?: React.CSSProperties; className?: string }>;
 };
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+}
+
+const isAppInstalled = () =>
+  window.matchMedia('(display-mode: standalone)').matches ||
+  ('standalone' in navigator && Boolean((navigator as Navigator & { standalone?: boolean }).standalone));
 
 const NavButton: React.FC<{
   item: NavItem;
@@ -223,6 +235,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onToggleStudentPreview
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isIosInstallAvailable, setIsIosInstallAvailable] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(false);
+  const [showInstallHelp, setShowInstallHelp] = useState(false);
+  const [installError, setInstallError] = useState('');
   const [appConfig, setAppConfig] = useState<GlobalAppConfig>({
     studentAppOrder: ['home', 'brazilianfriends', 'stories', 'practice', 'readclub', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube'],
     adminAppOrder: ['home', 'work', 'brazilianfriends', 'stories', 'practice', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'settings'],
@@ -240,6 +257,34 @@ export const Sidebar: React.FC<SidebarProps> = ({
       youtube: true
     }
   });
+
+  useEffect(() => {
+    const updateInstalledState = () => setIsInstalled(isAppInstalled());
+    const handleBeforeInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      setInstallPrompt(event as BeforeInstallPromptEvent);
+    };
+    const handleAppInstalled = () => {
+      setIsInstalled(true);
+      setInstallPrompt(null);
+    };
+    const isIosDevice =
+      /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const standaloneQuery = window.matchMedia('(display-mode: standalone)');
+
+    updateInstalledState();
+    setIsIosInstallAvailable(isIosDevice && !isAppInstalled());
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+    standaloneQuery.addEventListener('change', updateInstalledState);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+      standaloneQuery.removeEventListener('change', updateInstalledState);
+    };
+  }, []);
 
   // Load custom app order and maintenance states from storage
   useEffect(() => {
@@ -335,6 +380,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
     setIsOpen(false);
   };
 
+  const handleInstallApp = async () => {
+    if (!installPrompt) {
+      setShowInstallHelp(true);
+      return;
+    }
+
+    setInstallError('');
+    try {
+      await installPrompt.prompt();
+      const { outcome } = await installPrompt.userChoice;
+      if (outcome === 'accepted') setInstallPrompt(null);
+    } catch (error) {
+      console.error('Não foi possível iniciar a instalação do app:', error);
+      setInstallError('Não foi possível abrir a instalação agora. Tente novamente pelo menu do navegador.');
+    }
+  };
+
   const navContainerVariants: Variants = {
     hidden: { x: '-100%', opacity: 0.8 },
     visible: {
@@ -402,7 +464,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             className="w-2 h-2 rounded-full animate-pulse"
             style={{ backgroundImage: `linear-gradient(135deg, #34d399, ${accentColor})` }}
           />
-          <span className="font-extrabold uppercase tracking-wider" style={{ color: '#fff' }}>
+          <span className="notranslate font-extrabold uppercase tracking-wider" translate="no" style={{ color: '#fff' }}>
             {currentItem.label}
           </span>
         </div>
@@ -514,6 +576,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     </motion.div>
                   );
                 })}
+
+                {!isInstalled && (isIosInstallAvailable || installPrompt) && (
+                  <motion.div variants={itemVariants} className="pt-2">
+                    <button
+                      type="button"
+                      onClick={() => void handleInstallApp()}
+                      className="w-full flex items-center gap-3.5 px-3 py-2.5 rounded-2xl border border-white/10 bg-white/[0.04] text-white/70 hover:text-white hover:bg-white/[0.08] transition-colors"
+                    >
+                      <Download size={18} className="shrink-0" />
+                      <span className="text-sm tracking-wide font-medium">Instalar app</span>
+                    </button>
+                    {installError && (
+                      <p role="status" className="px-3 pt-2 text-xs text-amber-200/90">
+                        {installError}
+                      </p>
+                    )}
+                  </motion.div>
+                )}
               </div>
 
               {/* Drawer Footer info & Social Media */}
@@ -530,6 +610,53 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             </motion.nav>
           </>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showInstallHelp && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowInstallHelp(false)}
+            className="fixed inset-0 z-[3600] flex items-center justify-center bg-black/55 px-5 backdrop-blur-sm"
+          >
+            <motion.section
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="install-help-title"
+              initial={{ opacity: 0, y: 12, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8 }}
+              onClick={(event) => event.stopPropagation()}
+              className="w-full max-w-sm rounded-2xl border border-white/15 bg-slate-950/95 p-5 text-white shadow-2xl"
+            >
+              <div className="mb-3 flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-white/90">
+                  <Share size={19} />
+                </span>
+                <h2 id="install-help-title" className="text-base font-semibold">
+                  Adicionar à Tela de Início
+                </h2>
+              </div>
+              <p className="text-sm leading-relaxed text-white/75">
+                No Safari, toque em <Share size={14} className="mx-0.5 inline-block align-[-2px]" /> Compartilhar
+                e depois em <span className="font-medium text-white">Adicionar à Tela de Início</span>.
+              </p>
+              <div className="mt-3 flex items-center gap-2 text-xs text-white/55">
+                <Plus size={14} />
+                <span>O app ficará disponível junto aos outros apps do iPhone.</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowInstallHelp(false)}
+                className="mt-5 w-full rounded-xl border border-white/10 px-4 py-2 text-sm text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+              >
+                Fechar
+              </button>
+            </motion.section>
+          </motion.div>
         )}
       </AnimatePresence>
     </>

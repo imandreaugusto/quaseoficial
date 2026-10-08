@@ -750,9 +750,9 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                   {activeItem.category}
                 </span>
                 <h2 className="text-xs sm:text-sm font-semibold text-white truncate flex items-center gap-1.5">
-                  <span>{activeItem.title}</span>
+                  <span className="notranslate" translate="no">{activeItem.title}</span>
                   {activeItem.artist && (
-                    <span className="text-amber-300 font-medium text-xs font-sans">
+                    <span className="notranslate text-amber-300 font-medium text-xs font-sans" translate="no">
                       • {activeItem.artist}
                     </span>
                   )}
@@ -1048,7 +1048,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                   >
                     {parsedLyricsData.length > 0 ? (
                       parsedLyricsData.map((stanza, sIdx) => (
-                        <div key={sIdx} className="mb-6 last:mb-0 space-y-2">
+                        <div key={sIdx} className="notranslate mb-6 last:mb-0 space-y-2" translate="no">
                           {stanza.lines.map((line, lIdx) => {
                             const tokens = line.pt.split(/(\s+)/);
 
@@ -1232,7 +1232,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                                   <Play size={9} className="fill-current" />
                                 </div>
                                 <span className="text-xs truncate font-sans">
-                                  {item.title}
+                                  <span className="notranslate" translate="no">{item.title}</span>
                                 </span>
                                 {item.lyrics && (
                                   <span className="text-[9px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1 py-0.2 rounded shrink-0">
@@ -1297,11 +1297,11 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                         <Play size={10} className="fill-current" />
                       </div>
                       <div className="flex flex-col min-w-0 truncate">
-                        <span className="text-xs truncate font-medium text-white">
+                        <span className="notranslate text-xs truncate font-medium text-white" translate="no">
                           {item.title}
                         </span>
                         {item.artist && (
-                          <span className="text-[10px] text-amber-300/80 truncate">
+                          <span className="notranslate text-[10px] text-amber-300/80 truncate" translate="no">
                             {item.artist}
                           </span>
                         )}
@@ -1634,11 +1634,11 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                 <Youtube size={14} />
               </div>
               <div className="min-w-0 flex items-center gap-1.5">
-                <span className="text-[11px] font-bold text-white tracking-tight truncate max-w-[120px] sm:max-w-[220px]">
+                <span className="notranslate text-[11px] font-bold text-white tracking-tight truncate max-w-[120px] sm:max-w-[220px]" translate="no">
                   {activeItem.title}
                 </span>
                 {activeItem.artist && (
-                  <span className="text-[10px] text-amber-400 font-medium truncate hidden sm:inline">
+                  <span className="notranslate text-[10px] text-amber-400 font-medium truncate hidden sm:inline" translate="no">
                     • {activeItem.artist}
                   </span>
                 )}
@@ -1891,8 +1891,8 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                       />
                     </div>
                     <div className="truncate">
-                      <span className="text-xs font-bold text-white block truncate">{activeItem.title}</span>
-                      <span className="text-[11px] text-amber-400/90 font-mono block truncate">{activeItem.artist}</span>
+                      <span className="notranslate text-xs font-bold text-white block truncate" translate="no">{activeItem.title}</span>
+                      <span className="notranslate text-[11px] text-amber-400/90 font-mono block truncate" translate="no">{activeItem.artist}</span>
                     </div>
                   </div>
 

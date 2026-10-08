@@ -794,7 +794,7 @@ const COMMON_DICTIONARY: Record<string, string> = {
                                   onClick={() => enterReadingMode(b, null)}
                                   className={`text-left text-xs font-medium hover:text-white truncate block cursor-pointer flex-1 ${isBookRead(b.id) ? 'text-white/50' : 'text-white/80'}`}
                                 >
-                                  {b.title}
+                                  <span className="notranslate" translate="no">{b.title}</span>
                                   {b.level && (
                                     <span className="ml-2 text-[9px] px-1 rounded bg-white/10 text-white/50 border border-white/5 font-bold">
                                       {b.level}
@@ -920,7 +920,7 @@ const COMMON_DICTIONARY: Record<string, string> = {
                 </button>
                 <div className="flex items-center gap-1.5 max-w-[160px] sm:max-w-sm bg-white/10 p-1 px-3 rounded-full border border-white/20 backdrop-blur-xl shadow-md">
                   <h4 className="text-xs font-semibold uppercase tracking-widest text-amber-400 truncate">
-                    {activeBook.title}
+                    <span className="notranslate" translate="no">{activeBook.title}</span>
                   </h4>
                   <button
                     type="button"
@@ -1142,7 +1142,8 @@ const COMMON_DICTIONARY: Record<string, string> = {
                         <span
                           key={wIdx}
                           onClick={(e) => handleWordClick(e, word)}
-                          className="inline-block hover:bg-amber-400/20 hover:text-amber-300 rounded px-1 transition-all cursor-pointer"
+                          className="notranslate inline-block hover:bg-amber-400/20 hover:text-amber-300 rounded px-1 transition-all cursor-pointer"
+                          translate="no"
                           title="Clique na palavra do título para tradução e pronúncia"
                         >
                           {word}
@@ -1203,9 +1204,10 @@ const COMMON_DICTIONARY: Record<string, string> = {
                                   <span
                                     key={wIdx}
                                     onClick={(e) => handleWordClick(e, word)}
-                                    className={`inline-block mx-[1px] px-[2px] rounded cursor-pointer transition-all duration-150 ${
+                                    className={`notranslate inline-block mx-[1px] px-[2px] rounded cursor-pointer transition-all duration-150 ${
                                       isLearned ? currentThemeStyle.learned : currentThemeStyle.wordHover
                                     }`}
+                                    translate="no"
                                     title="Clique na palavra: Ver tradução e pronúncia"
                                   >
                                     {word}
