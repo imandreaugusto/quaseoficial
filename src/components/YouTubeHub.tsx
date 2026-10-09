@@ -155,9 +155,11 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
   // Library & Cloud Sync State
   const [library, setLibrary] = useState<YouTubeLibraryItem[]>(DEFAULT_YOUTUBE_LIBRARY);
   const [cloudUser, setCloudUser] = useState<User | null>(null);
+  const playerSectionRef = useRef<HTMLDivElement>(null);
 
   // Active Selected Item State
   const [activeItem, setActiveItem] = useState<YouTubeLibraryItem>(DEFAULT_YOUTUBE_LIBRARY[0]);
+  const [isPlayerVisible, setIsPlayerVisible] = useState(false);
   const [customVideoUrl, setCustomVideoUrl] = useState('');
   const [copiedLink, setCopiedLink] = useState(false);
   const [isFullscreenMeet, setIsFullscreenMeet] = useState(false);
@@ -165,8 +167,8 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
 
   // Library UI State
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('Todas');
-  const [groupByArtist, setGroupByArtist] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [groupByArtist, setGroupByArtist] = useState(false);
   const [expandedArtists, setExpandedArtists] = useState<Record<string, boolean>>({});
   const [itemModalOpen, setItemModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<YouTubeLibraryItem | null>(null);
@@ -252,6 +254,11 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
     setEditableTranslatedLyrics(activeItem.translatedLyrics || '');
     setIsEditingLyrics(false);
   }, [activeItem]);
+
+  useEffect(() => {
+    if (!isPlayerVisible || window.matchMedia('(min-width: 1024px)').matches) return;
+    playerSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [activeItem, isPlayerVisible]);
 
   // Standalone mode retains legacy cloud loading; App-controlled mode uses its
   // Supabase-backed library exclusively to avoid stale sources restoring deletions.
@@ -343,6 +350,11 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
+  const handleSelectItem = (item: YouTubeLibraryItem) => {
+    setActiveItem(item);
+    setIsPlayerVisible(true);
+  };
+
   const handleLoadCustomUrl = (e: React.FormEvent) => {
     e.preventDefault();
     if (!customVideoUrl || !canEdit) return;
@@ -365,7 +377,6 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
 
     const updated = [newItem, ...library];
     saveLibraryState(updated);
-    setActiveItem(newItem);
     setCustomVideoUrl('');
   };
 
@@ -445,7 +456,6 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
       };
       const updatedList = [newItem, ...library];
       saveLibraryState(updatedList);
-      setActiveItem(newItem);
     }
 
     setItemModalOpen(false);
@@ -570,7 +580,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
 
   // Filtered Library
   const filteredLibrary = library.filter((item) => {
-    const matchesCategory = selectedCategory === 'Todas' || item.category === selectedCategory;
+    const matchesCategory = selectedCategory === null || item.category === selectedCategory;
     const q = searchQuery.trim().toLowerCase();
     const matchesSearch =
       !q ||
@@ -600,7 +610,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
     }));
   };
 
-  const categories = ['Todas', 'Música', 'Aulas', 'Gramática', 'Conversação', 'Outros'];
+  const categories = ['Música', 'Aulas', 'Gramática', 'Conversação', 'Outros'];
   const hasLyricsInActive = Boolean(editableLyrics && editableLyrics.trim().length > 0);
 
   // Helper to split lyrics and translation into matching stanzas & lines
@@ -741,7 +751,8 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
       /* MAIN LAYOUT */
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* LEFT / MAIN COLUMN: VIDEO PLAYER & LYRICS */}
-        <div className="lg:col-span-7 xl:col-span-8 flex flex-col gap-5">
+        {isPlayerVisible && (
+        <div ref={playerSectionRef} className="scroll-mt-20 lg:col-span-7 xl:col-span-8 flex flex-col gap-5">
           {/* PLAYER CARD */}
           <div className="bg-neutral-950/90 border border-white/10 rounded-2xl p-4 sm:p-5 shadow-xl flex flex-col gap-4">
             <div className="flex items-center justify-between border-b border-white/10 pb-3 gap-2">
@@ -760,6 +771,15 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsPlayerVisible(false)}
+                  className="px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/10 text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer"
+                  title="Voltar à biblioteca"
+                >
+                  <List size={13} />
+                  <span>Biblioteca</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => setIsFullscreenMeet(true)}
@@ -1106,9 +1126,10 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
             </div>
           )}
         </div>
+        )}
 
         {/* RIGHT COLUMN: SAVED LIBRARY */}
-        <div className="lg:col-span-5 xl:col-span-4 flex flex-col gap-3.5 bg-neutral-900/80 border border-white/10 rounded-2xl p-4 sm:p-5 shadow-xl h-fit backdrop-blur-md">
+        <div className={`${isPlayerVisible ? 'lg:col-span-5 xl:col-span-4' : 'lg:col-span-12'} flex flex-col gap-3.5 bg-neutral-900/80 border border-white/10 rounded-2xl p-4 sm:p-5 shadow-xl h-fit backdrop-blur-md`}>
           <div className="flex items-center justify-between border-b border-white/10 pb-3">
             <div className="flex items-center gap-2">
               <Bookmark size={16} className="text-white/70" />
@@ -1164,7 +1185,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                 <button
                   key={cat}
                   type="button"
-                  onClick={() => setSelectedCategory(cat)}
+                  onClick={() => setSelectedCategory((current) => current === cat ? null : cat)}
                   className={`px-2.5 py-1 rounded-md text-[10px] font-mono transition-all shrink-0 cursor-pointer ${
                     selectedCategory === cat
                       ? 'bg-white/20 text-white font-semibold border border-white/20'
@@ -1215,12 +1236,12 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                     {isExpanded && (
                       <div className="flex flex-col gap-1 p-1.5 pt-0.5">
                         {artistItems.map((item) => {
-                          const isSelected = activeItem.id === item.id;
+                          const isSelected = isPlayerVisible && activeItem.id === item.id;
 
                           return (
                             <div
                               key={item.id}
-                              onClick={() => setActiveItem(item)}
+                              onClick={() => handleSelectItem(item)}
                               className={`p-2 rounded-lg border transition-all cursor-pointer flex items-center justify-between gap-2 group ${
                                 isSelected
                                   ? 'bg-amber-500/15 border-amber-500/40 text-white font-medium shadow-sm'
@@ -1280,12 +1301,12 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
             ) : (
               /* COMPACT FLAT LIST */
               filteredLibrary.map((item) => {
-                const isSelected = activeItem.id === item.id;
+                const isSelected = isPlayerVisible && activeItem.id === item.id;
 
                 return (
                   <div
                     key={item.id}
-                    onClick={() => setActiveItem(item)}
+                    onClick={() => handleSelectItem(item)}
                     className={`p-2.5 rounded-lg border transition-all cursor-pointer flex items-center justify-between gap-2 group ${
                       isSelected
                         ? 'bg-amber-500/15 border-amber-500/40 text-white font-medium shadow-sm'
