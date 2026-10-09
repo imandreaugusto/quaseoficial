@@ -147,6 +147,12 @@ input, textarea, select {
   width: 8px;
   height: 8px;
 }
+.menu-cinematic-panel nav.custom-scrollbar {
+  scrollbar-width: none;
+}
+.menu-cinematic-panel nav.custom-scrollbar::-webkit-scrollbar {
+  display: none;
+}
 
 /* Efeito Glassmorphism Avançado */
 .glass-card {
