@@ -70,6 +70,7 @@ import {
   BellRing
 } from 'lucide-react';
 import { BrazilianLogo } from './BrazilianLogo';
+import { getEffectiveSubscriptionStatus, isActiveSubscription } from '../lib/subscriptionStatus';
 import { CeoOverview } from './ceo/CeoOverview';
 import { CeoLocation } from './ceo/CeoLocation';
 import { CeoUpdatesEditor } from './ceo/CeoUpdatesEditor';
@@ -78,8 +79,12 @@ import {
   deleteExpiredBrazilianFriendMessages,
   deleteTrialCoupon,
   fetchTrialCoupons,
+  fetchAdminSubscribers,
+  updateAdminSubscriberSubscription,
   getSupabaseClient,
-  getSupabaseConfig
+  getSupabaseConfig,
+  loadSharedContentFromSupabase,
+  syncSharedContentToSupabase
 } from '../utils/supabaseClient';
 
 interface AdminSettingsProps {
@@ -101,7 +106,8 @@ const ALL_STUDENT_APPS = [
   { id: 'biacompare', label: 'BIA Compare', icon: Sparkles, desc: 'Comparador de pronúncia e frases' },
   { id: 'conversation', label: 'Conversação IA', icon: Mic, desc: 'Diálogos dinâmicos com a inteligência artificial' },
   { id: 'tradutor', label: 'Tradutor Cultural', icon: Languages, desc: 'Tradução com contexto de gírias e expressões' },
-  { id: 'youtube', label: 'Brazilian Music', icon: Music, desc: 'Músicas e vídeos educativos com letras' }
+  { id: 'youtube', label: 'Brazilian Music', icon: Music, desc: 'Músicas e vídeos educativos com letras' },
+  { id: 'feedback', label: 'Feedback', icon: MessageSquareText, desc: 'Envie sugestões e acompanhe respostas da equipe' }
 ];
 
 const ALL_ADMIN_APPS = [
@@ -142,6 +148,11 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   const [activeTab, setActiveTab] = useState<'overview' | 'updates' | 'location' | 'students' | 'apps_order' | 'revenue' | 'gateway' | 'promotions' | 'pix_approvals' | 'ceo_security' | 'friends_cleanup'>('overview');
   const sidebarRef = useRef<HTMLElement | null>(null);
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [isLoadingSubscribers, setIsLoadingSubscribers] = useState(false);
+  const [subscriberLoadError, setSubscriberLoadError] = useState<string | null>(null);
+  const [subscriberActionMessage, setSubscriberActionMessage] = useState<{ text: string; error: boolean } | null>(null);
+  const [savingSubscriberId, setSavingSubscriberId] = useState<string | null>(null);
+  const subscriberLoadSequence = useRef(0);
   const [coupons, setCoupons] = useState<TrialCoupon[]>([]);
   const [pixPayments, setPixPayments] = useState<PixPaymentRecord[]>([]);
   const [authorizedCeos, setAuthorizedCeos] = useState<string[]>([]);
@@ -184,7 +195,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
 
   // App Order and Global Availability Configuration
   const [appConfig, setAppConfig] = useState<GlobalAppConfig>({
-    studentAppOrder: ['brazilianfriends', 'stories', 'practice', 'readclub', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube'],
+    studentAppOrder: ['brazilianfriends', 'stories', 'practice', 'readclub', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'feedback'],
     adminAppOrder: ['home', 'work', 'brazilianfriends', 'stories', 'practice', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'settings'],
     studentGlobalEnabled: {
       brazilianfriends: true,
@@ -197,11 +208,13 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
       biacompare: true,
       conversation: true,
       tradutor: true,
-      youtube: true
+      youtube: true,
+      feedback: true
     }
   });
   const [appConfigDirty, setAppConfigDirty] = useState(false);
-  const [appConfigSaveMessage, setAppConfigSaveMessage] = useState<string | null>(null);
+  const [appConfigSaveMessage, setAppConfigSaveMessage] = useState<{ text: string; error?: boolean } | null>(null);
+  const [isSavingAppConfig, setIsSavingAppConfig] = useState(false);
 
   // Gateway Settings State
   const [gatewaySettings, setGatewaySettings] = useState<GatewaySettings>({
@@ -234,10 +247,39 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
     window.addEventListener('storage', handleDataChange);
     window.addEventListener('bia_users_changed', handleDataChange);
     return () => {
+      subscriberLoadSequence.current += 1;
       window.removeEventListener('storage', handleDataChange);
       window.removeEventListener('bia_users_changed', handleDataChange);
     };
   }, []);
+
+  useEffect(() => {
+    if (!isMainCeo) return;
+    let cancelled = false;
+    void loadSharedContentFromSupabase<GlobalAppConfig>('global_app_config')
+      .then((sharedConfig) => {
+        if (cancelled || !sharedConfig) return;
+        const studentAppOrder = sharedConfig.studentAppOrder.includes('feedback')
+          ? sharedConfig.studentAppOrder
+          : [...sharedConfig.studentAppOrder, 'feedback'];
+        const normalizedConfig: GlobalAppConfig = {
+          ...sharedConfig,
+          studentAppOrder,
+          studentGlobalEnabled: {
+            feedback: true,
+            ...sharedConfig.studentGlobalEnabled
+          }
+        };
+        setAppConfig(normalizedConfig);
+        localStorage.setItem('bia_global_app_config', JSON.stringify(normalizedConfig));
+      })
+      .catch((error) => {
+        console.error('Could not load the shared student app configuration:', error);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isMainCeo]);
 
   useEffect(() => {
     if (!isMainCeo) return;
@@ -270,11 +312,32 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   };
 
   const loadData = () => {
-    const storedUsers = localStorage.getItem('bia_users_database');
+    const storedUsers = localStorage.getItem(isMainCeo ? 'bia_admin_subscribers_cache' : 'bia_users_database');
     if (storedUsers) {
       try {
-        setUsers(JSON.parse(storedUsers));
+        const parsedUsers = JSON.parse(storedUsers);
+        if (Array.isArray(parsedUsers)) setUsers(parsedUsers);
       } catch (e) {}
+    }
+
+    if (isMainCeo) {
+      const requestSequence = ++subscriberLoadSequence.current;
+      setIsLoadingSubscribers(true);
+      setSubscriberLoadError(null);
+      void fetchAdminSubscribers()
+        .then((subscribers) => {
+          if (requestSequence !== subscriberLoadSequence.current) return;
+          setUsers(subscribers);
+          localStorage.setItem('bia_admin_subscribers_cache', JSON.stringify(subscribers));
+        })
+        .catch((error) => {
+          if (requestSequence !== subscriberLoadSequence.current) return;
+          console.error('Central subscriber list could not be loaded:', error);
+          setSubscriberLoadError(error instanceof Error ? error.message : 'Não foi possível carregar os assinantes do servidor.');
+        })
+        .finally(() => {
+          if (requestSequence === subscriberLoadSequence.current) setIsLoadingSubscribers(false);
+        });
     }
 
     const storedPayments = localStorage.getItem('bia_pix_payments');
@@ -300,6 +363,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
         const studentAppOrder = parsed.studentAppOrder.includes('braziliangames')
           ? parsed.studentAppOrder
           : [...parsed.studentAppOrder, 'braziliangames'];
+        if (!studentAppOrder.includes('feedback')) studentAppOrder.push('feedback');
         const adminAppOrder = parsed.adminAppOrder.includes('braziliangames')
           ? parsed.adminAppOrder
           : [...parsed.adminAppOrder, 'braziliangames'];
@@ -315,6 +379,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
           studentGlobalEnabled: {
             brazilianfriends: true,
             braziliangames: true,
+            feedback: true,
             ...parsed.studentGlobalEnabled
           }
         });
@@ -628,40 +693,46 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   };
 
   // Change user status (active / expired / pending)
-  const handleChangeStatus = (userId: string, newStatus: UserProfile['status']) => {
-    const updatedUsers = users.map((user) => {
-      if (user.id === userId) {
-        let expiration = user.data_expiracao;
-        if (newStatus === 'active' && !expiration) {
-          expiration = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-        }
-        return { ...user, status: newStatus, data_expiracao: expiration };
-      }
-      return user;
-    });
-
-    setUsers(updatedUsers);
-    localStorage.setItem('bia_users_database', JSON.stringify(updatedUsers));
+  const saveSubscriberSubscription = async (
+    userId: string,
+    update: { days: number } | { status: 'active' | 'pending' | 'expired' }
+  ) => {
+    if (!isMainCeo) return;
+    setSavingSubscriberId(userId);
+    setSubscriberActionMessage(null);
+    try {
+      const subscription = await updateAdminSubscriberSubscription(userId, update);
+      const updatedUsers = users.map((user) =>
+        user.id === userId || user.auth_user_id === userId
+          ? { ...user, status: subscription.status, data_expiracao: subscription.data_expiracao }
+          : user
+      );
+      setUsers(updatedUsers);
+      localStorage.setItem('bia_admin_subscribers_cache', JSON.stringify(updatedUsers));
+      setSubscriberActionMessage({
+        text: 'Assinatura salva no servidor.',
+        error: false
+      });
+      onRefreshUsers?.();
+    } catch (error) {
+      console.error('Could not save subscriber subscription:', error);
+      setSubscriberActionMessage({
+        text: error instanceof Error ? error.message : 'Não foi possível salvar a assinatura.',
+        error: true
+      });
+    } finally {
+      setSavingSubscriberId(null);
+    }
   };
 
-  // Add trial / subscription days directly to a student
-  const handleAddDaysToStudent = (userId: string, daysToAdd: number) => {
-    const updatedUsers = users.map((user) => {
-      if (user.id === userId) {
-        const currentExp = user.data_expiracao ? new Date(user.data_expiracao).getTime() : Date.now();
-        const baseTime = currentExp > Date.now() ? currentExp : Date.now();
-        const nextExp = new Date(baseTime + daysToAdd * 24 * 60 * 60 * 1000).toISOString();
-        return {
-          ...user,
-          status: 'active' as const,
-          data_expiracao: nextExp
-        };
-      }
-      return user;
-    });
+  const handleChangeStatus = (userId: string, newStatus: UserProfile['status']) => {
+    if (newStatus === 'active' || newStatus === 'pending' || newStatus === 'expired') {
+      void saveSubscriberSubscription(userId, { status: newStatus });
+    }
+  };
 
-    setUsers(updatedUsers);
-    localStorage.setItem('bia_users_database', JSON.stringify(updatedUsers));
+  const handleAddDaysToStudent = (userId: string, daysToAdd: number) => {
+    void saveSubscriberSubscription(userId, { days: daysToAdd });
   };
 
   // Delete user
@@ -673,24 +744,34 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
     }
   };
 
-  const handleSaveAppConfig = (newConfig: GlobalAppConfig) => {
-    setAppConfig(newConfig);
-    localStorage.setItem('bia_global_app_config', JSON.stringify(newConfig));
-    window.dispatchEvent(new Event('bia_app_config_changed'));
-    setAppConfigDirty(false);
-    setAppConfigSaveMessage('Organização salva e aplicada aos menus.');
-  };
-
   const handleSaveAppConfigDraft = (newConfig: GlobalAppConfig) => {
     setAppConfig(newConfig);
     setAppConfigDirty(true);
     setAppConfigSaveMessage(null);
   };
 
-  const handleConfirmSaveAppConfig = () => {
-    if (!appConfigDirty) return;
-    if (!window.confirm('Confirmar a atualização das organizações dos menus do aluno e do CEO?')) return;
-    handleSaveAppConfig(appConfig);
+  const handleConfirmSaveAppConfig = async () => {
+    if (!appConfigDirty || isSavingAppConfig) return;
+
+    setIsSavingAppConfig(true);
+    setAppConfigSaveMessage(null);
+    try {
+      await syncSharedContentToSupabase('global_app_config', appConfig);
+      localStorage.setItem('bia_global_app_config', JSON.stringify(appConfig));
+      window.dispatchEvent(new Event('bia_app_config_changed'));
+      setAppConfigDirty(false);
+      setAppConfigSaveMessage({ text: 'Alterações salvas e enviadas aos menus dos assinantes.' });
+    } catch (error) {
+      console.error('Student app menu configuration could not be saved to Supabase:', error);
+      setAppConfigSaveMessage({
+        text: error instanceof Error
+          ? `Não foi possível salvar: ${error.message}`
+          : 'Não foi possível salvar a organização dos aplicativos.',
+        error: true
+      });
+    } finally {
+      setIsSavingAppConfig(false);
+    }
   };
 
   // Reorder Student Apps by Up/Down or Direct Position
@@ -745,7 +826,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   // Reset to Default Order
   const handleResetAppOrder = () => {
     const defaultConfig: GlobalAppConfig = {
-      studentAppOrder: ['brazilianfriends', 'readclub', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube'],
+      studentAppOrder: ['brazilianfriends', 'readclub', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'feedback'],
       adminAppOrder: ['home', 'work', 'brazilianfriends', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'settings'],
       studentGlobalEnabled: {
         brazilianfriends: true,
@@ -756,13 +837,17 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
         biacompare: true,
         conversation: true,
         tradutor: true,
-        youtube: true
+        youtube: true,
+        feedback: true
       }
     };
     handleSaveAppConfigDraft(defaultConfig);
   };
 
-  const filteredUsers = users.filter((u) => {
+  const subscriberUsers = users.filter((user) =>
+    user.role === 'student' && !isVerifiedCeoEmail(user.email)
+  );
+  const filteredUsers = subscriberUsers.filter((u) => {
     const matchSearch =
       u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (u.full_name && u.full_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -770,13 +855,23 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
     return matchSearch;
   });
 
-  const activeStudentsCount = users.filter((u) => u.role === 'student' && u.status === 'active').length;
-  const pendingStudentsCount = users.filter((u) => u.role === 'student' && u.status === 'pending').length;
-  const expiredStudentsCount = users.filter((u) => u.role === 'student' && u.status === 'expired').length;
+  const activeStudentsCount = subscriberUsers.filter((u) =>
+    isActiveSubscription(u.status, u.data_expiracao)
+  ).length;
+  const pendingStudentsCount = subscriberUsers.filter((u) =>
+    getEffectiveSubscriptionStatus(u.status, u.data_expiracao) === 'pending'
+  ).length;
+  const expiredStudentsCount = subscriberUsers.filter((u) =>
+    getEffectiveSubscriptionStatus(u.status, u.data_expiracao) === 'expired'
+  ).length;
 
   // Strict segregation: coupon/trial students never count as paid revenue.
-  const payingActiveStudents = users.filter((u) => u.role === 'student' && u.status === 'active' && !u.cupom_usado);
-  const couponActiveStudents = users.filter((u) => u.role === 'student' && u.status === 'active' && !!u.cupom_usado);
+  const payingActiveStudents = subscriberUsers.filter((u) =>
+    isActiveSubscription(u.status, u.data_expiracao) && !u.cupom_usado
+  );
+  const couponActiveStudents = subscriberUsers.filter((u) =>
+    isActiveSubscription(u.status, u.data_expiracao) && !!u.cupom_usado
+  );
   const payingActiveStudentsCount = payingActiveStudents.length;
   const couponActiveStudentsCount = couponActiveStudents.length;
 
@@ -909,7 +1004,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   const pendingPixCount = pixPayments.filter((payment) => payment.status === 'pending').length;
   const mainNav: Array<{ id: typeof activeTab; label: string; icon: React.ElementType; badge?: number }> = [
     { id: 'overview', label: 'Visão Geral', icon: LayoutDashboard },
-    { id: 'students', label: 'Assinantes', icon: Users, badge: users.length },
+    { id: 'students', label: 'Assinantes', icon: Users, badge: subscriberUsers.length },
     { id: 'revenue', label: 'Financeiro', icon: DollarSign },
     { id: 'promotions', label: 'Cupons', icon: Ticket },
     { id: 'pix_approvals', label: 'Pagamentos', icon: CreditCard, badge: pendingPixCount },
@@ -982,6 +1077,30 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
         </aside>
 
         <div className="min-w-0 flex-1">
+      {subscriberLoadError && isMainCeo && (
+        <div role="alert" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+          <span>{subscriberLoadError} Os dados exibidos podem estar desatualizados.</span>
+          <button
+            type="button"
+            onClick={loadData}
+            className="rounded-xl border border-red-300/30 px-3 py-1.5 font-bold hover:bg-red-500/15"
+          >
+            Tentar novamente
+          </button>
+        </div>
+      )}
+      {subscriberActionMessage && isMainCeo && (
+        <div
+          role={subscriberActionMessage.error ? 'alert' : 'status'}
+          className={`mb-4 rounded-2xl border px-4 py-3 text-sm ${
+            subscriberActionMessage.error
+              ? 'border-red-400/30 bg-red-500/10 text-red-100'
+              : 'border-emerald-400/30 bg-emerald-500/10 text-emerald-100'
+          }`}
+        >
+          {subscriberActionMessage.text}
+        </div>
+      )}
       {activeTab === 'overview' && (
         <CeoOverview
           users={users}
@@ -1002,7 +1121,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="glass-card p-4 rounded-2xl border border-white/10">
               <span className="text-[11px] text-white/50 uppercase font-mono">Total Cadastrados</span>
-              <div className="text-2xl font-black text-white mt-1">{users.length}</div>
+              <div className="text-2xl font-black text-white mt-1">{subscriberUsers.length}</div>
             </div>
             <div className="glass-card p-4 rounded-2xl border border-emerald-500/30">
               <span className="text-[11px] text-emerald-400 uppercase font-mono">Ativos (Pagos)</span>
@@ -1031,21 +1150,30 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
               />
             </div>
             <button
+              type="button"
               onClick={loadData}
-              className="p-1.5 hover:bg-white/10 rounded-xl text-white/60 hover:text-white transition-all cursor-pointer"
+              disabled={isLoadingSubscribers}
+              className="p-1.5 hover:bg-white/10 rounded-xl text-white/60 hover:text-white transition-all cursor-pointer disabled:opacity-50"
               title="Recarregar dados"
             >
-              <RefreshCw size={15} />
+              <RefreshCw size={15} className={isLoadingSubscribers ? 'animate-spin' : ''} />
             </button>
           </div>
 
           {/* Collapsible Accordion Sections for Students */}
           {(() => {
-            const activeList = filteredUsers.filter((u) => u.status === 'active');
-            const pendingList = filteredUsers.filter((u) => u.status === 'pending');
-            const expiredList = filteredUsers.filter((u) => u.status === 'expired');
+            const activeList = filteredUsers.filter((u) =>
+              getEffectiveSubscriptionStatus(u.status, u.data_expiracao) === 'active'
+            );
+            const pendingList = filteredUsers.filter((u) =>
+              getEffectiveSubscriptionStatus(u.status, u.data_expiracao) === 'pending'
+            );
+            const expiredList = filteredUsers.filter((u) =>
+              getEffectiveSubscriptionStatus(u.status, u.data_expiracao) === 'expired'
+            );
 
             const renderStudentCard = (student: UserProfile) => {
+              const studentStatus = getEffectiveSubscriptionStatus(student.status, student.data_expiracao);
               const perms: StudentPermissions = student.permissions || {
                 friends: true,
                 readclub: true,
@@ -1113,8 +1241,9 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                       {/* Quick Day Extension Buttons for CEO */}
                       <button
                         type="button"
-                        onClick={() => handleAddDaysToStudent(student.id, 5)}
-                        className="px-2 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-xl text-[11px] font-extrabold transition-all cursor-pointer flex items-center gap-1 shadow-sm"
+                        onClick={() => handleAddDaysToStudent(student.auth_user_id || student.id, 5)}
+                        disabled={savingSubscriberId !== null}
+                        className="px-2 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-xl text-[11px] font-extrabold transition-all cursor-pointer flex items-center gap-1 shadow-sm disabled:cursor-wait disabled:opacity-50"
                         title="Adicionar +5 Dias de Degustação Gratuita (Trial)"
                       >
                         <Gift size={12} />
@@ -1122,8 +1251,9 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleAddDaysToStudent(student.id, 30)}
-                        className="px-2 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 rounded-xl text-[11px] font-extrabold transition-all cursor-pointer flex items-center gap-1 shadow-sm"
+                        onClick={() => handleAddDaysToStudent(student.auth_user_id || student.id, 30)}
+                        disabled={savingSubscriberId !== null}
+                        className="px-2 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 rounded-xl text-[11px] font-extrabold transition-all cursor-pointer flex items-center gap-1 shadow-sm disabled:cursor-wait disabled:opacity-50"
                         title="Renovar / Adicionar +30 Dias de Acesso"
                       >
                         <Plus size={12} />
@@ -1131,12 +1261,13 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                       </button>
 
                       <select
-                        value={student.status}
-                        onChange={(e) => handleChangeStatus(student.id, e.target.value as any)}
-                        className={`text-xs font-bold rounded-xl px-2.5 py-1 outline-none border cursor-pointer ${
-                          student.status === 'active'
+                        value={studentStatus === 'trial' ? 'pending' : studentStatus}
+                        onChange={(e) => handleChangeStatus(student.auth_user_id || student.id, e.target.value as UserProfile['status'])}
+                        disabled={savingSubscriberId !== null}
+                        className={`text-xs font-bold rounded-xl px-2.5 py-1 outline-none border cursor-pointer disabled:cursor-wait disabled:opacity-50 ${
+                          studentStatus === 'active'
                             ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
-                            : student.status === 'pending'
+                            : studentStatus === 'pending'
                             ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
                             : 'bg-red-500/20 border-red-500/40 text-red-300'
                         }`}
@@ -1477,9 +1608,9 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
           {(appConfigDirty || appConfigSaveMessage) && (
             <p
               role="status"
-              className={`text-sm ${appConfigDirty ? 'text-amber-200' : 'text-emerald-300'}`}
+              className={`text-sm ${appConfigDirty ? 'text-amber-200' : appConfigSaveMessage?.error ? 'text-red-300' : 'text-emerald-300'}`}
             >
-              {appConfigDirty ? 'Há alterações de organização aguardando confirmação e salvamento.' : appConfigSaveMessage}
+              {appConfigDirty ? 'Há alterações de organização aguardando confirmação e salvamento.' : appConfigSaveMessage?.text}
             </p>
           )}
 
@@ -1503,11 +1634,11 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                   <button
                     type="button"
                     onClick={handleConfirmSaveAppConfig}
-                    disabled={!appConfigDirty}
+                    disabled={!appConfigDirty || isSavingAppConfig}
                     className="inline-flex items-center gap-2 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-1.5 text-[11px] font-bold text-emerald-200 transition-colors hover:bg-emerald-400/20 disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    <CheckCircle size={14} />
-                    Salvar alterações
+                    {isSavingAppConfig ? <RefreshCw size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+                    {isSavingAppConfig ? 'Salvando...' : 'Salvar alterações'}
                   </button>
                 </div>
               </div>
@@ -2053,22 +2184,13 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
             </div>
 
             {/* Metrics Counters */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2">
-              <div className="p-3 bg-neutral-900/90 rounded-2xl border border-white/10">
-                <span className="text-[10px] text-white/50 uppercase font-mono">Total Gerados</span>
-                <div className="text-xl font-black text-white mt-0.5">{coupons.length}</div>
-              </div>
-              <div className="p-3 bg-neutral-900/90 rounded-2xl border border-emerald-500/30">
-                <span className="text-[10px] text-emerald-400 uppercase font-mono">Disponíveis (Não Usados)</span>
-                <div className="text-xl font-black text-emerald-400 mt-0.5">
-                  {coupons.filter((c) => !c.isUsed).length}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+              <div className="p-3 bg-neutral-900/90 rounded-2xl border border-purple-500/30 sm:col-span-1">
+                <span className="text-[10px] text-purple-300 uppercase font-mono">Cupons resgatados</span>
+                <div className="text-xl font-black text-purple-200 mt-0.5">
+                  {coupons.filter((coupon) => coupon.isUsed).length}
                 </div>
-              </div>
-              <div className="p-3 bg-neutral-900/90 rounded-2xl border border-red-500/30">
-                <span className="text-[10px] text-red-400 uppercase font-mono">Utilizados & Queimados</span>
-                <div className="text-xl font-black text-red-400 mt-0.5">
-                  {coupons.filter((c) => c.isUsed).length}
-                </div>
+                <p className="mt-1 text-[11px] text-white/45">Só conta quando o aluno usa o código.</p>
               </div>
             </div>
           </div>
@@ -2080,9 +2202,6 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                 <Ticket size={16} className="text-amber-400" />
                 <span>Histórico e Status de Cupons Individuais</span>
               </h3>
-              <span className="text-xs text-white/40 font-mono">
-                {coupons.filter((c) => !c.isUsed).length} ativos para envio
-              </span>
             </div>
 
             {coupons.length === 0 ? (

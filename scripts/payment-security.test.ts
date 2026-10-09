@@ -3,6 +3,7 @@ import { createHmac } from 'node:crypto';
 import test from 'node:test';
 import {
   abacatePayApiEndpoint,
+  hasActiveSubscription,
   normalizeEmail,
   subscriptionPriceCents,
   verifyAbacatePaySignature,
@@ -34,6 +35,17 @@ test('validates the AbacatePay HMAC against the exact raw body', () => {
   assert.equal(verifyAbacatePaySignature(body, signature, 'test-public-key'), true);
   assert.equal(verifyAbacatePaySignature(Buffer.from(`${body.toString()} `), signature, 'test-public-key'), false);
   assert.equal(verifyAbacatePaySignature(body, undefined, 'test-public-key'), false);
+  assert.equal(verifyAbacatePaySignature(body, signature, undefined), false);
+});
+
+test('allows platform access only for active, unexpired subscriptions', () => {
+  const now = Date.parse('2026-10-07T12:00:00.000Z');
+
+  assert.equal(hasActiveSubscription('active', '2026-10-08T12:00:00.000Z', now), true);
+  assert.equal(hasActiveSubscription('active', '2026-10-07T12:00:00.000Z', now), false);
+  assert.equal(hasActiveSubscription('expired', '2026-10-08T12:00:00.000Z', now), false);
+  assert.equal(hasActiveSubscription('active', null, now), false);
+  assert.equal(hasActiveSubscription('active', 'not-a-date', now), false);
 });
 
 test('builds AbacatePay v2 endpoints without duplicating the version prefix', () => {

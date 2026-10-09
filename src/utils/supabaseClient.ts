@@ -3,7 +3,7 @@
 // Supports process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY and client-side fallbacks
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { UserProfile } from '../types';
-import { apiFetch } from '../lib/api';
+import { apiFetch, setApiAccessTokenProvider } from '../lib/api';
 
 export interface StudentFeedbackRecord {
   id: string;
@@ -78,6 +78,17 @@ const getAuthenticatedAccessToken = async () => {
   if (!accessToken) throw new Error('Entre novamente para continuar.');
   return accessToken;
 };
+
+setApiAccessTokenProvider(async () => {
+  const client = getSupabaseClient();
+  if (!client) return null;
+  const { data, error } = await client.auth.getSession();
+  if (error) {
+    console.warn('Could not retrieve the Supabase session for an API request:', error);
+    return null;
+  }
+  return data.session?.access_token || null;
+});
 
 // Google OAuth creates a Supabase account for new identities and signs in
 // existing identities. The server then creates or refreshes the app profile.
@@ -237,6 +248,48 @@ export const fetchTrialCoupons = async () => {
   const result = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(result.error || 'Não foi possível carregar os cupons compartilhados.');
   return (result.coupons || []) as Record<string, unknown>[];
+};
+
+export const fetchAdminSubscribers = async (): Promise<UserProfile[]> => {
+  const accessToken = await getAuthenticatedAccessToken();
+  const response = await apiFetch('/api/admin/subscribers', {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error || 'Não foi possível carregar os assinantes.');
+  if (!Array.isArray(result.subscribers)) {
+    throw new Error('O servidor retornou uma lista de assinantes inválida.');
+  }
+  return result.subscribers as UserProfile[];
+};
+
+export const updateAdminSubscriberSubscription = async (
+  userId: string,
+  update: { days: number } | { status: 'active' | 'pending' | 'expired' }
+): Promise<{ status: UserProfile['status']; data_expiracao: string | null }> => {
+  const accessToken = await getAuthenticatedAccessToken();
+  const response = await apiFetch(`/api/admin/subscribers/${encodeURIComponent(userId)}/subscription`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`
+    },
+    body: JSON.stringify(update)
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error || 'Não foi possível atualizar a assinatura.');
+  if (
+    !result.subscription ||
+    !['active', 'pending', 'expired'].includes(result.subscription.status)
+  ) {
+    throw new Error('O servidor retornou um status de assinatura inválido.');
+  }
+  return {
+    status: result.subscription.status,
+    data_expiracao: typeof result.subscription.data_expiracao === 'string'
+      ? result.subscription.data_expiracao
+      : null
+  };
 };
 
 export const deleteTrialCoupon = async (id: string) => {

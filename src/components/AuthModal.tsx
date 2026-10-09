@@ -478,14 +478,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
         {/* Notification Banners */}
         {errorMsg && (
-          <div className="w-full p-3 mb-2.5 rounded-2xl text-xs font-semibold bg-red-600/90 border border-red-500 text-white flex items-center gap-2 shadow-2xl animate-shake">
+          <div role="alert" aria-live="assertive" className="w-full p-3 mb-2.5 rounded-2xl text-xs font-semibold bg-red-600/90 border border-red-500 text-white flex items-center gap-2 shadow-2xl animate-shake">
             <AlertCircle size={15} className="shrink-0 text-white" />
             <span>{errorMsg}</span>
           </div>
         )}
 
         {successMsg && (
-          <div className="w-full p-3 mb-2.5 rounded-2xl text-xs font-semibold bg-emerald-600/90 border border-emerald-500 text-white flex items-center gap-2 shadow-2xl">
+          <div role="status" aria-live="polite" className="w-full p-3 mb-2.5 rounded-2xl text-xs font-semibold bg-emerald-600/90 border border-emerald-500 text-white flex items-center gap-2 shadow-2xl">
             <CheckCircle size={15} className="shrink-0 text-white" />
             <span>{successMsg}</span>
           </div>
@@ -541,16 +541,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <div className="flex w-full flex-col gap-2.5">
           {isSignUp && !isAdminMode && (
             <div className="grid gap-1.5 sm:grid-cols-[94px_minmax(0,1fr)] sm:items-center">
-              <label className="text-[10px] sm:text-[11px] text-white/90 font-bold sm:text-right drop-shadow">Nome</label>
+              <label htmlFor="auth-full-name" className="text-[10px] sm:text-[11px] text-white/90 font-bold sm:text-right drop-shadow">Nome</label>
               <div className="flex items-center gap-2.5 bg-white/10 hover:bg-white/15 focus-within:bg-white/20 border border-white/25 focus-within:border-violet-300/70 rounded-2xl px-3 py-2.5 transition-all backdrop-blur-xl shadow-lg">
                 <User size={15} className="text-white/70 shrink-0" />
                 <input
+                  id="auth-full-name"
                   type="text"
                   required
                   placeholder="Seu nome completo"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  className="bg-transparent text-white text-xs sm:text-sm outline-none w-full placeholder:text-white/50"
+                  className="bg-transparent text-white text-base sm:text-sm outline-none w-full placeholder:text-white/50"
                 />
               </div>
             </div>
@@ -569,43 +570,46 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           )}
 
           <div className="grid gap-1.5 sm:grid-cols-[94px_minmax(0,1fr)] sm:items-center">
-            <label className="text-[10px] sm:text-[11px] text-white/90 font-bold sm:text-right drop-shadow">
+            <label htmlFor="auth-email" className="text-[10px] sm:text-[11px] text-white/90 font-bold sm:text-right drop-shadow">
               {isAdminMode ? 'E-mail CEO' : 'E-mail'}
             </label>
             <div className="flex items-center gap-2.5 bg-white/10 hover:bg-white/15 focus-within:bg-white/20 border border-white/25 focus-within:border-violet-300/70 rounded-2xl px-3 py-2.5 transition-all backdrop-blur-xl shadow-lg">
               <Mail size={15} className="text-white/70 shrink-0" />
               <input
+                id="auth-email"
                 type="email"
                 required
                 placeholder="seu.email@exemplo.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="bg-transparent text-white text-xs sm:text-sm outline-none w-full placeholder:text-white/50"
+                className="bg-transparent text-white text-base sm:text-sm outline-none w-full placeholder:text-white/50"
               />
             </div>
           </div>
 
           <div className="grid gap-1.5 sm:grid-cols-[94px_minmax(0,1fr)] sm:items-center">
-            <label className="text-[10px] sm:text-[11px] text-white/90 font-bold sm:text-right drop-shadow">
+            <label htmlFor="auth-password" className="text-[10px] sm:text-[11px] text-white/90 font-bold sm:text-right drop-shadow">
               {isAdminMode ? 'Senha CEO' : 'Senha'}
             </label>
             <div className="flex items-center gap-2.5 bg-white/10 hover:bg-white/15 focus-within:bg-white/20 border border-white/25 focus-within:border-violet-300/70 rounded-2xl px-3 py-2.5 transition-all backdrop-blur-xl shadow-lg">
               <Lock size={15} className="text-white/70 shrink-0" />
               <input
+                id="auth-password"
                 type={showPassword ? 'text' : 'password'}
                 required
                 placeholder={isAdminMode ? 'Senha Master' : '••••••••'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="bg-transparent text-white text-xs sm:text-sm outline-none w-full placeholder:text-white/50"
+                className="bg-transparent text-white text-base sm:text-sm outline-none w-full placeholder:text-white/50"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="text-white/60 hover:text-white p-1 rounded transition-colors cursor-pointer"
-                title={showPassword ? 'Ocultar senha' : 'Ver senha'}
+                aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                aria-pressed={showPassword}
+                className="flex h-11 w-11 shrink-0 items-center justify-center text-white/70 hover:text-white rounded transition-colors cursor-pointer"
               >
-                {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
               </button>
             </div>
           </div>
@@ -614,7 +618,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           {isSignUp && !isAdminMode && (
             <div className="pt-0.5">
               <div className="mb-1 grid gap-1.5 sm:grid-cols-[94px_minmax(0,1fr)] sm:items-center">
-                <label className="flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-white/90 sm:justify-end drop-shadow">
+                <label htmlFor="auth-coupon" className="flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-white/90 sm:justify-end drop-shadow">
                   <Ticket size={12} className="text-amber-400" />
                   <span>Cupom</span>
                 </label>
@@ -628,6 +632,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 }`}>
                   <Ticket size={14} className={couponState.status === 'valid' ? 'text-emerald-300' : 'text-white/70'} />
                   <input
+                    id="auth-coupon"
                     type="text"
                     placeholder="Digite seu cupom"
                     value={couponCode}
@@ -643,7 +648,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         void checkCouponValidity(val);
                       }, 300);
                     }}
-                    className="bg-transparent text-white font-mono text-xs sm:text-sm outline-none w-full placeholder:text-white/50 uppercase tracking-wider"
+                    className="bg-transparent text-white font-mono text-base sm:text-sm outline-none w-full placeholder:text-white/50 uppercase tracking-wider"
                   />
                   {couponState.status === 'valid' && (
                     <span className="w-5 h-5 rounded-full bg-emerald-500/30 text-emerald-300 flex items-center justify-center shrink-0">
@@ -659,7 +664,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </div>
 
               {couponState.message && (
-                <p className={`text-[10px] sm:text-[11px] mt-1 ml-1 font-semibold drop-shadow ${
+                <p role="status" aria-live="polite" className={`text-[10px] sm:text-[11px] mt-1 ml-1 font-semibold drop-shadow ${
                   couponState.status === 'valid' ? 'text-emerald-300' : 'text-red-300'
                 }`}>
                   {couponState.message}
@@ -672,7 +677,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <button
             type="submit"
             disabled={loading}
-            className={`w-full py-2.5 mt-0.5 rounded-2xl font-black text-[11px] sm:text-sm tracking-wide transition-all cursor-pointer shadow-2xl flex items-center justify-center gap-2 active:scale-95 hover:-translate-y-0.5 ${
+            className={`min-h-11 w-full py-2.5 mt-0.5 rounded-2xl font-black text-[11px] sm:text-sm tracking-wide transition-all cursor-pointer shadow-2xl flex items-center justify-center gap-2 active:scale-95 hover:-translate-y-0.5 ${
               isAdminMode
                 ? 'bg-red-600 hover:bg-red-500 text-white shadow-red-950/50'
                 : couponState.status === 'valid'

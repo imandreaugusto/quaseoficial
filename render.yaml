@@ -21,6 +21,8 @@ services:
         sync: false
       - key: ABACATEPAY_WEBHOOK_SECRET
         sync: false
+      - key: ABACATEPAY_WEBHOOK_HMAC_KEY
+        sync: false
       - key: SUBSCRIPTION_PRICE_REAIS
         value: "10"
       - key: SUPABASE_URL

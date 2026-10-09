@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { Globe, MapPin } from 'lucide-react';
 import { UserProfile } from '../../types';
 import { CeoWorldMap } from './CeoWorldMap';
+import { isVerifiedCeoEmail } from '../../utils/security';
 
 const GLASS = 'rounded-3xl border border-white/25 bg-slate-950/30 backdrop-blur-2xl shadow-[0_8px_40px_rgba(0,0,0,0.25)]';
 const COLORS = ['#38bdf8', '#a78bfa', '#f472b6', '#34d399', '#fbbf24'];
@@ -15,7 +16,9 @@ const countBy = (items: string[]) => {
 // Mapa grande e listas de países, estados e cidades dos assinantes (somente quem autorizou a localização).
 export const CeoLocation: React.FC<{ users: UserProfile[] }> = ({ users }) => {
   const { students, countries, regions, cities } = useMemo(() => {
-    const onlyStudents = users.filter((user) => user.role === 'student');
+    const onlyStudents = users.filter((user) =>
+      user.role === 'student' && !isVerifiedCeoEmail(user.email)
+    );
     return {
       students: onlyStudents,
       countries: countBy(onlyStudents.map((user) => (user.ip_country || '').trim())),

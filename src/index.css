@@ -20,6 +20,16 @@
   z-index: var(--layer-auth);
 }
 
+.app-top-navigation {
+  top: max(0.75rem, env(safe-area-inset-top));
+  padding-inline: max(0.75rem, env(safe-area-inset-left)) max(0.75rem, env(safe-area-inset-right));
+}
+
+.app-top-navigation-control {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+}
+
 .app-floating-camera-layer {
   z-index: var(--layer-controls);
   max-width: calc(100vw - max(1rem, env(safe-area-inset-left)) - max(1rem, env(safe-area-inset-right)));
@@ -85,15 +95,20 @@ button, input, textarea, select {
   aspect-ratio: 1;
 }
 
-/* Scrollbars completely hidden across all elements */
+/* Keep scrollable areas discoverable without taking too much visual space. */
 * {
-  scrollbar-width: none !important;
-  -ms-overflow-style: none !important;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(203, 213, 225, 0.38) transparent;
 }
 *::-webkit-scrollbar {
-  display: none !important;
-  width: 0 !important;
-  height: 0 !important;
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgba(203, 213, 225, 0.38);
+  background-clip: padding-box;
 }
 
 /* Global Autofill & Input Theme Protection (Removes white boxes in Glassmorphism) */
@@ -122,16 +137,15 @@ input, textarea, select {
 }
 
 .custom-scrollbar {
-  scrollbar-width: none !important;
-  -ms-overflow-style: none !important;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(203, 213, 225, 0.38) transparent;
   overflow-y: auto !important;
   touch-action: pan-y !important;
   -webkit-overflow-scrolling: touch !important;
 }
 .custom-scrollbar::-webkit-scrollbar {
-  display: none !important;
-  width: 0 !important;
-  height: 0 !important;
+  width: 8px;
+  height: 8px;
 }
 
 /* Efeito Glassmorphism Avançado */

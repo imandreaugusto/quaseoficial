@@ -4,6 +4,20 @@ const apiBaseUrl = import.meta.env.DEV
   ? ''
   : (import.meta.env.VITE_API_URL || productionApiUrl).replace(/\/$/, '');
 
-export function apiFetch(path: string, init?: RequestInit): Promise<Response> {
-  return fetch(`${apiBaseUrl}${path}`, init);
+type ApiAccessTokenProvider = () => Promise<string | null>;
+
+let accessTokenProvider: ApiAccessTokenProvider = async () => null;
+
+export function setApiAccessTokenProvider(provider: ApiAccessTokenProvider) {
+  accessTokenProvider = provider;
+}
+
+export async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
+  const headers = new Headers(init?.headers);
+  if (!headers.has('Authorization')) {
+    const accessToken = await accessTokenProvider();
+    if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
+  }
+
+  return fetch(`${apiBaseUrl}${path}`, { ...init, headers });
 }

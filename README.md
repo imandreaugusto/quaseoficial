@@ -17,7 +17,15 @@ Se um deploy falhar, consulte os eventos e logs do servico no Render. As verific
 
 ## Salvamento automatico entre dispositivos
 
-Para habilitar a sincronizacao global de aulas, biblioteca do Read Club/Brazilian Music e progresso individual dos alunos, execute uma vez o script [`supabase/enable_platform_autosave.sql`](./supabase/enable_platform_autosave.sql) no SQL Editor do projeto Supabase. O script permite leitura para usuarios autenticados e restringe alteracoes do conteudo compartilhado aos e-mails administrativos autorizados.
+Para habilitar a sincronizacao global de aulas, biblioteca do Read Club/Brazilian Music e progresso individual dos alunos, execute uma vez o script [`supabase/enable_platform_autosave.sql`](./supabase/enable_platform_autosave.sql) no SQL Editor do projeto Supabase. O script restringe alteracoes do conteudo compartilhado aos e-mails administrativos autorizados.
+
+Antes de abrir a plataforma para alunos, execute [`supabase/enforce_paid_access.sql`](./supabase/enforce_paid_access.sql) no SQL Editor do Supabase. Ele aplica a verificacao de assinatura ativa e nao expirada no banco para conteudo compartilhado e recursos do Brazilian Friends. O servidor tambem exige uma sessao Supabase verificada e confirma a assinatura no banco em todas as APIs privadas; pagamento aprovado ou cupom resgatado sao os unicos meios de ativacao para alunos.
+
+O checkout Pix depende tambem das funcoes de cadastro, resgate de cupom e ativacao de pagamento definidas em [`supabase/google_checkout_security.sql`](./supabase/google_checkout_security.sql). Execute esse script uma vez no SQL Editor antes de habilitar cobrancas. Uma cobranca aprovada adiciona 30 dias a partir do vencimento atual se o acesso ainda estiver ativo, ou a partir do momento do pagamento se ja tiver vencido; notificacoes repetidas da mesma cobranca nao adicionam dias novamente. Renovacoes continuam vinculadas ao perfil da mesma conta.
+
+Para permitir que o CEO altere status ou conceda dias pelo painel, execute tambem [`supabase/admin_manage_subscription.sql`](./supabase/admin_manage_subscription.sql) uma vez no SQL Editor. A funcao e acessivel somente ao servidor com Service Role; as alteracoes atualizam juntas a assinatura e o perfil do mesmo aluno.
+
+Configure `ABACATEPAY_WEBHOOK_HMAC_KEY` como segredo privado no Render com a chave de assinatura de webhook fornecida pela AbacatePay, alem de `ABACATEPAY_WEBHOOK_SECRET`. Nao reutilize nem publique uma chave que ja tenha aparecido no codigo; se uma chave anterior foi usada no provedor, troque-a por uma nova antes de lancar. Sem a chave HMAC configurada, o servidor rejeita webhooks de pagamento em vez de confiar neles.
 
 As bibliotecas do Read Club e Brazilian Music atualizam os usuarios conectados em tempo real. Para habilitar os eventos instantaneos do Supabase, execute tambem [`supabase/shared_content_realtime.sql`](./supabase/shared_content_realtime.sql) no SQL Editor. Se a publicacao Realtime ainda nao estiver habilitada, o aplicativo verifica atualizacoes periodicamente como alternativa.
 

@@ -588,6 +588,24 @@ export default function App() {
     setIsAuthModalOpen(true);
   };
 
+  const isAccessExpired = (user: Pick<UserProfile, 'status' | 'data_expiracao'> | null | undefined) => {
+    if (!user || user.status !== 'active') return false;
+    return !user.data_expiracao || new Date(user.data_expiracao) <= new Date();
+  };
+
+  useEffect(() => {
+    if (!currentUser || (currentUser.role === 'admin' && isAuthorizedCeoEmail(currentUser.email || ''))) return;
+    if (isAccessExpired(currentUser)) {
+      const expiredUser: UserProfile = {
+        ...currentUser,
+        status: 'expired',
+        updated_at: new Date().toISOString()
+      };
+      setCurrentUser(expiredUser);
+      localStorage.setItem('bia_current_user', JSON.stringify(expiredUser));
+    }
+  }, [currentUser]);
+
   const hydrateUserWithCloudSubscription = async (profile: UserProfile): Promise<UserProfile> => {
     const subscription = await getSubscriptionStatusFromSupabase(profile.email);
     if (!subscription) return profile;
@@ -628,10 +646,21 @@ export default function App() {
   };
 
   const handleRealtimeSubscriptionUpdate = (subscription: { status: string; subscription_expires_at?: string | null }) => {
-    if (subscription.status !== 'active') return;
-    const expiration = subscription.subscription_expires_at || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
     setCurrentUser((previous) => {
       if (!previous) return previous;
+
+      if (subscription.status !== 'active' || !subscription.subscription_expires_at || new Date(subscription.subscription_expires_at) <= new Date()) {
+        const expiredUser: UserProfile = {
+          ...previous,
+          status: 'expired',
+          data_expiracao: subscription.subscription_expires_at || previous.data_expiracao || null,
+          updated_at: new Date().toISOString()
+        };
+        localStorage.setItem('bia_current_user', JSON.stringify(expiredUser));
+        return expiredUser;
+      }
+
+      const expiration = subscription.subscription_expires_at || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
       const updated = { ...previous, status: 'active' as const, data_expiracao: expiration };
       localStorage.setItem('bia_current_user', JSON.stringify(updated));
       return updated;
@@ -642,7 +671,7 @@ export default function App() {
   const isAdmin = currentUser?.role === 'admin' && isAuthorizedCeoEmail(currentUser?.email || '');
   const effectiveIsAdmin = isAdmin && !isStudentPreviewMode;
   const isStudent = currentUser?.role === 'student' || !isAdmin;
-  const isSubscriptionActive = currentUser?.status === 'active' || isAdmin;
+  const isSubscriptionActive = isAdmin || (currentUser?.status === 'active' && !isAccessExpired(currentUser));
   const perms: StudentPermissions = currentUser?.permissions || {
     friends: true,
     readclub: true,

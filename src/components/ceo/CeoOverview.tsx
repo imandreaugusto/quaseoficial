@@ -20,6 +20,12 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import { PixPaymentRecord, TrialCoupon, UserProfile } from '../../types';
 import { CeoWorldMap } from './CeoWorldMap';
+import { isVerifiedCeoEmail } from '../../utils/security';
+import {
+  getEffectiveSubscriptionStatus,
+  getSubscriptionDaysRemaining,
+  isActiveSubscription
+} from '../../lib/subscriptionStatus';
 
 interface CeoOverviewProps {
   users: UserProfile[];
@@ -121,7 +127,9 @@ export const CeoOverview: React.FC<CeoOverviewProps> = ({ users, pixPayments, co
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   const data = useMemo(() => {
-    const students = users.filter((user) => user.role === 'student');
+    const students = users.filter((user) =>
+      user.role === 'student' && !isVerifiedCeoEmail(user.email)
+    );
     const now = new Date();
     const months = lastMonths(8);
     const approved = pixPayments.filter((payment) => payment.status === 'approved');
@@ -135,8 +143,11 @@ export const CeoOverview: React.FC<CeoOverviewProps> = ({ users, pixPayments, co
     const newThis = students.filter((student) => sameMonth(student.created_at, thisMonth)).length;
     const newPrev = students.filter((student) => sameMonth(student.created_at, prevMonth)).length;
 
-    const active = students.filter((student) => student.status === 'active');
-    const daysLeft = (student: UserProfile) => (student.data_expiracao ? Math.ceil((new Date(student.data_expiracao).getTime() - now.getTime()) / 86_400_000) : null);
+    const active = students.filter((student) =>
+      isActiveSubscription(student.status, student.data_expiracao, now.getTime())
+    );
+    const daysLeft = (student: UserProfile) =>
+      getSubscriptionDaysRemaining(student.status, student.data_expiracao, now.getTime());
     const expiring = active.filter((student) => {
       const days = daysLeft(student);
       return days !== null && days >= 0 && days <= 7;
@@ -164,9 +175,10 @@ export const CeoOverview: React.FC<CeoOverviewProps> = ({ users, pixPayments, co
       students,
       total: students.length,
       active: active.length,
-      expired: students.filter((student) => student.status === 'expired').length,
+      expired: students.filter((student) =>
+        getEffectiveSubscriptionStatus(student.status, student.data_expiracao, now.getTime()) === 'expired'
+      ).length,
       couponsUsed: coupons.filter((coupon) => coupon.isUsed).length,
-      couponsOpen: coupons.filter((coupon) => !coupon.isUsed).length,
       revenueTotal,
       revenueMonth: revenueByMonth[revenueByMonth.length - 1],
       revenueDelta: delta(revenueByMonth[revenueByMonth.length - 1], revenueByMonth[revenueByMonth.length - 2]),
@@ -211,7 +223,7 @@ export const CeoOverview: React.FC<CeoOverviewProps> = ({ users, pixPayments, co
     { label: 'Cancelados', value: data.expired, format: (v) => String(Math.round(v)), icon: UserX, tint: 'from-rose-400/40 to-rose-500/10', hint: 'acesso expirado' },
     { label: 'Receita total', value: data.revenueTotal, format: (v) => money(v), icon: CircleDollarSign, tint: 'from-blue-400/40 to-blue-500/10', hint: 'pagamentos aprovados' },
     { label: 'Receita do mês', value: data.revenueMonth, format: (v) => money(v), icon: Calendar, tint: 'from-indigo-400/40 to-indigo-500/10', trend: data.revenueDelta, hint: 'vs. mês anterior' },
-    { label: 'Vendas com cupom', value: data.couponsUsed, format: (v) => String(Math.round(v)), icon: Ticket, tint: 'from-fuchsia-400/40 to-fuchsia-500/10', hint: 'cupons usados' },
+    { label: 'Cupons resgatados', value: data.couponsUsed, format: (v) => String(Math.round(v)), icon: Ticket, tint: 'from-fuchsia-400/40 to-fuchsia-500/10', hint: 'códigos utilizados' },
     { label: 'Vencendo em breve', value: data.expiring, format: (v) => String(Math.round(v)), icon: Clock3, tint: 'from-amber-400/40 to-amber-500/10', hint: 'nos próximos 7 dias' },
     { label: 'Novos assinantes', value: data.newThis, format: (v) => String(Math.round(v)), icon: UserPlus, tint: 'from-cyan-400/40 to-cyan-500/10', trend: data.newDelta, hint: 'vs. mês anterior' }
   ];
@@ -285,11 +297,9 @@ export const CeoOverview: React.FC<CeoOverviewProps> = ({ users, pixPayments, co
         </div>
 
         <div className={`${GLASS} p-4 xl:col-span-3`}>
-          <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-white"><Ticket size={14} className="text-fuchsia-300" /> Uso de cupons</h3>
-          <div className="flex items-center gap-4">
-            <Donut center={String(data.couponsUsed)} sub="usos" segments={[{ label: 'Usados', value: data.couponsUsed, color: '#a78bfa' }, { label: 'Disponíveis', value: data.couponsOpen, color: '#38bdf8' }]} />
-            <Legend items={[{ label: 'Usados', value: String(data.couponsUsed), color: '#a78bfa' }, { label: 'Disponíveis', value: String(data.couponsOpen), color: '#38bdf8' }]} />
-          </div>
+          <h3 className="mb-2 flex items-center gap-2 text-sm font-bold text-white"><Ticket size={14} className="text-fuchsia-300" /> Cupons resgatados</h3>
+          <p className="text-3xl font-black text-white"><CountUp value={data.couponsUsed} format={(value) => String(Math.round(value))} /></p>
+          <p className="mt-1 text-xs text-white/50">Conta somente quando um aluno resgata um código. Cupons apenas gerados não entram nessa métrica.</p>
         </div>
       </div>
 

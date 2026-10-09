@@ -263,7 +263,8 @@ export const PixPaymentScreen: React.FC<PixPaymentScreenProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('checkout')}
-            className={`flex-1 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            aria-pressed={activeTab === 'checkout'}
+            className={`min-h-11 flex-1 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
               activeTab === 'checkout'
                 ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20'
                 : 'text-white/70 hover:text-white hover:bg-white/5'
@@ -276,7 +277,8 @@ export const PixPaymentScreen: React.FC<PixPaymentScreenProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('history')}
-            className={`flex-1 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            aria-pressed={activeTab === 'history'}
+            className={`min-h-11 flex-1 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
               activeTab === 'history'
                 ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20'
                 : 'text-white/70 hover:text-white hover:bg-white/5'
@@ -372,15 +374,16 @@ export const PixPaymentScreen: React.FC<PixPaymentScreenProps> = ({
               <div className="w-full flex items-center gap-2 bg-neutral-900 border border-white/20 rounded-xl p-2 mb-3">
                 <input
                   type="text"
+                  aria-label="Código Pix para copiar"
                   readOnly
                   value={copyablePixValue}
-                  className="bg-transparent text-white font-mono text-[11px] outline-none w-full px-2 truncate selection:bg-amber-400 selection:text-black"
+                  className="bg-transparent text-white font-mono text-base sm:text-xs outline-none w-full px-2 truncate selection:bg-amber-400 selection:text-black"
                 />
                 <button
                   type="button"
                   onClick={handleCopyPix}
                   disabled={!copyablePixValue}
-                  className={`px-3.5 py-2 rounded-lg text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
+                  className={`min-h-11 px-3.5 py-2 rounded-lg text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
                     copied
                       ? 'bg-emerald-500 text-black shadow-md shadow-emerald-500/30'
                       : 'bg-amber-500 hover:bg-amber-400 text-black shadow-md shadow-amber-500/30 active:scale-95'

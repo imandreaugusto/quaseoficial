@@ -11,11 +11,13 @@ import dotenv from 'dotenv';
 import { validatePortuguesePhrase } from './src/lib/jevValidator';
 import {
   abacatePayApiEndpoint,
+  hasActiveSubscription,
   normalizeEmail,
   subscriptionPriceCents,
   verifyAbacatePaySignature,
   verifyWebhookSecret
 } from './src/lib/paymentSecurity';
+import { getAdminSubscriptionStatus } from './src/lib/subscriptionStatus';
 import { CEO_EMAIL } from './src/utils/security';
 
 // Load environment variables
@@ -425,6 +427,68 @@ async function startServer() {
     next();
   });
 
+  const isSubscriptionBootstrapRoute = (request: express.Request) => {
+    const route = `${request.baseUrl}${request.path}`;
+    if (request.method === 'GET' && ['/api/health', '/api/public-config'].includes(route)) return true;
+    if (request.method === 'GET' && route.startsWith('/api/trial-coupons/')) return true;
+    if (request.method === 'POST' && [
+      '/api/auth/profile',
+      '/api/auth/google/profile',
+      '/api/auth/profile/details',
+      '/api/auth/redeem-coupon',
+      '/api/auth/google/redeem-coupon',
+      '/api/payments/create-pix',
+      '/api/webhook/payment'
+    ].includes(route)) return true;
+    return request.method === 'GET' && route.startsWith('/api/payments/status/');
+  };
+
+  app.use('/api', async (req, res, next) => {
+    if (isSubscriptionBootstrapRoute(req)) return next();
+
+    try {
+      const authUser = await getSupabaseUserFromRequest(req);
+      const email = normalizeEmail(authUser?.email);
+      if (!authUser?.id || !email || !authUser.email_confirmed_at) {
+        return res.status(401).json({ error: 'Entre com uma conta verificada para acessar a plataforma.' });
+      }
+
+      if (email === CEO_EMAIL) return next();
+
+      const profile = await getAuthenticatedProfileByAuthId(authUser.id);
+      if (
+        !profile ||
+        profile.auth_user_id !== authUser.id ||
+        normalizeEmail(profile.email) !== email ||
+        profile.role === 'admin'
+      ) {
+        return res.status(403).json({ error: 'O perfil desta conta não está autorizado.' });
+      }
+
+      const subscriptionResponse = await supabaseServiceRequest(
+        `bia_subscription_profiles?user_id=eq.${encodeURIComponent(authUser.id)}&email=eq.${encodeURIComponent(email)}&select=status,subscription_expires_at&limit=1`
+      );
+      if (!subscriptionResponse.ok) {
+        console.error('Platform subscription lookup failed:', subscriptionResponse.status, await subscriptionResponse.text());
+        return res.status(503).json({ error: 'Não foi possível confirmar sua assinatura. Tente novamente.' });
+      }
+
+      const subscriptions = await subscriptionResponse.json() as {
+        status: string;
+        subscription_expires_at: string | null;
+      }[];
+      const subscription = subscriptions[0];
+      if (!subscription || !hasActiveSubscription(subscription.status, subscription.subscription_expires_at)) {
+        return res.status(402).json({ error: 'Assinatura expirada ou não encontrada. Pague ou resgate um cupom para liberar o acesso.' });
+      }
+
+      return next();
+    } catch (error: any) {
+      console.error('Platform access verification failed:', error?.message || error);
+      return res.status(503).json({ error: 'Não foi possível verificar a autorização agora. Tente novamente.' });
+    }
+  });
+
   // 1. Health check endpoint
   app.get('/api/health', (req, res) => {
     res.json({ 
@@ -648,6 +712,187 @@ async function startServer() {
     if (!authUser?.id || !authUser.email_confirmed_at || normalizeEmail(authUser.email) !== CEO_EMAIL) return null;
     return authUser;
   };
+
+  app.get('/api/admin/subscribers', async (req, res) => {
+    try {
+      const authUser = await getVerifiedCeo(req);
+      if (!authUser) return res.status(403).json({ error: 'Somente a conta CEO pode consultar os assinantes.' });
+
+      const profileFields = [
+        'id', 'auth_user_id', 'email', 'full_name', 'first_name', 'last_name',
+        'profile_state', 'profile_city', 'profile_country', 'photo_url',
+        'location_consent', 'role', 'status', 'data_expiracao', 'permissions',
+        'email_verified', 'ip_country', 'ip_region', 'ip_city', 'cupom_usado',
+        'created_at', 'updated_at'
+      ].join(',');
+      const profiles: Record<string, unknown>[] = [];
+      const pageSize = 500;
+      for (let offset = 0; ; offset += pageSize) {
+        const response = await supabaseServiceRequest(
+          `profiles?role=eq.student&select=${profileFields}&order=id.asc&limit=${pageSize}&offset=${offset}`
+        );
+        if (!response.ok) {
+          console.error('Admin subscriber profile lookup failed:', response.status, await response.text());
+          return res.status(502).json({ error: 'Não foi possível carregar os perfis dos assinantes.' });
+        }
+        const page = await response.json() as Record<string, unknown>[];
+        profiles.push(...page);
+        if (page.length < pageSize) break;
+      }
+
+      const accountIds = [...new Set(profiles.flatMap((profile) => [
+        typeof profile.id === 'string' ? profile.id : '',
+        typeof profile.auth_user_id === 'string' ? profile.auth_user_id : ''
+      ]).filter(Boolean))];
+      const subscriptions: Record<string, unknown>[] = [];
+      for (let index = 0; index < accountIds.length; index += 100) {
+        const ids = accountIds.slice(index, index + 100);
+        const response = await supabaseServiceRequest(
+          `bia_subscription_profiles?user_id=in.(${ids.map(encodeURIComponent).join(',')})&select=user_id,email,status,subscription_expires_at,updated_at`
+        );
+        if (!response.ok) {
+          console.error('Admin subscriber subscription lookup failed:', response.status, await response.text());
+          return res.status(502).json({ error: 'Não foi possível confirmar as assinaturas dos alunos.' });
+        }
+        subscriptions.push(...await response.json() as Record<string, unknown>[]);
+      }
+
+      const profileEmails = [...new Set(profiles
+        .map((profile) => normalizeEmail(profile.email))
+        .filter((email) => email && email !== CEO_EMAIL))];
+      for (let index = 0; index < profileEmails.length; index += 100) {
+        const emails = profileEmails.slice(index, index + 100);
+        const response = await supabaseServiceRequest(
+          `bia_subscription_profiles?email=in.(${emails.map((email) => `"${encodeURIComponent(email)}"`).join(',')})&select=user_id,email,status,subscription_expires_at,updated_at`
+        );
+        if (!response.ok) {
+          console.error('Admin subscriber subscription lookup failed:', response.status, await response.text());
+          return res.status(502).json({ error: 'Não foi possível confirmar as assinaturas dos alunos.' });
+        }
+        subscriptions.push(...await response.json() as Record<string, unknown>[]);
+      }
+
+      const subscriptionByUserId = new Map<string, Record<string, unknown>>();
+      const subscriptionByEmail = new Map<string, Record<string, unknown>>();
+      for (const subscription of subscriptions) {
+        const userId = typeof subscription.user_id === 'string' ? subscription.user_id : '';
+        const email = normalizeEmail(subscription.email);
+        const currentUpdatedAt = typeof subscription.updated_at === 'string' ? Date.parse(subscription.updated_at) : 0;
+        const previousByUserId = subscriptionByUserId.get(userId);
+        const previousByEmail = subscriptionByEmail.get(email);
+        const previousUserUpdatedAt = typeof previousByUserId?.updated_at === 'string' ? Date.parse(previousByUserId.updated_at) : 0;
+        const previousEmailUpdatedAt = typeof previousByEmail?.updated_at === 'string' ? Date.parse(previousByEmail.updated_at) : 0;
+        if (userId && (!previousByUserId || currentUpdatedAt >= previousUserUpdatedAt)) {
+          subscriptionByUserId.set(userId, subscription);
+        }
+        if (email && (!previousByEmail || currentUpdatedAt >= previousEmailUpdatedAt)) {
+          subscriptionByEmail.set(email, subscription);
+        }
+      }
+
+      profiles.sort((left, right) => {
+        const updatedAt = (profile: Record<string, unknown>) => {
+          const raw = profile.updated_at || profile.created_at;
+          const timestamp = typeof raw === 'string' ? Date.parse(raw) : Number.NaN;
+          return Number.isFinite(timestamp) ? timestamp : Number.NEGATIVE_INFINITY;
+        };
+        return updatedAt(right) - updatedAt(left);
+      });
+
+      const seenStudents = new Set<string>();
+      const students = profiles.flatMap((profile) => {
+        const email = normalizeEmail(profile.email);
+        const id = typeof profile.id === 'string' ? profile.id : '';
+        const authUserId = typeof profile.auth_user_id === 'string' ? profile.auth_user_id : '';
+        const identity = authUserId
+          ? authUserId
+          : id || email;
+        if (!email || email === CEO_EMAIL || !identity || seenStudents.has(identity) || seenStudents.has(email)) return [];
+        seenStudents.add(identity);
+        seenStudents.add(email);
+
+        const emailSubscription = subscriptionByEmail.get(email);
+        const emailSubscriptionUserId = typeof emailSubscription?.user_id === 'string' ? emailSubscription.user_id : '';
+        const emailSubscriptionBelongsToProfile = !emailSubscriptionUserId ||
+          emailSubscriptionUserId === authUserId ||
+          emailSubscriptionUserId === id;
+        const subscription = subscriptionByUserId.get(authUserId) ||
+          subscriptionByUserId.get(id) ||
+          (emailSubscriptionBelongsToProfile ? emailSubscription : undefined);
+        const expiresAt = typeof subscription?.subscription_expires_at === 'string' ? subscription.subscription_expires_at : null;
+        const status = getAdminSubscriptionStatus(
+          subscription?.status,
+          subscription?.subscription_expires_at,
+          profile.status,
+          profile.data_expiracao
+        );
+
+        return [{
+          ...profile,
+          email,
+          status,
+          data_expiracao: expiresAt
+        }];
+      });
+
+      res.setHeader('Cache-Control', 'no-store');
+      return res.json({ subscribers: students });
+    } catch (error: any) {
+      console.error('Admin subscriber list failed:', error?.message || error);
+      return res.status(500).json({ error: 'Falha ao carregar os assinantes.' });
+    }
+  });
+
+  app.post('/api/admin/subscribers/:id/subscription', async (req, res) => {
+    try {
+      const authUser = await getVerifiedCeo(req);
+      if (!authUser) return res.status(403).json({ error: 'Somente a conta CEO pode alterar assinaturas.' });
+      if (isRateLimited(`admin-subscription:${authUser.id}`, 60, 60_000)) {
+        return res.status(429).json({ error: 'Muitas alterações de assinatura. Aguarde um momento.' });
+      }
+
+      const userId = req.params.id;
+      if (!userId || userId.length > 200) return res.status(400).json({ error: 'Identificador de aluno inválido.' });
+      const hasDays = Object.prototype.hasOwnProperty.call(req.body || {}, 'days');
+      const days = hasDays ? Number(req.body.days) : null;
+      const status = typeof req.body?.status === 'string' ? req.body.status : null;
+      if (
+        (hasDays && (!Number.isInteger(days) || days! < 1 || days! > 3650 || status !== null)) ||
+        (!hasDays && !['active', 'pending', 'expired'].includes(status || ''))
+      ) {
+        return res.status(400).json({ error: 'Informe dias válidos ou um status de assinatura permitido.' });
+      }
+
+      const response = await supabaseServiceRequest('rpc/admin_manage_bia_subscription', {
+        method: 'POST',
+        body: JSON.stringify({ p_user_id: userId, p_status: status, p_days: days })
+      });
+      if (!response.ok) {
+        console.error('Admin subscription update failed:', response.status, await response.text());
+        return res.status(502).json({ error: 'Não foi possível salvar a assinatura do aluno.' });
+      }
+
+      const result = await response.json() as {
+        ok: boolean;
+        reason?: string;
+        status?: string;
+        subscription_expires_at?: string | null;
+      };
+      if (!result.ok) {
+        const statusCode = result.reason === 'profile_not_found' ? 404 : 400;
+        return res.status(statusCode).json({ error: 'O aluno não foi encontrado ou os dados da assinatura são inválidos.' });
+      }
+      return res.json({
+        subscription: {
+          status: result.status,
+          data_expiracao: result.subscription_expires_at || null
+        }
+      });
+    } catch (error: any) {
+      console.error('Admin subscription update failed:', error?.message || error);
+      return res.status(500).json({ error: 'Falha ao atualizar a assinatura.' });
+    }
+  });
 
   app.get('/api/admin/trial-coupons', async (req, res) => {
     try {
@@ -1813,8 +2058,9 @@ async function startServer() {
       const webhookSecretValid = [process.env.ABATEPAY_WEBHOOK_SECRET, process.env.ABACATEPAY_WEBHOOK_SECRET]
         .some((secret) => verifyWebhookSecret(providedWebhookSecret, secret));
       const rawBody = (req as express.Request & { rawBody?: Buffer }).rawBody;
+      const webhookHmacKey = process.env.ABACATEPAY_WEBHOOK_HMAC_KEY;
       if (!webhookSecretValid
-        || !verifyAbacatePaySignature(rawBody, req.header('X-Webhook-Signature'))) {
+        || !verifyAbacatePaySignature(rawBody, req.header('X-Webhook-Signature'), webhookHmacKey)) {
         return res.status(401).json({ error: 'Assinatura do webhook inválida.' });
       }
 

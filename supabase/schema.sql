@@ -190,6 +190,26 @@ alter table bia_student_feedback enable row level security;
 alter table bia_trial_coupons enable row level security;
 alter table bia_payment_intents enable row level security;
 
+create or replace function public.has_active_bia_subscription()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+  select lower(coalesce(auth.jwt() ->> 'email', '')) = 'andrejrcardoso93@gmail.com'
+    or exists (
+      select 1
+      from public.bia_subscription_profiles subscription
+      where subscription.user_id = auth.uid()::text
+        and lower(subscription.email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+        and subscription.status = 'active'
+        and subscription.subscription_expires_at > now()
+    );
+$$;
+revoke all on function public.has_active_bia_subscription() from public, anon;
+grant execute on function public.has_active_bia_subscription() to authenticated, service_role;
+
 drop policy if exists "profiles_all_access" on profiles;
 drop policy if exists "profiles_select_own" on profiles;
 create policy "profiles_select_own" on profiles
@@ -223,7 +243,7 @@ drop policy if exists "shared_content_ceo_insert" on bia_shared_content;
 drop policy if exists "shared_content_ceo_update" on bia_shared_content;
 drop policy if exists "shared_content_ceo_delete" on bia_shared_content;
 create policy "shared_content_authenticated_read" on bia_shared_content
-for select to authenticated using (true);
+for select to authenticated using (public.has_active_bia_subscription());
 create policy "shared_content_ceo_insert" on bia_shared_content
 for insert to authenticated
 with check (lower(coalesce(auth.jwt() ->> 'email', '')) in (
@@ -291,13 +311,19 @@ with check (lower(coalesce(auth.jwt() ->> 'email', '')) in (
 drop policy if exists "ceo_friend_messages_all_access" on bia_ceo_friend_messages;
 drop policy if exists "ceo_friend_messages_participant_read" on bia_ceo_friend_messages;
 create policy "ceo_friend_messages_participant_read" on bia_ceo_friend_messages
-for select to authenticated using (sender_id = auth.uid()::text or receiver_id = auth.uid()::text);
+for select to authenticated
+using (
+  public.has_active_bia_subscription()
+  and (sender_id = auth.uid()::text or receiver_id = auth.uid()::text)
+);
 drop policy if exists "ceo_friend_messages_sender_insert" on bia_ceo_friend_messages;
 create policy "ceo_friend_messages_sender_insert" on bia_ceo_friend_messages
-for insert to authenticated with check (sender_id = auth.uid()::text);
+for insert to authenticated
+with check (public.has_active_bia_subscription() and sender_id = auth.uid()::text);
 drop policy if exists "ceo_friend_messages_sender_delete" on bia_ceo_friend_messages;
 create policy "ceo_friend_messages_sender_delete" on bia_ceo_friend_messages
-for delete to authenticated using (sender_id = auth.uid()::text);
+for delete to authenticated
+using (public.has_active_bia_subscription() and sender_id = auth.uid()::text);
 
 drop policy if exists "trial_coupons_all_access" on bia_trial_coupons;
 drop policy if exists "trial_coupons_public_read" on bia_trial_coupons;

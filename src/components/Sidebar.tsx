@@ -34,6 +34,7 @@ import {
 import { UserProfile, GlobalAppConfig } from '../types';
 import { BrazilianLogo } from './BrazilianLogo';
 import { SocialLinksBar } from './SocialLinksBar';
+import { getSupabaseClient, loadSharedContentFromSupabase } from '../utils/supabaseClient';
 
 interface SidebarProps {
   currentApp: string;
@@ -168,12 +169,14 @@ const NavButton: React.FC<{
   return (
     <button
       ref={btnRef}
+      type="button"
       onClick={handleClick}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
-      className={`w-full flex items-center gap-3.5 px-3 py-2.5 rounded-2xl border select-none cursor-pointer ${
+      aria-current={isActive ? 'page' : undefined}
+      className={`min-h-11 w-full flex items-center gap-3.5 px-3 py-2.5 rounded-2xl border select-none cursor-pointer ${
         isActive ? 'border-white/25 bg-white/10 backdrop-blur-xl shadow-[0_4px_24px_rgba(0,0,0,0.25)]' : 'border-transparent bg-transparent'
       }`}
     >
@@ -235,13 +238,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onToggleStudentPreview
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const menuToggleRef = useRef<HTMLButtonElement | null>(null);
+  const menuPanelRef = useRef<HTMLElement | null>(null);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isIosInstallAvailable, setIsIosInstallAvailable] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
   const [showInstallHelp, setShowInstallHelp] = useState(false);
   const [installError, setInstallError] = useState('');
   const [appConfig, setAppConfig] = useState<GlobalAppConfig>({
-    studentAppOrder: ['home', 'brazilianfriends', 'stories', 'practice', 'readclub', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube'],
+    studentAppOrder: ['home', 'brazilianfriends', 'stories', 'practice', 'readclub', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'feedback'],
     adminAppOrder: ['home', 'work', 'brazilianfriends', 'stories', 'practice', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'settings'],
     studentGlobalEnabled: {
       brazilianfriends: true,
@@ -254,7 +259,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       biacompare: true,
       conversation: true,
       tradutor: true,
-      youtube: true
+      youtube: true,
+      feedback: true
     }
   });
 
@@ -286,42 +292,106 @@ export const Sidebar: React.FC<SidebarProps> = ({
     };
   }, []);
 
-  // Load custom app order and maintenance states from storage
+  // The CEO's app visibility/order configuration is shared across subscriber devices.
   useEffect(() => {
+    let cancelled = false;
+    let refreshInProgress = false;
+
+    const applyConfig = (parsed: GlobalAppConfig | null) => {
+      if (!parsed || !Array.isArray(parsed.studentAppOrder) || !Array.isArray(parsed.adminAppOrder)) return;
+      const studentAppOrder = parsed.studentAppOrder.includes('brazilianfriends')
+        ? parsed.studentAppOrder
+        : ['brazilianfriends', ...parsed.studentAppOrder];
+      if (!studentAppOrder.includes('feedback')) studentAppOrder.push('feedback');
+      const adminAppOrder = parsed.adminAppOrder.includes('brazilianfriends')
+        ? parsed.adminAppOrder
+        : ['brazilianfriends', ...parsed.adminAppOrder];
+      if (!studentAppOrder.includes('braziliangames')) studentAppOrder.push('braziliangames');
+      if (!adminAppOrder.includes('braziliangames')) adminAppOrder.push('braziliangames');
+      if (!adminAppOrder.includes('youtube')) adminAppOrder.push('youtube');
+      if (!adminAppOrder.includes('feedback')) adminAppOrder.push('feedback');
+      const normalized: GlobalAppConfig = {
+        ...parsed,
+        studentAppOrder,
+        adminAppOrder,
+        studentGlobalEnabled: {
+          brazilianfriends: true,
+          braziliangames: true,
+          feedback: true,
+          ...parsed.studentGlobalEnabled
+        }
+      };
+      setAppConfig(normalized);
+      localStorage.setItem('bia_global_app_config', JSON.stringify(normalized));
+      if (
+        (currentUser?.role !== 'admin' || isStudentPreviewMode) &&
+        currentApp !== 'home' &&
+        normalized.studentGlobalEnabled[currentApp] === false
+      ) {
+        onNavigate('home');
+      }
+    };
+
     const loadConfig = () => {
       const savedConfig = localStorage.getItem('bia_global_app_config');
       if (savedConfig) {
         try {
-          const parsed = JSON.parse(savedConfig) as GlobalAppConfig;
-          const studentAppOrder = parsed.studentAppOrder.includes('brazilianfriends')
-            ? parsed.studentAppOrder
-            : ['brazilianfriends', ...parsed.studentAppOrder];
-          const adminAppOrder = parsed.adminAppOrder.includes('brazilianfriends')
-            ? parsed.adminAppOrder
-            : ['brazilianfriends', ...parsed.adminAppOrder];
-          if (!studentAppOrder.includes('braziliangames')) studentAppOrder.push('braziliangames');
-          if (!adminAppOrder.includes('braziliangames')) adminAppOrder.push('braziliangames');
-          if (!adminAppOrder.includes('youtube')) adminAppOrder.push('youtube');
-          if (!adminAppOrder.includes('feedback')) adminAppOrder.push('feedback');
-          setAppConfig({
-            ...parsed,
-            studentAppOrder,
-            adminAppOrder,
-            studentGlobalEnabled: {
-              brazilianfriends: true,
-              braziliangames: true,
-              ...parsed.studentGlobalEnabled
-            }
-          });
-        } catch (e) {}
+          applyConfig(JSON.parse(savedConfig) as GlobalAppConfig);
+        } catch (error) {
+          console.error('Saved app menu configuration is invalid:', error);
+        }
       }
     };
     loadConfig();
 
     const handleConfigChange = () => loadConfig();
     window.addEventListener('bia_app_config_changed', handleConfigChange);
-    return () => window.removeEventListener('bia_app_config_changed', handleConfigChange);
-  }, []);
+    const canReadSharedConfig = currentUser?.role === 'admin' || currentUser?.status === 'active';
+    const client = canReadSharedConfig ? getSupabaseClient() : null;
+    if (!client) {
+      return () => {
+        cancelled = true;
+        window.removeEventListener('bia_app_config_changed', handleConfigChange);
+      };
+    }
+
+    const refreshSharedConfig = async () => {
+      if (refreshInProgress) return;
+      refreshInProgress = true;
+      try {
+        const sharedConfig = await loadSharedContentFromSupabase<GlobalAppConfig>('global_app_config');
+        if (!cancelled) applyConfig(sharedConfig);
+      } catch (error) {
+        console.error('Could not load shared student app visibility settings:', error);
+      } finally {
+        refreshInProgress = false;
+      }
+    };
+
+    void refreshSharedConfig();
+    const channel = client
+      .channel(`shared-app-config-${currentUser?.auth_user_id || currentUser?.id || 'user'}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'bia_shared_content', filter: 'content_key=eq.global_app_config' },
+        () => void refreshSharedConfig()
+      )
+      .subscribe((status, error) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('Realtime app menu updates are unavailable; periodic refresh remains active.', error);
+        }
+      });
+    const refreshInterval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void refreshSharedConfig();
+    }, 15_000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(refreshInterval);
+      window.removeEventListener('bia_app_config_changed', handleConfigChange);
+      void client.removeChannel(channel);
+    };
+  }, [currentUser?.auth_user_id, currentUser?.id, currentUser?.role, currentUser?.status, currentApp, isStudentPreviewMode, onNavigate]);
 
   // STRICT RBAC MENU DEFINITION
   const isActualAdmin = currentUser?.role === 'admin';
@@ -348,13 +418,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
       if (!item) return false;
       if (item.id === 'home') return true;
       const isGloballyActive = appConfig.studentGlobalEnabled[item.id] !== false;
-      const isPermittedForUser = perms[item.permKey] !== false;
+      const isPermittedForUser = item.id === 'feedback' || perms[item.permKey] !== false;
       return isGloballyActive && isPermittedForUser;
     });
-  if (!studentItems.some((item) => item.id === 'feedback')) {
-    const feedbackItem = ALL_STUDENT_ITEMS.find((item) => item.id === 'feedback');
-    if (feedbackItem) studentItems.push(feedbackItem);
-  }
 
   // Build Ordered Admin Items
   const adminItems = appConfig.adminAppOrder
@@ -377,7 +443,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const handleNavigate = (id: string) => {
     onNavigate(id);
-    setIsOpen(false);
+    closeMenu();
   };
 
   const handleInstallApp = async () => {
@@ -396,6 +462,51 @@ export const Sidebar: React.FC<SidebarProps> = ({
       setInstallError('Não foi possível abrir a instalação agora. Tente novamente pelo menu do navegador.');
     }
   };
+
+  const closeMenu = () => {
+    setIsOpen(false);
+    requestAnimationFrame(() => menuToggleRef.current?.focus());
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const panel = menuPanelRef.current;
+    const getFocusableItems = () => panel?.querySelectorAll<HTMLElement>(
+      'a[href], button:not(:disabled), input:not(:disabled), [tabindex]:not([tabindex="-1"])'
+    ) || [];
+    getFocusableItems()[0]?.focus();
+
+    const handleMenuKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeMenu();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+
+      const focusableItems = getFocusableItems();
+      const first = focusableItems[0];
+      const last = focusableItems[focusableItems.length - 1];
+      if (!first || !last) {
+        event.preventDefault();
+        return;
+      }
+      if (!panel?.contains(document.activeElement)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      } else if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleMenuKeyDown);
+    return () => document.removeEventListener('keydown', handleMenuKeyDown);
+  }, [isOpen]);
 
   const navContainerVariants: Variants = {
     hidden: { x: '-100%', opacity: 0.8 },
@@ -432,30 +543,35 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <>
       {/* FLOATING TOP NAVIGATION ISLANDS (No full-width dark background strip) */}
-      <div className="fixed top-3 left-0 right-0 z-[3200] px-3 sm:px-5 flex items-center justify-between select-none pointer-events-none">
+      <div className="app-top-navigation fixed left-0 right-0 z-[3200] flex items-center justify-between select-none pointer-events-none">
         {/* Left Floating Island: Hamburger & Brand Logo */}
         <div className="flex items-center gap-2 shrink-0 pointer-events-auto">
           <button
+            ref={menuToggleRef}
+            type="button"
             id="hamburger-btn"
             onClick={() => {
               playMenuSelectSound(0.18);
               setIsOpen(!isOpen);
             }}
-            className="p-2 sm:p-2.5 bg-transparent border-0 hover:scale-110 transition-transform cursor-pointer drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)] active:scale-95"
+            aria-label={isOpen ? 'Fechar menu de navegação' : 'Abrir menu de navegação'}
+            aria-expanded={isOpen}
+            aria-controls="app-navigation-menu"
+            className="app-top-navigation-control flex h-11 w-11 items-center justify-center bg-transparent border-0 hover:scale-110 transition-transform cursor-pointer drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)] active:scale-95"
             style={{ color: isOpen ? accentColor : '#ffffff' }}
-            title="Abrir Menu de Navegação"
           >
-            <Menu size={18} />
+            {isOpen ? <X size={20} aria-hidden="true" /> : <Menu size={20} aria-hidden="true" />}
           </button>
 
           {/* Automatic Brand Logo */}
-          <div
+          <button
+            type="button"
             onClick={() => onNavigate('home')}
-            className="flex items-center gap-2 cursor-pointer hover:scale-[1.02] transition-transform bg-transparent px-1 py-1 drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)]"
-            title="Brazilian in Action"
+            aria-label="Brazilian in Action - ir para Home"
+            className="flex min-h-11 items-center gap-2 cursor-pointer hover:scale-[1.02] transition-transform bg-transparent border-0 px-1 py-1 drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)]"
           >
             <BrazilianLogo size="sm" />
-          </div>
+          </button>
         </div>
 
         {/* Center Floating Island: Current Module Indicator Badge (Clean without Admin badge) */}
@@ -481,10 +597,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               type="button"
               onClick={onToggleStudentPreview}
-              className={`flex items-center justify-center p-2 bg-transparent border-0 transition-all cursor-pointer group active:scale-95 drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)] ${
+              aria-label={isStudentPreviewMode ? 'Sair da visão de aluno e retornar ao modo CEO' : 'Visualizar como aluno'}
+              className={`app-top-navigation-control flex h-11 w-11 items-center justify-center bg-transparent border-0 transition-all cursor-pointer group active:scale-95 drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)] ${
                 isStudentPreviewMode ? 'text-white' : 'text-white/80 hover:text-white'
               }`}
-              title={isStudentPreviewMode ? "Sair da Visão de Aluno e retornar ao Modo CEO" : "Visualizar como Aluno (Simulação)"}
             >
               {isStudentPreviewMode ? (
                 <EyeOff size={16} />
@@ -499,10 +615,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               type="button"
               onClick={onToggleFloatingCam}
-                className={`flex items-center gap-1.5 p-2 bg-transparent border-0 text-xs font-extrabold transition-all cursor-pointer group active:scale-95 drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)] ${
+              aria-label={isFloatingCamActive ? 'Ocultar câmera flutuante do CEO' : 'Mostrar câmera flutuante do CEO'}
+              aria-pressed={Boolean(isFloatingCamActive)}
+              className={`app-top-navigation-control flex h-11 w-11 items-center justify-center bg-transparent border-0 text-xs font-extrabold transition-all cursor-pointer group active:scale-95 drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)] ${
                 isFloatingCamActive ? 'text-white' : 'text-white/80 hover:text-white'
               }`}
-              title="Ativar / Ocultar Câmera Bolinha (B Cam Flutuante do CEO)"
             >
               <div className="relative flex items-center justify-center">
                 <Video size={14} className="text-white group-hover:scale-110 transition-transform" />
@@ -522,10 +639,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <button
                   type="button"
                   onClick={onLogout}
-                  className="p-1 bg-transparent text-white/70 hover:text-red-400 transition-all cursor-pointer ml-0.5"
-                  title="Sair da Conta"
+                  aria-label="Sair da conta"
+                  className="app-top-navigation-control flex h-11 w-11 items-center justify-center bg-transparent text-white/70 hover:text-red-400 transition-all cursor-pointer ml-0.5"
                 >
-                  <LogOut size={14} />
+                  <LogOut size={18} aria-hidden="true" />
                 </button>
               )}
             </div>
@@ -538,24 +655,32 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {isOpen && (
           <>
             {/* Backdrop Overlay */}
-            <motion.div
+            <motion.button
+              type="button"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.28, ease: 'easeOut' }}
-              onClick={() => setIsOpen(false)}
-              className="fixed inset-0 z-[3300] bg-transparent"
+              onClick={closeMenu}
+              aria-hidden="true"
+              tabIndex={-1}
+              className="fixed inset-0 z-[3300] border-0 bg-transparent"
             />
 
             {/* Sidebar Menu Panel */}
-            <motion.nav
+            <motion.div
+              ref={menuPanelRef}
+              id="app-navigation-menu"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Menu de navegação"
               variants={navContainerVariants}
               initial="hidden"
               animate="visible"
               exit="exit"
-              className="menu-cinematic-panel fixed top-0 left-0 bottom-0 w-72 z-[3400] bg-transparent p-4 pt-18 flex flex-col justify-between select-none"
+              className="menu-cinematic-panel fixed top-0 left-0 bottom-0 z-[3400] flex w-[min(18rem,calc(100vw-1.5rem))] flex-col justify-between bg-transparent p-4 pt-18 select-none"
             >
-              <div className="flex flex-col gap-1 overflow-y-auto custom-scrollbar pr-1">
+              <nav aria-label={isAdmin ? 'Módulos do CEO' : 'Módulos do aluno'} className="flex flex-col gap-1 overflow-y-auto custom-scrollbar pr-1">
                 <div
                   className="px-2 py-2 text-[10px] font-bold uppercase tracking-widest font-mono menu-cinematic-text text-white/75"
                 >
@@ -576,13 +701,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     </motion.div>
                   );
                 })}
-
                 {!isInstalled && (isIosInstallAvailable || installPrompt) && (
                   <motion.div variants={itemVariants} className="pt-2">
                     <button
                       type="button"
                       onClick={() => void handleInstallApp()}
-                      className="w-full flex items-center gap-3.5 px-3 py-2.5 rounded-2xl border border-white/10 bg-white/[0.04] text-white/70 hover:text-white hover:bg-white/[0.08] transition-colors"
+                      className="min-h-11 w-full flex items-center gap-3.5 px-3 py-2.5 rounded-2xl border border-white/10 bg-white/[0.04] text-white/70 hover:text-white hover:bg-white/[0.08] transition-colors"
                     >
                       <Download size={18} className="shrink-0" />
                       <span className="text-sm tracking-wide font-medium">Instalar app</span>
@@ -594,7 +718,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     )}
                   </motion.div>
                 )}
-              </div>
+              </nav>
 
               {/* Drawer Footer info & Social Media */}
               <div className="pt-4 text-center flex flex-col items-center gap-2.5 text-[11px] drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
@@ -608,7 +732,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   </span>
                 </div>
               </div>
-            </motion.nav>
+            </motion.div>
           </>
         )}
       </AnimatePresence>
