@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: brazilian-in-action
+    name: brazilianinaction
     runtime: node
     autoDeployTrigger: commit
     buildCommand: npm ci && npm run build

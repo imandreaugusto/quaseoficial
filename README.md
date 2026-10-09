@@ -9,7 +9,7 @@ Aplicativo React + Vite + TypeScript com API Node/Express, publicado no Render. 
 ## Publicacao automatica
 
 - Cada push em `main` executa `.github/workflows/deploy-pages.yml` para validar TypeScript, testes e build; esse workflow nao publica no GitHub Pages.
-- O `render.yaml` configura o servico `brazilian-in-action` para publicar cada commit da branch `main`, sem aguardar verificacoes do GitHub Actions.
+- O `render.yaml` configura o servico `brazilianinaction` para publicar cada commit da branch `main`, sem aguardar verificacoes do GitHub Actions.
 - O endereco oficial do aplicativo e https://brazilian-in-action-i036.onrender.com/.
 - O servico Render precisa permanecer conectado ao repositorio `imandreaugusto/quaseoficial`, branch `main`, e sincronizado com o `render.yaml`. As credenciais da API ficam nas variaveis de ambiente do Render. Nunca versione arquivos `.env`.
 
