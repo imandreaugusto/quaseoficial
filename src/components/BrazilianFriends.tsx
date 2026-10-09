@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
-import { ArrowLeft, Bell, BellOff, Camera, Check, ChevronDown, Info, Loader2, MessageCircle, MessageCircleMore, Pin, PinOff, Send, Smile, UserPlus, Users, Video, WifiOff, X } from 'lucide-react';
+import { ArrowLeft, Bell, BellOff, Camera, Check, ChevronDown, ChevronRight, Globe2, Info, Loader2, Map, MapPin, MessageCircle, MessageCircleMore, MessageSquareText, Pin, PinOff, Send, Smile, UserPlus, UserRound, Users, Video, WifiOff, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import gsap from 'gsap';
 import { UserProfile } from '../types';
@@ -1574,22 +1574,25 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
               {isProfilePreviewOnline ? 'Online' : 'Offline'}
             </p>
             <dl className="friends-profile-preview-details">
-              <div><dt>Nome</dt><dd>{profilePreviewFirstName || 'Não informado'}</dd></div>
-              <div><dt>Sobrenome</dt><dd>{profilePreviewLastName || 'Não informado'}</dd></div>
-              <div><dt>Cidade</dt><dd>{profilePreviewCity || 'Não informada'}</dd></div>
-              <div><dt>Estado / região</dt><dd>{profilePreviewState || 'Não informado'}</dd></div>
+              <div><dt><UserRound size={18} aria-hidden="true" />Nome</dt><dd>{profilePreviewFirstName || 'Não informado'}</dd></div>
+              <div><dt><UserRound size={18} aria-hidden="true" />Sobrenome</dt><dd>{profilePreviewLastName || 'Não informado'}</dd></div>
+              <div><dt><MapPin size={18} aria-hidden="true" />Cidade</dt><dd>{profilePreviewCity || 'Não informada'}</dd></div>
+              <div><dt><Map size={18} aria-hidden="true" />Estado / região</dt><dd>{profilePreviewState || 'Não informado'}</dd></div>
               <div>
-                <dt>País</dt>
+                <dt><Globe2 size={18} aria-hidden="true" />País</dt>
                 <dd>{getCountryFlag(profilePreviewCountry)} {getCountryName(profilePreviewCountry) || 'Não informado'}</dd>
               </div>
             </dl>
-            <p className="friends-profile-preview-bio">
-              {profilePreviewDetails?.status_message || profilePreview.status_message || 'Ainda não adicionou uma descrição.'}
-            </p>
+            <section className="friends-profile-preview-about" aria-label="Sobre">
+              <h3><MessageSquareText size={18} aria-hidden="true" />Sobre</h3>
+              <p className="friends-profile-preview-bio">
+                {profilePreviewDetails?.status_message || profilePreview.status_message || 'Ainda não adicionou uma descrição.'}
+              </p>
+            </section>
             <button
               type="button"
               className="friends-profile-preview-message"
-              style={{ backgroundColor: accentColor }}
+              style={{ '--friends-profile-accent': accentColor } as React.CSSProperties}
               onClick={() => {
                 setSelectedFriendId(profilePreview.id);
                 setProfilePreviewId(null);
@@ -1597,6 +1600,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
             >
               <MessageCircle size={16} />
               <span>Conversar no privado com {profilePreviewName}</span>
+              <ChevronRight size={18} aria-hidden="true" />
             </button>
           </section>
         </div>
