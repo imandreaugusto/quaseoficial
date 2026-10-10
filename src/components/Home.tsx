@@ -107,6 +107,35 @@ export const Home: React.FC<HomeProps> = ({
   };
 
   const nextClass = getNextClass();
+  const isPlatformAnniversary = currentTime.getDate() === 9 && currentTime.getMonth() === 9;
+  const anniversaryYear = currentTime.getFullYear() - 2026;
+  const anniversaryLabel = anniversaryYear === 0
+    ? 'a inauguração'
+    : `o ${anniversaryYear}º aniversário`;
+
+  const renderAnniversaryReminder = () => {
+    if (!isPlatformAnniversary) return null;
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        role="status"
+        className="mx-auto flex w-full max-w-xl items-center gap-3 rounded-2xl border border-amber-300/30 bg-amber-400/10 px-4 py-3 text-amber-50 shadow-lg backdrop-blur-xl"
+      >
+        <Sparkles size={20} className="shrink-0 text-amber-300" aria-hidden="true" />
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-200">
+            9 de outubro · aniversário da plataforma
+          </p>
+          <p className="mt-1 text-sm font-medium">
+            Hoje celebramos {anniversaryLabel} da Brazilian in Action.
+          </p>
+          <p className="text-xs text-amber-100/70">Inaugurada em 9 de outubro de 2026.</p>
+        </div>
+      </motion.div>
+    );
+  };
 
   const getFilteredAgenda = () => {
     const todayIdx = getDayIndex(currentTime);
@@ -163,6 +192,8 @@ export const Home: React.FC<HomeProps> = ({
           </div>
         </div>
 
+        {renderAnniversaryReminder()}
+
         {/* BOTTOM: SOCIAL LINKS */}
         <div className="w-full mt-auto">
           {renderSocialLinks()}
@@ -178,6 +209,7 @@ export const Home: React.FC<HomeProps> = ({
           <span className="text-xl sm:text-2xl font-semibold tracking-tight text-white">{greeting}</span>
           <Clock clock24h={clock24h} align="left" />
         </div>
+        <div className="pt-24">{renderAnniversaryReminder()}</div>
         {renderSocialLinks()}
       </div>
     );
@@ -232,6 +264,8 @@ export const Home: React.FC<HomeProps> = ({
           </motion.div>
         )}
       </div>
+
+      {renderAnniversaryReminder()}
 
       {/* ADMIN MODE VIEW: TWO-COLUMN DASHBOARD - LOUSA DE HORARIOS & RESUMO */}
       <div className="w-full grid grid-cols-1 md:grid-cols-12 gap-6 lg:gap-10 items-stretch flex-1">
