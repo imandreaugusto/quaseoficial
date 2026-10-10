@@ -203,6 +203,9 @@ export const BrazilianPractice: React.FC<BrazilianPracticeProps> = ({
   accentColor = '#f59e0b'
 }) => {
   const [activePortal, setActivePortal] = useState<PracticePortal | null>(null);
+  const [isPortalExpanded, setIsPortalExpanded] = useState(false);
+  const [isPortalLoading, setIsPortalLoading] = useState(false);
+  const [portalLoadTimedOut, setPortalLoadTimedOut] = useState(false);
   const [copiedPromptIdx, setCopiedPromptIdx] = useState<number | null>(null);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [timerSeconds, setTimerSeconds] = useState(0);
@@ -222,6 +225,27 @@ export const BrazilianPractice: React.FC<BrazilianPracticeProps> = ({
     }
     return () => clearInterval(interval);
   }, [isTimerRunning]);
+
+  useEffect(() => {
+    if (!activePortal) return;
+
+    const timeout = window.setTimeout(() => setPortalLoadTimedOut(true), 12000);
+    return () => window.clearTimeout(timeout);
+  }, [activePortal]);
+
+  useEffect(() => {
+    if (!activePortal) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setActivePortal(null);
+        setIsPortalExpanded(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activePortal]);
 
   const formatTimer = (totalSec: number) => {
     const mins = Math.floor(totalSec / 60);
@@ -246,11 +270,17 @@ export const BrazilianPractice: React.FC<BrazilianPracticeProps> = ({
   };
 
   const openPortal = (portal: PracticePortal) => {
-    // Open directly in a new tab for camera/microphone permissions without iframe limitations
-    window.open(portal.url, '_blank', 'noopener,noreferrer');
+    setActivePortal(portal);
+    setIsPortalExpanded(false);
+    setIsPortalLoading(true);
+    setPortalLoadTimedOut(false);
     if (!isTimerRunning) {
       setIsTimerRunning(true);
     }
+  };
+
+  const openPortalInNewTab = (portal: PracticePortal) => {
+    window.open(portal.url, '_blank', 'noopener,noreferrer');
   };
 
   return (
@@ -382,11 +412,11 @@ export const BrazilianPractice: React.FC<BrazilianPracticeProps> = ({
                 >
                   <Video size={18} />
                   <span>Entrar no Episoden Live</span>
-                  <ExternalLink size={16} />
+                  <ChevronRight size={16} />
                 </button>
 
                 <span className="text-[10px] text-center text-white/40 font-mono">
-                  Abre em nova janela com microfone & câmera liberados
+                  Abra dentro da plataforma com câmera e microfone
                 </span>
               </div>
             </div>
@@ -463,7 +493,7 @@ export const BrazilianPractice: React.FC<BrazilianPracticeProps> = ({
                   className="px-4 py-2 rounded-xl bg-white/10 hover:bg-amber-500 hover:text-neutral-950 text-white text-xs font-bold font-mono uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shrink-0 border border-white/15 hover:border-transparent shadow-md"
                 >
                   <span>Acessar Sala</span>
-                  <ExternalLink size={13} />
+                  <ChevronRight size={13} />
                 </button>
               </div>
             </div>
@@ -521,6 +551,108 @@ export const BrazilianPractice: React.FC<BrazilianPracticeProps> = ({
           ))}
         </div>
       </div>
+
+      <AnimatePresence>
+        {activePortal && (
+          <motion.div
+            key={activePortal.id}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-2 backdrop-blur-md sm:p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setActivePortal(null)}
+          >
+            <motion.div
+              className={`relative flex flex-col overflow-hidden border border-white/20 bg-neutral-950 shadow-2xl shadow-black/60 ${
+                isPortalExpanded
+                  ? 'h-dvh w-screen rounded-none'
+                  : 'h-[min(90dvh,900px)] w-[min(96vw,1440px)] rounded-2xl'
+              }`}
+              initial={{ y: 24, scale: 0.98 }}
+              animate={{ y: 0, scale: 1 }}
+              exit={{ y: 16, scale: 0.98 }}
+              onClick={(event) => event.stopPropagation()}
+              role="dialog"
+              aria-modal="true"
+              aria-label={`${activePortal.name} incorporado`}
+            >
+              <div className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-neutral-900/95 px-4 py-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <PortalLogo portal={activePortal} className="h-9 w-9 rounded-xl" />
+                  <div className="min-w-0">
+                    <h2 className="truncate text-sm font-bold text-white">{activePortal.name}</h2>
+                    <p className="truncate text-[11px] text-white/50">{activePortal.category}</p>
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => openPortalInNewTab(activePortal)}
+                    className="flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-xs font-semibold text-white/80 transition hover:bg-white/15"
+                  >
+                    <ExternalLink size={14} />
+                    <span className="hidden sm:inline">Abrir em nova aba</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsPortalExpanded((expanded) => !expanded)}
+                    className="rounded-lg border border-white/15 bg-white/5 p-2 text-white/80 transition hover:bg-white/15"
+                    aria-label={isPortalExpanded ? 'Restaurar janela' : 'Expandir janela'}
+                    title={isPortalExpanded ? 'Restaurar janela' : 'Expandir janela'}
+                  >
+                    {isPortalExpanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActivePortal(null);
+                      setIsPortalExpanded(false);
+                    }}
+                    className="rounded-lg border border-white/15 bg-white/5 p-2 text-white/80 transition hover:border-red-400/40 hover:bg-red-500/20 hover:text-red-200"
+                    aria-label="Fechar ambiente"
+                    title="Fechar"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="relative min-h-0 flex-1 bg-neutral-950">
+                <iframe
+                  key={activePortal.id}
+                  src={activePortal.url}
+                  title={activePortal.name}
+                  className="h-full w-full border-0 bg-neutral-950"
+                  allow="camera; microphone; autoplay; fullscreen; clipboard-read; clipboard-write; display-capture"
+                  allowFullScreen
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  onLoad={() => {
+                    setIsPortalLoading(false);
+                    setPortalLoadTimedOut(false);
+                  }}
+                />
+                {isPortalLoading && (
+                  <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center p-3">
+                    <span className="rounded-full border border-white/15 bg-neutral-900/90 px-4 py-2 text-xs text-white/80 shadow-lg">
+                      Carregando {activePortal.name}…
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex shrink-0 flex-col gap-1 border-t border-white/10 bg-neutral-900/95 px-4 py-2 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-[11px] text-white/55">
+                  Se o site não carregar ou câmera/microfone não funcionarem, abra em uma nova aba.
+                  {portalLoadTimedOut && ' O carregamento está demorando mais que o esperado.'}
+                </p>
+                <span className="shrink-0 text-[10px] font-mono text-amber-300/80">
+                  Tempo de prática: {formatTimer(timerSeconds)}
+                </span>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </div>
   );
