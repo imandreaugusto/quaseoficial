@@ -87,12 +87,12 @@ export function playPrivateMessageSound(): void {
     const gain = ctx.createGain();
     oscillator.type = 'sine';
     oscillator.frequency.setValueAtTime(660, now);
-    gain.gain.setValueAtTime(0.045, now);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.09);
+    gain.gain.setValueAtTime(0.09, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
     oscillator.connect(gain);
     gain.connect(ctx.destination);
     oscillator.start(now);
-    oscillator.stop(now + 0.1);
+    oscillator.stop(now + 0.13);
   } catch (error) {
     console.warn('Private message notification sound suppressed:', error);
   }

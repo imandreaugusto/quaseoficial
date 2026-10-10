@@ -1339,6 +1339,23 @@ async function startServer() {
         : null;
       if (!fullName) return res.status(400).json({ error: 'Nome de perfil inválido.' });
 
+      const profileFieldLimits = {
+        first_name: 80,
+        last_name: 80,
+        profile_state: 100,
+        profile_city: 100,
+        profile_country: 100
+      } as const;
+      const editableProfileFields: Record<string, string> = {};
+      for (const [field, maxLength] of Object.entries(profileFieldLimits)) {
+        if (!Object.prototype.hasOwnProperty.call(req.body || {}, field)) continue;
+        const value = req.body[field];
+        if (typeof value !== 'string' || value.trim().length > maxLength) {
+          return res.status(400).json({ error: 'Confira os dados de nome e localização do perfil.' });
+        }
+        editableProfileFields[field] = value.trim();
+      }
+
       const profileResponse = await supabaseServiceRequest('brazilian_friends_users?on_conflict=id', {
         method: 'POST',
         headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
@@ -1348,6 +1365,7 @@ async function startServer() {
           full_name: fullName,
           photo_url: photoUrl,
           status_message: statusMessage,
+          ...editableProfileFields,
           updated_at: new Date().toISOString()
         })
       });

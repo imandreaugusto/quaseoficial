@@ -29,13 +29,13 @@ interface FriendProfile {
   full_name: string;
   photo_url?: string | null;
   status_message?: string | null;
-  ip_region?: string | null;
-  ip_country?: string | null;
   first_name?: string | null;
   last_name?: string | null;
   profile_state?: string | null;
   profile_city?: string | null;
   profile_country?: string | null;
+  ip_region?: string | null;
+  ip_country?: string | null;
 }
 
 interface FriendMessage {
@@ -108,8 +108,34 @@ const getInitials = (name: string) => {
   return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
 };
 
-const formatTime = (date: string) =>
-  new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit' }).format(new Date(date));
+const formatTime = (value: string) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(date);
+};
+
+const getMessageDateKey = (value: string) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'invalid';
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+};
+
+const formatMessageDate = (value: string) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Data indisponível';
+
+  const today = new Date();
+  const dateDay = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
+  const todayDay = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+  const daysAgo = Math.round((todayDay - dateDay) / 86_400_000);
+
+  if (daysAgo === 0) return 'Hoje';
+  if (daysAgo === 1) return 'Ontem';
+  if (daysAgo > 1 && daysAgo < 7) {
+    return new Intl.DateTimeFormat('pt-BR', { weekday: 'long' }).format(date);
+  }
+  return new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }).format(date);
+};
 
 const getPublicName = (user: Pick<UserProfile, 'email' | 'full_name'>) =>
   user.email.trim().toLowerCase() === CEO_EMAIL.toLowerCase()
@@ -193,6 +219,12 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
   const [profilePhoto, setProfilePhoto] = useState<string | undefined>(currentUser.photo_url);
   const [isProfileEditorOpen, setIsProfileEditorOpen] = useState(false);
   const [statusDraft, setStatusDraft] = useState(currentUser.status_message || '');
+  const [firstNameDraft, setFirstNameDraft] = useState(currentUser.first_name || '');
+  const [lastNameDraft, setLastNameDraft] = useState(currentUser.last_name || '');
+  const [cityDraft, setCityDraft] = useState(currentUser.profile_city || '');
+  const [stateDraft, setStateDraft] = useState(currentUser.profile_state || '');
+  const [countryDraft, setCountryDraft] = useState(currentUser.profile_country || '');
+  const [isWhatsAppInfoOpen, setIsWhatsAppInfoOpen] = useState(false);
   const [isSavingStatus, setIsSavingStatus] = useState(false);
   const [isConnectingToChat, setIsConnectingToChat] = useState(false);
   const friendsShellRef = useRef<HTMLElement>(null);
@@ -202,6 +234,11 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
   const activePrivateFriendRef = useRef<string | null>(null);
   const pendingCallInviteeRef = useRef<string | null>(null);
   const incomingCallRef = useRef<HTMLDivElement>(null);
+  const messageAnimationStateRef = useRef({
+    conversationKey: '',
+    skipNextBatch: true,
+    messageIds: new Set<string>()
+  });
   const profilesRef = useRef(profiles);
   profilesRef.current = profiles;
   const privateNotificationStateRef = useRef<PrivateNotificationState>({
@@ -479,11 +516,28 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
   }, [currentUser.photo_url]);
 
   const selectedFriend = profiles.find((profile) => profile.id === selectedFriendId) || null;
-  const profilePreview = profiles.find((profile) => profile.id === profilePreviewId) || null;
+  const ownFriendProfile = profiles.find((profile) => profile.id === socialUserId) || null;
+  const publicName = ownFriendProfile?.full_name.trim() || getPublicName(currentUser);
+  const profilePreview = profilePreviewId === socialUserId
+    ? ownFriendProfile || {
+      id: socialUserId,
+      email: currentUser.email,
+      full_name: publicName,
+      photo_url: profilePhoto || currentUser.photo_url || null,
+      status_message: currentUser.status_message || null,
+      first_name: currentUser.first_name || null,
+      last_name: currentUser.last_name || null,
+      profile_state: currentUser.profile_state || null,
+      profile_city: currentUser.profile_city || null,
+      profile_country: currentUser.profile_country || null,
+      ip_region: currentUser.ip_region || null,
+      ip_country: currentUser.ip_country || null
+    }
+    : profiles.find((profile) => profile.id === profilePreviewId) || null;
   const profilePreviewPresence = profilePreviewId ? onlineUsers[profilePreviewId] : undefined;
   const isProfilePreviewOnline = Boolean(profilePreviewPresence);
   const profilePreviewDetails = profilePreview
-    ? { ...profilePreview, ...profilePreviewPresence }
+    ? { ...profilePreview, ...(profilePreviewId === socialUserId ? {} : profilePreviewPresence) }
     : null;
   const profilePreviewName = profilePreviewDetails
     ? [profilePreviewDetails.first_name, profilePreviewDetails.last_name].filter(Boolean).join(' ') ||
@@ -504,7 +558,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
   const totalUnreadPrivateCount = Object.values(unreadPrivateBySender).reduce((total, count) => total + count, 0);
   const allFriends = useMemo(
     () => profiles
-      .filter((profile) => Boolean(onlineUsers[profile.id]) || Boolean(unreadPrivateBySender[profile.id]))
+      .filter((profile) => profile.id === socialUserId || Boolean(onlineUsers[profile.id]) || Boolean(unreadPrivateBySender[profile.id]))
       .sort((a, b) => {
         const aUnread = unreadPrivateBySender[a.id] || 0;
         const bUnread = unreadPrivateBySender[b.id] || 0;
@@ -514,7 +568,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
         if (aOnline !== bOnline) return bOnline - aOnline;
         return a.full_name.localeCompare(b.full_name);
       }),
-    [onlineUsers, profiles, unreadPrivateBySender]
+    [onlineUsers, profiles, socialUserId, unreadPrivateBySender]
   );
 
   useEffect(() => {
@@ -532,12 +586,22 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
     let cancelled = false;
     const syncProfileAndPresence = async () => {
       setError('');
+      const { data: existingProfiles, error: existingProfilesError } = await selectFriendProfiles(client);
+      const savedProfile = existingProfiles?.find((profile) => profile.id === socialUserId);
+      if (existingProfilesError) {
+        console.warn('Brazilian Friends existing profile lookup failed:', existingProfilesError);
+      }
       const profile: FriendProfile = {
         id: socialUserId,
         email: currentUser.email,
-        full_name: getPublicName(currentUser),
-        photo_url: profilePhoto || currentUser.photo_url || null,
-        status_message: currentUser.status_message || null
+        full_name: savedProfile?.full_name || getPublicName(currentUser),
+        first_name: savedProfile ? savedProfile.first_name ?? null : currentUser.first_name || null,
+        last_name: savedProfile ? savedProfile.last_name ?? null : currentUser.last_name || null,
+        profile_state: savedProfile ? savedProfile.profile_state ?? null : currentUser.profile_state || null,
+        profile_city: savedProfile ? savedProfile.profile_city ?? null : currentUser.profile_city || null,
+        profile_country: savedProfile ? savedProfile.profile_country ?? null : currentUser.profile_country || null,
+        photo_url: profilePhoto || savedProfile?.photo_url || currentUser.photo_url || null,
+        status_message: savedProfile ? savedProfile.status_message ?? null : currentUser.status_message || null
       };
 
       const { error: profileError } = await upsertFriendProfile(client, profile);
@@ -545,13 +609,14 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
         console.warn('Brazilian Friends profile sync failed:', profileError);
       }
 
-      const { data, error: profilesError } = await selectFriendProfiles(client);
-
       if (cancelled) return;
-      if (profilesError) {
+      if (existingProfilesError) {
         setError('Não foi possível carregar os assinantes do Brazilian Friends agora.');
       } else {
-        setProfiles((data || []) as FriendProfile[]);
+        setProfiles([
+          ...(existingProfiles || []).filter((existing) => existing.id !== socialUserId),
+          profile
+        ]);
       }
       setIsLoading(false);
     };
@@ -641,6 +706,38 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
       messageScroll?.scrollTo({ top: messageScroll.scrollHeight, behavior: 'smooth' });
     });
   }, [messages]);
+
+  useEffect(() => {
+    const animationState = messageAnimationStateRef.current;
+    const conversationKey = `${socialUserId}:${selectedFriendId || 'public'}`;
+    if (animationState.conversationKey !== conversationKey) {
+      animationState.conversationKey = conversationKey;
+      animationState.skipNextBatch = true;
+      animationState.messageIds = new Set(messages.map((message) => message.id));
+    }
+    if (isLoadingMessages) return;
+
+    const addedMessages = messages.filter((message) => !animationState.messageIds.has(message.id));
+    animationState.messageIds = new Set(messages.map((message) => message.id));
+    if (animationState.skipNextBatch) {
+      animationState.skipNextBatch = false;
+      return;
+    }
+    if (addedMessages.length === 0 || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    const addedIds = new Set(addedMessages.map((message) => message.id));
+    const newMessageRows = Array.from(
+      messageScrollRef.current?.querySelectorAll<HTMLElement>('[data-friends-message-id]') || []
+    ).filter((row) => addedIds.has(row.dataset.friendsMessageId || ''));
+
+    if (newMessageRows.length > 0) {
+      gsap.fromTo(
+        newMessageRows,
+        { autoAlpha: 0, y: 14, scale: 0.98 },
+        { autoAlpha: 1, y: 0, scale: 1, duration: 0.32, stagger: 0.05, ease: 'power2.out', clearProps: 'opacity,visibility,transform' }
+      );
+    }
+  }, [isLoadingMessages, messages, selectedFriendId, socialUserId]);
 
   useEffect(() => {
     setShowEmojiPicker(false);
@@ -939,7 +1036,6 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
   }, [isSessionReady, socialUserId]);
 
   const { url: configuredUrl, anonKey: configuredAnonKey } = getSupabaseConfig();
-  const publicName = getPublicName(currentUser);
   const canManagePinnedMessages = currentUser.email.trim().toLowerCase() === CEO_EMAIL.toLowerCase();
 
   useEffect(() => {
@@ -1004,13 +1100,36 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
 
       const client = getSupabaseClient();
       if (client) {
-        await upsertFriendProfile(client, {
-          id: socialUserId,
-          email: currentUser.email,
-          full_name: getPublicName(currentUser),
-          photo_url: nextPhoto,
-          status_message: currentUser.status_message || null
+        const ownProfile = profiles.find((profile) => profile.id === socialUserId);
+        const saveResult = await requestFriendsApi<{ profile: FriendProfile }>(client, '/api/friends/profile', {
+          method: 'POST',
+          body: JSON.stringify({
+            first_name: ownProfile?.first_name || currentUser.first_name || '',
+            last_name: ownProfile?.last_name || currentUser.last_name || '',
+            profile_city: ownProfile?.profile_city || currentUser.profile_city || '',
+            profile_state: ownProfile?.profile_state || currentUser.profile_state || '',
+            profile_country: ownProfile?.profile_country || currentUser.profile_country || '',
+            full_name: ownProfile?.full_name || publicName,
+            email: currentUser.email,
+            photo_url: nextPhoto,
+            status_message: ownProfile?.status_message || currentUser.status_message || null
+          })
         });
+        if (saveResult.error) {
+          setError(saveResult.error);
+        } else {
+          setProfiles((current) => [
+            ...current.filter((profile) => profile.id !== socialUserId),
+            {
+              ...ownProfile,
+              ...saveResult.data?.profile,
+              id: socialUserId,
+              email: currentUser.email,
+              full_name: ownProfile?.full_name || publicName,
+              photo_url: nextPhoto
+            }
+          ]);
+        }
       }
 
       event.target.value = '';
@@ -1020,42 +1139,89 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
 
   const openProfileEditor = () => {
     const myProfile = profiles.find((profile) => profile.id === socialUserId);
+    setProfilePreviewId(null);
     setStatusDraft(myProfile?.status_message || currentUser.status_message || '');
+    setFirstNameDraft(myProfile?.first_name || currentUser.first_name || '');
+    setLastNameDraft(myProfile?.last_name || currentUser.last_name || '');
+    setCityDraft(myProfile?.profile_city || currentUser.profile_city || '');
+    setStateDraft(myProfile?.profile_state || currentUser.profile_state || '');
+    setCountryDraft(myProfile?.profile_country || currentUser.profile_country || '');
     setIsProfileEditorOpen(true);
   };
 
   const handleSaveStatus = async () => {
     const client = getSupabaseClient();
     if (!client) {
-      setIsProfileEditorOpen(false);
+      setError('Não foi possível conectar para salvar seu perfil.');
       return;
     }
 
     setIsSavingStatus(true);
     const nextStatus = statusDraft.trim();
-    const { error: saveError } = await upsertFriendProfile(client, {
-      id: socialUserId,
-      email: currentUser.email,
-      full_name: getPublicName(currentUser),
-      photo_url: profilePhoto || currentUser.photo_url || null,
-      status_message: nextStatus || null
+    const nextFirstName = firstNameDraft.trim();
+    const nextLastName = lastNameDraft.trim();
+    const nextCity = cityDraft.trim();
+    const nextState = stateDraft.trim();
+    const nextCountry = countryDraft.trim();
+    const saveResult = await requestFriendsApi<{ profile: FriendProfile }>(client, '/api/friends/profile', {
+      method: 'POST',
+      body: JSON.stringify({
+        full_name: [nextFirstName, nextLastName].filter(Boolean).join(' ') || getPublicName(currentUser),
+        first_name: nextFirstName,
+        last_name: nextLastName,
+        profile_state: nextState,
+        profile_city: nextCity,
+        profile_country: nextCountry,
+        photo_url: profilePhoto || currentUser.photo_url || null,
+        status_message: nextStatus || null
+      })
     });
     setIsSavingStatus(false);
 
-    if (saveError) {
-      setError('Não foi possível salvar sua descrição agora.');
+    if (saveResult.error) {
+      setError(saveResult.error);
       return;
     }
 
-    setProfiles((current) => current.map((profile) => (
-      profile.id === socialUserId ? { ...profile, status_message: nextStatus || null } : profile
-    )));
+    const savedProfile = saveResult.data?.profile;
+    if (!savedProfile) {
+      setError('O servidor não confirmou o salvamento do perfil. Tente novamente.');
+      return;
+    }
+
+    const nextProfile: FriendProfile = {
+      ...savedProfile,
+      id: socialUserId,
+      email: currentUser.email,
+      full_name: savedProfile.full_name || [nextFirstName, nextLastName].filter(Boolean).join(' ') || getPublicName(currentUser),
+      first_name: savedProfile.first_name ?? nextFirstName,
+      last_name: savedProfile.last_name ?? nextLastName,
+      profile_state: savedProfile.profile_state ?? nextState,
+      profile_city: savedProfile.profile_city ?? nextCity,
+      profile_country: savedProfile.profile_country ?? nextCountry,
+      photo_url: profilePhoto || currentUser.photo_url || null,
+      status_message: nextStatus || null
+    };
+    setProfiles((current) => [
+      ...current.filter((profile) => profile.id !== socialUserId),
+      nextProfile
+    ]);
 
     const storedUserRaw = localStorage.getItem('bia_current_user');
     if (storedUserRaw) {
       try {
         const storedUser = JSON.parse(storedUserRaw) as UserProfile;
-        localStorage.setItem('bia_current_user', JSON.stringify({ ...storedUser, status_message: nextStatus || undefined }));
+        localStorage.setItem('bia_current_user', JSON.stringify({
+          ...storedUser,
+          full_name: nextProfile.full_name,
+          first_name: nextFirstName || undefined,
+          last_name: nextLastName || undefined,
+          profile_city: nextCity || undefined,
+          profile_state: nextState || undefined,
+          profile_country: nextCountry || undefined,
+          photo_url: nextProfile.photo_url || undefined,
+          status_message: nextStatus || undefined
+        }));
       } catch {
         // ignore invalid storage snapshot
       }
@@ -1218,13 +1384,21 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
                 <span>WhatsApp</span>
               </a>
 
-              <span
+              <button
+                type="button"
                 className="friends-header-info-button"
                 aria-label="Informação sobre o grupo do WhatsApp"
-                title="Grupo para continuar o assunto fora do chat do app."
+                aria-expanded={isWhatsAppInfoOpen}
+                aria-controls="friends-whatsapp-info"
+                onClick={() => setIsWhatsAppInfoOpen((isOpen) => !isOpen)}
               >
                 <Info size={12} />
-              </span>
+              </button>
+              {isWhatsAppInfoOpen && (
+                <div id="friends-whatsapp-info" className="friends-whatsapp-info" role="status">
+                  Ao clicar em WhatsApp, você será direcionado ao nosso grupo. Por lá compartilhamos informações e atualizações da plataforma e fortalecemos as amizades da comunidade.
+                </div>
+              )}
             </div>
 
             {selectedFriend && (
@@ -1369,40 +1543,57 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
               </div>
             )}
             {isLoadingMessages && <p className="friends-muted-copy">Carregando conversa...</p>}
-            {messages.map((message) => {
+            {messages.map((message, index) => {
               const ownMessage = message.sender_id === socialUserId;
               const senderProfile = profiles.find((p) => p.id === message.sender_id);
               const senderName = ownMessage ? publicName : (senderProfile?.full_name || selectedFriend?.full_name || 'User');
               const senderLocation = ownMessage ? formatLocation(currentUser) : (senderProfile ? formatLocation(senderProfile) : 'Brasil');
+              const messageDayKey = getMessageDateKey(message.created_at);
+              const startsNewDay = index === 0 || getMessageDateKey(messages[index - 1].created_at) !== messageDayKey;
+              const messageTime = formatTime(message.created_at);
               
               return (
-                <motion.div
-                  key={message.id}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={`friends-message-row ${ownMessage ? 'friends-message-row-own' : ''}`}
-                >
-                  <div className="friends-message-group">
-                    <div className="friends-message-meta">
-                      {ownMessage
-                        ? <strong>{senderName}</strong>
-                        : (
+                <div key={message.id}>
+                  {startsNewDay && (
+                    <div className="friends-message-day-divider" role="separator">
+                      <span>{formatMessageDate(message.created_at)}</span>
+                    </div>
+                  )}
+                  <div
+                    data-friends-message-id={message.id}
+                    className={`friends-message-row ${ownMessage ? 'friends-message-row-own' : ''}`}
+                  >
+                    <div className="friends-message-group">
+                      <div className="friends-message-meta">
+                        {ownMessage ? (
                           <button
                             type="button"
                             className="friends-message-profile-link"
-                            onClick={() => setProfilePreviewId(message.sender_id)}
+                            onClick={openProfileEditor}
                           >
                             {senderName}
                           </button>
-                        )}
-                      <span>{senderLocation}</span>
-                    </div>
-                    <div className={`friends-message-bubble ${ownMessage ? 'friends-message-bubble-own' : ''}`} style={ownMessage ? { '--bubble-accent': accentColor } as React.CSSProperties : undefined}>
-                      <p>{message.body}</p>
-                      {canManagePinnedMessages && !selectedFriend && <button type="button" className="friends-message-pin" onClick={() => void pinMessage(message.body)} aria-label="Fixar mensagem" title="Fixar mensagem"><Pin size={13} /></button>}
+                        ) : (
+                            <button
+                              type="button"
+                              className="friends-message-profile-link"
+                              onClick={() => setProfilePreviewId(message.sender_id)}
+                            >
+                              {senderName}
+                            </button>
+                          )}
+                        <span>{senderLocation}</span>
+                      </div>
+                      <div className={`friends-message-bubble ${ownMessage ? 'friends-message-bubble-own' : ''}`} style={ownMessage ? { '--bubble-accent': accentColor } as React.CSSProperties : undefined}>
+                        <p>{message.body}</p>
+                        <div className="friends-message-bubble-footer">
+                          {messageTime && <time className="friends-message-time" dateTime={message.created_at}>{messageTime}</time>}
+                          {canManagePinnedMessages && !selectedFriend && <button type="button" className="friends-message-pin" onClick={() => void pinMessage(message.body)} aria-label="Fixar mensagem" title="Fixar mensagem"><Pin size={13} /></button>}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </motion.div>
+                </div>
               );
             })}
           </div>
@@ -1589,7 +1780,12 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
                 {profilePreviewDetails?.status_message || profilePreview.status_message || 'Ainda não adicionou uma descrição.'}
               </p>
             </section>
-            <button
+            {profilePreview.id === socialUserId && (
+              <button type="button" className="friends-profile-preview-edit" onClick={openProfileEditor}>
+                Editar meu perfil
+              </button>
+            )}
+            {profilePreview.id !== socialUserId && <button
               type="button"
               className="friends-profile-preview-message"
               style={{ '--friends-profile-accent': accentColor } as React.CSSProperties}
@@ -1601,7 +1797,7 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
               <MessageCircle size={16} />
               <span>Conversar no privado com {profilePreviewName}</span>
               <ChevronRight size={18} aria-hidden="true" />
-            </button>
+            </button>}
           </section>
         </div>
       )}
@@ -1620,6 +1816,29 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
               <span className="friends-profile-modal-avatar-edit"><Camera size={14} /></span>
               <input type="file" accept="image/*" onChange={handleProfilePhotoChange} />
             </label>
+
+            <div className="friends-profile-modal-fields">
+              <label className="friends-profile-modal-field">
+                <span>Nome</span>
+                <input value={firstNameDraft} onChange={(event) => setFirstNameDraft(event.target.value)} maxLength={80} autoComplete="given-name" />
+              </label>
+              <label className="friends-profile-modal-field">
+                <span>Sobrenome</span>
+                <input value={lastNameDraft} onChange={(event) => setLastNameDraft(event.target.value)} maxLength={80} autoComplete="family-name" />
+              </label>
+              <label className="friends-profile-modal-field">
+                <span>Cidade</span>
+                <input value={cityDraft} onChange={(event) => setCityDraft(event.target.value)} maxLength={100} autoComplete="address-level2" />
+              </label>
+              <label className="friends-profile-modal-field">
+                <span>Estado / região</span>
+                <input value={stateDraft} onChange={(event) => setStateDraft(event.target.value)} maxLength={100} autoComplete="address-level1" />
+              </label>
+              <label className="friends-profile-modal-field friends-profile-modal-field-full">
+                <span>País</span>
+                <input value={countryDraft} onChange={(event) => setCountryDraft(event.target.value)} maxLength={100} autoComplete="country-name" />
+              </label>
+            </div>
 
             <label className="friends-profile-modal-field">
               <span>Descrição (recado)</span>
