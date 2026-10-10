@@ -258,84 +258,76 @@ The singer describes themselves as a "dreamer", hoping others will join.`
 
 export const US_LANDMARKS = [
   {
-    name: "Times Square, New York, NY",
-    url: "https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?q=85&w=2200&auto=format&fit=crop"
+    name: "National Mall, Washington, D.C.",
+    url: "https://images.unsplash.com/photo-1501466044931-62695aada8e9?q=85&w=3840&auto=format&fit=crop"
   },
   {
-    name: "Brooklyn Bridge, New York, NY",
-    url: "https://images.unsplash.com/photo-1518235506717-e1ed3306a89b?q=85&w=2200&auto=format&fit=crop"
+    name: "Manhattan, New York, NY",
+    url: "https://upload.wikimedia.org/wikipedia/commons/7/7e/Skyline_of_Manhattan.jpg"
   },
   {
     name: "Central Park, New York, NY",
-    url: "https://images.unsplash.com/photo-1534430480872-3498386e7856?q=85&w=2200&auto=format&fit=crop"
+    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0a/Central_Park_New_York_City_New_York_23_cropped.jpg/3840px-Central_Park_New_York_City_New_York_23_cropped.jpg"
   },
   {
-    name: "Statue of Liberty, New York, NY",
-    url: "https://images.unsplash.com/photo-1503572327579-b5c6afe5c5c5?q=85&w=2200&auto=format&fit=crop"
+    name: "Brooklyn Bridge, New York, NY",
+    url: "https://images.unsplash.com/photo-1518235506717-e1ed3306a89b?q=85&w=3840&auto=format&fit=crop"
+  },
+  {
+    name: "Chicago, Illinois",
+    url: "https://images.unsplash.com/photo-1477959858617-67f30ac4ce78?q=85&w=3840&auto=format&fit=crop"
   },
   {
     name: "Golden Gate Bridge, San Francisco, CA",
-    url: "https://images.unsplash.com/photo-1501594907352-04cda38ebc29?q=85&w=2200&auto=format&fit=crop"
+    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/93/Crissy_Field_beach_and_Golden_Gate_Bridge.jpg/3840px-Crissy_Field_beach_and_Golden_Gate_Bridge.jpg"
   },
   {
-    name: "Hollywood Sign, Los Angeles, CA",
-    url: "https://images.unsplash.com/photo-1580655653885-65763b2597d0?q=85&w=2200&auto=format&fit=crop"
-  },
-  {
-    name: "Santa Monica Pier, California",
-    url: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=85&w=2200&auto=format&fit=crop"
+    name: "Yosemite National Park, California",
+    url: "https://upload.wikimedia.org/wikipedia/commons/a/af/Yosemite_-_Tunnel_View.jpg"
   },
   {
     name: "Grand Canyon National Park, AZ",
-    url: "https://images.unsplash.com/photo-1474044159687-1ee9f3a51722?q=85&w=2200&auto=format&fit=crop"
+    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/12/Grand_Canyon_South_Rim_at_Sunset.jpg/3840px-Grand_Canyon_South_Rim_at_Sunset.jpg"
   },
   {
-    name: "Las Vegas Sign, Nevada",
-    url: "https://images.unsplash.com/photo-1581351721010-8cf859cb14a4?q=85&w=2200&auto=format&fit=crop"
+    name: "Niagara Falls, New York",
+    url: "https://upload.wikimedia.org/wikipedia/commons/6/66/Niagara_Falls_seen_from_Skylon_tower.jpg"
   },
   {
-    name: "Lincoln Memorial, Washington, D.C.",
-    url: "https://images.unsplash.com/photo-1501466044931-62695aada8e9?q=85&w=2200&auto=format&fit=crop"
+    name: "Seattle, Washington",
+    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3a/Seattle_Skyline-.jpg/3840px-Seattle_Skyline-.jpg"
   },
   {
-    name: "US Capitol, Washington, D.C.",
-    url: "https://images.unsplash.com/photo-1617581629397-a72507c3de9e?q=85&w=2200&auto=format&fit=crop"
+    name: "Boston, Massachusetts",
+    url: "https://images.unsplash.com/photo-1541872703-74c5e44368f9?q=85&w=3840&auto=format&fit=crop"
   },
   {
-    name: "The Bean / Cloud Gate, Chicago, IL",
-    url: "https://images.unsplash.com/photo-1477959858617-67f30ac4ce78?q=85&w=2200&auto=format&fit=crop"
+    name: "Hawaii coastline",
+    url: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=85&w=3840&auto=format&fit=crop"
   },
   {
-    name: "Mount Rushmore, South Dakota",
-    url: "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?q=85&w=2200&auto=format&fit=crop"
+    name: "Las Vegas, Nevada",
+    url: "https://images.unsplash.com/photo-1581351721010-8cf859cb14a4?q=85&w=3840&auto=format&fit=crop"
   },
   {
-    name: "Historic Route 66",
-    url: "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=85&w=2200&auto=format&fit=crop"
+    name: "Denver and the Rocky Mountains, Colorado",
+    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4c/Denver_Skyline_%284801%29.jpg/3840px-Denver_Skyline_%284801%29.jpg"
   },
   {
-    name: "French Quarter, New Orleans, LA",
-    url: "https://images.unsplash.com/photo-1571896349842-33c89424de2d?q=85&w=2200&auto=format&fit=crop"
+    name: "Lake Tahoe, California/Nevada",
+    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e8/Emerald_Bay%2C_Lake_Tahoe%2C_California._2015.jpg/3840px-Emerald_Bay%2C_Lake_Tahoe%2C_California._2015.jpg"
   },
   {
-    name: "Space Needle, Seattle, WA",
-    url: "https://images.unsplash.com/photo-1502175353174-a7a70e73b362?q=85&w=2200&auto=format&fit=crop"
+    name: "Miami, Florida",
+    url: "https://images.unsplash.com/photo-1506966953602-c20cc11f75e3?q=85&w=3840&auto=format&fit=crop"
   },
   {
-    name: "South Beach & Ocean Drive, Miami, FL",
-    url: "https://images.unsplash.com/photo-1506966953602-c20cc11f75e3?q=85&w=2200&auto=format&fit=crop"
+    name: "Monument Valley, Arizona/Utah",
+    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6b/Monument_Valley_Arizona_Panoramic.jpg/3840px-Monument_Valley_Arizona_Panoramic.jpg"
   },
   {
-    name: "Yellowstone National Park, WY",
-    url: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?q=85&w=2200&auto=format&fit=crop"
-  },
-  {
-    name: "Monument Valley, UT / AZ",
-    url: "https://images.unsplash.com/photo-1518457607834-6e8d80c183c5?q=85&w=2200&auto=format&fit=crop"
-  },
-  {
-    name: "Boston Common & Beacon Hill, MA",
-    url: "https://images.unsplash.com/photo-1541872703-74c5e44368f9?q=85&w=2200&auto=format&fit=crop"
+    name: "Great Smoky Mountains, Tennessee/North Carolina",
+    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3a/Clifftops4-7-07.jpg/3840px-Clifftops4-7-07.jpg"
   }
 ];
 
@@ -431,4 +423,3 @@ export const INITIAL_CONVERSATION_LIBRARY = [
     createdAt: '22/07/2026'
   }
 ];
-

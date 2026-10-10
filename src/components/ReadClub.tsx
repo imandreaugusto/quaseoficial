@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StoryItem, ReadSession, GlossaryEntry } from '../types';
-import { Plus, Trash2, Edit, ChevronRight, ChevronLeft, ChevronDown, BookOpen, Volume2, HelpCircle, FileText, Settings, Compass, HelpCircle as KeyboardIcon, Search, Download, Trash, Maximize2, X, Check, Languages, Sparkles, Loader2, Bookmark, BookmarkCheck } from 'lucide-react';
+import { Plus, Trash2, Edit, ChevronRight, ChevronLeft, ChevronDown, BookOpen, Volume2, HelpCircle, FileText, Settings, Compass, HelpCircle as KeyboardIcon, Search, Download, Trash, Maximize2, X, Check, Languages, Bookmark, BookmarkCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { translateText, lookupDictionary } from '../lib/translator';
+import { formatStoryText } from '../lib/storyFormatting';
 import { BrazilianLogo } from './BrazilianLogo';
-import { apiFetch } from '../lib/api';
 
 interface ReadClubProps {
   library: StoryItem[];
@@ -119,30 +119,6 @@ export const ReadClub: React.FC<ReadClubProps> = ({
 
   // Google Meet Presentation Mode State
   const [isMeetFullscreen, setIsMeetFullscreen] = useState(false);
-
-  const [isFormattingText, setIsFormattingText] = useState(false);
-
-  const handleAiFormatText = async (targetText: string, onSuccess: (formatted: string) => void) => {
-    if (!targetText.trim()) return;
-    setIsFormattingText(true);
-    try {
-      const res = await apiFetch('/api/format-paragraphs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: targetText, mode: activeTab === 'music' ? 'lyrics' : 'story' }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.formattedText) {
-          onSuccess(data.formattedText);
-        }
-      }
-    } catch (err) {
-      console.error('Failed to auto-format story text:', err);
-    } finally {
-      setIsFormattingText(false);
-    }
-  };
 
   const paperRef = useRef<HTMLDivElement>(null);
   const ttsParagraphsRef = useRef<string[]>([]);
@@ -505,7 +481,8 @@ const COMMON_DICTIONARY: Record<string, string> = {
     const title = (form.elements.namedItem('title') as HTMLInputElement).value;
     const level = (form.elements.namedItem('level') as HTMLSelectElement).value || 'B1';
     const coverUrl = (form.elements.namedItem('coverUrl') as HTMLInputElement)?.value || '';
-    const text = (form.elements.namedItem('text') as HTMLTextAreaElement).value;
+    const rawText = (form.elements.namedItem('text') as HTMLTextAreaElement).value;
+    const text = formatStoryText(rawText, editingBook?.type || activeTab);
     const qs = (form.elements.namedItem('qs') as HTMLTextAreaElement).value;
     const hints = (form.elements.namedItem('hints') as HTMLTextAreaElement).value;
 
@@ -1629,24 +1606,13 @@ const COMMON_DICTIONARY: Record<string, string> = {
             </div>
 
             <div className="flex flex-col gap-1">
-              <div className="flex items-center justify-between">
-                <label className="text-[10px] text-white/40 uppercase tracking-widest font-semibold">Texto / Letra</label>
-                <button
-                  type="button"
-                  onClick={() => handleAiFormatText(modalTextValue, (formatted) => setModalTextValue(formatted))}
-                  disabled={isFormattingText || !modalTextValue.trim()}
-                  className="px-2 py-0.5 rounded bg-purple-600/20 hover:bg-purple-600/35 text-purple-300 border border-purple-500/30 text-[10px] font-mono flex items-center gap-1 transition-all cursor-pointer disabled:opacity-40"
-                  title="Separar texto em parágrafos de forma estruturada"
-                >
-                  {isFormattingText ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
-                  <span>Organizar em Parágrafos</span>
-                </button>
-              </div>
+              <label className="text-[10px] text-white/40 uppercase tracking-widest font-semibold">Texto / Letra</label>
               <textarea
-                name="text"
-                value={modalTextValue}
-                onChange={(e) => setModalTextValue(e.target.value)}
-                required
+              name="text"
+              value={modalTextValue}
+              onChange={(e) => setModalTextValue(e.target.value)}
+              onBlur={() => setModalTextValue((text) => formatStoryText(text, editingBook?.type || activeTab))}
+              required
                 rows={6}
                 placeholder="Insira o texto completo aqui..."
                 className="bg-white/5 border border-white/10 rounded-lg p-3 text-xs focus:outline-none focus:border-white/30 text-white resize-none leading-relaxed font-sans"

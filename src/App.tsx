@@ -33,6 +33,7 @@ import { BrazilianLogo } from './components/BrazilianLogo';
 import { CleanStudentStage } from './components/CleanStudentStage';
 import { ClassItem, ExpenseItem, AppSettings, StoryItem, ReadSession, GlossaryEntry, UserProfile, StudentPermissions } from './types';
 import { INITIAL_READ_LIBRARY, SLIDESHOW_IMAGES, US_LANDMARKS } from './data';
+import { formatLyricsLibrary, formatStoryLibrary } from './lib/storyFormatting';
 import { CEO_EMAIL, logAdminAccessAttempt, isAuthorizedCeoEmail } from './utils/security';
 import { motion, AnimatePresence } from 'motion/react';
 import { LayoutPositionProvider } from './lib/LayoutPositionContext';
@@ -433,9 +434,10 @@ export default function App() {
             localStorage.setItem('bia_settings_final', JSON.stringify(nextSettings));
           }
           if (shared.library) {
-            setLibrary(shared.library);
+            const formattedLibrary = formatStoryLibrary(shared.library);
+            setLibrary(formattedLibrary);
             sharedReadClubLibrarySnapshotRef.current = JSON.stringify(shared.library);
-            localStorage.setItem('bia_readclub_library', JSON.stringify(shared.library));
+            localStorage.setItem('bia_readclub_library', JSON.stringify(formattedLibrary));
           }
 
           if (
@@ -483,20 +485,20 @@ export default function App() {
     let cancelled = false;
     setIsYoutubeLibraryLoaded(false);
     const loadYoutubeLibrary = async () => {
-      let nextLibrary = DEFAULT_YOUTUBE_LIBRARY;
+      let nextLibrary = formatLyricsLibrary(DEFAULT_YOUTUBE_LIBRARY);
       let shouldSaveLocalFallback = false;
       try {
         const shared = await loadSharedContentFromSupabase<{ youtube_library?: YouTubeLibraryItem[] }>('youtube_library');
         if (cancelled) return;
         if (shared && Array.isArray(shared.youtube_library)) {
-          nextLibrary = shared.youtube_library;
+          nextLibrary = formatLyricsLibrary(shared.youtube_library);
           sharedYoutubeLibrarySnapshotRef.current = JSON.stringify(nextLibrary);
         } else {
           const cachedRaw = localStorage.getItem('bia_youtube_library');
           if (cachedRaw) {
             const cached: unknown = JSON.parse(cachedRaw);
             if (!Array.isArray(cached)) throw new Error('A biblioteca local de músicas está inválida.');
-            nextLibrary = cached as YouTubeLibraryItem[];
+            nextLibrary = formatLyricsLibrary(cached as YouTubeLibraryItem[]);
             shouldSaveLocalFallback = true;
           }
         }
@@ -508,7 +510,7 @@ export default function App() {
           try {
             const cached: unknown = JSON.parse(cachedRaw);
             if (!Array.isArray(cached)) throw new Error('A biblioteca local de músicas está inválida.');
-            nextLibrary = cached as YouTubeLibraryItem[];
+            nextLibrary = formatLyricsLibrary(cached as YouTubeLibraryItem[]);
           } catch (cacheError) {
             console.error('Could not restore the local Brazilian Music library:', cacheError);
           }
@@ -516,16 +518,17 @@ export default function App() {
       }
 
       if (cancelled) return;
-      setYoutubeLibrary(nextLibrary);
-      localStorage.setItem('bia_youtube_library', JSON.stringify(nextLibrary));
+      const formattedLibrary = formatLyricsLibrary(nextLibrary);
+      setYoutubeLibrary(formattedLibrary);
+      localStorage.setItem('bia_youtube_library', JSON.stringify(formattedLibrary));
       setIsYoutubeLibraryLoaded(true);
       if (
         shouldSaveLocalFallback &&
         currentUser.role === 'admin' &&
         isAuthorizedCeoEmail(currentUser.email)
       ) {
-        sharedYoutubeLibrarySnapshotRef.current = JSON.stringify(nextLibrary);
-        queueYoutubeLibrarySync(nextLibrary);
+        sharedYoutubeLibrarySnapshotRef.current = JSON.stringify(formattedLibrary);
+        queueYoutubeLibrarySync(formattedLibrary);
       }
     };
 
@@ -555,8 +558,9 @@ export default function App() {
           const snapshot = JSON.stringify(platform.library);
           if (snapshot !== sharedReadClubLibrarySnapshotRef.current) {
             sharedReadClubLibrarySnapshotRef.current = snapshot;
-            setLibrary(platform.library);
-            localStorage.setItem('bia_readclub_library', snapshot);
+            const formattedLibrary = formatStoryLibrary(platform.library);
+            setLibrary(formattedLibrary);
+            localStorage.setItem('bia_readclub_library', JSON.stringify(formattedLibrary));
           }
         }
 
@@ -564,8 +568,9 @@ export default function App() {
           const snapshot = JSON.stringify(music.youtube_library);
           if (snapshot !== sharedYoutubeLibrarySnapshotRef.current) {
             sharedYoutubeLibrarySnapshotRef.current = snapshot;
-            setYoutubeLibrary(music.youtube_library);
-            localStorage.setItem('bia_youtube_library', snapshot);
+            const formattedLibrary = formatLyricsLibrary(music.youtube_library);
+            setYoutubeLibrary(formattedLibrary);
+            localStorage.setItem('bia_youtube_library', JSON.stringify(formattedLibrary));
           }
         }
       } catch (error) {
@@ -650,17 +655,23 @@ export default function App() {
         try {
           const parsedLib: StoryItem[] = JSON.parse(storedLib);
           if (Array.isArray(parsedLib)) {
-            setLibrary(parsedLib);
+            const formattedLibrary = formatStoryLibrary(parsedLib);
+            setLibrary(formattedLibrary);
+            if (formattedLibrary !== parsedLib) {
+              localStorage.setItem('bia_readclub_library', JSON.stringify(formattedLibrary));
+            }
           } else {
-            setLibrary(INITIAL_READ_LIBRARY);
-            localStorage.setItem('bia_readclub_library', JSON.stringify(INITIAL_READ_LIBRARY));
+            const initialLibrary = formatStoryLibrary(INITIAL_READ_LIBRARY);
+            setLibrary(initialLibrary);
+            localStorage.setItem('bia_readclub_library', JSON.stringify(initialLibrary));
           }
         } catch (e) {
-          setLibrary(INITIAL_READ_LIBRARY);
+          setLibrary(formatStoryLibrary(INITIAL_READ_LIBRARY));
         }
       } else {
-        setLibrary(INITIAL_READ_LIBRARY);
-        localStorage.setItem('bia_readclub_library', JSON.stringify(INITIAL_READ_LIBRARY));
+        const initialLibrary = formatStoryLibrary(INITIAL_READ_LIBRARY);
+        setLibrary(initialLibrary);
+        localStorage.setItem('bia_readclub_library', JSON.stringify(initialLibrary));
       }
 
     } catch (e) {
@@ -721,17 +732,19 @@ export default function App() {
   };
 
   const handleUpdateLibrary = (next: StoryItem[]) => {
-    setLibrary(next);
-    sharedReadClubLibrarySnapshotRef.current = JSON.stringify(next);
-    queuePlatformSync({ classes, expenses, settings, library: next });
-    localStorage.setItem('bia_readclub_library', JSON.stringify(next));
+    const formattedLibrary = formatStoryLibrary(next);
+    setLibrary(formattedLibrary);
+    sharedReadClubLibrarySnapshotRef.current = JSON.stringify(formattedLibrary);
+    queuePlatformSync({ classes, expenses, settings, library: formattedLibrary });
+    localStorage.setItem('bia_readclub_library', JSON.stringify(formattedLibrary));
   };
 
   const handleUpdateYouTubeLibrary = (next: YouTubeLibraryItem[]) => {
-    setYoutubeLibrary(next);
-    sharedYoutubeLibrarySnapshotRef.current = JSON.stringify(next);
-    localStorage.setItem('bia_youtube_library', JSON.stringify(next));
-    queueYoutubeLibrarySync(next);
+    const formattedLibrary = formatLyricsLibrary(next);
+    setYoutubeLibrary(formattedLibrary);
+    sharedYoutubeLibrarySnapshotRef.current = JSON.stringify(formattedLibrary);
+    localStorage.setItem('bia_youtube_library', JSON.stringify(formattedLibrary));
+    queueYoutubeLibrarySync(formattedLibrary);
   };
 
   const handleUpdateSessions = (next: ReadSession[]) => {

@@ -22,15 +22,14 @@ import {
   Languages,
   Mic,
   List,
-  Sparkles,
   Loader2,
   Eye,
   Columns,
   Maximize,
   Minimize2
 } from 'lucide-react';
-import { apiFetch } from '../lib/api';
 import { translateText, lookupPtToEnDictionary, lookupDictionary } from '../lib/translator';
+import { formatLyricsLibrary, formatStoryText } from '../lib/storyFormatting';
 import { listenToAuth, syncToCloud } from '../lib/cloudSync';
 import { loadPlatformDataFromCloud, savePlatformDataToCloud, subscribeToUserDataFromCloud } from '../lib/firebase';
 import { User } from 'firebase/auth';
@@ -190,7 +189,6 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
   const [editableLyrics, setEditableLyrics] = useState(activeItem.lyrics || '');
   const [editableTranslatedLyrics, setEditableTranslatedLyrics] = useState(activeItem.translatedLyrics || '');
   const [isEditingLyrics, setIsEditingLyrics] = useState(false);
-  const [isFormattingLyrics, setIsFormattingLyrics] = useState(false);
 
   // Translation Mode State: 'original' (PT) | 'bilingual' (PT + EN) | 'english' (EN)
   const [translationMode, setTranslationMode] = useState<'original' | 'bilingual' | 'english'>('original');
@@ -270,8 +268,9 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
       try {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setLibrary(parsed);
-          setActiveItem(parsed[0]);
+          const formattedLibrary = formatLyricsLibrary(parsed);
+          setLibrary(formattedLibrary);
+          setActiveItem(formattedLibrary[0]);
         }
       } catch (e) {
         console.error('Error loading local YouTube library:', e);
@@ -281,9 +280,10 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
     void (async () => {
       const shared = await loadPlatformDataFromCloud('youtube_library');
       if (Array.isArray(shared) && shared.length > 0) {
-        setLibrary(shared);
-        setActiveItem((current) => current && shared.some((item) => item.id === current.id) ? current : shared[0]);
-        localStorage.setItem('bia_youtube_library', JSON.stringify(shared));
+        const formattedLibrary = formatLyricsLibrary(shared);
+        setLibrary(formattedLibrary);
+        setActiveItem((current) => current && formattedLibrary.some((item) => item.id === current.id) ? current : formattedLibrary[0]);
+        localStorage.setItem('bia_youtube_library', JSON.stringify(formattedLibrary));
       }
     })();
 
@@ -297,8 +297,9 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
         (data) => {
           const localLibrary = localStorage.getItem('bia_youtube_library');
           if (!localLibrary && data && Array.isArray(data) && data.length > 0) {
-            setLibrary(data);
-            localStorage.setItem('bia_youtube_library', JSON.stringify(data));
+            const formattedLibrary = formatLyricsLibrary(data);
+            setLibrary(formattedLibrary);
+            localStorage.setItem('bia_youtube_library', JSON.stringify(formattedLibrary));
           }
         },
         () => {
@@ -318,10 +319,11 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
   // App supplies the authoritative Supabase library, including an empty list.
   useEffect(() => {
     if (initialLibrary) {
-      setLibrary(initialLibrary);
+      const formattedLibrary = formatLyricsLibrary(initialLibrary);
+      setLibrary(formattedLibrary);
       setActiveItem((current) =>
-        initialLibrary.find((item) => item.id === current.id) ||
-        initialLibrary[0] ||
+        formattedLibrary.find((item) => item.id === current.id) ||
+        formattedLibrary[0] ||
         DEFAULT_YOUTUBE_LIBRARY[0]
       );
     }
@@ -329,17 +331,18 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
 
   // Helper to update library state + persist
   const saveLibraryState = (updatedList: YouTubeLibraryItem[]) => {
-    setLibrary(updatedList);
-    localStorage.setItem('bia_youtube_library', JSON.stringify(updatedList));
+    const formattedList = formatLyricsLibrary(updatedList);
+    setLibrary(formattedList);
+    localStorage.setItem('bia_youtube_library', JSON.stringify(formattedList));
     if (onLibraryUpdate) {
-      onLibraryUpdate(updatedList);
+      onLibraryUpdate(formattedList);
     } else {
       // Fallback to Firebase sync if no callback provided (for backward compatibility)
       if (canEdit) {
-        savePlatformDataToCloud('youtube_library', updatedList);
+        savePlatformDataToCloud('youtube_library', formattedList);
       }
       if (cloudUser) {
-        syncToCloud(cloudUser.uid, 'bia_youtube_library', updatedList);
+        syncToCloud(cloudUser.uid, 'bia_youtube_library', formattedList);
       }
     }
   };
@@ -410,6 +413,8 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
     if (!canEdit || !formTitle || !formUrl) return;
 
     const embedId = extractEmbedId(formUrl);
+    const lyrics = formatStoryText(formLyrics, 'music');
+    const translatedLyrics = formatStoryText(formTranslatedLyrics, 'music');
 
     if (editingItem) {
       const updatedList = library.map((item) =>
@@ -421,8 +426,8 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
               category: formCategory,
               embedId: embedId || item.embedId,
               youtubeUrl: formUrl,
-              lyrics: formLyrics,
-              translatedLyrics: formTranslatedLyrics,
+              lyrics,
+              translatedLyrics,
               notes: formNotes,
             }
           : item
@@ -436,8 +441,8 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
           category: formCategory,
           embedId: embedId || activeItem.embedId,
           youtubeUrl: formUrl,
-          lyrics: formLyrics,
-          translatedLyrics: formTranslatedLyrics,
+          lyrics,
+          translatedLyrics,
           notes: formNotes,
         });
       }
@@ -449,8 +454,8 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
         category: formCategory,
         embedId: embedId || 'c5Q91s0336U',
         youtubeUrl: formUrl,
-        lyrics: formLyrics,
-        translatedLyrics: formTranslatedLyrics,
+        lyrics,
+        translatedLyrics,
         notes: formNotes,
         createdAt: new Date().toISOString(),
       };
@@ -477,36 +482,13 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
   const handleSaveActiveLyrics = () => {
     const updatedItem = {
       ...activeItem,
-      lyrics: editableLyrics,
-      translatedLyrics: editableTranslatedLyrics,
+      lyrics: formatStoryText(editableLyrics, 'music'),
+      translatedLyrics: formatStoryText(editableTranslatedLyrics, 'music'),
     };
     const updatedList = library.map((item) => (item.id === activeItem.id ? updatedItem : item));
     saveLibraryState(updatedList);
     setActiveItem(updatedItem);
     setIsEditingLyrics(false);
-  };
-
-  // AI Format Lyrics into Stanzas
-  const handleAiFormatLyrics = async (targetText: string, onSuccess: (formatted: string) => void) => {
-    if (!targetText.trim()) return;
-    setIsFormattingLyrics(true);
-    try {
-      const res = await apiFetch('/api/format-paragraphs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: targetText, mode: 'lyrics' }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.formattedText) {
-          onSuccess(data.formattedText);
-        }
-      }
-    } catch (err) {
-      console.error('Failed to auto-format lyrics with AI:', err);
-    } finally {
-      setIsFormattingLyrics(false);
-    }
   };
 
   // Translate entire lyrics (Supports translating to Portuguese or English)
@@ -955,23 +937,13 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Portuguese Lyrics Input */}
                     <div className="flex flex-col gap-2">
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs text-amber-300 font-semibold font-mono">
-                          Letra Original (Português):
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => handleAiFormatLyrics(editableLyrics, (f) => setEditableLyrics(f))}
-                          disabled={isFormattingLyrics || !editableLyrics.trim()}
-                          className="px-2 py-0.5 rounded bg-purple-600/20 hover:bg-purple-600/35 text-purple-300 border border-purple-500/30 text-[11px] font-medium flex items-center gap-1 cursor-pointer disabled:opacity-40"
-                        >
-                          {isFormattingLyrics ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
-                          <span>Organizar Estrofes</span>
-                        </button>
-                      </div>
+                      <label className="text-xs text-amber-300 font-semibold font-mono">
+                        Letra Original (Português):
+                      </label>
                       <textarea
                         value={editableLyrics}
                         onChange={(e) => setEditableLyrics(e.target.value)}
+                        onBlur={() => setEditableLyrics((lyrics) => formatStoryText(lyrics, 'music'))}
                         rows={10}
                         placeholder="Cole a letra da música em português..."
                         className="w-full p-3.5 rounded-xl bg-black/60 border border-white/15 text-white placeholder-white/20 focus:outline-none focus:border-amber-400/50 font-sans text-sm leading-relaxed"
@@ -997,6 +969,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                       <textarea
                         value={editableTranslatedLyrics}
                         onChange={(e) => setEditableTranslatedLyrics(e.target.value)}
+                        onBlur={() => setEditableTranslatedLyrics((lyrics) => formatStoryText(lyrics, 'music'))}
                         rows={10}
                         placeholder="Tradução em inglês (ou clique em 'Traduzir com IA' acima)..."
                         className="w-full p-3.5 rounded-xl bg-black/60 border border-white/15 text-white placeholder-white/20 focus:outline-none focus:border-blue-400/50 font-sans text-sm leading-relaxed"
@@ -1576,23 +1549,13 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                 </div>
 
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-white/70 font-mono">
-                      Letra em Português (Opcional)
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => handleAiFormatLyrics(formLyrics, (formatted) => setFormLyrics(formatted))}
-                      disabled={isFormattingLyrics || !formLyrics.trim()}
-                      className="px-2 py-0.5 rounded bg-purple-600/20 hover:bg-purple-600/35 text-purple-300 border border-purple-500/30 text-[10px] font-mono flex items-center gap-1 transition-all cursor-pointer disabled:opacity-40"
-                    >
-                      {isFormattingLyrics ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
-                      <span>Separar Parágrafos</span>
-                    </button>
-                  </div>
+                  <label className="block text-white/70 font-mono mb-1">
+                    Letra em Português (Opcional)
+                  </label>
                   <textarea
                     value={formLyrics}
                     onChange={(e) => setFormLyrics(e.target.value)}
+                    onBlur={() => setFormLyrics((lyrics) => formatStoryText(lyrics, 'music'))}
                     rows={4}
                     placeholder="Cole a letra da música em português..."
                     className="w-full p-2.5 rounded-lg bg-black/40 border border-white/10 text-white placeholder-white/20 focus:outline-none focus:border-white/30 font-sans leading-relaxed"
@@ -1606,6 +1569,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                   <textarea
                     value={formTranslatedLyrics}
                     onChange={(e) => setFormTranslatedLyrics(e.target.value)}
+                    onBlur={() => setFormTranslatedLyrics((lyrics) => formatStoryText(lyrics, 'music'))}
                     rows={3}
                     placeholder="Cole a tradução em inglês..."
                     className="w-full p-2.5 rounded-lg bg-black/40 border border-white/10 text-white placeholder-white/20 focus:outline-none focus:border-white/30 font-sans leading-relaxed"
