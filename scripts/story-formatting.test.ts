@@ -11,6 +11,12 @@ test('formats story text into readable paragraphs without changing its words', (
   assert.equal(formatted.replace(/\s+/g, ' '), text);
 });
 
+test('keeps four short sentences together instead of creating an extra paragraph', () => {
+  const text = 'One sentence. Two sentences. Three sentences. Four sentences.';
+
+  assert.equal(formatStoryText(text, 'story'), text);
+});
+
 test('organizes lyrics into four-line stanzas while preserving their words', () => {
   const text = 'Line one\nLine two\nLine three\nLine four\nLine five\nLine six\nLine seven\nLine eight';
   const formatted = formatStoryText(text, 'music');
@@ -45,11 +51,11 @@ test('formats existing library texts and leaves already formatted stories unchan
     cat: 'TEST',
     title: 'Test',
     level: 'A1',
-    text: 'One sentence. Two sentences. Three sentences. Four sentences.',
+    text: 'One sentence.\nTwo sentences.\nThree sentences.\nFour sentences.',
   }];
   const formatted = formatStoryLibrary(library);
 
   assert.notEqual(formatted, library);
-  assert.equal(formatted[0].text, 'One sentence. Two sentences. Three sentences.\n\nFour sentences.');
+  assert.equal(formatted[0].text, 'One sentence. Two sentences. Three sentences. Four sentences.');
   assert.equal(formatStoryLibrary(formatted), formatted);
 });

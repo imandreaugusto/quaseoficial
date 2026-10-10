@@ -1089,7 +1089,7 @@ const COMMON_DICTIONARY: Record<string, string> = {
               <div
                 ref={paperRef}
                 onScroll={handleReaderScroll}
-                className="h-full overflow-y-auto custom-scrollbar px-8 sm:px-14 pt-12 pb-12 relative flex flex-col leading-relaxed"
+                className="h-full overflow-y-auto custom-scrollbar px-8 sm:px-14 pt-12 pb-12 relative flex flex-col leading-normal"
                 style={{
                   WebkitMaskImage: 'linear-gradient(to bottom, transparent 0, #000 40px, #000 calc(100% - 40px), transparent 100%)',
                   maskImage: 'linear-gradient(to bottom, transparent 0, #000 40px, #000 calc(100% - 40px), transparent 100%)',
@@ -1152,7 +1152,7 @@ const COMMON_DICTIONARY: Record<string, string> = {
                 )}
 
                 {/* Subtext mapping with customizable alignment */}
-                <div className={`flex flex-col gap-2.5 sm:gap-3 text-justify cinematic-copy ${alignMode === 'center' ? 'text-center' : 'text-justify'}`}>
+                <div className={`flex flex-col gap-1.5 sm:gap-2 text-justify cinematic-copy ${alignMode === 'center' ? 'text-center' : 'text-justify'}`}>
                   {activeBook.text.split(/\n\s*\n/).filter((p) => p.trim()).map((para, pIdx) => {
                     const isTtsHighlight = ttsCurrentParagraph === pIdx;
                     const isBookmarked = getBookmark(activeBook.id) === pIdx;
@@ -1162,11 +1162,11 @@ const COMMON_DICTIONARY: Record<string, string> = {
                       <div
                         key={pIdx}
                         data-para={pIdx}
-                        className={`group/para relative transition-all duration-300 p-1.5 sm:p-2 rounded-xl ${
+                        className={`group/para relative transition-all duration-300 px-1 py-0.5 sm:px-1.5 rounded-lg ${
                           isTtsHighlight ? 'bg-amber-400/20 shadow-lg' : isBookmarked ? 'bg-amber-300/10 border-l-2 border-amber-300' : 'hover:bg-white/5'
                         }`}
                       >
-                        <div className="leading-relaxed inline">
+                        <div className="leading-normal inline">
                           {lines.map((line, lIdx) => (
                             <React.Fragment key={lIdx}>
                               {lIdx > 0 && <br />}

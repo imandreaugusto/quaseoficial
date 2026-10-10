@@ -50,8 +50,11 @@ export const formatStoryText = (text: string, type: StoryItem['type']): string =
         .filter(Boolean);
       const grouped: string[] = [];
 
-      for (let index = 0; index < sentences.length; index += 3) {
-        grouped.push(sentences.slice(index, index + 3).join(' '));
+      if (sentences.length <= 3) return [sentences.join(' ')];
+
+      const sentencesPerParagraph = Math.ceil(sentences.length / Math.ceil(sentences.length / 4));
+      for (let index = 0; index < sentences.length; index += sentencesPerParagraph) {
+        grouped.push(sentences.slice(index, index + sentencesPerParagraph).join(' '));
       }
 
       return grouped;
