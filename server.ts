@@ -843,6 +843,37 @@ async function startServer() {
     }
   });
 
+  app.get('/api/admin/payment-intents', async (req, res) => {
+    try {
+      const authUser = await getVerifiedCeo(req);
+      if (!authUser) return res.status(403).json({ error: 'Somente a conta CEO pode consultar os pagamentos.' });
+      if (isRateLimited(`admin-payment-intents:${authUser.id}`, 10, 60_000)) {
+        return res.status(429).json({ error: 'Muitas consultas de pagamentos. Aguarde alguns segundos.' });
+      }
+
+      const payments: Record<string, unknown>[] = [];
+      const pageSize = 500;
+      for (let offset = 0; ; offset += pageSize) {
+        const response = await supabaseServiceRequest(
+          `bia_payment_intents?select=payment_id,email,amount_cents,status,created_at,updated_at&order=created_at.desc&limit=${pageSize}&offset=${offset}`
+        );
+        if (!response.ok) {
+          console.error('Admin payment intent lookup failed:', response.status, await response.text());
+          return res.status(502).json({ error: 'Não foi possível carregar os pagamentos da AbacatePay.' });
+        }
+        const page = await response.json() as Record<string, unknown>[];
+        payments.push(...page);
+        if (page.length < pageSize) break;
+      }
+
+      res.setHeader('Cache-Control', 'no-store');
+      return res.json({ payments });
+    } catch (error: any) {
+      console.error('Admin payment intent list failed:', error?.message || error);
+      return res.status(500).json({ error: 'Falha ao carregar os pagamentos da AbacatePay.' });
+    }
+  });
+
   app.post('/api/admin/subscribers/:id/subscription', async (req, res) => {
     try {
       const authUser = await getVerifiedCeo(req);

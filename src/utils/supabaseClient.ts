@@ -263,6 +263,28 @@ export const fetchAdminSubscribers = async (): Promise<UserProfile[]> => {
   return result.subscribers as UserProfile[];
 };
 
+export interface AdminPaymentIntent {
+  payment_id: string;
+  email: string;
+  amount_cents: number;
+  status: 'active' | 'pending';
+  created_at: string;
+  updated_at: string;
+}
+
+export const fetchAdminPaymentIntents = async (): Promise<AdminPaymentIntent[]> => {
+  const accessToken = await getAuthenticatedAccessToken();
+  const response = await apiFetch('/api/admin/payment-intents', {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error || 'Não foi possível carregar os pagamentos da AbacatePay.');
+  if (!Array.isArray(result.payments)) {
+    throw new Error('O servidor retornou uma lista de pagamentos inválida.');
+  }
+  return result.payments as AdminPaymentIntent[];
+};
+
 export const updateAdminSubscriberSubscription = async (
   userId: string,
   update: { days: number } | { status: 'active' | 'pending' | 'expired' }

@@ -79,6 +79,7 @@ import {
   deleteExpiredBrazilianFriendMessages,
   deleteTrialCoupon,
   fetchTrialCoupons,
+  fetchAdminPaymentIntents,
   fetchAdminSubscribers,
   updateAdminSubscriberSubscription,
   getSupabaseClient,
@@ -150,6 +151,10 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [isLoadingSubscribers, setIsLoadingSubscribers] = useState(false);
   const [subscriberLoadError, setSubscriberLoadError] = useState<string | null>(null);
+  const [subscriptionPayments, setSubscriptionPayments] = useState<Awaited<ReturnType<typeof fetchAdminPaymentIntents>>>([]);
+  const [paymentLoadError, setPaymentLoadError] = useState<string | null>(null);
+  const [paymentsUpdatedAt, setPaymentsUpdatedAt] = useState<Date | null>(null);
+  const paymentRequestInFlight = useRef(false);
   const [subscriberActionMessage, setSubscriberActionMessage] = useState<{ text: string; error: boolean } | null>(null);
   const [savingSubscriberId, setSavingSubscriberId] = useState<string | null>(null);
   const subscriberLoadSequence = useRef(0);
@@ -168,6 +173,22 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   const [isCleaningFriends, setIsCleaningFriends] = useState(false);
   const [friendsCleanupMessage, setFriendsCleanupMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const isMainCeo = Boolean(currentUser?.email && isVerifiedCeoEmail(currentUser.email));
+
+  const loadPaymentIntents = async () => {
+    if (!isMainCeo || paymentRequestInFlight.current) return;
+    paymentRequestInFlight.current = true;
+    try {
+      const payments = await fetchAdminPaymentIntents();
+      setSubscriptionPayments(payments);
+      setPaymentsUpdatedAt(new Date());
+      setPaymentLoadError(null);
+    } catch (error) {
+      console.error('AbacatePay payments could not be loaded:', error);
+      setPaymentLoadError(error instanceof Error ? error.message : 'Não foi possível atualizar os pagamentos.');
+    } finally {
+      paymentRequestInFlight.current = false;
+    }
+  };
 
   // Accordion state for grouping students by status
   const [openAccordions, setOpenAccordions] = useState<{
@@ -252,6 +273,24 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
       window.removeEventListener('bia_users_changed', handleDataChange);
     };
   }, []);
+
+  useEffect(() => {
+    if (!isMainCeo) return;
+
+    void loadPaymentIntents();
+    const refreshVisiblePayments = () => {
+      if (document.visibilityState === 'visible') void loadPaymentIntents();
+    };
+    const interval = window.setInterval(refreshVisiblePayments, 30_000);
+    window.addEventListener('focus', refreshVisiblePayments);
+    document.addEventListener('visibilitychange', refreshVisiblePayments);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('focus', refreshVisiblePayments);
+      document.removeEventListener('visibilitychange', refreshVisiblePayments);
+    };
+  }, [isMainCeo]);
 
   useEffect(() => {
     if (!isMainCeo) return;
@@ -902,11 +941,10 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   // SaaS Subscriptions Gross (Pure SaaS calculation based on real, PAID R$ 10 plan students only)
   const currentSubscriptionPrice = gatewaySettings.subscriptionPrice || 10;
   const saasMonthlyGross = payingActiveStudentsCount * currentSubscriptionPrice;
-  const saasTotalReceived = pixPayments
-    .filter((p) => p.status === 'approved')
-    .reduce((acc, p) => acc + (typeof p.amount === 'number' ? p.amount : currentSubscriptionPrice), 0);
+  const approvedPaymentsList = subscriptionPayments.filter((payment) => payment.status === 'active');
+  const saasTotalReceived = approvedPaymentsList
+    .reduce((acc, payment) => acc + payment.amount_cents / 100, 0);
   const saasWeeklyGross = saasMonthlyGross / 4;
-  const approvedPaymentsList = pixPayments.filter((p) => p.status === 'approved');
 
   const totalMonthlyRevenue = monthlyAulasGross + saasMonthlyGross;
   const totalWeeklyRevenue = weeklyAulasGross + saasWeeklyGross;
@@ -1089,6 +1127,18 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
           </button>
         </div>
       )}
+      {paymentLoadError && isMainCeo && (
+        <div role="alert" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+          <span>{paymentLoadError} Os pagamentos podem estar desatualizados.</span>
+          <button
+            type="button"
+            onClick={() => void loadPaymentIntents()}
+            className="rounded-xl border border-red-300/30 px-3 py-1.5 font-bold hover:bg-red-500/15"
+          >
+            Tentar novamente
+          </button>
+        </div>
+      )}
       {subscriberActionMessage && isMainCeo && (
         <div
           role={subscriberActionMessage.error ? 'alert' : 'status'}
@@ -1102,12 +1152,25 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
         </div>
       )}
       {activeTab === 'overview' && (
-        <CeoOverview
-          users={users}
-          pixPayments={pixPayments}
-          coupons={coupons}
-          onOpen={(tab) => setActiveTab(tab)}
-        />
+        <>
+          {isMainCeo && (
+            <div className="mb-4 flex items-center gap-3 rounded-2xl border border-amber-400/25 bg-neutral-900/70 px-4 py-3 shadow-lg">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/15 text-amber-300">
+                <Users size={19} />
+              </div>
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/45">Assinantes cadastrados</div>
+                <div className="text-2xl font-black leading-tight text-white">{subscriberUsers.length}</div>
+              </div>
+            </div>
+          )}
+          <CeoOverview
+            users={users}
+            pixPayments={pixPayments}
+            coupons={coupons}
+            onOpen={(tab) => setActiveTab(tab)}
+          />
+        </>
       )}
 
       {activeTab === 'location' && <CeoLocation users={users} />}
@@ -1861,14 +1924,14 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
             <div className="glass-card p-5 sm:p-6 rounded-3xl border border-blue-500/30 relative overflow-hidden bg-neutral-900/80 shadow-xl">
               <div className="absolute top-0 right-0 w-28 h-28 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
               <div className="flex items-center justify-between text-xs font-bold text-blue-400 mb-1">
-                <span>TOTAL ARRECADADO (PIX)</span>
+                <span>TOTAL ARRECADADO (ABACATEPAY)</span>
                 <CreditCard size={16} />
               </div>
               <div className="text-2xl sm:text-3xl font-black text-white font-mono mt-2">
                 R$ {saasTotalReceived.toFixed(2).replace('.', ',')}
               </div>
               <div className="text-xs text-white/60 mt-1">
-                {approvedPaymentsList.length} pagamentos confirmados na conta
+                {approvedPaymentsList.length} pagamentos confirmados pela AbacatePay
               </div>
             </div>
 
@@ -1911,7 +1974,8 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                   <span>Histórico de Pix de Assinatura Recebidos</span>
                 </h3>
                 <p className="text-xs text-white/50 mt-0.5">
-                  Lista simples e direta de todos os Pix de R$ {currentSubscriptionPrice.toFixed(2).replace('.', ',')} já confirmados.
+                  Cobranças registradas no servidor e atualizadas automaticamente.{' '}
+                  {paymentsUpdatedAt && `Atualizado às ${paymentsUpdatedAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}.`}
                 </p>
               </div>
 
@@ -1930,22 +1994,23 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
               </button>
             </div>
 
-            {approvedPaymentsList.length === 0 ? (
+            {subscriptionPayments.length === 0 ? (
               <div className="p-8 text-center bg-white/5 rounded-2xl border border-white/10 text-xs text-white/40">
-                Nenhum pagamento Pix registrado como aprovado ainda.
+                Nenhuma cobrança Pix da AbacatePay registrada ainda.
               </div>
             ) : (
-              <div className="space-y-2">
-                {approvedPaymentsList.map((payment) => {
-                  const student = users.find(u => u.id === payment.userId || u.email.toLowerCase() === payment.userEmail.toLowerCase());
-                  const studentName = student?.full_name || payment.userEmail.split('@')[0];
+              <div className="max-h-[32rem] space-y-2 overflow-y-auto pr-1">
+                {subscriptionPayments.map((payment) => {
+                  const student = users.find((user) => user.email.toLowerCase() === payment.email.toLowerCase());
+                  const studentName = student?.full_name || payment.email.split('@')[0];
                   const city = student?.ip_city || 'São Paulo';
                   const region = student?.ip_region || 'SP';
                   const country = student?.ip_country || 'Brasil';
+                  const isPaymentConfirmed = payment.status === 'active';
 
                   return (
                     <div
-                      key={payment.id}
+                      key={payment.payment_id}
                       className="p-3 sm:p-3.5 rounded-2xl bg-neutral-900/60 border border-white/10 hover:border-emerald-500/30 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
                     >
                       <div className="flex items-center gap-3 min-w-0">
@@ -1955,7 +2020,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-xs sm:text-sm font-bold text-white truncate">{studentName}</span>
-                            <span className="text-[11px] text-white/40 font-mono truncate">({payment.userEmail})</span>
+                            <span className="text-[11px] text-white/40 font-mono truncate">({payment.email})</span>
                           </div>
                           <div className="flex items-center gap-2 text-[11px] text-white/50 mt-0.5 flex-wrap">
                             <span className="flex items-center gap-1 text-blue-300">
@@ -1963,22 +2028,26 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                               <span>{city}, {region} ({country})</span>
                             </span>
                             <span>•</span>
-                            <span>{new Date(payment.paidAt).toLocaleDateString('pt-BR')} às {new Date(payment.paidAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                            <span>{new Date(payment.created_at).toLocaleDateString('pt-BR')} às {new Date(payment.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
                           </div>
                         </div>
                       </div>
 
                       <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 self-end sm:self-center">
                         <div className="text-right">
-                          <div className="text-xs sm:text-sm font-black text-emerald-400 font-mono">
-                            R$ {(payment.amount || currentSubscriptionPrice).toFixed(2).replace('.', ',')}
+                          <div className={`text-xs sm:text-sm font-black font-mono ${isPaymentConfirmed ? 'text-emerald-400' : 'text-amber-300'}`}>
+                            R$ {(payment.amount_cents / 100).toFixed(2).replace('.', ',')}
                           </div>
                           <div className="text-[10px] text-white/40 font-mono">
-                            Pix #{payment.transactionId?.slice(-6) || 'OK'}
+                            Pix #{payment.payment_id.slice(-6)}
                           </div>
                         </div>
-                        <span className="px-2.5 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-black uppercase">
-                          Aprovado
+                        <span className={`px-2.5 py-1 rounded-xl border text-[10px] font-black uppercase ${
+                          isPaymentConfirmed
+                            ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                            : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                        }`}>
+                          {isPaymentConfirmed ? 'Confirmado' : 'Aguardando'}
                         </span>
                       </div>
                     </div>
