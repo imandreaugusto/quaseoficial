@@ -275,7 +275,7 @@ export const US_LANDMARKS = [
   },
   {
     name: "Chicago, Illinois",
-    url: "https://images.unsplash.com/photo-1477959858617-67f30ac4ce78?q=85&w=3840&auto=format&fit=crop"
+    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1f/Downtown_Chicago_at_night_%28August_11%2C_1956%29.jpg/3840px-Downtown_Chicago_at_night_%28August_11%2C_1956%29.jpg"
   },
   {
     name: "Golden Gate Bridge, San Francisco, CA",
