@@ -740,7 +740,7 @@ const COMMON_DICTIONARY: Record<string, string> = {
           })()}
 
           {/* Groupings display Accordion */}
-          <div className="min-h-0 flex-1 overflow-y-auto flex flex-col gap-2">
+          <div className="readclub-library-list min-h-0 flex-1 overflow-y-auto flex flex-col gap-2">
             {Object.keys(groupedBooks).length === 0 ? (
               <div className="text-center py-10 text-white/20 italic text-xs">Vazio</div>
             ) : (

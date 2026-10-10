@@ -1323,7 +1323,7 @@ export default function App() {
           >
             <span>
               {cloudSaveStatus === 'saving' && 'Salvando alterações na nuvem…'}
-              {cloudSaveStatus === 'saved' && 'Alterações salvas na nuvem.'}
+              {cloudSaveStatus === 'saved' && 'Plataforma atualizada na nuvem.'}
               {cloudSaveStatus === 'error' && 'Não foi possível sincronizar. Os dados locais foram mantidos.'}
             </span>
             {cloudSaveStatus === 'error' && (

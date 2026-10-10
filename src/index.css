@@ -95,20 +95,27 @@ button, input, textarea, select {
   aspect-ratio: 1;
 }
 
-/* Keep scrollable areas discoverable without taking too much visual space. */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(203, 213, 225, 0.38) transparent;
+/* Hide the page scrollbar while preserving scrolling. */
+html,
+body {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
-*::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
-*::-webkit-scrollbar-thumb {
-  border: 2px solid transparent;
-  border-radius: 999px;
-  background: rgba(203, 213, 225, 0.38);
-  background-clip: padding-box;
+
+.readclub-library-list {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.readclub-library-list::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 /* Global Autofill & Input Theme Protection (Removes white boxes in Glassmorphism) */
