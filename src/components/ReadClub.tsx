@@ -29,6 +29,7 @@ interface ReadClubProps {
 // Progresso de leitura salvo na conta dentro de learnedWords, com chaves reservadas (sem coluna nova no banco).
 const READ_BOOKS_KEY = -1;
 const BOOKMARKS_KEY = -2;
+const CEFR_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
 export const ReadClub: React.FC<ReadClubProps> = ({
   library,
@@ -50,6 +51,7 @@ export const ReadClub: React.FC<ReadClubProps> = ({
   accentColor,
 }) => {
   const [activeTab, setActiveTab] = useState<'story' | 'music'>('story');
+  const [selectedLevel, setSelectedLevel] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
   const [activeBook, setActiveBook] = useState<StoryItem | null>(null);
@@ -158,6 +160,9 @@ export const ReadClub: React.FC<ReadClubProps> = ({
       const typeMatch = b.type === activeTab;
       const q = searchQuery.toLowerCase();
       if (!typeMatch) return false;
+      const bookLevel = (b.level || '').trim().toUpperCase();
+      if (selectedLevel === 'unassigned' && bookLevel) return false;
+      if (selectedLevel !== 'all' && selectedLevel !== 'unassigned' && bookLevel !== selectedLevel) return false;
       if (readFilter === 'read' && !isBookRead(b.id)) return false;
       if (readFilter === 'unread' && isBookRead(b.id)) return false;
       if (!q) return true;
@@ -179,6 +184,17 @@ export const ReadClub: React.FC<ReadClubProps> = ({
   };
 
   const groupedBooks = getGroupedBooks();
+  const libraryLevels = [...new Set(library
+    .filter((book) => book.type === activeTab)
+    .map((book) => (book.level || '').trim().toUpperCase())
+    .filter(Boolean))];
+  const availableLevels = [
+    ...CEFR_LEVELS.filter((level) => libraryLevels.includes(level)),
+    ...libraryLevels.filter((level) => !CEFR_LEVELS.includes(level)).sort()
+  ];
+  const hasBooksWithoutLevel = library.some((book) =>
+    book.type === activeTab && !(book.level || '').trim()
+  );
 
   const handleToggleCategory = (category: string) => {
     setExpandedCategories((prev) => ({
@@ -663,14 +679,38 @@ const COMMON_DICTIONARY: Record<string, string> = {
     <div className={`${heightClass} w-full flex overflow-hidden text-white`}>
       {/* 1. Left Sidebar: Library Selector */}
       {!activeBook && (
-        <div className="readclub-library-panel w-full md:w-80 box-border min-h-0 flex flex-col p-4 pt-16 md:pt-4 pl-24 sm:pl-28 md:pl-4 h-full flex-shrink-0 z-20">
+        <div className="readclub-library-panel mx-auto w-full max-w-[28rem] md:mx-0 md:w-80 md:max-w-none box-border min-h-0 flex flex-col p-4 pt-16 md:pt-4 h-full flex-shrink-0 z-20">
           <div className="text-center mb-4">
             <h3 className="text-xs font-light tracking-[0.25em] uppercase text-white/50">Biblioteca</h3>
           </div>
 
+          <div className="mb-4">
+            <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-white/65">Escolha o nível</div>
+            <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filtrar biblioteca por nível">
+              {[{ value: 'all', label: 'Todos os níveis' }, ...availableLevels.map((level) => ({ value: level, label: level })), ...(hasBooksWithoutLevel ? [{ value: 'unassigned', label: 'Sem nível' }] : [])].map(({ value, label }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setSelectedLevel(value === 'unassigned' ? 'unassigned' : value)}
+                  aria-pressed={selectedLevel === value}
+                  className={`rounded-full border px-2.5 py-1 text-[10px] font-bold tracking-wide transition-colors cursor-pointer ${
+                    selectedLevel === value
+                      ? 'border-amber-300/60 bg-amber-400/25 text-amber-100'
+                      : 'border-white/15 bg-white/5 text-white/75 hover:border-white/30 hover:text-white'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="flex bg-white/[0.03] p-1 rounded-lg border border-white/5 mb-4">
             <button
-              onClick={() => setActiveTab('story')}
+              onClick={() => {
+                setActiveTab('story');
+                setSelectedLevel('all');
+              }}
               className={`flex-1 py-1.5 rounded-md text-[10px] font-bold tracking-wider uppercase transition-all cursor-pointer ${
                 activeTab === 'story' ? 'bg-white/10 text-white' : 'text-white/40'
               }`}
@@ -678,7 +718,10 @@ const COMMON_DICTIONARY: Record<string, string> = {
               Histórias
             </button>
             <button
-              onClick={() => setActiveTab('music')}
+              onClick={() => {
+                setActiveTab('music');
+                setSelectedLevel('all');
+              }}
               className={`flex-1 py-1.5 rounded-md text-[10px] font-bold tracking-wider uppercase transition-all cursor-pointer ${
                 activeTab === 'music' ? 'bg-white/10 text-white' : 'text-white/40'
               }`}
@@ -710,7 +753,12 @@ const COMMON_DICTIONARY: Record<string, string> = {
 
           {/* Reading progress: counter + filter */}
           {(() => {
-            const tabBooks = library.filter((b) => b.type === activeTab);
+            const tabBooks = library.filter((book) => {
+              if (book.type !== activeTab) return false;
+              if (selectedLevel === 'all') return true;
+              if (selectedLevel === 'unassigned') return !(book.level || '').trim();
+              return (book.level || '').trim().toUpperCase() === selectedLevel;
+            });
             const readCount = tabBooks.filter((b) => isBookRead(b.id)).length;
             const percent = tabBooks.length ? Math.round((readCount / tabBooks.length) * 100) : 0;
             return (
@@ -769,11 +817,11 @@ const COMMON_DICTIONARY: Record<string, string> = {
                               <div className="flex items-center justify-between w-full">
                                 <button
                                   onClick={() => enterReadingMode(b, null)}
-                                  className={`text-left text-xs font-medium hover:text-white truncate block cursor-pointer flex-1 ${isBookRead(b.id) ? 'text-white/50' : 'text-white/80'}`}
+                                  className={`text-left text-xs font-medium hover:text-white truncate block cursor-pointer flex-1 ${isBookRead(b.id) ? 'text-white/70' : 'text-white'}`}
                                 >
                                   <span className="notranslate" translate="no">{b.title}</span>
                                   {b.level && (
-                                    <span className="ml-2 text-[9px] px-1 rounded bg-white/10 text-white/50 border border-white/5 font-bold">
+                                    <span className="ml-2 rounded border border-amber-300/30 bg-amber-400/15 px-1.5 py-0.5 text-[9px] font-extrabold text-amber-100">
                                       {b.level}
                                     </span>
                                   )}
@@ -908,6 +956,9 @@ const COMMON_DICTIONARY: Record<string, string> = {
                     <Languages size={12} />
                   </button>
                 </div>
+                <span className="rounded-full border border-amber-300/35 bg-amber-400/15 px-2.5 py-1 text-[10px] font-extrabold tracking-wide text-amber-100 shadow-sm">
+                  {activeBook.level?.trim() || 'Nível não informado'}
+                </span>
                 {activeSession && (
                   <span className="text-[10px] bg-white/10 border border-white/20 text-white/70 px-2.5 py-1 rounded-full uppercase font-mono hidden md:inline backdrop-blur-xl">
                     Sessão: {activeSession.className}
@@ -1590,6 +1641,7 @@ const COMMON_DICTIONARY: Record<string, string> = {
                   <option value="B1">B1 - Intermediário</option>
                   <option value="B2">B2 - Intermediário Superior</option>
                   <option value="C1">C1 - Avançado</option>
+                  <option value="C2">C2 - Proficiente</option>
                 </select>
               </div>
 

@@ -592,6 +592,7 @@ input, textarea, select {
 .readclub-library-panel {
   position: relative;
   isolation: isolate;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.82);
 }
 
 .readclub-library-panel::before {
