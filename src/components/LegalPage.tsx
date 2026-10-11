@@ -19,13 +19,14 @@ const sections = {
     ['7. Contato empresarial', 'Brazilian in Action · CNPJ 65.698.927/0001-92 · brazilianinaction@gmail.com.'],
   ],
   privacy: [
-    ['1. Dados coletados', 'Podemos coletar nome, e-mail, dados de cadastro, situação da assinatura, registros de pagamento fornecidos pelo provedor e preferências de uso. País, estado/região e cidade são estimativas derivadas do IP e só são coletados após consentimento opcional; ficam no perfil privado e não são exibidos no diretório ou na presença do Brazilian Friends.'],
+    ['1. Dados coletados', 'Podemos coletar nome, e-mail, dados de cadastro, situação da assinatura, registros de pagamento fornecidos pelo provedor, preferências de uso, conteúdos e mensagens enviados na plataforma e dados técnicos de inscrição em notificações push quando você as ativa. País, estado/região e cidade são estimativas derivadas do IP e só são coletados após consentimento opcional; ficam no perfil privado e não são exibidos no diretório ou na presença do Brazilian Friends.'],
     ['2. Para que usamos os dados', 'Os dados são usados para criar e proteger contas, liberar módulos, confirmar assinaturas, processar suporte, manter o Brazilian Friends, prevenir abuso, melhorar a experiência e cumprir obrigações legais. A localização aproximada é usada apenas para personalizar o perfil quando você autoriza.'],
     ['3. Pagamentos', 'Os dados de pagamento são processados pela Abacate Pay. A Brazilian in Action não solicita nem armazena senha bancária ou dados completos de cartão. O provedor pode tratar dados conforme seus próprios termos e política de privacidade.'],
-    ['4. Retenção', 'Mensagens do Brazilian Friends são mantidas por até 7 dias. Dados de conta, assinatura, cobrança e registros necessários podem ser mantidos pelo período necessário à prestação do serviço, segurança, atendimento e cumprimento de obrigações legais.'],
+    ['4. Retenção', 'Mensagens privadas do Brazilian Friends têm validade configurada para cinco dias e deixam de ser exibidas no aplicativo após a expiração. Esse prazo descreve a validade no aplicativo e não representa uma garantia de exclusão imediata de cópias técnicas ou backups. Convites de chamada são temporários. Dados de conta, assinatura, cobrança e registros necessários podem ser mantidos pelo período necessário à prestação do serviço, segurança, atendimento e cumprimento de obrigações legais.'],
     ['5. Compartilhamento', 'Não vendemos dados pessoais. Podemos compartilhar somente o necessário com provedores que sustentam autenticação, hospedagem, pagamentos, banco de dados e segurança, sempre para operar o serviço.'],
-    ['6. Direitos do usuário', 'Você pode solicitar confirmação, acesso, correção ou exclusão de dados pessoais, observadas as informações que precisamos manter por obrigação legal ou para prevenir fraude. Envie a solicitação para brazilianinaction@gmail.com.'],
-    ['7. Segurança e contato', 'Aplicamos controles técnicos e administrativos compatíveis com o serviço. Em caso de dúvida ou incidente percebido, entre em contato imediatamente por brazilianinaction@gmail.com.'],
+    ['6. Chamadas de vídeo', 'As chamadas são realizadas pelo Jitsi Meet público (meet.jit.si). A plataforma guarda convites temporários e não grava áudio ou vídeo. O provedor externo pode tratar dados conforme seus próprios termos e política de privacidade; evite compartilhar informações sensíveis em chamadas públicas.'],
+    ['7. Direitos do usuário', 'Você pode solicitar confirmação, acesso, correção ou exclusão de dados pessoais, observadas as informações que precisamos manter por obrigação legal ou para prevenir fraude. Envie a solicitação para brazilianinaction@gmail.com.'],
+    ['8. Segurança e contato', 'Aplicamos controles técnicos e administrativos compatíveis com o serviço. Em caso de dúvida ou incidente percebido, entre em contato imediatamente por brazilianinaction@gmail.com.'],
   ],
 };
 
@@ -71,7 +72,7 @@ export const LegalPage: React.FC<LegalPageProps> = ({ kind }) => {
           </div>
 
           <p className="mt-10 border-t border-white/10 pt-5 text-xs text-white/45">
-            Última atualização: 18 de setembro de 2026. Para esclarecimentos, escreva para brazilianinaction@gmail.com.
+            Última atualização: 11 de outubro de 2026. Para esclarecimentos, escreva para brazilianinaction@gmail.com.
           </p>
         </section>
       </div>

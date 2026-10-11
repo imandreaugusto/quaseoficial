@@ -1,25 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Home } from './components/Home';
-import { Dashboard } from './components/Dashboard';
-import { GoogleClassroom } from './components/GoogleClassroom';
-import { GoogleMeet } from './components/GoogleMeet';
-import { ReadClub } from './components/ReadClub';
-import { BrazilianBoard } from './components/BrazilianBoard';
-import { Settings } from './components/Settings';
-import { BrazilianConversation } from './components/BrazilianConversation';
-import { BrazilianQuiz } from './components/BrazilianQuiz';
-import { BrazilianGames } from './components/BrazilianGames';
-import { BrazilianTradutor } from './components/BrazilianTradutor';
-import { BiaCompare } from './components/BiaCompare';
-import { DEFAULT_YOUTUBE_LIBRARY, YouTubeHub, type YouTubeLibraryItem } from './components/YouTubeHub';
-import { BrazilianPractice } from './components/BrazilianPractice';
-import { BrazilianStories, StoryRecordingBar } from './components/BrazilianStories';
-import { BrazilianFriends } from './components/BrazilianFriends';
-import { StreamStudio } from './components/StreamStudio';
-import { AdminSettings } from './components/AdminSettings';
-import { AdminFeedbackPanel } from './components/AdminFeedbackPanel';
-import { StudentFeedback } from './components/StudentFeedback';
+import { DEFAULT_YOUTUBE_LIBRARY, type YouTubeLibraryItem } from './youtubeLibrary';
+import { StoryRecordingBar } from './components/StoryRecordingBar';
 import { StudentFeedbackNotifications } from './components/StudentFeedbackNotifications';
 import { BrazilianFriendsGlobalStatus } from './components/BrazilianFriendsGlobalStatus';
 import { AuthModal } from './components/AuthModal';
@@ -49,6 +32,26 @@ import {
   getSupabaseClient,
   getSubscriptionStatusFromSupabase,
 } from './utils/supabaseClient';
+
+const Dashboard = lazy(() => import('./components/Dashboard').then(({ Dashboard }) => ({ default: Dashboard })));
+const GoogleClassroom = lazy(() => import('./components/GoogleClassroom').then(({ GoogleClassroom }) => ({ default: GoogleClassroom })));
+const GoogleMeet = lazy(() => import('./components/GoogleMeet').then(({ GoogleMeet }) => ({ default: GoogleMeet })));
+const ReadClub = lazy(() => import('./components/ReadClub').then(({ ReadClub }) => ({ default: ReadClub })));
+const BrazilianBoard = lazy(() => import('./components/BrazilianBoard').then(({ BrazilianBoard }) => ({ default: BrazilianBoard })));
+const Settings = lazy(() => import('./components/Settings').then(({ Settings }) => ({ default: Settings })));
+const BrazilianConversation = lazy(() => import('./components/BrazilianConversation').then(({ BrazilianConversation }) => ({ default: BrazilianConversation })));
+const BrazilianQuiz = lazy(() => import('./components/BrazilianQuiz').then(({ BrazilianQuiz }) => ({ default: BrazilianQuiz })));
+const BrazilianGames = lazy(() => import('./components/BrazilianGames').then(({ BrazilianGames }) => ({ default: BrazilianGames })));
+const BrazilianTradutor = lazy(() => import('./components/BrazilianTradutor').then(({ BrazilianTradutor }) => ({ default: BrazilianTradutor })));
+const BiaCompare = lazy(() => import('./components/BiaCompare').then(({ BiaCompare }) => ({ default: BiaCompare })));
+const YouTubeHub = lazy(() => import('./components/YouTubeHub').then(({ YouTubeHub }) => ({ default: YouTubeHub })));
+const BrazilianPractice = lazy(() => import('./components/BrazilianPractice').then(({ BrazilianPractice }) => ({ default: BrazilianPractice })));
+const BrazilianStories = lazy(() => import('./components/BrazilianStories').then(({ BrazilianStories }) => ({ default: BrazilianStories })));
+const BrazilianFriends = lazy(() => import('./components/BrazilianFriends').then(({ BrazilianFriends }) => ({ default: BrazilianFriends })));
+const StreamStudio = lazy(() => import('./components/StreamStudio').then(({ StreamStudio }) => ({ default: StreamStudio })));
+const AdminSettings = lazy(() => import('./components/AdminSettings').then(({ AdminSettings }) => ({ default: AdminSettings })));
+const AdminFeedbackPanel = lazy(() => import('./components/AdminFeedbackPanel').then(({ AdminFeedbackPanel }) => ({ default: AdminFeedbackPanel })));
+const StudentFeedback = lazy(() => import('./components/StudentFeedback').then(({ StudentFeedback }) => ({ default: StudentFeedback })));
 
 const DEFAULT_SETTINGS: AppSettings = {
   soundEnabled: true,
@@ -1415,6 +1418,13 @@ export default function App() {
                 className="w-full h-full page-motion"
               >
                 <ErrorBoundary fallbackTitle="Erro ao carregar este módulo">
+                  <Suspense
+                    fallback={
+                      <div role="status" className="flex min-h-64 items-center justify-center text-sm text-white/70">
+                        Carregando módulo...
+                      </div>
+                    }
+                  >
                   <PageReveal enabled={settings.animOn} glassSkin={['quiz', 'conversation', 'tradutor', 'youtube', 'biacompare', 'board', 'dashboard', 'admin_settings', 'feedback', 'settings'].includes(currentApp)}>
                   {/* HOME TAB - Accessible to all authenticated users */}
                   {currentApp === 'home' && (
@@ -1625,6 +1635,7 @@ export default function App() {
                     />
                   )}
                   </PageReveal>
+                  </Suspense>
                 </ErrorBoundary>
               </motion.div>
             </AnimatePresence>
@@ -1641,11 +1652,13 @@ export default function App() {
                 exit={{ opacity: 0, scale: 0.95, y: 15 }}
                 className="bg-slate-950/50 border border-white/25 backdrop-blur-2xl rounded-3xl w-full max-w-5xl max-h-[90vh] overflow-y-auto shadow-2xl relative p-2 sm:p-4 my-auto"
               >
-                <BrazilianTradutor
-                  accentColor={settings.accentColor}
-                  isModal={true}
-                  onCloseModal={() => setQuickTradutorModalOpen(false)}
-                />
+                <Suspense fallback={<div role="status" className="p-6 text-center text-sm text-white/70">Carregando tradutor...</div>}>
+                  <BrazilianTradutor
+                    accentColor={settings.accentColor}
+                    isModal={true}
+                    onCloseModal={() => setQuickTradutorModalOpen(false)}
+                  />
+                </Suspense>
               </motion.div>
             </div>
           )}
