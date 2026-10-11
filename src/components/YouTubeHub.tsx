@@ -1088,7 +1088,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                 const artistItems = groupedByArtist[artist];
 
                 return (
-                  <div key={artist} className="flex flex-col gap-1 border border-white/5 rounded-xl bg-black/20 overflow-hidden">
+                  <div key={artist} className="flex shrink-0 flex-col gap-1 border border-white/5 rounded-xl bg-black/20 overflow-hidden">
                     {/* Artist Header Folder */}
                     <button
                       type="button"
@@ -1184,7 +1184,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                   <div
                     key={item.id}
                     onClick={() => handleSelectItem(item)}
-                    className={`p-2.5 rounded-lg border transition-all cursor-pointer flex items-center justify-between gap-2 group ${
+                    className={`shrink-0 p-2.5 rounded-lg border transition-all cursor-pointer flex items-center justify-between gap-2 group ${
                       isSelected
                         ? 'bg-amber-500/15 border-amber-500/40 text-white font-medium shadow-sm'
                         : 'bg-white/[0.02] border-white/5 hover:border-white/15 hover:bg-white/[0.06] text-white/80'
