@@ -62,7 +62,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
   // Library UI State
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [groupByArtist, setGroupByArtist] = useState(false);
+  const [groupByArtist, setGroupByArtist] = useState(true);
   const [expandedArtists, setExpandedArtists] = useState<Record<string, boolean>>({});
   const [itemModalOpen, setItemModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<YouTubeLibraryItem | null>(null);
@@ -477,7 +477,16 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
       }
       map[artistKey].push(item);
     });
-    return map;
+    return Object.fromEntries(
+      Object.entries(map)
+        .sort(([artistA], [artistB]) => artistA.localeCompare(artistB, 'pt-BR', { sensitivity: 'base' }))
+        .map(([artist, items]) => [
+          artist,
+          [...items].sort((itemA, itemB) =>
+            itemA.title.localeCompare(itemB.title, 'pt-BR', { sensitivity: 'base' }),
+          ),
+        ]),
+    );
   }, [filteredLibrary]);
 
   const toggleArtistExpansion = (artistKey: string) => {
@@ -1087,8 +1096,8 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                       className="w-full p-2.5 px-3 flex items-center justify-between gap-2 bg-white/[0.04] hover:bg-white/[0.08] transition-colors text-left cursor-pointer"
                     >
                       <div className="flex items-center gap-2 truncate">
-                        <Mic size={13} className="text-amber-400 shrink-0" />
-                        <span className="text-xs font-semibold text-white truncate">
+                        <Mic size={16} className="text-amber-400 shrink-0" />
+                        <span className="text-sm font-bold text-white truncate">
                           {artist}
                         </span>
                         <span className="text-[10px] font-mono text-white/40 bg-white/10 px-1.5 py-0.2 rounded-full shrink-0">
