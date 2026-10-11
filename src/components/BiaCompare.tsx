@@ -130,27 +130,12 @@ export const BiaCompare: React.FC<{ accentColor: string; onNavigate?: (app: stri
   } | null>(null);
   const [isDefiningWord, setIsDefiningWord] = useState(false);
 
-  // Done Activity Modal & Session Timer State
+  // Done Activity Modal State
   const [isDoneModalOpen, setIsDoneModalOpen] = useState(false);
-  const [sessionSeconds, setSessionSeconds] = useState(0);
-  const [isSessionTimerRunning, setIsSessionTimerRunning] = useState(true);
 
   // Image compression & local save lock
   const [isCompressingImage, setIsCompressingImage] = useState<'A' | 'B' | null>(null);
   const lastLocalSaveTimeRef = useRef<number>(0);
-
-  // Session Stopwatch Ticker
-  useEffect(() => {
-    let interval: any = null;
-    if (isSessionTimerRunning) {
-      interval = setInterval(() => {
-        setSessionSeconds((prev) => prev + 1);
-      }, 1000);
-    } else {
-      clearInterval(interval);
-    }
-    return () => clearInterval(interval);
-  }, [isSessionTimerRunning]);
 
   const speakText = (text: string) => {
     if (!window.speechSynthesis) return;
@@ -282,7 +267,6 @@ export const BiaCompare: React.FC<{ accentColor: string; onNavigate?: (app: stri
   };
 
   const handleFinishActivity = () => {
-    setIsSessionTimerRunning(false);
     setIsDoneModalOpen(true);
     if (soundOn) playBuzzer();
   };
@@ -1263,7 +1247,7 @@ export const BiaCompare: React.FC<{ accentColor: string; onNavigate?: (app: stri
             type="button"
             onClick={handleFinishActivity}
             className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-xl text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-lg shadow-emerald-950/40 hover:scale-[1.02] active:scale-95"
-            title="Concluir atividade e congelar tempo da sessão"
+            title="Concluir atividade"
           >
             <Check size={15} />
             <span>Concluir (Done)</span>
@@ -2032,25 +2016,8 @@ export const BiaCompare: React.FC<{ accentColor: string; onNavigate?: (app: stri
                   Parabéns! Excelente trabalho.
                 </h2>
                 <p className="text-xs text-white/60 font-light mt-1">
-                  O tempo foi congelado e você pode retornar ao relógio principal da tela inicial.
+                  Sua atividade foi concluída. Você pode voltar para a tela inicial ou começar outra.
                 </p>
-              </div>
-
-              {/* AM / PM CLOCK & DURATION DISPLAY */}
-              <div className="grid grid-cols-2 gap-3 bg-neutral-950/80 border border-white/10 p-4 rounded-2xl">
-                <div className="flex flex-col items-center justify-center border-r border-white/10 pr-2">
-                  <span className="text-[10px] text-white/40 uppercase font-mono font-bold">Horário de Conclusão</span>
-                  <span className="text-base md:text-lg font-extrabold text-amber-300 font-mono mt-1">
-                    {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
-                  </span>
-                </div>
-
-                <div className="flex flex-col items-center justify-center pl-2">
-                  <span className="text-[10px] text-white/40 uppercase font-mono font-bold">Duração da Sessão</span>
-                  <span className="text-base md:text-lg font-extrabold text-emerald-400 font-mono mt-1">
-                    {Math.floor(sessionSeconds / 60)}m {sessionSeconds % 60}s
-                  </span>
-                </div>
               </div>
 
               <div className="flex flex-col sm:flex-row items-center gap-3 pt-1">
@@ -2063,16 +2030,12 @@ export const BiaCompare: React.FC<{ accentColor: string; onNavigate?: (app: stri
                   }}
                   className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold rounded-2xl text-xs uppercase tracking-wider transition-all shadow-lg shadow-amber-500/20 cursor-pointer flex items-center justify-center gap-2"
                 >
-                  <Clock size={16} />
-                  <span>Ir para Relógio Principal (Início)</span>
+                  <ChevronLeft size={16} />
+                  <span>Voltar ao início</span>
                 </button>
 
                 <button
-                  onClick={() => {
-                    setIsDoneModalOpen(false);
-                    setSessionSeconds(0);
-                    setIsSessionTimerRunning(true);
-                  }}
+                  onClick={() => setIsDoneModalOpen(false)}
                   className="w-full py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-2xl text-xs uppercase tracking-wider transition-all cursor-pointer border border-white/15"
                 >
                   Nova Atividade

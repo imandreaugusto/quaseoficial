@@ -10,10 +10,6 @@ import {
   BookOpen,
   ChevronLeft,
   ChevronRight,
-  Clock,
-  Play,
-  Pause,
-  RotateCcw,
   Volume2,
   Bookmark,
   BookmarkCheck,
@@ -98,11 +94,6 @@ export const BrazilianConversation: React.FC<BrazilianConversationProps> = ({ ac
   const [generationStep, setGenerationStep] = useState('');
   const [currentLesson, setCurrentLesson] = useState<ConversationLesson | null>(null);
   const [activeStep, setActiveStep] = useState<number>(1); // Step 1 to 7
-
-  // Stopwatch state
-  const [time, setTime] = useState<number>(0);
-  const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Dictionary Modal / Pop-up State
   const [selectedWord, setSelectedWord] = useState<string | null>(null);
@@ -313,32 +304,6 @@ export const BrazilianConversation: React.FC<BrazilianConversationProps> = ({ ac
     return () => unsubAuth();
   }, []);
 
-  // Stopwatch ticking
-  useEffect(() => {
-    if (isTimerRunning) {
-      timerRef.current = setInterval(() => {
-        setTime((prev) => prev + 1);
-      }, 1000);
-    } else {
-      if (timerRef.current) clearInterval(timerRef.current);
-    }
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [isTimerRunning]);
-
-  const toggleTimer = () => setIsTimerRunning(!isTimerRunning);
-  const resetTimer = () => {
-    setIsTimerRunning(false);
-    setTime(0);
-  };
-
-  const formatTime = (totalSec: number) => {
-    const mins = Math.floor(totalSec / 60);
-    const secs = totalSec % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
   // Select a random theme
   const handleRandomTheme = () => {
     const randomIndex = Math.floor(Math.random() * THEMES.length);
@@ -351,7 +316,6 @@ export const BrazilianConversation: React.FC<BrazilianConversationProps> = ({ ac
     setGenerationStep('Engaging English pedagogical framework...');
     setCurrentLesson(null);
     setActiveStep(1);
-    resetTimer();
 
     const loadingPhrases = [
       'Structuring speaking lesson outline...',
@@ -604,7 +568,6 @@ export const BrazilianConversation: React.FC<BrazilianConversationProps> = ({ ac
   const handleOpenSavedLesson = (lesson: ConversationLesson) => {
     setCurrentLesson(lesson);
     setActiveStep(1);
-    resetTimer();
     setActiveTab('generate');
   };
 
@@ -1203,44 +1166,6 @@ export const BrazilianConversation: React.FC<BrazilianConversationProps> = ({ ac
                           size={14}
                           className={currentLesson.isFavorite ? 'fill-yellow-400 text-yellow-400' : ''}
                         />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Flexible Class Stopwatch */}
-                  <div className="bg-neutral-900/40 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-xl flex justify-between items-center gap-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-white/5 rounded-xl border border-white/5">
-                        <Clock size={16} className={isTimerRunning ? 'animate-pulse text-green-400' : 'text-white/40'} />
-                      </div>
-                      <div>
-                        <p className="text-[9px] font-mono uppercase tracking-wider text-white/30">
-                          Speaking Stopwatch
-                        </p>
-                        <p className="text-xl font-mono text-white/90 font-semibold">
-                          {formatTime(time)}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={toggleTimer}
-                        className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-xl border transition-all flex items-center gap-1.5 cursor-pointer ${
-                          isTimerRunning
-                            ? 'bg-red-500/10 border-red-500/20 text-red-400 hover:bg-red-500/20'
-                            : 'bg-green-500/10 border-green-500/20 text-green-400 hover:bg-green-500/20'
-                        }`}
-                      >
-                        {isTimerRunning ? <Pause size={12} /> : <Play size={12} />}
-                        {isTimerRunning ? 'Pause' : 'Start'}
-                      </button>
-                      <button
-                        onClick={resetTimer}
-                        className="p-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white/50 hover:text-white transition-all cursor-pointer"
-                        title="Reset stopwatch"
-                      >
-                        <RotateCcw size={13} />
                       </button>
                     </div>
                   </div>
@@ -1992,20 +1917,8 @@ export const BrazilianConversation: React.FC<BrazilianConversationProps> = ({ ac
                 </span>
               </div>
 
-              {/* Stopwatch & Close */}
+              {/* Close */}
               <div className="flex items-center gap-1.5 flex-wrap">
-                <div className="flex items-center gap-1.5 bg-neutral-950/80 border border-white/15 px-3 py-1.5 rounded-full font-mono text-xs text-white backdrop-blur-md shadow-md">
-                  <Clock size={12} className="text-white/40" />
-                  <span>{formatTime(time)}</span>
-                  <button
-                    type="button"
-                    onClick={toggleTimer}
-                    className="ml-0.5 p-0.5 hover:bg-white/10 rounded text-white/70 hover:text-white cursor-pointer"
-                  >
-                    {isTimerRunning ? <Pause size={12} /> : <Play size={12} />}
-                  </button>
-                </div>
-
                 <button
                   type="button"
                   onClick={() => setIsFullscreenMeet(false)}

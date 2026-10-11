@@ -6,11 +6,8 @@ import {
   MessageSquare, 
   Sparkles, 
   ExternalLink, 
-  Play, 
-  Clock, 
   Check, 
   Copy, 
-  Flame, 
   Star, 
   Radio, 
   Users, 
@@ -207,24 +204,6 @@ export const BrazilianPractice: React.FC<BrazilianPracticeProps> = ({
   const [isPortalLoading, setIsPortalLoading] = useState(false);
   const [portalLoadTimedOut, setPortalLoadTimedOut] = useState(false);
   const [copiedPromptIdx, setCopiedPromptIdx] = useState<number | null>(null);
-  const [isTimerRunning, setIsTimerRunning] = useState(false);
-  const [timerSeconds, setTimerSeconds] = useState(0);
-  const [completedSessionsCount, setCompletedSessionsCount] = useState<number>(() => {
-    return parseInt(localStorage.getItem('bia_practice_completed_count') || '0', 10);
-  });
-
-  // Practice Stopwatch
-  useEffect(() => {
-    let interval: any = null;
-    if (isTimerRunning) {
-      interval = setInterval(() => {
-        setTimerSeconds((prev) => prev + 1);
-      }, 1000);
-    } else {
-      clearInterval(interval);
-    }
-    return () => clearInterval(interval);
-  }, [isTimerRunning]);
 
   useEffect(() => {
     if (!activePortal) return;
@@ -247,26 +226,10 @@ export const BrazilianPractice: React.FC<BrazilianPracticeProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [activePortal]);
 
-  const formatTimer = (totalSec: number) => {
-    const mins = Math.floor(totalSec / 60);
-    const secs = totalSec % 60;
-    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-  };
-
   const handleCopyPrompt = (text: string, idx: number) => {
     navigator.clipboard.writeText(text);
     setCopiedPromptIdx(idx);
     setTimeout(() => setCopiedPromptIdx(null), 2000);
-  };
-
-  const handleFinishPracticeRound = () => {
-    if (timerSeconds > 60) {
-      const nextCount = completedSessionsCount + 1;
-      setCompletedSessionsCount(nextCount);
-      localStorage.setItem('bia_practice_completed_count', nextCount.toString());
-    }
-    setIsTimerRunning(false);
-    setTimerSeconds(0);
   };
 
   const openPortal = (portal: PracticePortal) => {
@@ -274,9 +237,6 @@ export const BrazilianPractice: React.FC<BrazilianPracticeProps> = ({
     setIsPortalExpanded(false);
     setIsPortalLoading(true);
     setPortalLoadTimedOut(false);
-    if (!isTimerRunning) {
-      setIsTimerRunning(true);
-    }
   };
 
   const openPortalInNewTab = (portal: PracticePortal) => {
@@ -311,45 +271,6 @@ export const BrazilianPractice: React.FC<BrazilianPracticeProps> = ({
           </p>
         </div>
 
-        {/* PRATICE TIMER & SESSION METRICS */}
-        <div className="relative flex items-center gap-3 self-start md:self-auto bg-white/10 border border-white/20 p-3 rounded-2xl backdrop-blur-xl shadow-xl">
-          <div className="flex flex-col pr-3 border-r border-white/10">
-            <span className="text-[9px] uppercase tracking-wider text-white/40 font-mono font-bold">
-              Tempo de Prática
-            </span>
-            <div className="flex items-center gap-1.5 mt-0.5 font-mono text-lg font-bold text-amber-400">
-              <Clock size={16} className={isTimerRunning ? 'animate-spin text-amber-400' : 'text-white/40'} />
-              <span>{formatTimer(timerSeconds)}</span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {!isTimerRunning ? (
-              <button
-                onClick={() => setIsTimerRunning(true)}
-                className="px-3.5 py-2 rounded-xl bg-amber-500 text-neutral-950 hover:bg-amber-400 text-xs font-bold font-mono uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-lg shadow-amber-500/20"
-              >
-                <Play size={12} className="fill-current" />
-                <span>Iniciar Treino</span>
-              </button>
-            ) : (
-              <button
-                onClick={handleFinishPracticeRound}
-                className="px-3.5 py-2 rounded-xl bg-emerald-500 text-neutral-950 hover:bg-emerald-400 text-xs font-bold font-mono uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-lg shadow-emerald-500/20"
-              >
-                <Check size={14} />
-                <span>Concluir Sessão</span>
-              </button>
-            )}
-
-            {completedSessionsCount > 0 && (
-              <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-orange-500/15 border border-orange-500/30 text-orange-400 text-xs font-mono font-bold" title="Sessões de conversa concluídas">
-                <Flame size={14} />
-                <span>{completedSessionsCount}</span>
-              </div>
-            )}
-          </div>
-        </div>
       </div>
 
       {/* FEATURED: EPISODEN HERO BANNER (USER'S TOP FAVORITE) */}
@@ -645,9 +566,6 @@ export const BrazilianPractice: React.FC<BrazilianPracticeProps> = ({
                   Se o site não carregar ou câmera/microfone não funcionarem, abra em uma nova aba.
                   {portalLoadTimedOut && ' O carregamento está demorando mais que o esperado.'}
                 </p>
-                <span className="shrink-0 text-[10px] font-mono text-amber-300/80">
-                  Tempo de prática: {formatTimer(timerSeconds)}
-                </span>
               </div>
             </motion.div>
           </motion.div>
