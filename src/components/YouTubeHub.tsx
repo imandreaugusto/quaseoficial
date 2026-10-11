@@ -492,7 +492,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
   const toggleArtistExpansion = (artistKey: string) => {
     setExpandedArtists((prev) => ({
       ...prev,
-      [artistKey]: prev[artistKey] === true ? false : true,
+      [artistKey]: prev[artistKey] === false,
     }));
   };
 
@@ -1084,7 +1084,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
             ) : groupByArtist ? (
               /* GROUPED BY ARTIST / CANTOR */
               Object.keys(groupedByArtist).map((artist) => {
-                const isExpanded = searchQuery.trim().length > 0 ? true : expandedArtists[artist] === true;
+                const isExpanded = searchQuery.trim().length > 0 || expandedArtists[artist] !== false;
                 const artistItems = groupedByArtist[artist];
 
                 return (
