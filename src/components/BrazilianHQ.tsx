@@ -49,8 +49,8 @@ export const BrazilianHQ: FC<BrazilianHQProps> = ({ learnedWords, onUpdateLearne
         key={selectedComic.id}
         src={`https://drive.google.com/file/d/${selectedComic.id}/preview?rm=minimal`}
         title={`Leitor: ${selectedComic.title}`}
-        className={`absolute w-full border-0 bg-neutral-900 ${
-          preview ? 'inset-0 h-full' : 'inset-x-0 -top-14 h-[calc(100%+3.5rem)]'
+        className={`absolute border-0 bg-neutral-900 ${
+          preview ? 'inset-y-0 left-0 h-full w-[calc(100%+16px)]' : 'inset-x-0 -top-14 h-[calc(100%+3.5rem)] w-[calc(100%+16px)]'
         }`}
         allow="autoplay"
         allowFullScreen
@@ -90,7 +90,7 @@ export const BrazilianHQ: FC<BrazilianHQProps> = ({ learnedWords, onUpdateLearne
         <p className="ml-auto hidden text-xs text-white/50 sm:block">{readCount} de {COMICS.length} lidas</p>
       </header>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(10rem,0.75fr)_minmax(0,2fr)] gap-4 lg:grid-cols-[minmax(15rem,0.85fr)_minmax(0,2fr)] lg:grid-rows-1">
+      <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(10rem,0.75fr)_minmax(0,2fr)] gap-4 lg:grid-cols-[minmax(14rem,0.85fr)_minmax(0,1.7fr)] lg:grid-rows-1">
         <aside className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-neutral-950/65 backdrop-blur-xl">
           <div className="shrink-0 border-b border-white/10 p-3">
             <div className="mb-2 flex items-center justify-between">
