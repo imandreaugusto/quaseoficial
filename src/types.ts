@@ -111,6 +111,7 @@ export interface StudentPermissions {
   youtube: boolean;
   practice: boolean;
   stories: boolean;
+  brazilianhq?: boolean;
 }
 
 export interface StorySubmission {

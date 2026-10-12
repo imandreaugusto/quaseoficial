@@ -32,6 +32,7 @@ import {
   Plus
 } from 'lucide-react';
 import { UserProfile, GlobalAppConfig } from '../types';
+import { ensureAppAfter } from '../lib/appMenuOrder';
 import { BrazilianLogo } from './BrazilianLogo';
 import { SocialLinksBar } from './SocialLinksBar';
 import { getSupabaseClient, loadSharedContentFromSupabase } from '../utils/supabaseClient';
@@ -55,6 +56,7 @@ const ALL_STUDENT_ITEMS = [
   { id: 'stories', label: 'Brazilian Post', icon: Instagram, permKey: 'stories' as const },
   { id: 'practice', label: 'Brazilian Practice', icon: Globe, permKey: 'practice' as const },
   { id: 'readclub', label: 'Read Club', icon: BookOpen, permKey: 'readclub' as const },
+  { id: 'brazilianhq', label: 'Brazilian HQ', icon: BookOpen, permKey: 'brazilianhq' as const },
   { id: 'board', label: 'Blackboard', icon: Presentation, permKey: 'board' as const },
   { id: 'quiz', label: 'Brazilian Quiz', icon: HelpCircle, permKey: 'quiz' as const },
   { id: 'braziliangames', label: 'Brazilian Games', icon: Gamepad2, permKey: 'braziliangames' as const },
@@ -211,6 +213,7 @@ const ALL_ADMIN_ITEMS = [
   { id: 'dashboard', label: 'Controle Financeiro', icon: LayoutDashboard },
   { id: 'admin_settings', label: 'Painel do CEO', icon: Users },
   { id: 'readclub', label: 'Read Club', icon: BookOpen },
+  { id: 'brazilianhq', label: 'Brazilian HQ', icon: BookOpen },
   { id: 'board', label: 'Brazilian Board', icon: Presentation },
   { id: 'streamstudio', label: 'Brazilian LIVE', icon: Radio },
   { id: 'classroom', label: 'Google Classroom', icon: GraduationCap },
@@ -246,13 +249,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [showInstallHelp, setShowInstallHelp] = useState(false);
   const [installError, setInstallError] = useState('');
   const [appConfig, setAppConfig] = useState<GlobalAppConfig>({
-    studentAppOrder: ['home', 'brazilianfriends', 'stories', 'practice', 'readclub', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'feedback'],
-    adminAppOrder: ['home', 'work', 'brazilianfriends', 'stories', 'practice', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'settings'],
+    studentAppOrder: ['home', 'brazilianfriends', 'stories', 'practice', 'readclub', 'brazilianhq', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'feedback'],
+    adminAppOrder: ['home', 'work', 'brazilianfriends', 'stories', 'practice', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'brazilianhq', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'settings'],
     studentGlobalEnabled: {
       brazilianfriends: true,
       stories: true,
       practice: true,
       readclub: true,
+      brazilianhq: true,
       board: true,
       quiz: true,
       braziliangames: true,
@@ -310,13 +314,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
       if (!adminAppOrder.includes('braziliangames')) adminAppOrder.push('braziliangames');
       if (!adminAppOrder.includes('youtube')) adminAppOrder.push('youtube');
       if (!adminAppOrder.includes('feedback')) adminAppOrder.push('feedback');
+      const normalizedStudentOrder = ensureAppAfter(studentAppOrder, 'brazilianhq', 'readclub');
+      const normalizedAdminOrder = ensureAppAfter(adminAppOrder, 'brazilianhq', 'readclub');
       const normalized: GlobalAppConfig = {
         ...parsed,
-        studentAppOrder,
-        adminAppOrder,
+        studentAppOrder: normalizedStudentOrder,
+        adminAppOrder: normalizedAdminOrder,
         studentGlobalEnabled: {
           brazilianfriends: true,
           braziliangames: true,
+          brazilianhq: true,
           feedback: true,
           ...parsed.studentGlobalEnabled
         }

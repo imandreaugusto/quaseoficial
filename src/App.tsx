@@ -1,6 +1,7 @@
 import { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Home } from './components/Home';
+import { BrazilianHQ } from './components/BrazilianHQ';
 import { DEFAULT_YOUTUBE_LIBRARY, type YouTubeLibraryItem } from './youtubeLibrary';
 import { StoryRecordingBar } from './components/StoryRecordingBar';
 import { StudentFeedbackNotifications } from './components/StudentFeedbackNotifications';
@@ -1202,7 +1203,8 @@ export default function App() {
     tradutor: true,
     youtube: true,
     practice: true,
-    stories: true
+    stories: true,
+    brazilianhq: true
   };
 
   // Track access to CEO/Admin dashboards
@@ -1578,6 +1580,9 @@ export default function App() {
                     )
                   )}
 
+                  {currentApp === 'brazilianhq' && (isAdmin || perms.brazilianhq !== false) && (
+                    <BrazilianHQ />
+                  )}
                   {currentApp === 'board' && (isAdmin || perms.board) && (
                     <BrazilianBoard accentColor={settings.accentColor} />
                   )}

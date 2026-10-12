@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { UserProfile, GatewaySettings, StudentPermissions, GlobalAppConfig, ClassItem, ExpenseItem, TrialCoupon, PixPaymentRecord } from '../types';
+import { ensureAppAfter } from '../lib/appMenuOrder';
 import { 
   getAuthorizedCeoEmails, 
   addAuthorizedCeoEmail, 
@@ -101,6 +102,7 @@ const ALL_STUDENT_APPS = [
   { id: 'stories', label: 'Brazilian Post', icon: Instagram, desc: 'Gravação de stories para o Instagram com teleprompter e mural de destaques' },
   { id: 'practice', label: 'Brazilian Practice', icon: Globe, desc: 'Ambientes ao vivo de conversação, imersão e prática livre' },
   { id: 'readclub', label: 'Read Club', icon: BookOpen, desc: 'Biblioteca imersiva e histórias com áudio' },
+  { id: 'brazilianhq', label: 'Brazilian HQ', icon: BookOpen, desc: 'Histórias em quadrinhos em PDF' },
   { id: 'board', label: 'Blackboard', icon: Presentation, desc: 'Lousa digital interativa de estudos' },
   { id: 'quiz', label: 'Brazilian Quiz', icon: HelpCircle, desc: 'Desafios de vocabulário e gramática' },
   { id: 'braziliangames', label: 'Brazilian Games', icon: Gamepad2, desc: 'Jogos de inglês executados no navegador' },
@@ -119,6 +121,7 @@ const ALL_ADMIN_APPS = [
   { id: 'dashboard', label: 'Controle Financeiro', icon: LayoutDashboard, desc: 'Cálculo de lucros, alunos e despesas' },
   { id: 'admin_settings', label: 'Painel do CEO', icon: Users, desc: 'Gestão geral de alunos, gateway e finanças' },
   { id: 'readclub', label: 'Read Club', icon: BookOpen, desc: 'Biblioteca completa de leitura' },
+  { id: 'brazilianhq', label: 'Brazilian HQ', icon: BookOpen, desc: 'Leitura de histórias em quadrinhos' },
   { id: 'board', label: 'Brazilian Board', icon: Presentation, desc: 'Lousa de anotações e desenhos' },
   { id: 'streamstudio', label: 'Brazilian LIVE', icon: Radio, desc: 'Estúdio de transmissão com overlays' },
   { id: 'classroom', label: 'Google Classroom', icon: GraduationCap, desc: 'Integração de turmas Google' },
@@ -216,13 +219,14 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
 
   // App Order and Global Availability Configuration
   const [appConfig, setAppConfig] = useState<GlobalAppConfig>({
-    studentAppOrder: ['brazilianfriends', 'stories', 'practice', 'readclub', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'feedback'],
-    adminAppOrder: ['home', 'work', 'brazilianfriends', 'stories', 'practice', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'settings'],
+    studentAppOrder: ['brazilianfriends', 'stories', 'practice', 'readclub', 'brazilianhq', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'feedback'],
+    adminAppOrder: ['home', 'work', 'brazilianfriends', 'stories', 'practice', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'brazilianhq', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'settings'],
     studentGlobalEnabled: {
       brazilianfriends: true,
       stories: true,
       practice: true,
       readclub: true,
+      brazilianhq: true,
       board: true,
       quiz: true,
       braziliangames: true,
@@ -301,10 +305,14 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
         const studentAppOrder = sharedConfig.studentAppOrder.includes('feedback')
           ? sharedConfig.studentAppOrder
           : [...sharedConfig.studentAppOrder, 'feedback'];
+        const adminAppOrder = ensureAppAfter(sharedConfig.adminAppOrder, 'brazilianhq', 'readclub');
+        const orderedStudentApps = ensureAppAfter(studentAppOrder, 'brazilianhq', 'readclub');
         const normalizedConfig: GlobalAppConfig = {
           ...sharedConfig,
-          studentAppOrder,
+          studentAppOrder: orderedStudentApps,
+          adminAppOrder,
           studentGlobalEnabled: {
+            brazilianhq: true,
             feedback: true,
             ...sharedConfig.studentGlobalEnabled
           }
@@ -402,22 +410,25 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
         const studentAppOrder = parsed.studentAppOrder.includes('braziliangames')
           ? parsed.studentAppOrder
           : [...parsed.studentAppOrder, 'braziliangames'];
+        const orderedStudentApps = ensureAppAfter(studentAppOrder, 'brazilianhq', 'readclub');
         if (!studentAppOrder.includes('feedback')) studentAppOrder.push('feedback');
         const adminAppOrder = parsed.adminAppOrder.includes('braziliangames')
           ? parsed.adminAppOrder
           : [...parsed.adminAppOrder, 'braziliangames'];
+        const orderedAdminApps = ensureAppAfter(adminAppOrder, 'brazilianhq', 'readclub');
         if (!adminAppOrder.includes('feedback')) adminAppOrder.push('feedback');
         setAppConfig({
           ...parsed,
-          studentAppOrder: studentAppOrder.includes('brazilianfriends')
-            ? studentAppOrder
-            : ['brazilianfriends', ...studentAppOrder],
-          adminAppOrder: adminAppOrder.includes('work')
-            ? adminAppOrder
-            : ['work', ...adminAppOrder],
+          studentAppOrder: orderedStudentApps.includes('brazilianfriends')
+            ? orderedStudentApps
+            : ['brazilianfriends', ...orderedStudentApps],
+          adminAppOrder: orderedAdminApps.includes('work')
+            ? orderedAdminApps
+            : ['work', ...orderedAdminApps],
           studentGlobalEnabled: {
             brazilianfriends: true,
             braziliangames: true,
+            brazilianhq: true,
             feedback: true,
             ...parsed.studentGlobalEnabled
           }
@@ -865,11 +876,12 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   // Reset to Default Order
   const handleResetAppOrder = () => {
     const defaultConfig: GlobalAppConfig = {
-      studentAppOrder: ['brazilianfriends', 'readclub', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'feedback'],
-      adminAppOrder: ['home', 'work', 'brazilianfriends', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'settings'],
+      studentAppOrder: ['brazilianfriends', 'readclub', 'brazilianhq', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'feedback'],
+      adminAppOrder: ['home', 'work', 'brazilianfriends', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'brazilianhq', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'settings'],
       studentGlobalEnabled: {
         brazilianfriends: true,
         readclub: true,
+        brazilianhq: true,
         board: true,
         quiz: true,
         braziliangames: true,

@@ -1581,14 +1581,14 @@ const COMMON_DICTIONARY: Record<string, string> = {
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1">
                 <label className="text-[10px] text-white/40 uppercase tracking-widest">
-                  {activeTab === 'music' ? 'Cantor / Artista' : 'Categoria'}
+                  Categoria
                 </label>
                 <input
                   type="text"
                   name="cat"
                   defaultValue={editingBook?.cat || ''}
                   required
-                  placeholder={activeTab === 'music' ? 'Coldplay' : 'Travel Stories'}
+                  placeholder="Travel Stories"
                   className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-white/30 text-white"
                 />
               </div>
@@ -1600,7 +1600,7 @@ const COMMON_DICTIONARY: Record<string, string> = {
                   name="title"
                   defaultValue={editingBook?.title || ''}
                   required
-                  placeholder={activeTab === 'music' ? 'Yellow' : 'Trip to NYC'}
+                  placeholder="Trip to NYC"
                   className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-white/30 text-white"
                 />
               </div>
