@@ -199,7 +199,7 @@ export const ReadClub: React.FC<ReadClubProps> = ({
   const handleToggleCategory = (category: string) => {
     setExpandedCategories((prev) => ({
       ...prev,
-      [category]: prev[category] === false,
+      [category]: prev[category] !== true,
     }));
   };
 
@@ -771,7 +771,7 @@ const COMMON_DICTIONARY: Record<string, string> = {
               <div className="text-center py-10 text-white/20 italic text-xs">Vazio</div>
             ) : (
               Object.keys(groupedBooks).map((category) => {
-                const isExpanded = searchQuery.trim().length > 0 ? true : expandedCategories[category] !== false;
+                const isExpanded = searchQuery.trim().length > 0 ? true : expandedCategories[category] === true;
                 const categoryBooks = groupedBooks[category];
 
                 return (
