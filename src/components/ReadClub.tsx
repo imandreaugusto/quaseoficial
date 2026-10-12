@@ -50,7 +50,7 @@ export const ReadClub: React.FC<ReadClubProps> = ({
   heightClass = 'h-screen',
   accentColor,
 }) => {
-  const [activeTab, setActiveTab] = useState<'story' | 'music'>('story');
+  const activeTab: StoryItem['type'] = 'story';
   const [selectedLevel, setSelectedLevel] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
@@ -199,7 +199,7 @@ export const ReadClub: React.FC<ReadClubProps> = ({
   const handleToggleCategory = (category: string) => {
     setExpandedCategories((prev) => ({
       ...prev,
-      [category]: !prev[category],
+      [category]: prev[category] === false,
     }));
   };
 
@@ -705,31 +705,6 @@ const COMMON_DICTIONARY: Record<string, string> = {
             </div>
           </div>
 
-          <div className="flex bg-white/[0.03] p-1 rounded-lg border border-white/5 mb-4">
-            <button
-              onClick={() => {
-                setActiveTab('story');
-                setSelectedLevel('all');
-              }}
-              className={`flex-1 py-1.5 rounded-md text-[10px] font-bold tracking-wider uppercase transition-all cursor-pointer ${
-                activeTab === 'story' ? 'bg-white/10 text-white' : 'text-white/40'
-              }`}
-            >
-              Histórias
-            </button>
-            <button
-              onClick={() => {
-                setActiveTab('music');
-                setSelectedLevel('all');
-              }}
-              className={`flex-1 py-1.5 rounded-md text-[10px] font-bold tracking-wider uppercase transition-all cursor-pointer ${
-                activeTab === 'music' ? 'bg-white/10 text-white' : 'text-white/40'
-              }`}
-            >
-              Músicas
-            </button>
-          </div>
-
           <div className="relative mb-4">
             <Search className="absolute left-3 top-2.5 text-white/30" size={14} />
             <input
@@ -788,12 +763,15 @@ const COMMON_DICTIONARY: Record<string, string> = {
           })()}
 
           {/* Groupings display Accordion */}
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-white/50">
+            {Object.values(groupedBooks).reduce((total, books) => total + books.length, 0)} histórias · role para ver todas
+          </p>
           <div className="readclub-library-list min-h-0 flex-1 overflow-y-auto flex flex-col gap-2">
             {Object.keys(groupedBooks).length === 0 ? (
               <div className="text-center py-10 text-white/20 italic text-xs">Vazio</div>
             ) : (
               Object.keys(groupedBooks).map((category) => {
-                const isExpanded = searchQuery.trim().length > 0 ? true : expandedCategories[category] === true;
+                const isExpanded = searchQuery.trim().length > 0 ? true : expandedCategories[category] !== false;
                 const categoryBooks = groupedBooks[category];
 
                 return (
@@ -802,7 +780,7 @@ const COMMON_DICTIONARY: Record<string, string> = {
                       onClick={() => handleToggleCategory(category)}
                       className="w-full flex items-center justify-between py-2 text-left text-[10px] font-semibold tracking-wider text-white/40 uppercase cursor-pointer"
                     >
-                      <span>{category}</span>
+                      <span>{category} <span className="ml-1 text-white/30">({categoryBooks.length})</span></span>
                       {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
                     </button>
 
