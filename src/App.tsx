@@ -1581,7 +1581,10 @@ export default function App() {
                   )}
 
                   {currentApp === 'brazilianhq' && (isAdmin || perms.brazilianhq !== false) && (
-                    <BrazilianHQ />
+                    <BrazilianHQ
+                      learnedWords={learnedWords}
+                      onUpdateLearnedWords={handleUpdateLearnedWords}
+                    />
                   )}
                   {currentApp === 'board' && (isAdmin || perms.board) && (
                     <BrazilianBoard accentColor={settings.accentColor} />
