@@ -168,7 +168,7 @@ export const BrazilianHQ: FC<BrazilianHQProps> = ({ learnedWords, onUpdateLearne
         <p className="ml-auto hidden text-xs text-white/50 sm:block">{readCount} de {COMICS.length} lidas</p>
       </header>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(10rem,0.75fr)_minmax(0,2fr)] gap-4 lg:grid-cols-[minmax(14rem,0.85fr)_minmax(0,1.7fr)] lg:grid-rows-1">
+      <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(13rem,1.3fr)_minmax(11rem,1fr)] gap-4 lg:grid-cols-[minmax(14rem,0.85fr)_minmax(0,1.7fr)] lg:grid-rows-1">
         <aside className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-neutral-950/65 backdrop-blur-xl">
           <div className="shrink-0 border-b border-white/10 p-3">
             <div className="mb-2 flex items-center justify-between">
@@ -213,7 +213,7 @@ export const BrazilianHQ: FC<BrazilianHQProps> = ({ learnedWords, onUpdateLearne
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto p-2">
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-2">
               {visibleComics.map((comic) => {
                 const comicIsRead = isRead(comic.id);
                 return (
@@ -222,22 +222,22 @@ export const BrazilianHQ: FC<BrazilianHQProps> = ({ learnedWords, onUpdateLearne
                     type="button"
                     onClick={() => setSelectedComicId(comic.id)}
                     aria-pressed={selectedComic?.id === comic.id}
-                    className={`flex min-h-14 items-center gap-2.5 rounded-xl border px-2.5 py-2 text-left transition ${
+                    className={`flex min-h-16 items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition ${
                       selectedComic?.id === comic.id
                         ? 'border-amber-400/40 bg-amber-400/10'
                         : 'border-transparent bg-white/[0.025] hover:border-white/10 hover:bg-white/[0.06]'
                     }`}
                   >
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/5 text-amber-300/90">
-                      {comicIsRead ? <Check size={15} /> : <BookOpen size={15} />}
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/5 text-amber-300/90">
+                      {comicIsRead ? <Check size={18} /> : <BookOpen size={18} />}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block text-xs font-semibold leading-snug text-white/90">{comic.title}</span>
-                      <span className={`mt-0.5 block text-[9px] font-semibold uppercase tracking-wider ${comicIsRead ? 'text-emerald-300/80' : 'text-white/35'}`}>
+                      <span className="block text-sm font-semibold leading-snug text-white/90">{comic.title}</span>
+                      <span className={`mt-1 block text-[10px] font-semibold uppercase tracking-wider ${comicIsRead ? 'text-emerald-300/80' : 'text-white/45'}`}>
                         {comicIsRead ? 'Já lida' : 'Não lida'}
                       </span>
                     </span>
-                    {comicIsRead && <CheckCircle2 size={14} className="shrink-0 text-emerald-300/80" />}
+                    {comicIsRead && <CheckCircle2 size={16} className="shrink-0 text-emerald-300/80" />}
                   </button>
                 );
               })}
