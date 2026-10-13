@@ -1,7 +1,26 @@
-import { lazy, Suspense, useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Home } from './components/Home';
+import { Dashboard } from './components/Dashboard';
+import { GoogleClassroom } from './components/GoogleClassroom';
+import { GoogleMeet } from './components/GoogleMeet';
+import { ReadClub } from './components/ReadClub';
+import { BrazilianBoard } from './components/BrazilianBoard';
+import { Settings } from './components/Settings';
+import { BrazilianConversation } from './components/BrazilianConversation';
+import { BrazilianQuiz } from './components/BrazilianQuiz';
+import { BrazilianGames } from './components/BrazilianGames';
+import { BrazilianTradutor } from './components/BrazilianTradutor';
+import { BiaCompare } from './components/BiaCompare';
+import { YouTubeHub } from './components/YouTubeHub';
+import { BrazilianPractice } from './components/BrazilianPractice';
+import { BrazilianStories } from './components/BrazilianStories';
 import { BrazilianHQ } from './components/BrazilianHQ';
+import { BrazilianFriends } from './components/BrazilianFriends';
+import { StreamStudio } from './components/StreamStudio';
+import { AdminSettings } from './components/AdminSettings';
+import { AdminFeedbackPanel } from './components/AdminFeedbackPanel';
+import { StudentFeedback } from './components/StudentFeedback';
 import { DEFAULT_YOUTUBE_LIBRARY, type YouTubeLibraryItem } from './youtubeLibrary';
 import { StoryRecordingBar } from './components/StoryRecordingBar';
 import { StudentFeedbackNotifications } from './components/StudentFeedbackNotifications';
@@ -15,13 +34,14 @@ import { PageReveal } from './components/PageReveal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { BrazilianLogo } from './components/BrazilianLogo';
 import { CleanStudentStage } from './components/CleanStudentStage';
-import { ClassItem, ExpenseItem, AppSettings, StoryItem, ReadSession, GlossaryEntry, UserProfile, StudentPermissions } from './types';
+import { ClassItem, ExpenseItem, AppSettings, StoryItem, ReadSession, GlossaryEntry, UserProfile } from './types';
 import { INITIAL_READ_LIBRARY, SLIDESHOW_IMAGES, US_LANDMARKS } from './data';
 import { formatLyricsLibrary, formatStoryLibrary } from './lib/storyFormatting';
 import { CEO_EMAIL, logAdminAccessAttempt, isAuthorizedCeoEmail } from './utils/security';
 import { motion, AnimatePresence } from 'motion/react';
 import { LayoutPositionProvider } from './lib/LayoutPositionContext';
 import {
+  fetchAdminSubscribers,
   loadSharedContentFromSupabase,
   loadStudentProgressFromSupabase,
   removeCurrentDevicePrivatePushSubscription,
@@ -33,26 +53,7 @@ import {
   getSupabaseClient,
   getSubscriptionStatusFromSupabase,
 } from './utils/supabaseClient';
-
-const Dashboard = lazy(() => import('./components/Dashboard').then(({ Dashboard }) => ({ default: Dashboard })));
-const GoogleClassroom = lazy(() => import('./components/GoogleClassroom').then(({ GoogleClassroom }) => ({ default: GoogleClassroom })));
-const GoogleMeet = lazy(() => import('./components/GoogleMeet').then(({ GoogleMeet }) => ({ default: GoogleMeet })));
-const ReadClub = lazy(() => import('./components/ReadClub').then(({ ReadClub }) => ({ default: ReadClub })));
-const BrazilianBoard = lazy(() => import('./components/BrazilianBoard').then(({ BrazilianBoard }) => ({ default: BrazilianBoard })));
-const Settings = lazy(() => import('./components/Settings').then(({ Settings }) => ({ default: Settings })));
-const BrazilianConversation = lazy(() => import('./components/BrazilianConversation').then(({ BrazilianConversation }) => ({ default: BrazilianConversation })));
-const BrazilianQuiz = lazy(() => import('./components/BrazilianQuiz').then(({ BrazilianQuiz }) => ({ default: BrazilianQuiz })));
-const BrazilianGames = lazy(() => import('./components/BrazilianGames').then(({ BrazilianGames }) => ({ default: BrazilianGames })));
-const BrazilianTradutor = lazy(() => import('./components/BrazilianTradutor').then(({ BrazilianTradutor }) => ({ default: BrazilianTradutor })));
-const BiaCompare = lazy(() => import('./components/BiaCompare').then(({ BiaCompare }) => ({ default: BiaCompare })));
-const YouTubeHub = lazy(() => import('./components/YouTubeHub').then(({ YouTubeHub }) => ({ default: YouTubeHub })));
-const BrazilianPractice = lazy(() => import('./components/BrazilianPractice').then(({ BrazilianPractice }) => ({ default: BrazilianPractice })));
-const BrazilianStories = lazy(() => import('./components/BrazilianStories').then(({ BrazilianStories }) => ({ default: BrazilianStories })));
-const BrazilianFriends = lazy(() => import('./components/BrazilianFriends').then(({ BrazilianFriends }) => ({ default: BrazilianFriends })));
-const StreamStudio = lazy(() => import('./components/StreamStudio').then(({ StreamStudio }) => ({ default: StreamStudio })));
-const AdminSettings = lazy(() => import('./components/AdminSettings').then(({ AdminSettings }) => ({ default: AdminSettings })));
-const AdminFeedbackPanel = lazy(() => import('./components/AdminFeedbackPanel').then(({ AdminFeedbackPanel }) => ({ default: AdminFeedbackPanel })));
-const StudentFeedback = lazy(() => import('./components/StudentFeedback').then(({ StudentFeedback }) => ({ default: StudentFeedback })));
+import { isActiveSubscription } from './lib/subscriptionStatus';
 
 const DEFAULT_SETTINGS: AppSettings = {
   soundEnabled: true,
@@ -142,6 +143,9 @@ export default function App() {
   const [currentApp, setCurrentApp] = useState<string>(getRequestedStartupApp);
   const [quickTradutorModalOpen, setQuickTradutorModalOpen] = useState(false);
   const [isStudentPreviewMode, setIsStudentPreviewMode] = useState(false);
+  const [liveActiveSubscriberCount, setLiveActiveSubscriberCount] = useState<number | null>(null);
+  const [newActiveSubscriberCount, setNewActiveSubscriberCount] = useState(0);
+  const [subscriberCountUnavailable, setSubscriberCountUnavailable] = useState(false);
 
   // Background Slideshow state
   const [bgIndex, setBgIndex] = useState(0);
@@ -201,6 +205,7 @@ export default function App() {
   const pendingYoutubeLibraryRef = useRef<YouTubeLibraryItem[] | null>(null);
   const sharedReadClubLibrarySnapshotRef = useRef('');
   const sharedYoutubeLibrarySnapshotRef = useRef('');
+  const liveActiveSubscriberCountRef = useRef<number | null>(null);
 
   const queuePlatformSync = (payload: {
     classes: ClassItem[];
@@ -1175,6 +1180,45 @@ export default function App() {
       !currentUser.profile_country?.trim()
     )
   );
+
+  useEffect(() => {
+    if (!isAdmin || !currentUser) {
+      liveActiveSubscriberCountRef.current = null;
+      setLiveActiveSubscriberCount(null);
+      setNewActiveSubscriberCount(0);
+      setSubscriberCountUnavailable(false);
+      return;
+    }
+
+    let isMounted = true;
+    const refreshActiveSubscribers = async () => {
+      try {
+        const subscribers = await fetchAdminSubscribers();
+        if (!isMounted) return;
+
+        const activeCount = subscribers.filter((subscriber) =>
+          isActiveSubscription(subscriber.status, subscriber.data_expiracao)
+        ).length;
+        const previousCount = liveActiveSubscriberCountRef.current;
+        if (previousCount !== null && activeCount > previousCount) {
+          setNewActiveSubscriberCount((count) => count + activeCount - previousCount);
+        }
+        liveActiveSubscriberCountRef.current = activeCount;
+        setLiveActiveSubscriberCount(activeCount);
+        setSubscriberCountUnavailable(false);
+      } catch (error) {
+        console.error('Não foi possível atualizar o total de assinantes ativos.', error);
+        if (isMounted) setSubscriberCountUnavailable(true);
+      }
+    };
+
+    void refreshActiveSubscribers();
+    const intervalId = window.setInterval(() => void refreshActiveSubscribers(), 30_000);
+    return () => {
+      isMounted = false;
+      window.clearInterval(intervalId);
+    };
+  }, [isAdmin, currentUser?.id, currentUser?.auth_user_id]);
   const activeReadClubUserId = currentUser?.auth_user_id || currentUser?.id || null;
   const isReadClubProgressReady = Boolean(
     activeReadClubUserId && readClubProgressUserId === activeReadClubUserId
@@ -1191,21 +1235,6 @@ export default function App() {
       document.body.classList.remove('home-scroll-locked');
     };
   }, [currentApp, currentUser, effectiveIsAdmin]);
-
-  const perms: StudentPermissions = currentUser?.permissions || {
-    friends: true,
-    readclub: true,
-    board: true,
-    quiz: true,
-    braziliangames: true,
-    biacompare: true,
-    conversation: true,
-    tradutor: true,
-    youtube: true,
-    practice: true,
-    stories: true,
-    brazilianhq: true
-  };
 
   // Track access to CEO/Admin dashboards
   useEffect(() => {
@@ -1420,13 +1449,6 @@ export default function App() {
                 className="w-full h-full page-motion"
               >
                 <ErrorBoundary fallbackTitle="Erro ao carregar este módulo">
-                  <Suspense
-                    fallback={
-                      <div role="status" className="flex min-h-64 items-center justify-center text-sm text-white/70">
-                        Carregando módulo...
-                      </div>
-                    }
-                  >
                   <PageReveal enabled={settings.animOn} glassSkin={['quiz', 'conversation', 'tradutor', 'youtube', 'biacompare', 'board', 'dashboard', 'admin_settings', 'feedback', 'settings'].includes(currentApp)}>
                   {/* HOME TAB - Accessible to all authenticated users */}
                   {currentApp === 'home' && (
@@ -1438,6 +1460,10 @@ export default function App() {
                       onNavigate={setCurrentApp}
                       currentUser={currentUser}
                       isAdmin={effectiveIsAdmin}
+                      isCeo={isAdmin}
+                      liveActiveSubscriberCount={liveActiveSubscriberCount}
+                      newActiveSubscriberCount={newActiveSubscriberCount}
+                      subscriberCountUnavailable={subscriberCountUnavailable}
                       showWorkspace={!effectiveIsAdmin ? true : false}
                     />
                   )}
@@ -1451,6 +1477,10 @@ export default function App() {
                       onNavigate={setCurrentApp}
                       currentUser={currentUser}
                       isAdmin={true}
+                      isCeo={isAdmin}
+                      liveActiveSubscriberCount={liveActiveSubscriberCount}
+                      newActiveSubscriberCount={newActiveSubscriberCount}
+                      subscriberCountUnavailable={subscriberCountUnavailable}
                       showWorkspace={true}
                     />
                   )}
@@ -1552,7 +1582,7 @@ export default function App() {
                   )}
 
                   {/* STUDENT & ADMIN SHARED PRACTICAL TABS */}
-                  {currentApp === 'readclub' && (isAdmin || perms.readclub) && (
+                  {currentApp === 'readclub' && (
                     isReadClubProgressReady ? (
                       <ReadClub
                         library={library}
@@ -1580,37 +1610,38 @@ export default function App() {
                     )
                   )}
 
-                  {currentApp === 'brazilianhq' && (isAdmin || perms.brazilianhq !== false) && (
+                  {currentApp === 'brazilianhq' && (
                     <BrazilianHQ
                       learnedWords={learnedWords}
                       onUpdateLearnedWords={handleUpdateLearnedWords}
                     />
                   )}
-                  {currentApp === 'board' && (isAdmin || perms.board) && (
+
+                  {currentApp === 'board' && (
                     <BrazilianBoard accentColor={settings.accentColor} />
                   )}
 
-                  {currentApp === 'quiz' && (isAdmin || perms.quiz) && (
+                  {currentApp === 'quiz' && (
                     <BrazilianQuiz accentColor={settings.accentColor} />
                   )}
 
-                  {currentApp === 'braziliangames' && (isAdmin || perms.braziliangames !== false) && (
+                  {currentApp === 'braziliangames' && (
                     <BrazilianGames />
                   )}
 
-                  {currentApp === 'tradutor' && (isAdmin || perms.tradutor) && (
+                  {currentApp === 'tradutor' && (
                     <BrazilianTradutor accentColor={settings.accentColor} />
                   )}
 
-                  {currentApp === 'biacompare' && (isAdmin || perms.biacompare) && (
+                  {currentApp === 'biacompare' && (
                     <BiaCompare accentColor={settings.accentColor} onNavigate={setCurrentApp} />
                   )}
 
-                  {currentApp === 'conversation' && (isAdmin || perms.conversation) && (
+                  {currentApp === 'conversation' && (
                     <BrazilianConversation accentColor={settings.accentColor} />
                   )}
 
-                  {currentApp === 'youtube' && (isAdmin || perms.youtube) && (
+                  {currentApp === 'youtube' && (
                     isYoutubeLibraryLoaded
                       ? (
                         <YouTubeHub
@@ -1623,11 +1654,11 @@ export default function App() {
                       : <div className="flex min-h-64 items-center justify-center text-sm text-white/70">Carregando <span className="notranslate" translate="no">Brazilian Music</span>...</div>
                   )}
 
-                  {currentApp === 'practice' && (isAdmin || perms.practice !== false) && (
+                  {currentApp === 'practice' && (
                     <BrazilianPractice accentColor={settings.accentColor} />
                   )}
 
-                  {currentApp === 'stories' && (isAdmin || perms.stories !== false) && (
+                  {currentApp === 'stories' && (
                     <BrazilianStories 
                       currentUser={currentUser} 
                       isAdmin={effectiveIsAdmin} 
@@ -1636,14 +1667,13 @@ export default function App() {
                     />
                   )}
 
-                  {currentApp === 'brazilianfriends' && (isAdmin || perms.friends !== false) && (
+                  {currentApp === 'brazilianfriends' && (
                     <BrazilianFriends
                       currentUser={currentUser}
                       accentColor={settings.accentColor}
                     />
                   )}
                   </PageReveal>
-                  </Suspense>
                 </ErrorBoundary>
               </motion.div>
             </AnimatePresence>
@@ -1660,13 +1690,11 @@ export default function App() {
                 exit={{ opacity: 0, scale: 0.95, y: 15 }}
                 className="bg-slate-950/50 border border-white/25 backdrop-blur-2xl rounded-3xl w-full max-w-5xl max-h-[90vh] overflow-y-auto shadow-2xl relative p-2 sm:p-4 my-auto"
               >
-                <Suspense fallback={<div role="status" className="p-6 text-center text-sm text-white/70">Carregando tradutor...</div>}>
-                  <BrazilianTradutor
-                    accentColor={settings.accentColor}
-                    isModal={true}
-                    onCloseModal={() => setQuickTradutorModalOpen(false)}
-                  />
-                </Suspense>
+                <BrazilianTradutor
+                  accentColor={settings.accentColor}
+                  isModal={true}
+                  onCloseModal={() => setQuickTradutorModalOpen(false)}
+                />
               </motion.div>
             </div>
           )}
@@ -1713,7 +1741,7 @@ export default function App() {
 
         {/* Floating camera bubble: admin/CEO anytime; students only while recording a Brazilian Post story */}
         <GlobalFloatingCamera
-          isActive={((isFloatingCamActive && effectiveIsAdmin) || isStoryCamActive) && !isAuthModalOpen && Boolean(currentUser)}
+          isActive={((isFloatingCamActive && isAdmin) || isStoryCamActive) && !isAuthModalOpen && Boolean(currentUser)}
           onClose={() => {
             setIsFloatingCamActive(false);
             setIsStoryCamActive(false);

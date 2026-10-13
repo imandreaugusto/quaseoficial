@@ -140,12 +140,19 @@ export const CeoOverview: React.FC<CeoOverviewProps> = ({ users, pixPayments, co
     const revenueTotal = approved.reduce((sum, payment) => sum + (payment.amount || 0), 0);
     const revenueByMonth = months.map((month) => approved.filter((payment) => sameMonth(payment.paidAt, month)).reduce((sum, payment) => sum + (payment.amount || 0), 0));
     const growth = months.map((month) => students.filter((student) => new Date(student.created_at).getTime() < monthEnd(month)).length);
-    const newThis = students.filter((student) => sameMonth(student.created_at, thisMonth)).length;
-    const newPrev = students.filter((student) => sameMonth(student.created_at, prevMonth)).length;
-
     const active = students.filter((student) =>
       isActiveSubscription(student.status, student.data_expiracao, now.getTime())
     );
+    const activePaid = active.filter((student) => !student.cupom_usado);
+    const activeCoupon = active.filter((student) => Boolean(student.cupom_usado));
+    const activeNewThis = active.filter((student) => sameMonth(student.created_at, thisMonth)).length;
+    const activeNewPrev = active.filter((student) => sameMonth(student.created_at, prevMonth)).length;
+    const activeNewToday = active.filter((student) => {
+      const createdAt = new Date(student.created_at);
+      return createdAt.getFullYear() === now.getFullYear() &&
+        createdAt.getMonth() === now.getMonth() &&
+        createdAt.getDate() === now.getDate();
+    }).length;
     const daysLeft = (student: UserProfile) =>
       getSubscriptionDaysRemaining(student.status, student.data_expiracao, now.getTime());
     const expiring = active.filter((student) => {
@@ -182,8 +189,11 @@ export const CeoOverview: React.FC<CeoOverviewProps> = ({ users, pixPayments, co
       revenueTotal,
       revenueMonth: revenueByMonth[revenueByMonth.length - 1],
       revenueDelta: delta(revenueByMonth[revenueByMonth.length - 1], revenueByMonth[revenueByMonth.length - 2]),
-      newThis,
-      newDelta: delta(newThis, newPrev),
+      newThis: activeNewThis,
+      newToday: activeNewToday,
+      newDelta: delta(activeNewThis, activeNewPrev),
+      activePaid: activePaid.length,
+      activeCoupon: activeCoupon.length,
       expiring: expiring.length,
       pendingCount: pending.length,
       pendingSum: pending.reduce((sum, payment) => sum + (payment.amount || 0), 0),
@@ -194,7 +204,7 @@ export const CeoOverview: React.FC<CeoOverviewProps> = ({ users, pixPayments, co
       countries,
       withoutCountry,
       plans,
-      recent: [...students].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 6),
+      recent: [...active].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 6),
       daysLeft
     };
   }, [users, pixPayments, coupons]);
@@ -218,14 +228,17 @@ export const CeoOverview: React.FC<CeoOverviewProps> = ({ users, pixPayments, co
   }, [data.total, data.revenueTotal]);
 
   const kpis: Array<{ label: string; value: number; format: (value: number) => string; icon: LucideIcon; tint: string; trend?: number | null; hint: string }> = [
-    { label: 'Total de assinantes', value: data.total, format: (v) => String(Math.round(v)), icon: Users, tint: 'from-sky-400/40 to-sky-500/10', hint: 'cadastrados' },
-    { label: 'Assinaturas ativas', value: data.active, format: (v) => String(Math.round(v)), icon: UserCheck, tint: 'from-emerald-400/40 to-emerald-500/10', hint: 'com acesso liberado' },
+    { label: 'Perfis cadastrados', value: data.total, format: (v) => String(Math.round(v)), icon: Users, tint: 'from-sky-400/40 to-sky-500/10', hint: 'inclui não ativos' },
+    { label: 'Assinaturas ativas', value: data.active, format: (v) => String(Math.round(v)), icon: UserCheck, tint: 'from-emerald-400/40 to-emerald-500/10', hint: 'pagas + cupons válidos' },
+    { label: 'Pagantes ativos', value: data.activePaid, format: (v) => String(Math.round(v)), icon: CreditCard, tint: 'from-teal-400/40 to-teal-500/10', hint: 'sem cupom' },
+    { label: 'Ativos por cupom', value: data.activeCoupon, format: (v) => String(Math.round(v)), icon: Ticket, tint: 'from-fuchsia-400/40 to-fuchsia-500/10', hint: 'acesso promocional válido' },
     { label: 'Cancelados', value: data.expired, format: (v) => String(Math.round(v)), icon: UserX, tint: 'from-rose-400/40 to-rose-500/10', hint: 'acesso expirado' },
-    { label: 'Receita total', value: data.revenueTotal, format: (v) => money(v), icon: CircleDollarSign, tint: 'from-blue-400/40 to-blue-500/10', hint: 'pagamentos aprovados' },
-    { label: 'Receita do mês', value: data.revenueMonth, format: (v) => money(v), icon: Calendar, tint: 'from-indigo-400/40 to-indigo-500/10', trend: data.revenueDelta, hint: 'vs. mês anterior' },
+    { label: 'Receita total recebida', value: data.revenueTotal, format: (v) => money(v), icon: CircleDollarSign, tint: 'from-blue-400/40 to-blue-500/10', hint: 'Pix aprovados registrados' },
+    { label: 'Receita recebida no mês', value: data.revenueMonth, format: (v) => money(v), icon: Calendar, tint: 'from-indigo-400/40 to-indigo-500/10', trend: data.revenueDelta, hint: 'Pix aprovados no mês' },
     { label: 'Cupons resgatados', value: data.couponsUsed, format: (v) => String(Math.round(v)), icon: Ticket, tint: 'from-fuchsia-400/40 to-fuchsia-500/10', hint: 'códigos utilizados' },
     { label: 'Vencendo em breve', value: data.expiring, format: (v) => String(Math.round(v)), icon: Clock3, tint: 'from-amber-400/40 to-amber-500/10', hint: 'nos próximos 7 dias' },
-    { label: 'Novos assinantes', value: data.newThis, format: (v) => String(Math.round(v)), icon: UserPlus, tint: 'from-cyan-400/40 to-cyan-500/10', trend: data.newDelta, hint: 'vs. mês anterior' }
+    { label: 'Ativos novos no mês', value: data.newThis, format: (v) => String(Math.round(v)), icon: UserPlus, tint: 'from-cyan-400/40 to-cyan-500/10', trend: data.newDelta, hint: 'vs. mês anterior' },
+    { label: 'Ativos novos hoje', value: data.newToday, format: (v) => String(Math.round(v)), icon: Calendar, tint: 'from-indigo-400/40 to-indigo-500/10', hint: 'cadastro ativo de hoje' }
   ];
 
   const chartW = 520;

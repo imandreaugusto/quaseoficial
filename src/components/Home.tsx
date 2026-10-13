@@ -23,6 +23,10 @@ interface HomeProps {
   onNavigate: (app: string) => void;
   currentUser?: UserProfile | null;
   isAdmin?: boolean;
+  isCeo?: boolean;
+  liveActiveSubscriberCount?: number | null;
+  newActiveSubscriberCount?: number;
+  subscriberCountUnavailable?: boolean;
   showWorkspace?: boolean;
 }
 
@@ -34,6 +38,10 @@ export const Home: React.FC<HomeProps> = ({
   onNavigate,
   currentUser,
   isAdmin: propIsAdmin,
+  isCeo = false,
+  liveActiveSubscriberCount = null,
+  newActiveSubscriberCount = 0,
+  subscriberCountUnavailable = false,
   showWorkspace = true,
 }) => {
   const [agendaMode, setAgendaMode] = useState<'semana' | 'hoje'>('semana');
@@ -171,6 +179,24 @@ export const Home: React.FC<HomeProps> = ({
     ? `Good afternoon, ${firstName}`
     : `Good evening, ${firstName}`;
 
+  const renderSubscriberCount = () => {
+    if (!isCeo) return null;
+    return (
+      <div className="flex flex-col items-end gap-1 text-right">
+        <span className="text-[11px] font-medium tracking-wide text-white/55">
+          {subscriberCountUnavailable
+            ? 'Assinantes ativos indisponíveis'
+            : `Assinantes ativos agora ${liveActiveSubscriberCount ?? '—'}`}
+        </span>
+        {newActiveSubscriberCount > 0 && (
+          <span className="text-[10px] font-semibold text-emerald-300/80">
+            +{newActiveSubscriberCount} novo{newActiveSubscriberCount === 1 ? '' : 's'}
+          </span>
+        )}
+      </div>
+    );
+  };
+
   // Reusable Social Media Footer (YouTube, TikTok, Instagram, WhatsApp) - Soltos e Separados
   const renderSocialLinks = () => (
     <div className="flex justify-center items-end px-4 pt-4 pb-1 w-full max-w-4xl mx-auto mt-auto mb-0 shrink-0 z-10">
@@ -187,6 +213,7 @@ export const Home: React.FC<HomeProps> = ({
         <div className="absolute top-4 right-5 sm:right-12 lg:right-28 z-10 flex justify-end items-center">
           <div className="flex flex-col gap-2">
             <Clock clock24h={clock24h} align="left" />
+            {renderSubscriberCount()}
             <span className="text-xl sm:text-2xl font-semibold tracking-tight text-white text-right">{greeting}</span>
             <NewUpdatesBadge currentUser={currentUser} />
           </div>
@@ -208,6 +235,7 @@ export const Home: React.FC<HomeProps> = ({
         <div className="absolute top-4 right-5 sm:right-12 lg:right-28 z-10 flex flex-col gap-2 items-end">
           <span className="text-xl sm:text-2xl font-semibold tracking-tight text-white">{greeting}</span>
           <Clock clock24h={clock24h} align="left" />
+          {renderSubscriberCount()}
         </div>
         <div className="pt-24">{renderAnniversaryReminder()}</div>
         {renderSocialLinks()}
@@ -224,7 +252,10 @@ export const Home: React.FC<HomeProps> = ({
         
         {/* THE CLOCK - LEFT ALIGNED AND SLEEK */}
         <div className="flex justify-end items-center pr-5 sm:pr-12 lg:pr-28">
-          <Clock clock24h={clock24h} align="left" />
+          <div className="flex flex-col items-end gap-2">
+            <Clock clock24h={clock24h} align="left" />
+            {renderSubscriberCount()}
+          </div>
         </div>
 
         {/* PRÓXIMA TURMA/AULA - STRATEGICALLY PLACED ON THE RIGHT CORNER */}

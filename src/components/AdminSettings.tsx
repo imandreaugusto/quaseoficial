@@ -786,15 +786,6 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
     void saveSubscriberSubscription(userId, { days: daysToAdd });
   };
 
-  // Delete user
-  const handleDeleteUser = (userId: string) => {
-    if (window.confirm('Tem certeza de que deseja remover este aluno da base de dados?')) {
-      const filtered = users.filter((u) => u.id !== userId);
-      setUsers(filtered);
-      localStorage.setItem('bia_users_database', JSON.stringify(filtered));
-    }
-  };
-
   const handleSaveAppConfigDraft = (newConfig: GlobalAppConfig) => {
     setAppConfig(newConfig);
     setAppConfigDirty(true);
@@ -904,19 +895,12 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
       u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (u.full_name && u.full_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (u.ip_city && u.ip_city.toLowerCase().includes(searchTerm.toLowerCase()));
-    return matchSearch;
+    return matchSearch && isActiveSubscription(u.status, u.data_expiracao);
   });
 
   const activeStudentsCount = subscriberUsers.filter((u) =>
     isActiveSubscription(u.status, u.data_expiracao)
   ).length;
-  const pendingStudentsCount = subscriberUsers.filter((u) =>
-    getEffectiveSubscriptionStatus(u.status, u.data_expiracao) === 'pending'
-  ).length;
-  const expiredStudentsCount = subscriberUsers.filter((u) =>
-    getEffectiveSubscriptionStatus(u.status, u.data_expiracao) === 'expired'
-  ).length;
-
   // Strict segregation: coupon/trial students never count as paid revenue.
   const payingActiveStudents = subscriberUsers.filter((u) =>
     isActiveSubscription(u.status, u.data_expiracao) && !u.cupom_usado
@@ -957,6 +941,18 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   const approvedPaymentsList = subscriptionPayments.filter((payment) => payment.status === 'active');
   const saasTotalReceived = approvedPaymentsList
     .reduce((acc, payment) => acc + payment.amount_cents / 100, 0);
+  const currentMonthStart = new Date();
+  currentMonthStart.setDate(1);
+  currentMonthStart.setHours(0, 0, 0, 0);
+  const nextMonthStart = new Date(currentMonthStart);
+  nextMonthStart.setMonth(nextMonthStart.getMonth() + 1);
+  const monthlyAbacatePayments = approvedPaymentsList.filter((payment) => {
+    const paymentUpdatedAt = Date.parse(payment.updated_at);
+    return Number.isFinite(paymentUpdatedAt) &&
+      paymentUpdatedAt >= currentMonthStart.getTime() &&
+      paymentUpdatedAt < nextMonthStart.getTime();
+  });
+  const monthlyAbacateFeesEstimate = monthlyAbacatePayments.length * 0.8;
   const saasWeeklyGross = saasMonthlyGross / 4;
 
   const totalMonthlyRevenue = monthlyAulasGross + saasMonthlyGross;
@@ -1194,22 +1190,18 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
       {activeTab === 'students' && (
         <div className="space-y-6">
           {/* Summary Metrics Bar */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="glass-card p-4 rounded-2xl border border-white/10">
-              <span className="text-[11px] text-white/50 uppercase font-mono">Total Cadastrados</span>
-              <div className="text-2xl font-black text-white mt-1">{subscriberUsers.length}</div>
+              <span className="text-[11px] text-white/50 uppercase font-mono">Assinantes ativos</span>
+              <div className="text-2xl font-black text-white mt-1">{activeStudentsCount}</div>
             </div>
             <div className="glass-card p-4 rounded-2xl border border-emerald-500/30">
-              <span className="text-[11px] text-emerald-400 uppercase font-mono">Ativos (Pagos)</span>
-              <div className="text-2xl font-black text-emerald-400 mt-1">{activeStudentsCount}</div>
+              <span className="text-[11px] text-emerald-400 uppercase font-mono">Pagantes ativos</span>
+              <div className="text-2xl font-black text-emerald-400 mt-1">{payingActiveStudentsCount}</div>
             </div>
-            <div className="glass-card p-4 rounded-2xl border border-amber-500/30">
-              <span className="text-[11px] text-amber-400 uppercase font-mono">Pendentes (Pix)</span>
-              <div className="text-2xl font-black text-amber-400 mt-1">{pendingStudentsCount}</div>
-            </div>
-            <div className="glass-card p-4 rounded-2xl border border-red-500/30">
-              <span className="text-[11px] text-red-400 uppercase font-mono">Expirados</span>
-              <div className="text-2xl font-black text-red-400 mt-1">{expiredStudentsCount}</div>
+            <div className="glass-card p-4 rounded-2xl border border-purple-500/30">
+              <span className="text-[11px] text-purple-400 uppercase font-mono">Ativos por cupom</span>
+              <div className="text-2xl font-black text-purple-400 mt-1">{couponActiveStudentsCount}</div>
             </div>
           </div>
 
@@ -1238,31 +1230,16 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
 
           {/* Collapsible Accordion Sections for Students */}
           {(() => {
-            const activeList = filteredUsers.filter((u) =>
-              getEffectiveSubscriptionStatus(u.status, u.data_expiracao) === 'active'
-            );
-            const pendingList = filteredUsers.filter((u) =>
-              getEffectiveSubscriptionStatus(u.status, u.data_expiracao) === 'pending'
-            );
-            const expiredList = filteredUsers.filter((u) =>
-              getEffectiveSubscriptionStatus(u.status, u.data_expiracao) === 'expired'
-            );
+            const activeList = filteredUsers;
+            const pendingList: UserProfile[] = [];
+            const expiredList: UserProfile[] = [];
 
             const renderStudentCard = (student: UserProfile) => {
               const studentStatus = getEffectiveSubscriptionStatus(student.status, student.data_expiracao);
               const perms: StudentPermissions = student.permissions || {
-                friends: true,
-                readclub: true,
-                board: true,
-                quiz: true,
-                biacompare: true,
-                conversation: true,
-                tradutor: true,
-                youtube: true,
-                practice: true,
-                stories: true
+                friends: true, readclub: true, board: true, quiz: true, biacompare: true,
+                conversation: true, tradutor: true, youtube: true, practice: true, stories: true
               };
-
               return (
                 <div
                   key={student.id}
@@ -1353,23 +1330,9 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                         <option value="expired" className="bg-neutral-900 text-red-400">Expirado</option>
                       </select>
 
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteUser(student.id)}
-                        className="p-1.5 hover:bg-red-500/20 text-white/40 hover:text-red-400 rounded-xl transition-all cursor-pointer"
-                        title="Remover Aluno"
-                      >
-                        <Trash2 size={15} />
-                      </button>
                     </div>
                   </div>
-
-                  {/* Feature Flipping Toggles (Custom Tool Permissions for Student) */}
-                  <div className="pt-2 border-t border-white/5 flex flex-wrap items-center gap-1.5 sm:gap-2 text-xs">
-                    <span className="text-[10px] uppercase font-mono text-white/40 mr-1 w-full sm:w-auto">
-                      Permissões Individuais:
-                    </span>
-
+                  {false && (<div>
                     {/* Read Club Toggle */}
                     <button
                       type="button"
@@ -1505,6 +1468,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                       {perms.practice ? <Check size={11} /> : <X size={11} />}
                     </button>
                   </div>
+                  )}
                 </div>
               );
             };
@@ -1512,7 +1476,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
             if (filteredUsers.length === 0) {
               return (
                 <div className="glass-card p-8 rounded-2xl text-center text-xs text-white/50">
-                  Nenhum aluno encontrado no cadastro.
+                  Nenhum assinante ativo (pagante ou por cupom) corresponde à busca.
                 </div>
               );
             }
@@ -1533,7 +1497,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                       <div>
                         <div className="flex items-center gap-2">
                           <h2 className="text-sm sm:text-base font-black text-white">
-                            Alunos Ativos (Pagos)
+                            Assinantes Ativos (Pagos e Cupons)
                           </h2>
                           <span className="px-2 py-0.5 bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 rounded-full text-xs font-black">
                             {activeList.length}
@@ -1554,7 +1518,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                     <div className="p-3 sm:p-4 border-t border-emerald-500/20 space-y-3">
                       {activeList.length === 0 ? (
                         <div className="text-center py-4 text-xs text-white/40">
-                          Nenhum aluno ativo nesta lista.
+                          Nenhum assinante ativo corresponde à busca.
                         </div>
                       ) : (
                         activeList.map(renderStudentCard)
@@ -1563,7 +1527,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                   )}
                 </div>
 
-                {/* 2. ACCORDION: PENDENTES (AGUARDANDO PIX) */}
+                {false && (<>{/* 2. ACCORDION: PENDENTES (AGUARDANDO PIX) */}
                 <div className="glass-card rounded-2xl border border-amber-500/30 overflow-hidden shadow-lg transition-all">
                   <button
                     type="button"
@@ -1606,8 +1570,9 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                     </div>
                   )}
                 </div>
+                </>)}
 
-                {/* 3. ACCORDION: EXPIRADOS */}
+                {false && (<>{/* 3. ACCORDION: EXPIRADOS */}
                 <div className="glass-card rounded-2xl border border-red-500/30 overflow-hidden shadow-lg transition-all">
                   <button
                     type="button"
@@ -1650,6 +1615,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                     </div>
                   )}
                 </div>
+                </>)}
               </div>
             );
           })()}
@@ -1917,38 +1883,38 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
       {activeTab === 'revenue' && (
         <div className="space-y-6">
           {/* Top 3 Crystal-Clear Cards for Layman Understanding */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {/* 1. FATURAMENTO MENSAL REAL (SOMENTE ASSINANTES PAGANTES, SEM CUPOM) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            {/* 1. CURRENT MONTHLY RUN RATE, NOT CASH RECEIVED */}
             <div className="glass-card p-5 sm:p-6 rounded-3xl border border-emerald-500/30 relative overflow-hidden bg-neutral-900/80 shadow-xl">
               <div className="absolute top-0 right-0 w-28 h-28 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
               <div className="flex items-center justify-between text-xs font-bold text-emerald-400 mb-1">
-                <span>FATURAMENTO DESTE MÊS</span>
+                <span>PREVISÃO MENSAL DA BASE PAGANTE</span>
                 <TrendingUp size={16} />
               </div>
               <div className="text-2xl sm:text-3xl font-black text-emerald-400 font-mono mt-2">
                 R$ {saasMonthlyGross.toFixed(2).replace('.', ',')}
               </div>
               <div className="text-xs text-white/60 mt-1">
-                {payingActiveStudentsCount} alunos pagantes × R$ {currentSubscriptionPrice.toFixed(2).replace('.', ',')}/mês
+                {payingActiveStudentsCount} assinantes pagantes ativos × R$ {currentSubscriptionPrice.toFixed(2).replace('.', ',')}/mês (estimativa)
               </div>
             </div>
 
-            {/* 2. TOTAL REAL RECEBIDO (PIX APROVADOS) */}
+            {/* 2. CONFIRMED ABACATEPAY INTENTS, ALL TIME */}
             <div className="glass-card p-5 sm:p-6 rounded-3xl border border-blue-500/30 relative overflow-hidden bg-neutral-900/80 shadow-xl">
               <div className="absolute top-0 right-0 w-28 h-28 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
               <div className="flex items-center justify-between text-xs font-bold text-blue-400 mb-1">
-                <span>TOTAL ARRECADADO (ABACATEPAY)</span>
+                <span>PAGAMENTOS CONFIRMADOS (HISTÓRICO)</span>
                 <CreditCard size={16} />
               </div>
               <div className="text-2xl sm:text-3xl font-black text-white font-mono mt-2">
                 R$ {saasTotalReceived.toFixed(2).replace('.', ',')}
               </div>
               <div className="text-xs text-white/60 mt-1">
-                {approvedPaymentsList.length} pagamentos confirmados pela AbacatePay
+                {approvedPaymentsList.length} pagamentos com status confirmado na AbacatePay
               </div>
             </div>
 
-            {/* 3. ALUNOS EM CUPOM GRATUITO (ISOLADOS DA RECEITA) */}
+            {/* 3. CURRENT ACTIVE COUPON ACCESS */}
             <div className="glass-card p-5 sm:p-6 rounded-3xl border border-purple-500/30 relative overflow-hidden bg-neutral-900/80 shadow-xl">
               <div className="absolute top-0 right-0 w-28 h-28 bg-purple-500/10 rounded-full blur-2xl pointer-events-none" />
               <div className="flex items-center justify-between text-xs font-bold text-purple-400 mb-1">
@@ -1962,6 +1928,20 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                 Acesso promocional temporário, não contam como receita
               </div>
             </div>
+
+            <div className="glass-card p-5 sm:p-6 rounded-3xl border border-amber-500/30 relative overflow-hidden bg-neutral-900/80 shadow-xl">
+              <div className="absolute top-0 right-0 w-28 h-28 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
+              <div className="flex items-center justify-between text-xs font-bold text-amber-400 mb-1">
+                <span>TAXAS ABACATEPAY NESTE MÊS</span>
+                <CreditCard size={16} />
+              </div>
+              <div className="text-2xl sm:text-3xl font-black text-amber-300 font-mono mt-2">
+                R$ {monthlyAbacateFeesEstimate.toFixed(2).replace('.', ',')}
+              </div>
+              <div className="text-xs text-white/60 mt-1">
+                Estimativa: {monthlyAbacatePayments.length} pagamentos atualizados no mês × R$ 0,80
+              </div>
+            </div>
           </div>
 
           {/* Separation Notice Banner */}
@@ -1970,10 +1950,9 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
               <LayoutDashboard size={16} />
             </div>
             <div>
-              <div className="font-bold text-white text-sm">Faturamento Exclusivo da Assinatura do Aplicativo</div>
+              <div className="font-bold text-white text-sm">Como ler estes valores</div>
               <p className="mt-0.5 text-white/60">
-                Os cálculos acima mostram <strong>exclusivamente a receita de assinaturas do app (R$ {currentSubscriptionPrice.toFixed(2).replace('.', ',')}/mês)</strong>. 
-                As suas aulas de inglês particulares e em turmas continuam separadas no menu <strong>Controle Financeiro</strong>.
+                A previsão mensal é o valor recorrente estimado da base pagante ativa; não é dinheiro já recebido. O histórico soma cobranças com status confirmado pela AbacatePay. A taxa mensal é uma estimativa pela data de atualização do pagamento, pois o registro não fornece a data explícita de aprovação.
               </p>
             </div>
           </div>

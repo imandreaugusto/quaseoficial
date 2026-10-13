@@ -52,20 +52,20 @@ interface SidebarProps {
 }
 
 const ALL_STUDENT_ITEMS = [
-  { id: 'home', label: 'Home', icon: Home, permKey: 'readclub' as const },
-  { id: 'brazilianfriends', label: 'Brazilian Friends', icon: Users, permKey: 'friends' as const },
-  { id: 'stories', label: 'Brazilian Post', icon: Instagram, permKey: 'stories' as const },
-  { id: 'practice', label: 'Brazilian Practice', icon: Globe, permKey: 'practice' as const },
-  { id: 'readclub', label: 'Read Club', icon: BookOpen, permKey: 'readclub' as const },
-  { id: 'brazilianhq', label: 'Brazilian HQ', icon: VenetianMask, permKey: 'brazilianhq' as const },
-  { id: 'board', label: 'Blackboard', icon: Presentation, permKey: 'board' as const },
-  { id: 'quiz', label: 'Brazilian Quiz', icon: HelpCircle, permKey: 'quiz' as const },
-  { id: 'braziliangames', label: 'Brazilian Games', icon: Gamepad2, permKey: 'braziliangames' as const },
-  { id: 'biacompare', label: 'BIA Compare', icon: Sparkles, permKey: 'biacompare' as const },
-  { id: 'conversation', label: 'Conversação IA', icon: Mic, permKey: 'conversation' as const },
-  { id: 'tradutor', label: 'Tradutor Cultural', icon: Languages, permKey: 'tradutor' as const },
-  { id: 'youtube', label: 'Brazilian Music', icon: Music, permKey: 'youtube' as const },
-  { id: 'feedback', label: 'Feedback', icon: MessageSquareText, permKey: 'readclub' as const }
+  { id: 'home', label: 'Home', icon: Home },
+  { id: 'brazilianfriends', label: 'Brazilian Friends', icon: Users },
+  { id: 'stories', label: 'Brazilian Post', icon: Instagram },
+  { id: 'practice', label: 'Brazilian Practice', icon: Globe },
+  { id: 'readclub', label: 'Read Club', icon: BookOpen },
+  { id: 'brazilianhq', label: 'Brazilian HQ', icon: VenetianMask },
+  { id: 'board', label: 'Blackboard', icon: Presentation },
+  { id: 'quiz', label: 'Brazilian Quiz', icon: HelpCircle },
+  { id: 'braziliangames', label: 'Brazilian Games', icon: Gamepad2 },
+  { id: 'biacompare', label: 'BIA Compare', icon: Sparkles },
+  { id: 'conversation', label: 'Conversação IA', icon: Mic },
+  { id: 'tradutor', label: 'Tradutor Cultural', icon: Languages },
+  { id: 'youtube', label: 'Brazilian Music', icon: Music },
+  { id: 'feedback', label: 'Feedback', icon: MessageSquareText }
 ];
 
 type NavItem = {
@@ -404,17 +404,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   // STRICT RBAC MENU DEFINITION
   const isActualAdmin = currentUser?.role === 'admin';
   const isAdmin = isActualAdmin && !isStudentPreviewMode;
-  const perms = currentUser?.permissions || {
-    readclub: true,
-    board: true,
-    quiz: true,
-    braziliangames: true,
-    biacompare: true,
-    conversation: true,
-    tradutor: true,
-    youtube: true
-  };
-
   // Build Ordered & Filtered Student Items
   const effectiveStudentOrder = appConfig.studentAppOrder.includes('home')
     ? appConfig.studentAppOrder
@@ -426,8 +415,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       if (!item) return false;
       if (item.id === 'home') return true;
       const isGloballyActive = appConfig.studentGlobalEnabled[item.id] !== false;
-      const isPermittedForUser = item.id === 'feedback' || perms[item.permKey] !== false;
-      return isGloballyActive && isPermittedForUser;
+      return isGloballyActive;
     });
 
   // Build Ordered Admin Items
@@ -618,8 +606,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
           )}
 
-          {/* B Cam (Camera Bolinha Flutuante) Button - STRICTLY FOR ADMIN/CEO ONLY (Hidden in Student Preview) */}
-          {isActualAdmin && !isStudentPreviewMode && onToggleFloatingCam && (
+          {/* Keep the CEO camera controls available while previewing the student experience. */}
+          {isActualAdmin && onToggleFloatingCam && (
             <button
               type="button"
               onClick={onToggleFloatingCam}
