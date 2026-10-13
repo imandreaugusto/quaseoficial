@@ -180,7 +180,7 @@ export const Home: React.FC<HomeProps> = ({
     : `Good evening, ${firstName}`;
 
   const renderSubscriberCount = () => {
-    if (!isCeo) return null;
+    if (!isCeo || showWorkspace) return null;
     return (
       <div className="flex flex-col items-end gap-1 text-right">
         <span className="text-[11px] font-medium tracking-wide text-white/55">
