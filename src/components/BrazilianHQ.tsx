@@ -212,7 +212,7 @@ export const BrazilianHQ: FC<BrazilianHQProps> = ({ learnedWords, onUpdateLearne
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto p-2">
+          <div className="readclub-library-list min-h-0 flex-1 overflow-y-auto p-2">
             <div className="flex flex-col gap-2">
               {visibleComics.map((comic) => {
                 const comicIsRead = isRead(comic.id);
@@ -232,8 +232,8 @@ export const BrazilianHQ: FC<BrazilianHQProps> = ({ learnedWords, onUpdateLearne
                       {comicIsRead ? <Check size={18} /> : <BookOpen size={18} />}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-semibold leading-snug text-white/90">{comic.title}</span>
-                      <span className={`mt-1 block text-[10px] font-semibold uppercase tracking-wider ${comicIsRead ? 'text-emerald-300/80' : 'text-white/45'}`}>
+                      <span className="block text-xs font-semibold leading-snug text-white/90">{comic.title}</span>
+                      <span className={`mt-1 block text-[9px] font-semibold uppercase tracking-wider ${comicIsRead ? 'text-emerald-300/80' : 'text-white/45'}`}>
                         {comicIsRead ? 'Já lida' : 'Não lida'}
                       </span>
                     </span>
