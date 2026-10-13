@@ -127,11 +127,10 @@ export const BrazilianHQ: FC<BrazilianHQProps> = ({ learnedWords, onUpdateLearne
         key={comic.id}
         src={`https://drive.google.com/file/d/${comic.id}/preview?rm=minimal`}
         title={`Leitor: ${comic.title}`}
-        className={`absolute border-0 bg-neutral-900 ${
-          preview ? 'inset-y-0 left-0 h-full w-[calc(100%+16px)]' : 'inset-x-0 -top-14 h-[calc(100%+3.5rem)] w-[calc(100%+16px)]'
-        }`}
+        className="absolute inset-x-0 -top-14 h-[calc(100%+3.5rem)] w-[calc(100%+16px)] border-0 bg-neutral-900"
         allow="autoplay"
         allowFullScreen
+        sandbox="allow-scripts allow-same-origin allow-forms"
       />
     </div>
   );
