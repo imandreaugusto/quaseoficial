@@ -38,6 +38,31 @@ import { BrazilianLogo } from './BrazilianLogo';
 import { SocialLinksBar } from './SocialLinksBar';
 import { getSupabaseClient, loadSharedContentFromSupabase } from '../utils/supabaseClient';
 
+const StudyTimeIcon: React.FC<{ size?: number; style?: React.CSSProperties; className?: string }> = ({
+  size = 20,
+  style,
+  className,
+}) => (
+  <svg
+    aria-hidden="true"
+    width={size}
+    height={size}
+    viewBox="0 0 48 48"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    style={style}
+    className={className}
+  >
+    <path d="M7 35h29v6H7zM10 27h29v6H10zM7 19h29v6H7z" />
+    <path d="M13 19v6M16 27v6M12 35v6" />
+    <circle cx="35" cy="14" r="8" />
+    <path d="M35 9v5l3 2" />
+  </svg>
+);
+
 interface SidebarProps {
   currentApp: string;
   onNavigate: (app: string) => void;
@@ -65,7 +90,7 @@ const ALL_STUDENT_ITEMS = [
   { id: 'conversation', label: 'Conversação IA', icon: Mic },
   { id: 'tradutor', label: 'Tradutor Cultural', icon: Languages },
   { id: 'youtube', label: 'Brazilian Music', icon: Music },
-  { id: 'studytime', label: 'Study Time', icon: BookOpen },
+  { id: 'studytime', label: 'Study Time', icon: StudyTimeIcon },
   { id: 'feedback', label: 'Feedback', icon: MessageSquareText }
 ];
 
@@ -226,7 +251,7 @@ const ALL_ADMIN_ITEMS = [
   { id: 'conversation', label: 'Brazilian Conversation', icon: Mic },
   { id: 'tradutor', label: 'Brazilian Tradutor', icon: Languages },
   { id: 'youtube', label: 'Brazilian Music', icon: Music },
-  { id: 'studytime', label: 'Study Time', icon: BookOpen },
+  { id: 'studytime', label: 'Study Time', icon: StudyTimeIcon },
   { id: 'feedback', label: 'Feedback dos alunos', icon: MessageSquareText },
   { id: 'settings', label: 'Configurações', icon: SettingsIcon },
 ];
@@ -721,9 +746,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 )}
               </nav>
 
-              {/* Drawer Footer info & Social Media */}
+              {/* Drawer Footer info */}
               <div className="pt-4 text-center flex flex-col items-center gap-2.5 text-[11px] drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
-                <SocialLinksBar size="sm" variant="plain" />
                 <div className="flex flex-col items-center gap-0.5">
                   <span className="font-semibold menu-cinematic-text text-white/90">
                     Brazilian in Action Platform
