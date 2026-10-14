@@ -82,27 +82,6 @@ const PRACTICE_PORTALS: PracticePortal[] = [
     ]
   },
   {
-    id: 'speakstreet',
-    name: 'SpeakStreet Community',
-    category: 'Conversação & Vocabulário',
-    tagline: 'Prática guiada com contexto social e expressões cotidianas',
-    description: 'Comunidade dinâmica para trocar ideias sobre situações do dia a dia, trabalho, viagens e cultura. Ideal para expandir vocabulário e usar gírias naturais em contexto.',
-    url: 'https://speakstreet.com',
-    format: 'Salas Temáticas',
-    level: 'Todos os Níveis',
-    badge: 'Comunidade Fluente',
-    gradient: 'from-emerald-500/25 via-teal-500/10 to-transparent',
-    borderAccent: 'border-emerald-500/40 hover:border-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.12)]',
-    glowColor: '#10b981',
-    stats: 'Tópicos Diários • Prática Guiada • Expressões',
-    features: [
-      'Ambiente amigável e focado em aprendizado',
-      'Perfeito para prática de expressões reais',
-      'Discussões sobre temas atuais e cultura',
-      'Desenvolvimento de fluência natural'
-    ]
-  },
-  {
     id: 'hellotalk',
     name: 'HelloTalk Voice Lounge',
     category: 'Troca de Voz & Nativos',
@@ -548,7 +527,7 @@ export const BrazilianPractice: React.FC<BrazilianPracticeProps> = ({
                 )}
               </div>
 
-              <div className="flex shrink-0 flex-col gap-1 border-t border-white/10 bg-neutral-900/95 px-4 py-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex shrink-0 flex-col gap-2 border-t border-white/10 bg-neutral-900/95 px-4 py-2 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-[11px] text-white/55">
                   Se o site não carregar ou câmera/microfone não funcionarem, o ambiente pode estar limitando o acesso incorporado.
                   {portalLoadTimedOut && ' O carregamento está demorando mais que o esperado.'}

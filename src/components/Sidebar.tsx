@@ -65,6 +65,7 @@ const ALL_STUDENT_ITEMS = [
   { id: 'conversation', label: 'Conversação IA', icon: Mic },
   { id: 'tradutor', label: 'Tradutor Cultural', icon: Languages },
   { id: 'youtube', label: 'Brazilian Music', icon: Music },
+  { id: 'studytime', label: 'Study Time', icon: BookOpen },
   { id: 'feedback', label: 'Feedback', icon: MessageSquareText }
 ];
 
@@ -225,6 +226,7 @@ const ALL_ADMIN_ITEMS = [
   { id: 'conversation', label: 'Brazilian Conversation', icon: Mic },
   { id: 'tradutor', label: 'Brazilian Tradutor', icon: Languages },
   { id: 'youtube', label: 'Brazilian Music', icon: Music },
+  { id: 'studytime', label: 'Study Time', icon: BookOpen },
   { id: 'feedback', label: 'Feedback dos alunos', icon: MessageSquareText },
   { id: 'settings', label: 'Configurações', icon: SettingsIcon },
 ];
@@ -250,8 +252,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [showInstallHelp, setShowInstallHelp] = useState(false);
   const [installError, setInstallError] = useState('');
   const [appConfig, setAppConfig] = useState<GlobalAppConfig>({
-    studentAppOrder: ['home', 'brazilianfriends', 'stories', 'practice', 'readclub', 'brazilianhq', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'feedback'],
-    adminAppOrder: ['home', 'work', 'brazilianfriends', 'stories', 'practice', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'brazilianhq', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'settings'],
+    studentAppOrder: ['home', 'brazilianfriends', 'stories', 'practice', 'readclub', 'brazilianhq', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'studytime', 'feedback'],
+    adminAppOrder: ['home', 'work', 'brazilianfriends', 'stories', 'practice', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'brazilianhq', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'studytime', 'settings'],
     studentGlobalEnabled: {
       brazilianfriends: true,
       stories: true,
@@ -265,6 +267,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       conversation: true,
       tradutor: true,
       youtube: true,
+      studytime: true,
       feedback: true
     }
   });
@@ -314,6 +317,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       if (!studentAppOrder.includes('braziliangames')) studentAppOrder.push('braziliangames');
       if (!adminAppOrder.includes('braziliangames')) adminAppOrder.push('braziliangames');
       if (!adminAppOrder.includes('youtube')) adminAppOrder.push('youtube');
+      if (!studentAppOrder.includes('studytime')) studentAppOrder.push('studytime');
+      if (!adminAppOrder.includes('studytime')) adminAppOrder.push('studytime');
       if (!adminAppOrder.includes('feedback')) adminAppOrder.push('feedback');
       const normalizedStudentOrder = ensureAppAfter(studentAppOrder, 'brazilianhq', 'readclub');
       const normalizedAdminOrder = ensureAppAfter(adminAppOrder, 'brazilianhq', 'readclub');

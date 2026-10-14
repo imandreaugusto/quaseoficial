@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import gsap from 'gsap';
 import {
   Youtube,
   ExternalLink,
@@ -39,12 +40,23 @@ export type { YouTubeLibraryItem } from '../youtubeLibrary';
 interface YouTubeHubProps {
   accentColor?: string;
   canEdit?: boolean;
+  canDelete?: boolean;
+  displayMode?: 'music' | 'study';
   onLibraryUpdate?: (library: YouTubeLibraryItem[]) => void;
   initialLibrary?: YouTubeLibraryItem[];
 }
 
-export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6', canEdit = false, onLibraryUpdate, initialLibrary }) => {
+export const YouTubeHub: React.FC<YouTubeHubProps> = ({
+  accentColor = '#3b82f6',
+  canEdit = false,
+  canDelete = canEdit,
+  displayMode = 'music',
+  onLibraryUpdate,
+  initialLibrary
+}) => {
   const channelUrl = 'https://www.youtube.com/@brazilianinaction';
+  const isMusicMode = displayMode === 'music';
+  const channelLinksRef = useRef<HTMLDivElement>(null);
 
   // Library & Cloud Sync State
   const [library, setLibrary] = useState<YouTubeLibraryItem[]>(DEFAULT_YOUTUBE_LIBRARY);
@@ -80,13 +92,10 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
   const [fontSize, setFontSize] = useState(22);
   const [fontFamily, setFontFamily] = useState<'sans' | 'serif'>('serif');
   const [textAlign, setTextAlign] = useState<'left' | 'center' | 'justify'>('left');
-  const [activeTab, setActiveTab] = useState<'lyrics' | 'notes'>('lyrics');
   const [editableLyrics, setEditableLyrics] = useState(activeItem.lyrics || '');
   const [editableTranslatedLyrics, setEditableTranslatedLyrics] = useState(activeItem.translatedLyrics || '');
   const [isEditingLyrics, setIsEditingLyrics] = useState(false);
-
-  // Translation Mode State: 'original' (PT) | 'bilingual' (PT + EN) | 'english' (EN)
-  const [translationMode, setTranslationMode] = useState<'original' | 'bilingual' | 'english'>('original');
+  const [translationMode, setTranslationMode] = useState<'original' | 'bilingual' | 'english'>(isMusicMode ? 'english' : 'original');
   const [isTranslatingLyrics, setIsTranslatingLyrics] = useState(false);
 
   // Google Meet Presentation Mode Options
@@ -143,10 +152,28 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
 
   // Sync active item's lyrics when active item changes
   useEffect(() => {
-    setEditableLyrics(activeItem.lyrics || '');
+    setEditableLyrics(isMusicMode ? activeItem.translatedLyrics || activeItem.lyrics || '' : activeItem.lyrics || '');
     setEditableTranslatedLyrics(activeItem.translatedLyrics || '');
     setIsEditingLyrics(false);
-  }, [activeItem]);
+  }, [activeItem, isMusicMode]);
+
+  useEffect(() => {
+    setTranslationMode(isMusicMode ? 'english' : 'original');
+    setSelectedCategory(null);
+    setIsPlayerVisible(false);
+  }, [isMusicMode]);
+
+  useEffect(() => {
+    if (!isMusicMode || !channelLinksRef.current || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const context = gsap.context(() => {
+      gsap.fromTo(
+        '[data-music-resource]',
+        { opacity: 0, y: 8 },
+        { opacity: 1, y: 0, duration: 0.45, stagger: 0.08, ease: 'power2.out' }
+      );
+    }, channelLinksRef);
+    return () => context.revert();
+  }, [isMusicMode]);
 
   useEffect(() => {
     if (!isPlayerVisible || window.matchMedia('(min-width: 1024px)').matches) return;
@@ -217,12 +244,12 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
       const formattedLibrary = formatLyricsLibrary(initialLibrary);
       setLibrary(formattedLibrary);
       setActiveItem((current) =>
-        formattedLibrary.find((item) => item.id === current.id) ||
-        formattedLibrary[0] ||
+        formattedLibrary.find((item) => item.id === current.id && (isMusicMode ? item.category === 'Música' : item.category !== 'Música')) ||
+        formattedLibrary.find((item) => (isMusicMode ? item.category === 'Música' : item.category !== 'Música')) ||
         DEFAULT_YOUTUBE_LIBRARY[0]
       );
     }
-  }, [initialLibrary]);
+  }, [initialLibrary, isMusicMode]);
 
   // Helper to update library state + persist
   const saveLibraryState = (updatedList: YouTubeLibraryItem[]) => {
@@ -242,15 +269,15 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
     }
   };
 
+  const handleSelectItem = (item: YouTubeLibraryItem) => {
+    setActiveItem(item);
+    setIsPlayerVisible(true);
+  };
+
   const handleCopyChannelLink = () => {
     navigator.clipboard.writeText(channelUrl);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2000);
-  };
-
-  const handleSelectItem = (item: YouTubeLibraryItem) => {
-    setActiveItem(item);
-    setIsPlayerVisible(true);
   };
 
   const handleLoadCustomUrl = (e: React.FormEvent) => {
@@ -263,8 +290,8 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
     const newItem: YouTubeLibraryItem = {
       id: 'yt-custom-' + Date.now(),
       title: `Vídeo do YouTube (${embedId})`,
-      category: 'Outros',
-      description: 'Vídeo carregado pelo professor.',
+      category: isMusicMode ? 'Música' : 'Outros',
+      description: isMusicMode ? 'Música adicionada pela comunidade.' : 'Vídeo carregado pelo professor.',
       embedId,
       youtubeUrl: customVideoUrl,
       lyrics: '',
@@ -287,14 +314,14 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
       setFormArtist(itemToEdit.artist || '');
       setFormCategory(itemToEdit.category || 'Música');
       setFormUrl(itemToEdit.youtubeUrl || `https://www.youtube.com/watch?v=${itemToEdit.embedId}`);
-      setFormLyrics(itemToEdit.lyrics || '');
+      setFormLyrics(isMusicMode ? itemToEdit.translatedLyrics || itemToEdit.lyrics || '' : itemToEdit.lyrics || '');
       setFormTranslatedLyrics(itemToEdit.translatedLyrics || '');
       setFormNotes(itemToEdit.notes || '');
     } else {
       setEditingItem(null);
       setFormTitle('');
       setFormArtist('');
-      setFormCategory('Música');
+      setFormCategory(isMusicMode ? 'Música' : 'Aulas');
       setFormUrl('');
       setFormLyrics('');
       setFormTranslatedLyrics('');
@@ -307,9 +334,11 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
     e.preventDefault();
     if (!canEdit || !formTitle || !formUrl) return;
 
+    const category = isMusicMode ? 'Música' : categories.includes(formCategory) ? formCategory : categories[0];
     const embedId = extractEmbedId(formUrl);
     const lyrics = formatStoryText(formLyrics, 'music');
     const translatedLyrics = formatStoryText(formTranslatedLyrics, 'music');
+    const notes = isMusicMode ? editingItem?.notes || '' : formNotes;
 
     if (editingItem) {
       const updatedList = library.map((item) =>
@@ -318,12 +347,12 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
               ...item,
               title: formTitle,
               artist: formArtist,
-              category: formCategory,
+              category,
               embedId: embedId || item.embedId,
               youtubeUrl: formUrl,
               lyrics,
-              translatedLyrics,
-              notes: formNotes,
+              translatedLyrics: isMusicMode ? '' : translatedLyrics,
+              notes,
             }
           : item
       );
@@ -333,12 +362,12 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
           ...activeItem,
           title: formTitle,
           artist: formArtist,
-          category: formCategory,
+          category,
           embedId: embedId || activeItem.embedId,
           youtubeUrl: formUrl,
           lyrics,
-          translatedLyrics,
-          notes: formNotes,
+          translatedLyrics: isMusicMode ? '' : translatedLyrics,
+          notes,
         });
       }
     } else {
@@ -346,12 +375,12 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
         id: 'yt-item-' + Date.now(),
         title: formTitle,
         artist: formArtist,
-        category: formCategory,
+        category,
         embedId: embedId || 'c5Q91s0336U',
         youtubeUrl: formUrl,
         lyrics,
-        translatedLyrics,
-        notes: formNotes,
+        translatedLyrics: isMusicMode ? '' : translatedLyrics,
+        notes: isMusicMode ? '' : formNotes,
         createdAt: new Date().toISOString(),
       };
       const updatedList = [newItem, ...library];
@@ -363,7 +392,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
 
   const handleDeleteItem = (idToDelete: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!canEdit) return;
+    if (!canDelete) return;
     if (confirm('Deseja remover este item da biblioteca?')) {
       const updated = library.filter((item) => item.id !== idToDelete);
       saveLibraryState(updated);
@@ -378,7 +407,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
     const updatedItem = {
       ...activeItem,
       lyrics: formatStoryText(editableLyrics, 'music'),
-      translatedLyrics: formatStoryText(editableTranslatedLyrics, 'music'),
+      translatedLyrics: isMusicMode ? '' : formatStoryText(editableTranslatedLyrics, 'music'),
     };
     const updatedList = library.map((item) => (item.id === activeItem.id ? updatedItem : item));
     saveLibraryState(updatedList);
@@ -386,22 +415,20 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
     setIsEditingLyrics(false);
   };
 
-  // Translate entire lyrics (Supports translating to Portuguese or English)
   const handleAutoTranslateLyrics = async (targetLang: 'pt' | 'en' = 'en') => {
     if (!editableLyrics.trim()) return;
     setIsTranslatingLyrics(true);
     try {
-      const trans = await translateText(editableLyrics, 'auto', targetLang);
-      if (trans && trans.trim()) {
-        setEditableTranslatedLyrics(trans.trim());
-        const updatedItem = { ...activeItem, translatedLyrics: trans.trim() };
+      const translated = await translateText(editableLyrics, 'auto', targetLang);
+      if (translated?.trim()) {
+        setEditableTranslatedLyrics(translated.trim());
+        const updatedItem = { ...activeItem, translatedLyrics: translated.trim() };
         setActiveItem(updatedItem);
-        setLibrary((prev) => prev.map((it) => (it.id === updatedItem.id ? updatedItem : it)));
-        saveLibraryState(library.map((it) => (it.id === updatedItem.id ? updatedItem : it)));
+        saveLibraryState(library.map((item) => item.id === updatedItem.id ? updatedItem : item));
         setTranslationMode('bilingual');
       }
-    } catch (err) {
-      console.error('Error auto-translating full lyrics:', err);
+    } catch (error) {
+      console.error('Error auto-translating full lyrics:', error);
     } finally {
       setIsTranslatingLyrics(false);
     }
@@ -456,14 +483,19 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
   };
 
   // Filtered Library
-  const filteredLibrary = library.filter((item) => {
+  const scopedLibrary = useMemo(
+    () => library.filter((item) => isMusicMode ? item.category === 'Música' : item.category !== 'Música'),
+    [library, isMusicMode]
+  );
+  const filteredLibrary = scopedLibrary.filter((item) => {
     const matchesCategory = selectedCategory === null || item.category === selectedCategory;
     const q = searchQuery.trim().toLowerCase();
     const matchesSearch =
       !q ||
       item.title.toLowerCase().includes(q) ||
       (item.artist && item.artist.toLowerCase().includes(q)) ||
-      (item.lyrics && item.lyrics.toLowerCase().includes(q));
+      (item.lyrics && item.lyrics.toLowerCase().includes(q)) ||
+      (item.translatedLyrics && item.translatedLyrics.toLowerCase().includes(q));
     return matchesCategory && matchesSearch;
   });
 
@@ -496,27 +528,27 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
     }));
   };
 
-  const categories = ['Música', 'Aulas', 'Gramática', 'Conversação', 'Outros'];
-  const hasLyricsInActive = Boolean(editableLyrics && editableLyrics.trim().length > 0);
+  const categories = isMusicMode ? ['Música'] : ['Aulas', 'Gramática', 'Conversação', 'Outros'];
+  const hasLyricsInActive = Boolean((activeItem.translatedLyrics || editableLyrics) && (activeItem.translatedLyrics || editableLyrics).trim().length > 0);
 
-  // Helper to split lyrics and translation into matching stanzas & lines
+  const activeEnglishLyrics = activeItem.translatedLyrics || activeItem.lyrics || '';
+  const displayedLyrics = isMusicMode ? activeEnglishLyrics : activeItem.lyrics || '';
+  const displayedTranslation = isMusicMode ? '' : activeItem.translatedLyrics || '';
   const parsedLyricsData = useMemo(() => {
-    if (!editableLyrics) return [];
-    const ptStanzas = editableLyrics.split(/\n\s*\n/);
-    const enStanzas = editableTranslatedLyrics ? editableTranslatedLyrics.split(/\n\s*\n/) : [];
-
-    return ptStanzas.map((stanza, sIdx) => {
-      const ptLines = stanza.split('\n').filter((l) => l.trim().length > 0);
-      const enLines = enStanzas[sIdx] ? enStanzas[sIdx].split('\n').filter((l) => l.trim().length > 0) : [];
-
+    if (!displayedLyrics) return [];
+    const originalStanzas = displayedLyrics.split(/\n\s*\n/);
+    const translatedStanzas = displayedTranslation ? displayedTranslation.split(/\n\s*\n/) : [];
+    return originalStanzas.map((stanza, stanzaIndex) => {
+      const originalLines = stanza.split('\n').filter((line) => line.trim().length > 0);
+      const translatedLines = translatedStanzas[stanzaIndex] ? translatedStanzas[stanzaIndex].split('\n').filter((line) => line.trim().length > 0) : [];
       return {
-        lines: ptLines.map((ptLine, lIdx) => ({
-          pt: ptLine,
-          en: enLines[lIdx] || '',
+        lines: originalLines.map((line, lineIndex) => ({
+          pt: line,
+          en: translatedLines[lineIndex] || '',
         })),
       };
     });
-  }, [editableLyrics, editableTranslatedLyrics]);
+  }, [displayedLyrics, displayedTranslation]);
 
   return (
     <div
@@ -539,13 +571,14 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                 </div>
                 <div>
                   <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-[10px] font-mono font-medium text-red-400 uppercase tracking-wider">
-                      <span className="notranslate" translate="no">Brazilian Music</span> & Vídeos
-                    </span>
-                    <span className="text-[10px] font-mono text-white/40 hidden sm:inline">• @brazilianinaction</span>
+                    {!isMusicMode && (
+                      <span className="text-[10px] font-mono font-medium text-red-400 uppercase tracking-wider">
+                        Aulas, gramática & conversação
+                      </span>
+                    )}
                   </div>
                   <h1 className="text-lg md:text-xl font-bold text-white tracking-tight">
-                    <span className="notranslate" translate="no">Brazilian Music</span> • Player, Letras & Tradução Bilíngue
+                    <span className="notranslate" translate="no">{isMusicMode ? 'Brazilian Music' : 'Study Time'}</span>
                   </h1>
                 </div>
               </div>
@@ -570,7 +603,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                     className="px-3 py-2 rounded-xl bg-amber-500/90 hover:bg-amber-400 text-black font-semibold text-xs transition-all flex items-center gap-1.5 shadow-sm"
                   >
                     <Plus size={13} />
-                    <span>Novo item</span>
+                    <span>{isMusicMode ? 'Adicionar música' : 'Novo conteúdo'}</span>
                   </button>
                 )}
 
@@ -593,6 +626,37 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                 </button>
               </div>
             </div>
+            {isMusicMode && (
+              <div className="mt-4 border-t border-white/10 pt-4">
+                <p className="max-w-4xl text-sm leading-relaxed text-white/75">
+                  Este espaço é da comunidade: você pode adicionar músicas que ajudem outras pessoas a aprender inglês e corrigir letras ou links quando encontrar algo para melhorar. Escolha, de preferência, vídeos com a letra na tela (lyric videos), sem o clipe oficial. As sugestões abaixo são apenas pontos de partida — fique à vontade para usar outros canais e fontes confiáveis. Ao cadastrar, cole a letra em inglês; os alunos podem tocar em uma palavra para ver sua tradução.
+                </p>
+                <div ref={channelLinksRef} className="mt-3 flex flex-wrap gap-2">
+                  {[
+                    { label: '7clouds', href: 'https://www.youtube.com/@7clouds' },
+                    { label: 'LatinHype', href: 'https://www.youtube.com/@LatinHype./videos' },
+                    { label: 'jellytunes', href: 'https://www.youtube.com/@jellytunes3104/featured' },
+                    { label: 'Vagalume — letras', href: 'https://www.vagalume.com.br/' },
+                    { label: 'Letras.mus.br', href: 'https://www.letras.mus.br/' },
+                  ].map((resource) => (
+                    <a
+                      key={resource.label}
+                      data-music-resource
+                      href={resource.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/[0.04] px-3 py-1.5 text-xs text-white/75 transition-colors hover:border-amber-400/40 hover:bg-amber-400/10 hover:text-amber-200"
+                    >
+                      {resource.label}
+                      <ExternalLink size={11} />
+                    </a>
+                  ))}
+                </div>
+                <p className="mt-2 text-[11px] text-white/45">
+                  Use os links como referência; eles não são obrigatórios nem abrem automaticamente durante o cadastro.
+                </p>
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -602,7 +666,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
         <div className="flex items-center justify-between bg-neutral-900/60 border border-white/10 rounded-xl px-4 py-2">
           <div className="flex items-center gap-2 text-xs text-white/70 font-mono">
             <Youtube size={15} className="text-red-500" />
-            <span className="font-semibold text-white"><span className="notranslate" translate="no">Brazilian Music</span> & Biblioteca</span>
+            <span className="font-semibold text-white"><span className="notranslate" translate="no">{isMusicMode ? 'Brazilian Music' : 'Study Time'}</span></span>
           </div>
           <button
             type="button"
@@ -615,12 +679,12 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
         </div>
       )}
 
-      {library.length === 0 ? (
+      {scopedLibrary.length === 0 ? (
         <div className="flex min-h-64 flex-col items-center justify-center gap-4 rounded-2xl border border-white/10 bg-neutral-950/80 p-8 text-center">
           <Music size={30} className="text-amber-400" />
           <div>
-            <h2 className="text-lg font-semibold text-white">Biblioteca vazia</h2>
-            <p className="mt-1 text-sm text-white/60">Nenhuma música ou vídeo foi cadastrado.</p>
+            <h2 className="text-lg font-semibold text-white">{isMusicMode ? 'Biblioteca vazia' : 'Nenhum conteúdo disponível'}</h2>
+            <p className="mt-1 text-sm text-white/60">{isMusicMode ? 'Nenhuma música foi adicionada ainda. Sua contribuição pode ser a primeira.' : 'Nenhuma aula, conteúdo de gramática ou conversação foi cadastrado.'}</p>
           </div>
           {canEdit && (
             <button
@@ -629,7 +693,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
               className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-black hover:bg-amber-400"
             >
               <Plus size={15} />
-              Cadastrar música ou vídeo
+              {isMusicMode ? 'Adicionar uma música' : 'Cadastrar conteúdo'}
             </button>
           )}
         </div>
@@ -691,7 +755,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
 
             {/* URL Input & Discrete Add Lyrics Action */}
             <div className="pt-1 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-              <form onSubmit={handleLoadCustomUrl} className="flex-1 flex gap-2">
+              {canDelete && <form onSubmit={handleLoadCustomUrl} className="flex-1 flex gap-2">
                 <input
                   type="text"
                   value={customVideoUrl}
@@ -706,7 +770,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                   <Play size={12} />
                   <span>Carregar</span>
                 </button>
-              </form>
+              </form>}
 
               {/* Discrete button to open/add lyrics if not editing */}
               {!isEditingLyrics && canEdit && (
@@ -730,13 +794,13 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                 <div className="flex items-center gap-2">
                   <Music size={16} className="text-amber-400" />
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-white/90">
-                    Letra & Tradução Interativa
+                    {isMusicMode ? 'Letra Interativa' : 'Letra & Tradução Interativa'}
                   </h3>
                 </div>
 
                 <div className="flex items-center gap-2 flex-wrap self-start sm:self-auto">
                   {/* Translation Mode Switcher */}
-                  <div className="flex bg-black/50 p-0.5 rounded-xl border border-white/15 text-xs">
+                  {!isMusicMode && <div className="flex bg-black/50 p-0.5 rounded-xl border border-white/15 text-xs">
                     <button
                       type="button"
                       onClick={() => setTranslationMode('original')}
@@ -781,7 +845,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                     >
                       Inglês (EN)
                     </button>
-                  </div>
+                  </div>}
 
                   {/* Font Size & Typography Controls */}
                   <div className="flex items-center gap-1 bg-black/40 px-2 py-1 rounded-lg border border-white/10 text-xs">
@@ -838,24 +902,22 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
               {/* Edit Mode vs Read/Translation Mode */}
               {isEditingLyrics ? (
                 <div className="flex flex-col gap-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Portuguese Lyrics Input */}
+                  <div className={`grid grid-cols-1 ${isMusicMode ? '' : 'md:grid-cols-2'} gap-4`}>
                     <div className="flex flex-col gap-2">
                       <label className="text-xs text-amber-300 font-semibold font-mono">
-                        Letra Original (Português):
+                        {isMusicMode ? 'Letra em Inglês:' : 'Texto / letra original:'}
                       </label>
                       <textarea
                         value={editableLyrics}
                         onChange={(e) => setEditableLyrics(e.target.value)}
                         onBlur={() => setEditableLyrics((lyrics) => formatStoryText(lyrics, 'music'))}
                         rows={10}
-                        placeholder="Cole a letra da música em português..."
+                        placeholder={isMusicMode ? 'Cole a letra da música em inglês...' : 'Cole o texto ou a letra aqui...'}
                         className="w-full p-3.5 rounded-xl bg-black/60 border border-white/15 text-white placeholder-white/20 focus:outline-none focus:border-amber-400/50 font-sans text-sm leading-relaxed"
                       />
                     </div>
 
-                    {/* English Translation Input */}
-                    <div className="flex flex-col gap-2">
+                    {!isMusicMode && <div className="flex flex-col gap-2">
                       <div className="flex items-center justify-between">
                         <label className="text-xs text-blue-300 font-semibold font-mono">
                           Tradução da Letra (Inglês):
@@ -878,14 +940,14 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                         placeholder="Tradução em inglês (ou clique em 'Traduzir com IA' acima)..."
                         className="w-full p-3.5 rounded-xl bg-black/60 border border-white/15 text-white placeholder-white/20 focus:outline-none focus:border-blue-400/50 font-sans text-sm leading-relaxed"
                       />
-                    </div>
+                    </div>}
                   </div>
 
                   <div className="flex justify-end gap-2 pt-2 border-t border-white/10">
                     <button
                       type="button"
                       onClick={() => {
-                        setEditableLyrics(activeItem.lyrics || '');
+                        setEditableLyrics(isMusicMode ? activeItem.translatedLyrics || activeItem.lyrics || '' : activeItem.lyrics || '');
                         setEditableTranslatedLyrics(activeItem.translatedLyrics || '');
                         setIsEditingLyrics(false);
                       }}
@@ -899,7 +961,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                       className="px-4 py-1.5 rounded-lg bg-amber-500 text-black hover:bg-amber-400 font-bold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer"
                     >
                       <Save size={13} />
-                      <span>Salvar Letra & Tradução</span>
+                      <span>{isMusicMode ? 'Salvar letra' : 'Salvar letra & tradução'}</span>
                     </button>
                   </div>
                 </div>
@@ -912,7 +974,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                     </span>
 
                     <div className="flex items-center gap-3">
-                      {!editableTranslatedLyrics && (
+                      {!isMusicMode && !editableTranslatedLyrics && (
                         <button
                           type="button"
                           onClick={() => handleAutoTranslateLyrics('en')}
@@ -926,12 +988,12 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
 
                       <button
                         type="button"
-                        onClick={() => handleSpeakWord(editableLyrics.slice(0, 150), 'pt-BR')}
+                        onClick={() => handleSpeakWord(editableLyrics.slice(0, 150), isMusicMode ? 'en-US' : 'pt-BR')}
                         className="text-amber-400 hover:text-amber-300 flex items-center gap-1.5 font-medium cursor-pointer"
-                        title="Ouvir pronúncia da música em português"
+                        title={isMusicMode ? 'Ouvir pronúncia do texto em inglês' : 'Ouvir pronúncia do texto em português'}
                       >
                         <Volume2 size={13} />
-                        <span>Ouvir Texto (PT)</span>
+                        <span>{isMusicMode ? 'Ouvir Texto (EN)' : 'Ouvir Texto (PT)'}</span>
                       </button>
                     </div>
                   </div>
@@ -952,7 +1014,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                             return (
                               <div key={lIdx} className="flex flex-col gap-0.5">
                                 {/* Portuguese Line (or hidden if english-only) */}
-                                {translationMode !== 'english' && (
+                                {(isMusicMode || translationMode !== 'english') && (
                                   <div
                                     className={`flex flex-wrap items-center leading-snug ${
                                       textAlign === 'center' ? 'justify-center' : 'justify-start'
@@ -977,7 +1039,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                                 )}
 
                                 {/* English Translated Line (Bilingual or English-only mode) */}
-                                {(translationMode === 'bilingual' || translationMode === 'english') && line.en && (
+                                {!isMusicMode && (translationMode === 'bilingual' || translationMode === 'english') && line.en && (
                                   <div
                                     style={{ fontSize: `${Math.max(14, fontSize - 4)}px` }}
                                     className={`text-amber-300/80 font-sans italic leading-tight ${
@@ -1011,7 +1073,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
             <div className="flex items-center gap-2">
               <Bookmark size={16} className="text-white/70" />
               <h2 className="text-xs font-semibold uppercase tracking-wider text-white">
-                Biblioteca de Músicas
+                {isMusicMode ? 'Biblioteca de Músicas' : 'Biblioteca de Estudos'}
               </h2>
             </div>
 
@@ -1024,10 +1086,10 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                     ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 font-semibold shadow-sm'
                     : 'bg-white/5 text-white/60 hover:text-white border-white/10'
                 }`}
-                title={groupByArtist ? 'Agrupado por Cantor' : 'Exibir como Lista'}
+                title={isMusicMode ? groupByArtist ? 'Agrupado por Cantor' : 'Exibir como Lista' : groupByArtist ? 'Agrupado por referência' : 'Exibir como Lista'}
               >
                 {groupByArtist ? <Mic size={12} /> : <List size={12} />}
-                <span>{groupByArtist ? 'Cantor' : 'Lista'}</span>
+                <span>{groupByArtist ? isMusicMode ? 'Cantor' : 'Referência' : 'Lista'}</span>
               </button>
 
               {canEdit && (
@@ -1051,7 +1113,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Buscar música, cantor ou letra..."
+                placeholder={isMusicMode ? 'Buscar música, cantor ou letra...' : 'Buscar aula, tema ou conteúdo...'}
                 className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-black/40 border border-white/10 text-xs text-white placeholder-white/30 focus:outline-none focus:border-white/20 font-mono"
               />
             </div>
@@ -1079,7 +1141,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
           <div className="flex flex-col gap-2 max-h-[550px] overflow-y-auto custom-scrollbar pr-1">
             {filteredLibrary.length === 0 ? (
               <div className="p-6 text-center text-xs text-white/40 border border-dashed border-white/10 rounded-xl">
-                Nenhuma música encontrada.
+                {isMusicMode ? 'Nenhuma música encontrada.' : 'Nenhum conteúdo encontrado.'}
               </div>
             ) : groupByArtist ? (
               /* GROUPED BY ARTIST / CANTOR */
@@ -1137,34 +1199,30 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                                     Letra
                                   </span>
                                 )}
-                                {item.translatedLyrics && (
-                                  <span className="text-[9px] font-mono text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-1 py-0.2 rounded shrink-0">
-                                    PT/EN
-                                  </span>
-                                )}
                               </div>
 
                               {canEdit && (
-                                <div className="flex items-center gap-1 opacity-40 group-hover:opacity-100 transition-opacity shrink-0">
+                                <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity shrink-0">
                                   <button
                                     type="button"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       handleOpenModal(item);
                                     }}
-                                    className="p-1 text-white/60 hover:text-white transition-colors cursor-pointer"
-                                    title="Editar"
+                                    className="p-1.5 text-white/75 hover:text-amber-200 transition-colors cursor-pointer"
+                                    title="Editar música, letra ou link"
                                   >
                                     <Edit3 size={11} />
+                                    <span className="text-[10px]">Editar</span>
                                   </button>
-                                  <button
+                                  {canDelete && <button
                                     type="button"
                                     onClick={(e) => handleDeleteItem(item.id, e)}
                                     className="p-1 text-white/60 hover:text-red-400 transition-colors cursor-pointer"
                                     title="Remover"
                                   >
                                     <Trash2 size={11} />
-                                  </button>
+                                  </button>}
                                 </div>
                               )}
                             </div>
@@ -1212,32 +1270,28 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                           Letra
                         </span>
                       )}
-                      {item.translatedLyrics && (
-                        <span className="text-[9px] font-mono text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-1 py-0.2 rounded">
-                          PT/EN
-                        </span>
-                      )}
                       {canEdit && (
-                        <div className="flex items-center gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
                           <button
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleOpenModal(item);
                             }}
-                            className="p-1 text-white/60 hover:text-white transition-colors cursor-pointer"
-                            title="Editar"
+                            className="p-1.5 text-white/75 hover:text-amber-200 transition-colors cursor-pointer"
+                            title="Editar música, letra ou link"
                           >
                             <Edit3 size={11} />
+                            <span className="text-[10px]">Editar</span>
                           </button>
-                          <button
+                          {canDelete && <button
                             type="button"
                             onClick={(e) => handleDeleteItem(item.id, e)}
                             className="p-1 text-white/60 hover:text-red-400 transition-colors cursor-pointer"
                             title="Remover"
                           >
                             <Trash2 size={11} />
-                          </button>
+                          </button>}
                         </div>
                       )}
                     </div>
@@ -1385,7 +1439,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                 <div className="flex items-center gap-2">
                   <Youtube size={18} className="text-red-500" />
                   <h3 className="text-xs font-semibold text-white uppercase tracking-wider">
-                    {editingItem ? 'Editar Item da Biblioteca' : 'Cadastrar Nova Música ou Vídeo'}
+                    {editingItem ? 'Editar item da biblioteca' : isMusicMode ? 'Adicionar nova música' : 'Cadastrar conteúdo de estudo'}
                   </h3>
                 </div>
                 <button
@@ -1400,24 +1454,24 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
               <form onSubmit={handleSaveItemModal} className="flex flex-col gap-3 text-xs">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-white/70 font-mono mb-1">Título da Música / Vídeo *</label>
+                    <label className="block text-white/70 font-mono mb-1">{isMusicMode ? 'Título da Música *' : 'Título do conteúdo *'}</label>
                     <input
                       type="text"
                       required
                       value={formTitle}
                       onChange={(e) => setFormTitle(e.target.value)}
-                      placeholder="Ex: Garota de Ipanema"
+                      placeholder={isMusicMode ? 'Ex: Garota de Ipanema' : 'Ex: Simple past'}
                       className="w-full p-2.5 rounded-lg bg-black/40 border border-white/10 text-white placeholder-white/20 focus:outline-none focus:border-white/30"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-white/70 font-mono mb-1">Cantor / Artista / Banda</label>
+                    <label className="block text-white/70 font-mono mb-1">{isMusicMode ? 'Cantor / Artista / Banda' : 'Professor / referência'}</label>
                     <input
                       type="text"
                       value={formArtist}
                       onChange={(e) => setFormArtist(e.target.value)}
-                      placeholder="Ex: Tom Jobim, Elis Regina..."
+                      placeholder={isMusicMode ? 'Ex: Tom Jobim, Elis Regina...' : 'Opcional'}
                       className="w-full p-2.5 rounded-lg bg-black/40 border border-white/10 text-white placeholder-white/20 focus:outline-none focus:border-white/30"
                     />
                   </div>
@@ -1431,11 +1485,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                       onChange={(e) => setFormCategory(e.target.value)}
                       className="w-full p-2.5 rounded-lg bg-black border border-white/10 text-white focus:outline-none focus:border-white/30"
                     >
-                      <option value="Música">Música</option>
-                      <option value="Aulas">Aulas</option>
-                      <option value="Gramática">Gramática</option>
-                      <option value="Conversação">Conversação</option>
-                      <option value="Outros">Outros</option>
+                      {categories.map((category) => <option key={category} value={category}>{category}</option>)}
                     </select>
                   </div>
 
@@ -1452,36 +1502,42 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-white/70 font-mono mb-1">
-                    Letra em Português (Opcional)
-                  </label>
+                {isMusicMode && <div>
+                  <label className="block text-white/70 font-mono mb-1">Letra em Inglês (opcional)</label>
                   <textarea
                     value={formLyrics}
                     onChange={(e) => setFormLyrics(e.target.value)}
                     onBlur={() => setFormLyrics((lyrics) => formatStoryText(lyrics, 'music'))}
                     rows={4}
-                    placeholder="Cole a letra da música em português..."
+                    placeholder="Cole aqui a letra em inglês..."
                     className="w-full p-2.5 rounded-lg bg-black/40 border border-white/10 text-white placeholder-white/20 focus:outline-none focus:border-white/30 font-sans leading-relaxed"
                   />
-                </div>
+                </div>}
 
-                <div>
-                  <label className="block text-white/70 font-mono mb-1">
-                    Tradução em Inglês (Opcional)
-                  </label>
+                {!isMusicMode && <div>
+                  <label className="block text-white/70 font-mono mb-1">Texto / roteiro do conteúdo</label>
+                  <textarea
+                    value={formLyrics}
+                    onChange={(e) => setFormLyrics(e.target.value)}
+                    rows={4}
+                    placeholder="Texto de apoio, transcrição ou roteiro (opcional)..."
+                    className="w-full p-2.5 rounded-lg bg-black/40 border border-white/10 text-white placeholder-white/20 focus:outline-none focus:border-white/30 font-sans leading-relaxed"
+                  />
+                </div>}
+
+                {!isMusicMode && <div>
+                  <label className="block text-white/70 font-mono mb-1">Tradução do texto (opcional)</label>
                   <textarea
                     value={formTranslatedLyrics}
                     onChange={(e) => setFormTranslatedLyrics(e.target.value)}
-                    onBlur={() => setFormTranslatedLyrics((lyrics) => formatStoryText(lyrics, 'music'))}
                     rows={3}
-                    placeholder="Cole a tradução em inglês..."
+                    placeholder="Tradução do texto de apoio..."
                     className="w-full p-2.5 rounded-lg bg-black/40 border border-white/10 text-white placeholder-white/20 focus:outline-none focus:border-white/30 font-sans leading-relaxed"
                   />
-                </div>
+                </div>}
 
-                <div>
-                  <label className="block text-white/70 font-mono mb-1">Observações Pedagógicas</label>
+                {!isMusicMode && <div>
+                  <label className="block text-white/70 font-mono mb-1">Observações do conteúdo</label>
                   <input
                     type="text"
                     value={formNotes}
@@ -1489,7 +1545,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                     placeholder="Dicas para a aula..."
                     className="w-full p-2.5 rounded-lg bg-black/40 border border-white/10 text-white placeholder-white/20 focus:outline-none focus:border-white/30"
                   />
-                </div>
+                </div>}
 
                 <div className="flex justify-end gap-2 pt-2 border-t border-white/10">
                   <button
@@ -1503,7 +1559,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                     type="submit"
                     className="px-4 py-2 rounded-lg bg-white/15 hover:bg-white/25 text-white font-medium shadow-sm cursor-pointer"
                   >
-                    Salvar na Biblioteca
+                    {isMusicMode ? 'Salvar música na biblioteca' : 'Salvar conteúdo'}
                   </button>
                 </div>
               </form>
@@ -1586,7 +1642,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
               </div>
 
               {/* Translation Mode Selector */}
-              <div className="flex bg-neutral-950/80 p-0.5 rounded-full border border-white/15 backdrop-blur-md shadow-md text-xs">
+              {!isMusicMode && <div className="flex bg-neutral-950/80 p-0.5 rounded-full border border-white/15 backdrop-blur-md shadow-md text-xs">
                 <button
                   type="button"
                   onClick={() => setTranslationMode('original')}
@@ -1627,7 +1683,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                 >
                   EN
                 </button>
-              </div>
+              </div>}
 
               {/* Font Size Adjuster */}
               <div className="flex items-center gap-0.5 bg-neutral-950/80 px-2 py-0.5 rounded-full border border-white/15 backdrop-blur-md shadow-md text-xs">
@@ -1717,7 +1773,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
 
                             return (
                               <div key={lIdx} className="flex flex-col gap-0.5">
-                                {translationMode !== 'english' && (
+                                {(isMusicMode || translationMode !== 'english') && (
                                   <div
                                     className={`flex flex-wrap items-center leading-snug ${
                                       meetAlign === 'center' ? 'justify-center' : 'justify-start'
@@ -1741,7 +1797,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                                   </div>
                                 )}
 
-                                {(translationMode === 'bilingual' || translationMode === 'english') && line.en && (
+                                {!isMusicMode && (translationMode === 'bilingual' || translationMode === 'english') && line.en && (
                                   <div
                                     style={{ fontSize: `${Math.max(16, meetFontSize - 8)}px` }}
                                     className={`text-amber-300/80 font-sans italic leading-tight ${
@@ -1806,7 +1862,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
 
                             return (
                               <div key={lIdx} className="flex flex-col gap-1">
-                                {translationMode !== 'english' && (
+                                {(isMusicMode || translationMode !== 'english') && (
                                   <div
                                     className={`flex flex-wrap items-center leading-snug ${
                                       meetAlign === 'center' ? 'justify-center' : 'justify-start'
@@ -1830,7 +1886,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                                   </div>
                                 )}
 
-                                {(translationMode === 'bilingual' || translationMode === 'english') && line.en && (
+                                {!isMusicMode && (translationMode === 'bilingual' || translationMode === 'english') && line.en && (
                                   <div
                                     style={{ fontSize: `${Math.max(18, meetFontSize - 10)}px` }}
                                     className={`text-amber-300/80 font-sans italic leading-tight ${
@@ -1870,7 +1926,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
 
                           return (
                             <div key={lIdx} className="flex flex-col gap-1">
-                              {translationMode !== 'english' && (
+                              {(isMusicMode || translationMode !== 'english') && (
                                 <div
                                   className={`flex flex-wrap items-center leading-snug ${
                                     meetAlign === 'center' ? 'justify-center' : 'justify-start'
@@ -1894,7 +1950,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({ accentColor = '#3b82f6',
                                 </div>
                               )}
 
-                              {(translationMode === 'bilingual' || translationMode === 'english') && line.en && (
+                              {!isMusicMode && (translationMode === 'bilingual' || translationMode === 'english') && line.en && (
                                 <div
                                   style={{ fontSize: `${Math.max(18, meetFontSize - 10)}px` }}
                                   className={`text-amber-300/80 font-sans italic leading-tight ${

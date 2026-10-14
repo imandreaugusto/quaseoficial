@@ -36,7 +36,8 @@ export const ALL_STUDENT_APPS: AppDefinition[] = [
   { id: 'biacompare', label: 'BIA Compare', desc: 'Comparador de frases em tempo real para destravar vícios de tradução', category: 'Comparação & Precisão', targetRole: 'both' },
   { id: 'conversation', label: 'Brazilian Conversation', desc: 'Simulações de diálogo e roleplay com a assistente BIA', category: 'Conversação IA', targetRole: 'both' },
   { id: 'tradutor', label: 'Brazilian Tradutor', desc: 'Tradutor com notas culturais, gírias e contextualização de pronúncia', category: 'Vocabulário & Tradução', targetRole: 'both' },
-  { id: 'youtube', label: 'Brazilian Music', desc: 'Músicas e vídeos educativos com letras interativas e vocabulário sincronizado', category: 'Música & Vocabulário', targetRole: 'both' }
+  { id: 'youtube', label: 'Brazilian Music', desc: 'Músicas e vídeos educativos com letras interativas e vocabulário sincronizado', category: 'Música & Vocabulário', targetRole: 'both' },
+  { id: 'studytime', label: 'Study Time', desc: 'Aulas, gramática e conversação em um só espaço de estudos', category: 'Estudo', targetRole: 'both' }
 ];
 
 interface AdminAppsControlProps {

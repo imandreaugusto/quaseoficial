@@ -195,6 +195,7 @@ export const GlobalStreamOverlay: React.FC<GlobalStreamOverlayProps> = ({
     readclub: 'Read Club',
     streamstudio: 'Brazilian LIVE',
     youtube: 'Brazilian Music',
+    studytime: 'Study Time',
     classroom: 'Classroom',
     meet: 'Google Meet',
     slides: 'Lousa/Slides',

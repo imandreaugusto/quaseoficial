@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StoryItem, ReadSession, GlossaryEntry } from '../types';
-import { Plus, Trash2, Edit, ChevronRight, ChevronLeft, ChevronDown, BookOpen, Volume2, HelpCircle, FileText, Settings, Compass, HelpCircle as KeyboardIcon, Search, Download, Trash, Maximize2, X, Check, Languages, Bookmark, BookmarkCheck } from 'lucide-react';
+import { Plus, Trash2, Edit, ChevronRight, ChevronLeft, ChevronDown, BookOpen, Volume2, HelpCircle, FileText, Settings, Compass, Search, Download, Trash, Maximize2, X, Check, Languages, Bookmark, BookmarkCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { translateText, lookupDictionary } from '../lib/translator';
 import { formatStoryText } from '../lib/storyFormatting';
@@ -60,6 +60,8 @@ export const ReadClub: React.FC<ReadClubProps> = ({
   // Modal forms
   const [editorModalOpen, setEditorModalOpen] = useState(false);
   const [editingBook, setEditingBook] = useState<StoryItem | null>(null);
+  const [modalCoverUrl, setModalCoverUrl] = useState('');
+  const [coverPreviewError, setCoverPreviewError] = useState(false);
   const [newSessionModalOpen, setNewSessionModalOpen] = useState(false);
   const [newSessionName, setNewSessionName] = useState('');
   const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);
@@ -479,6 +481,8 @@ const COMMON_DICTIONARY: Record<string, string> = {
     if (!canManageLibrary) return;
     setEditingBook(null);
     setModalTextValue('');
+    setModalCoverUrl('');
+    setCoverPreviewError(false);
     setEditorModalOpen(true);
   };
 
@@ -486,6 +490,8 @@ const COMMON_DICTIONARY: Record<string, string> = {
     if (!canManageLibrary) return;
     setEditingBook(book);
     setModalTextValue(book.text || '');
+    setModalCoverUrl(book.coverUrl || '');
+    setCoverPreviewError(false);
     setEditorModalOpen(true);
   };
 
@@ -947,6 +953,25 @@ const COMMON_DICTIONARY: Record<string, string> = {
               {/* Toolbar Actions - Floating Pills */}
               <div className="flex items-center gap-1.5 flex-wrap relative">
                 <button
+                  type="button"
+                  onClick={() => setIsQsOpen((open) => !open)}
+                  aria-expanded={isQsOpen}
+                  aria-controls="readclub-question-panel"
+                  className={`px-2.5 py-1.5 rounded-full border text-[11px] font-semibold flex items-center gap-1.5 transition-all cursor-pointer backdrop-blur-xl ${
+                    isQsOpen
+                      ? 'bg-amber-400/20 border-amber-300/35 text-amber-100'
+                      : 'bg-white/5 border-white/10 text-white/65 hover:bg-white/10 hover:text-white/90'
+                  }`}
+                  title="Abrir perguntas e dicas (atalho: Q)"
+                >
+                  <HelpCircle size={13} />
+                  <span>Perguntas</span>
+                  {questionList.length > 0 && (
+                    <span className="text-[9px] text-current/60">{questionList.length}</span>
+                  )}
+                </button>
+
+                <button
                   onClick={handlePlayTTS}
                   className={`px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer backdrop-blur-xl shadow-md ${
                     ttsPlaying
@@ -1383,6 +1408,9 @@ const COMMON_DICTIONARY: Record<string, string> = {
 
               {isQsOpen && (
                 <motion.div
+                  id="readclub-question-panel"
+                  role="region"
+                  aria-label="Perguntas e dicas da história"
                   initial={{ x: '100%' }}
                   animate={{ x: 0 }}
                   exit={{ x: '100%' }}
@@ -1572,7 +1600,7 @@ const COMMON_DICTIONARY: Record<string, string> = {
         <div className="fixed inset-0 z-[6000] flex items-center justify-center bg-black/85 backdrop-blur-md px-4">
           <form
             onSubmit={handleSaveBook}
-            className="bg-neutral-900 border border-white/10 rounded-2xl p-6 w-full max-w-lg shadow-2xl flex flex-col gap-4"
+            className="bg-neutral-900 border border-white/10 rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col gap-4"
           >
             <h3 className="text-sm font-bold tracking-widest uppercase text-center" style={{ color: accentColor }}>
               {editingBook ? 'Editar Material' : 'Adicionar Novo Material'}
@@ -1624,16 +1652,44 @@ const COMMON_DICTIONARY: Record<string, string> = {
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] text-white/40 uppercase tracking-widest font-semibold">URL Imagem da História (Opcional)</label>
+                <label className="text-[10px] text-white/40 uppercase tracking-widest font-semibold">URL da imagem de capa (opcional)</label>
                 <input
-                  type="text"
+                  type="url"
                   name="coverUrl"
-                  defaultValue={editingBook?.coverUrl || ''}
+                  value={modalCoverUrl}
+                  onChange={(e) => {
+                    setModalCoverUrl(e.target.value);
+                    setCoverPreviewError(false);
+                  }}
                   placeholder="https://images.unsplash.com/..."
                   className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-white/30 text-white"
                 />
               </div>
             </div>
+
+            {modalCoverUrl && (
+              <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
+                {coverPreviewError ? (
+                  <div className="flex h-14 w-20 shrink-0 items-center justify-center rounded-lg border border-amber-300/15 bg-white/5 text-[9px] text-white/35">
+                    Prévia indisponível
+                  </div>
+                ) : (
+                  <img
+                    src={modalCoverUrl}
+                    alt="Prévia da capa da história"
+                    onError={() => setCoverPreviewError(true)}
+                    className="h-14 w-20 shrink-0 rounded-lg border border-white/10 object-cover"
+                  />
+                )}
+                <div className="min-w-0">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-white/60">Prévia da capa</p>
+                  <p className="mt-1 truncate text-[10px] text-white/35">{modalCoverUrl}</p>
+                  {coverPreviewError && (
+                    <p className="mt-1 text-[10px] text-amber-200/70">Confira se o endereço aponta para uma imagem acessível.</p>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="flex flex-col gap-1">
               <label className="text-[10px] text-white/40 uppercase tracking-widest font-semibold">Texto / Letra</label>

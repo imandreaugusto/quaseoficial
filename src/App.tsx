@@ -1,26 +1,26 @@
-import { useState, useEffect, useRef } from 'react';
+import { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { Sidebar } from './components/Sidebar';
-import { Home } from './components/Home';
-import { Dashboard } from './components/Dashboard';
-import { GoogleClassroom } from './components/GoogleClassroom';
-import { GoogleMeet } from './components/GoogleMeet';
-import { ReadClub } from './components/ReadClub';
-import { BrazilianBoard } from './components/BrazilianBoard';
-import { Settings } from './components/Settings';
-import { BrazilianConversation } from './components/BrazilianConversation';
-import { BrazilianQuiz } from './components/BrazilianQuiz';
-import { BrazilianGames } from './components/BrazilianGames';
-import { BrazilianTradutor } from './components/BrazilianTradutor';
-import { BiaCompare } from './components/BiaCompare';
-import { YouTubeHub } from './components/YouTubeHub';
-import { BrazilianPractice } from './components/BrazilianPractice';
-import { BrazilianStories } from './components/BrazilianStories';
-import { BrazilianHQ } from './components/BrazilianHQ';
-import { BrazilianFriends } from './components/BrazilianFriends';
-import { StreamStudio } from './components/StreamStudio';
-import { AdminSettings } from './components/AdminSettings';
-import { AdminFeedbackPanel } from './components/AdminFeedbackPanel';
-import { StudentFeedback } from './components/StudentFeedback';
+const Home = lazy(() => import('./components/Home').then(({ Home }) => ({ default: Home })));
+const Dashboard = lazy(() => import('./components/Dashboard').then(({ Dashboard }) => ({ default: Dashboard })));
+const GoogleClassroom = lazy(() => import('./components/GoogleClassroom').then(({ GoogleClassroom }) => ({ default: GoogleClassroom })));
+const GoogleMeet = lazy(() => import('./components/GoogleMeet').then(({ GoogleMeet }) => ({ default: GoogleMeet })));
+const ReadClub = lazy(() => import('./components/ReadClub').then(({ ReadClub }) => ({ default: ReadClub })));
+const BrazilianBoard = lazy(() => import('./components/BrazilianBoard').then(({ BrazilianBoard }) => ({ default: BrazilianBoard })));
+const Settings = lazy(() => import('./components/Settings').then(({ Settings }) => ({ default: Settings })));
+const BrazilianConversation = lazy(() => import('./components/BrazilianConversation').then(({ BrazilianConversation }) => ({ default: BrazilianConversation })));
+const BrazilianQuiz = lazy(() => import('./components/BrazilianQuiz').then(({ BrazilianQuiz }) => ({ default: BrazilianQuiz })));
+const BrazilianGames = lazy(() => import('./components/BrazilianGames').then(({ BrazilianGames }) => ({ default: BrazilianGames })));
+const BrazilianTradutor = lazy(() => import('./components/BrazilianTradutor').then(({ BrazilianTradutor }) => ({ default: BrazilianTradutor })));
+const BiaCompare = lazy(() => import('./components/BiaCompare').then(({ BiaCompare }) => ({ default: BiaCompare })));
+const YouTubeHub = lazy(() => import('./components/YouTubeHub').then(({ YouTubeHub }) => ({ default: YouTubeHub })));
+const BrazilianPractice = lazy(() => import('./components/BrazilianPractice').then(({ BrazilianPractice }) => ({ default: BrazilianPractice })));
+const BrazilianStories = lazy(() => import('./components/BrazilianStories').then(({ BrazilianStories }) => ({ default: BrazilianStories })));
+const BrazilianHQ = lazy(() => import('./components/BrazilianHQ').then(({ BrazilianHQ }) => ({ default: BrazilianHQ })));
+const BrazilianFriends = lazy(() => import('./components/BrazilianFriends').then(({ BrazilianFriends }) => ({ default: BrazilianFriends })));
+const StreamStudio = lazy(() => import('./components/StreamStudio').then(({ StreamStudio }) => ({ default: StreamStudio })));
+const AdminSettings = lazy(() => import('./components/AdminSettings').then(({ AdminSettings }) => ({ default: AdminSettings })));
+const AdminFeedbackPanel = lazy(() => import('./components/AdminFeedbackPanel').then(({ AdminFeedbackPanel }) => ({ default: AdminFeedbackPanel })));
+const StudentFeedback = lazy(() => import('./components/StudentFeedback').then(({ StudentFeedback }) => ({ default: StudentFeedback })));
 import { DEFAULT_YOUTUBE_LIBRARY, type YouTubeLibraryItem } from './youtubeLibrary';
 import { StoryRecordingBar } from './components/StoryRecordingBar';
 import { StudentFeedbackNotifications } from './components/StudentFeedbackNotifications';
@@ -1450,6 +1450,7 @@ export default function App() {
               >
                 <ErrorBoundary fallbackTitle="Erro ao carregar este módulo">
                   <PageReveal enabled={settings.animOn} glassSkin={['quiz', 'conversation', 'tradutor', 'youtube', 'biacompare', 'board', 'dashboard', 'admin_settings', 'feedback', 'settings'].includes(currentApp)}>
+                  <Suspense fallback={<div className="flex min-h-64 items-center justify-center text-sm text-white/70">Carregando módulo...</div>}>
                   {/* HOME TAB - Accessible to all authenticated users */}
                   {currentApp === 'home' && (
                     <Home
@@ -1641,17 +1642,21 @@ export default function App() {
                     <BrazilianConversation accentColor={settings.accentColor} />
                   )}
 
-                  {currentApp === 'youtube' && (
+                  {(currentApp === 'youtube' || currentApp === 'studytime') && (
                     isYoutubeLibraryLoaded
                       ? (
                         <YouTubeHub
                           accentColor={settings.accentColor}
-                          canEdit={effectiveIsAdmin}
+                          displayMode={currentApp === 'studytime' ? 'study' : 'music'}
+                          canEdit={currentApp === 'youtube'
+                            ? effectiveIsAdmin || (isSubscriptionActive && (currentUser?.role === 'student' || isStudentPreviewMode))
+                            : effectiveIsAdmin}
+                          canDelete={effectiveIsAdmin}
                           onLibraryUpdate={handleUpdateYouTubeLibrary}
                           initialLibrary={youtubeLibrary}
                         />
                       )
-                      : <div className="flex min-h-64 items-center justify-center text-sm text-white/70">Carregando <span className="notranslate" translate="no">Brazilian Music</span>...</div>
+                      : <div className="flex min-h-64 items-center justify-center text-sm text-white/70">Carregando <span className="notranslate" translate="no">{currentApp === 'studytime' ? 'Study Time' : 'Brazilian Music'}</span>...</div>
                   )}
 
                   {currentApp === 'practice' && (
@@ -1673,6 +1678,7 @@ export default function App() {
                       accentColor={settings.accentColor}
                     />
                   )}
+                  </Suspense>
                   </PageReveal>
                 </ErrorBoundary>
               </motion.div>
@@ -1690,11 +1696,13 @@ export default function App() {
                 exit={{ opacity: 0, scale: 0.95, y: 15 }}
                 className="bg-slate-950/50 border border-white/25 backdrop-blur-2xl rounded-3xl w-full max-w-5xl max-h-[90vh] overflow-y-auto shadow-2xl relative p-2 sm:p-4 my-auto"
               >
-                <BrazilianTradutor
-                  accentColor={settings.accentColor}
-                  isModal={true}
-                  onCloseModal={() => setQuickTradutorModalOpen(false)}
-                />
+                <Suspense fallback={<div className="flex min-h-64 items-center justify-center text-sm text-white/70">Carregando tradutor...</div>}>
+                  <BrazilianTradutor
+                    accentColor={settings.accentColor}
+                    isModal={true}
+                    onCloseModal={() => setQuickTradutorModalOpen(false)}
+                  />
+                </Suspense>
               </motion.div>
             </div>
           )}
