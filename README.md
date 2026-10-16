@@ -25,7 +25,9 @@ O checkout Pix depende tambem das funcoes de cadastro, resgate de cupom e ativac
 
 Para permitir que o CEO altere status ou conceda dias pelo painel, execute tambem [`supabase/admin_manage_subscription.sql`](./supabase/admin_manage_subscription.sql) uma vez no SQL Editor. A funcao e acessivel somente ao servidor com Service Role; as alteracoes atualizam juntas a assinatura e o perfil do mesmo aluno.
 
-Configure `ABACATEPAY_WEBHOOK_HMAC_KEY` como segredo privado no Render com a chave de assinatura de webhook fornecida pela AbacatePay, alem de `ABACATEPAY_WEBHOOK_SECRET`. Nao reutilize nem publique uma chave que ja tenha aparecido no codigo; se uma chave anterior foi usada no provedor, troque-a por uma nova antes de lancar. Sem a chave HMAC configurada, o servidor rejeita webhooks de pagamento em vez de confiar neles.
+No painel CEO > Assinantes, a liberacao manual permite informar o e-mail exato de uma conta de aluno ja cadastrada e, apos confirmacao, adicionar 30 dias a assinatura. Confira o pagamento no provedor antes de confirmar. A funcao SQL acima precisa estar instalada; se a API retornar erro ao salvar, verifique os logs do Render e a instalacao da funcao no Supabase. A busca tambem inclui assinantes pendentes e expirados.
+
+No painel da AbacatePay, cadastre a URL exibida em CEO > Pagamentos e Supabase, escolha o evento `transparent.completed` e configure um secret igual ao valor de `ABACATEPAY_WEBHOOK_SECRET` no Render. O servidor valida o secret da URL e a assinatura HMAC da AbacatePay. A chave publica oficial de assinatura HMAC esta incluida como padrao; `ABACATEPAY_WEBHOOK_HMAC_KEY` e um override opcional caso a AbacatePay altere essa chave. Nunca coloque a chave privada da API no frontend.
 
 As bibliotecas do Read Club e Brazilian Music atualizam os usuarios conectados em tempo real. Para habilitar os eventos instantaneos do Supabase, execute tambem [`supabase/shared_content_realtime.sql`](./supabase/shared_content_realtime.sql) no SQL Editor. Se a publicacao Realtime ainda nao estiver habilitada, o aplicativo verifica atualizacoes periodicamente como alternativa.
 

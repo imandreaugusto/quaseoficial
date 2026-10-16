@@ -10,8 +10,11 @@ import { randomUUID } from 'node:crypto';
 import dotenv from 'dotenv';
 import { validatePortuguesePhrase } from './src/lib/jevValidator';
 import {
+  ABACATEPAY_WEBHOOK_PUBLIC_KEY,
   abacatePayApiEndpoint,
   hasActiveSubscription,
+  isAbacatePayPaymentApprovedStatus,
+  isAbacatePayPaymentCompletedEvent,
   normalizeEmail,
   subscriptionPriceCents,
   verifyAbacatePaySignature,
@@ -390,11 +393,11 @@ async function startServer() {
 
     const responseData = await response.json() as any;
     const payment = responseData.data || responseData;
-    const status = String(payment.status || payment.paymentStatus || '').toLowerCase();
+    const status = String(payment.status || payment.paymentStatus || '');
     return {
       id: String(payment.id || paymentId),
       status,
-      isApproved: ['approved', 'paid', 'completed', 'confirmed'].includes(status),
+      isApproved: isAbacatePayPaymentApprovedStatus(status),
       eventId: String(payment.eventId || payment.event_id || '') || null
     };
   };
@@ -2107,13 +2110,17 @@ async function startServer() {
       const webhookSecretValid = [process.env.ABATEPAY_WEBHOOK_SECRET, process.env.ABACATEPAY_WEBHOOK_SECRET]
         .some((secret) => verifyWebhookSecret(providedWebhookSecret, secret));
       const rawBody = (req as express.Request & { rawBody?: Buffer }).rawBody;
-      const webhookHmacKey = process.env.ABACATEPAY_WEBHOOK_HMAC_KEY;
+      const webhookHmacKey = process.env.ABACATEPAY_WEBHOOK_HMAC_KEY || ABACATEPAY_WEBHOOK_PUBLIC_KEY;
       if (!webhookSecretValid
         || !verifyAbacatePaySignature(rawBody, req.header('X-Webhook-Signature'), webhookHmacKey)) {
         return res.status(401).json({ error: 'Assinatura do webhook inválida.' });
       }
 
-      const paymentId = String(payload.data?.id || payload.payment?.id || payload.id || '');
+      if (!isAbacatePayPaymentCompletedEvent(payload?.event)) {
+        return res.status(200).json({ received: true, ignored: true });
+      }
+
+      const paymentId = String(payload.data?.id || payload.payment?.id || '');
       if (!paymentId) return res.status(400).json({ error: 'Webhook sem identificador de cobrança.' });
 
       const intentResponse = await supabaseServiceRequest(
@@ -2123,16 +2130,14 @@ async function startServer() {
       const intents = await intentResponse.json() as { payment_id: string; status: string }[];
       if (!intents[0]) return res.status(404).json({ error: 'Cobrança não registrada.' });
 
-      const paymentStatus = await getAbatePayPaymentStatus(paymentId);
-      if (paymentStatus.isApproved) {
-        const eventId = String(payload.eventId || payload.event_id || payload.event?.id || '') || null;
-        const activation = await activateRegisteredPayment(paymentId, eventId);
-        if (!activation.ok) throw new Error(activation.reason || 'Payment activation failed.');
-      }
+      const eventId = String(payload.id || payload.eventId || payload.event_id || '') || null;
+      const activation = await activateRegisteredPayment(paymentId, eventId);
+      if (!activation.ok) throw new Error(activation.reason || 'Payment activation failed.');
       return res.status(200).json({
         received: true,
         success: true,
-        isApproved: paymentStatus.isApproved
+        isApproved: true,
+        duplicate: activation.duplicate === true
       });
     } catch (error: any) {
       console.error('Payment webhook processing failed:', error.message);

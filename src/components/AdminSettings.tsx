@@ -172,6 +172,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   const [ceoMessage, setCeoMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [previewReceiptImage, setPreviewReceiptImage] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [manualGrantEmail, setManualGrantEmail] = useState('');
   const [copiedCouponId, setCopiedCouponId] = useState<string | null>(null);
   const [couponManagementMessage, setCouponManagementMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [isManagingCoupons, setIsManagingCoupons] = useState(false);
@@ -754,7 +755,8 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   // Change user status (active / expired / pending)
   const saveSubscriberSubscription = async (
     userId: string,
-    update: { days: number } | { status: 'active' | 'pending' | 'expired' }
+    update: { days: number } | { status: 'active' | 'pending' | 'expired' },
+    successMessage = 'Assinatura salva no servidor.'
   ) => {
     if (!isMainCeo) return;
     setSavingSubscriberId(userId);
@@ -769,7 +771,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
       setUsers(updatedUsers);
       localStorage.setItem('bia_admin_subscribers_cache', JSON.stringify(updatedUsers));
       setSubscriberActionMessage({
-        text: 'Assinatura salva no servidor.',
+        text: successMessage,
         error: false
       });
       onRefreshUsers?.();
@@ -792,6 +794,41 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
 
   const handleAddDaysToStudent = (userId: string, daysToAdd: number) => {
     void saveSubscriberSubscription(userId, { days: daysToAdd });
+  };
+
+  const handleManualGrantByEmail = () => {
+    const email = manualGrantEmail.trim().toLowerCase();
+    if (!isValidEmailFormat(email)) {
+      setSubscriberActionMessage({ text: 'Informe um endereço de e-mail válido.', error: true });
+      return;
+    }
+
+    const matches = subscriberUsers.filter((student) => student.email.trim().toLowerCase() === email);
+    if (matches.length === 0) {
+      setSubscriberActionMessage({
+        text: 'Nenhuma conta de aluno cadastrada corresponde exatamente a esse e-mail. Peça à pessoa para criar a conta primeiro.',
+        error: true
+      });
+      return;
+    }
+    if (matches.length > 1) {
+      setSubscriberActionMessage({
+        text: 'Há mais de uma conta com esse e-mail. Atualize a lista e resolva a duplicidade antes de liberar o acesso.',
+        error: true
+      });
+      return;
+    }
+
+    const student = matches[0];
+    if (!window.confirm(`Confirma adicionar 30 dias de acesso para ${student.full_name || student.email} (${student.email})?`)) {
+      return;
+    }
+
+    void saveSubscriberSubscription(
+      student.auth_user_id || student.id,
+      { days: 30 },
+      `30 dias de acesso foram adicionados à conta ${student.email}.`
+    );
   };
 
   const handleSaveAppConfigDraft = (newConfig: GlobalAppConfig) => {
@@ -904,7 +941,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
       u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (u.full_name && u.full_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (u.ip_city && u.ip_city.toLowerCase().includes(searchTerm.toLowerCase()));
-    return matchSearch && isActiveSubscription(u.status, u.data_expiracao);
+    return matchSearch;
   });
 
   const activeStudentsCount = subscriberUsers.filter((u) =>
@@ -1198,6 +1235,54 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
       {/* TAB 1: GERENCIAMENTO DE ALUNOS & TELEMETRIA & ACCORDIONS */}
       {activeTab === 'students' && (
         <div className="space-y-6">
+          {isMainCeo && (
+            <form
+              className="glass-card rounded-2xl border border-emerald-500/25 bg-emerald-950/10 p-4 sm:p-5"
+              onSubmit={(event) => {
+                event.preventDefault();
+                handleManualGrantByEmail();
+              }}
+            >
+              <label htmlFor="manual-subscription-email" className="block text-sm font-bold text-white">
+                Liberação manual de acesso
+              </label>
+              <p className="mt-1 text-xs text-white/55">
+                Informe o e-mail exato de uma conta já cadastrada para adicionar 30 dias. Confira o pagamento antes de confirmar.
+              </p>
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                <input
+                  id="manual-subscription-email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={manualGrantEmail}
+                  onChange={(event) => setManualGrantEmail(event.target.value)}
+                  placeholder="email@exemplo.com"
+                  className="min-w-0 flex-1 rounded-xl border border-white/15 bg-black/30 px-3 py-2.5 text-sm text-white outline-none placeholder:text-white/35 focus:border-emerald-400/60"
+                />
+                <button
+                  type="submit"
+                  disabled={!isMainCeo || savingSubscriberId !== null || isLoadingSubscribers}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-400/40 bg-emerald-500/20 px-4 py-2.5 text-sm font-bold text-emerald-200 transition hover:bg-emerald-500/30 disabled:cursor-wait disabled:opacity-50"
+                >
+                  <Plus size={16} />
+                  Adicionar 30 dias
+                </button>
+              </div>
+            </form>
+          )}
+          {subscriberActionMessage && (
+            <div
+              role={subscriberActionMessage.error ? 'alert' : 'status'}
+              className={`rounded-xl border px-4 py-3 text-sm ${
+                subscriberActionMessage.error
+                  ? 'border-red-400/30 bg-red-500/10 text-red-100'
+                  : 'border-emerald-400/30 bg-emerald-500/10 text-emerald-100'
+              }`}
+            >
+              {subscriberActionMessage.text}
+            </div>
+          )}
           {/* Summary Metrics Bar */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="glass-card p-4 rounded-2xl border border-white/10">
@@ -1239,9 +1324,15 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
 
           {/* Collapsible Accordion Sections for Students */}
           {(() => {
-            const activeList = filteredUsers;
-            const pendingList: UserProfile[] = [];
-            const expiredList: UserProfile[] = [];
+            const activeList = filteredUsers.filter((student) =>
+              isActiveSubscription(student.status, student.data_expiracao)
+            );
+            const pendingList = filteredUsers.filter((student) =>
+              getEffectiveSubscriptionStatus(student.status, student.data_expiracao) === 'pending'
+            );
+            const expiredList = filteredUsers.filter((student) =>
+              getEffectiveSubscriptionStatus(student.status, student.data_expiracao) === 'expired'
+            );
 
             const renderStudentCard = (student: UserProfile) => {
               const studentStatus = getEffectiveSubscriptionStatus(student.status, student.data_expiracao);
@@ -1485,7 +1576,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
             if (filteredUsers.length === 0) {
               return (
                 <div className="glass-card p-8 rounded-2xl text-center text-xs text-white/50">
-                  Nenhum assinante ativo (pagante ou por cupom) corresponde à busca.
+                  Nenhum assinante corresponde à busca.
                 </div>
               );
             }
@@ -1536,7 +1627,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                   )}
                 </div>
 
-                {false && (<>{/* 2. ACCORDION: PENDENTES (AGUARDANDO PIX) */}
+                {/* 2. ACCORDION: PENDENTES (AGUARDANDO PIX) */}
                 <div className="glass-card rounded-2xl border border-amber-500/30 overflow-hidden shadow-lg transition-all">
                   <button
                     type="button"
@@ -1579,9 +1670,8 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                     </div>
                   )}
                 </div>
-                </>)}
 
-                {false && (<>{/* 3. ACCORDION: EXPIRADOS */}
+                {/* 3. ACCORDION: EXPIRADOS */}
                 <div className="glass-card rounded-2xl border border-red-500/30 overflow-hidden shadow-lg transition-all">
                   <button
                     type="button"
@@ -1624,7 +1714,6 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                     </div>
                   )}
                 </div>
-                </>)}
               </div>
             );
           })()}
@@ -2141,7 +2230,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white/60 font-mono"
                 />
                 <span className="text-[10px] text-white/40 mt-1 block">
-                  Cadastre essa URL no painel da AbatePay. O token fica no arquivo .env do servidor e não deve ser colado aqui.
+                  No painel da AbacatePay, cadastre esta URL e habilite o evento transparent.completed. Configure o secret do webhook com o mesmo valor de ABACATEPAY_WEBHOOK_SECRET no Render. A chave da API permanece somente no servidor.
                 </span>
               </div>
             </div>

@@ -2,8 +2,11 @@ import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
 import test from 'node:test';
 import {
+  ABACATEPAY_WEBHOOK_PUBLIC_KEY,
   abacatePayApiEndpoint,
   hasActiveSubscription,
+  isAbacatePayPaymentApprovedStatus,
+  isAbacatePayPaymentCompletedEvent,
   normalizeEmail,
   subscriptionPriceCents,
   verifyAbacatePaySignature,
@@ -36,6 +39,27 @@ test('validates the AbacatePay HMAC against the exact raw body', () => {
   assert.equal(verifyAbacatePaySignature(Buffer.from(`${body.toString()} `), signature, 'test-public-key'), false);
   assert.equal(verifyAbacatePaySignature(body, undefined, 'test-public-key'), false);
   assert.equal(verifyAbacatePaySignature(body, signature, undefined), false);
+});
+
+test('uses the documented AbacatePay webhook signing key when no override is configured', () => {
+  const body = Buffer.from('{"event":"transparent.completed"}');
+  const signature = createHmac('sha256', ABACATEPAY_WEBHOOK_PUBLIC_KEY).update(body).digest('base64');
+
+  assert.equal(verifyAbacatePaySignature(body, signature, ABACATEPAY_WEBHOOK_PUBLIC_KEY), true);
+});
+
+test('recognizes AbacatePay PIX paid status values', () => {
+  assert.equal(isAbacatePayPaymentApprovedStatus('PAID'), true);
+  assert.equal(isAbacatePayPaymentApprovedStatus(' approved '), true);
+  assert.equal(isAbacatePayPaymentApprovedStatus('PENDING'), false);
+  assert.equal(isAbacatePayPaymentApprovedStatus(null), false);
+});
+
+test('activates only completed transparent payment webhook events', () => {
+  assert.equal(isAbacatePayPaymentCompletedEvent('transparent.completed'), true);
+  assert.equal(isAbacatePayPaymentCompletedEvent('TRANSPARENT.COMPLETED'), true);
+  assert.equal(isAbacatePayPaymentCompletedEvent('transparent.refunded'), false);
+  assert.equal(isAbacatePayPaymentCompletedEvent(undefined), false);
 });
 
 test('allows platform access only for active, unexpired subscriptions', () => {
