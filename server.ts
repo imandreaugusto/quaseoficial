@@ -2111,9 +2111,15 @@ async function startServer() {
       const webhookSecretValid = [process.env.ABATEPAY_WEBHOOK_SECRET, process.env.ABACATEPAY_WEBHOOK_SECRET]
         .some((secret) => verifyWebhookSecret(providedWebhookSecret, secret));
       const rawBody = (req as express.Request & { rawBody?: Buffer }).rawBody;
-      const webhookHmacKey = process.env.ABACATEPAY_WEBHOOK_HMAC_KEY || ABACATEPAY_WEBHOOK_PUBLIC_KEY;
-      if (!webhookSecretValid
-        || !verifyAbacatePaySignature(rawBody, req.header('X-Webhook-Signature'), webhookHmacKey)) {
+      const webhookSignature = req.header('X-Webhook-Signature');
+      const webhookHmacValid = [
+        process.env.ABACATEPAY_WEBHOOK_HMAC_KEY,
+        ABACATEPAY_WEBHOOK_PUBLIC_KEY
+      ].some((key) => verifyAbacatePaySignature(rawBody, webhookSignature, key));
+      if (!webhookSecretValid || !webhookHmacValid) {
+        console.warn(
+          `Payment webhook rejected: ${!webhookSecretValid ? 'URL secret mismatch' : 'HMAC signature mismatch'}.`
+        );
         return res.status(401).json({ error: 'Assinatura do webhook inválida.' });
       }
 
