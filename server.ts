@@ -13,6 +13,7 @@ import {
   ABACATEPAY_WEBHOOK_PUBLIC_KEY,
   abacatePayApiEndpoint,
   hasActiveSubscription,
+  getAbacatePayPaymentId,
   isAbacatePayPaymentApprovedStatus,
   isAbacatePayPaymentCompletedEvent,
   normalizeEmail,
@@ -2120,7 +2121,7 @@ async function startServer() {
         return res.status(200).json({ received: true, ignored: true });
       }
 
-      const paymentId = String(payload.data?.id || payload.payment?.id || '');
+      const paymentId = getAbacatePayPaymentId(payload);
       if (!paymentId) return res.status(400).json({ error: 'Webhook sem identificador de cobrança.' });
 
       const intentResponse = await supabaseServiceRequest(

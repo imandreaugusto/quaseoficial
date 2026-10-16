@@ -23,6 +23,24 @@ export const isAbacatePayPaymentApprovedStatus = (status: unknown): boolean =>
 export const isAbacatePayPaymentCompletedEvent = (event: unknown): boolean =>
   typeof event === 'string' && event.trim().toLowerCase() === 'transparent.completed';
 
+export const getAbacatePayPaymentId = (payload: unknown): string => {
+  if (!payload || typeof payload !== 'object') return '';
+  const root = payload as Record<string, unknown>;
+  const data = root.data && typeof root.data === 'object'
+    ? root.data as Record<string, unknown>
+    : null;
+  const transparent = data?.transparent && typeof data.transparent === 'object'
+    ? data.transparent as Record<string, unknown>
+    : null;
+  const payment = root.payment && typeof root.payment === 'object'
+    ? root.payment as Record<string, unknown>
+    : null;
+  const candidates = [transparent?.id, data?.id, payment?.id, root.id];
+  return candidates.find((candidate): candidate is string =>
+    typeof candidate === 'string' && candidate.trim().length > 0
+  )?.trim() || '';
+};
+
 export const subscriptionPriceCents = (rawValue: string | undefined): number => {
   const amount = rawValue === undefined || rawValue.trim() === '' ? 10 : Number(rawValue);
   if (!Number.isFinite(amount) || amount <= 0 || amount > 10000) {

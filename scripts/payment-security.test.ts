@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   ABACATEPAY_WEBHOOK_PUBLIC_KEY,
   abacatePayApiEndpoint,
+  getAbacatePayPaymentId,
   hasActiveSubscription,
   isAbacatePayPaymentApprovedStatus,
   isAbacatePayPaymentCompletedEvent,
@@ -60,6 +61,25 @@ test('activates only completed transparent payment webhook events', () => {
   assert.equal(isAbacatePayPaymentCompletedEvent('TRANSPARENT.COMPLETED'), true);
   assert.equal(isAbacatePayPaymentCompletedEvent('transparent.refunded'), false);
   assert.equal(isAbacatePayPaymentCompletedEvent(undefined), false);
+});
+
+test('extracts the PIX payment ID from the AbacatePay v2 webhook payload', () => {
+  assert.equal(
+    getAbacatePayPaymentId({
+      event: 'transparent.completed',
+      apiVersion: 2,
+      data: {
+        transparent: {
+          id: 'pix_char_G2SRrUtmeacYWu0FmwWBHZMC',
+          status: 'PAID'
+        }
+      }
+    }),
+    'pix_char_G2SRrUtmeacYWu0FmwWBHZMC'
+  );
+  assert.equal(getAbacatePayPaymentId({ data: { id: 'pix_flat' } }), 'pix_flat');
+  assert.equal(getAbacatePayPaymentId({ payment: { id: 'pix_payment' } }), 'pix_payment');
+  assert.equal(getAbacatePayPaymentId({ event: 'transparent.completed', data: {} }), '');
 });
 
 test('allows platform access only for active, unexpired subscriptions', () => {
