@@ -31,8 +31,8 @@ begin
   into target_profile
   from public.profiles
   where role = 'student'
-    and (id = p_user_id or auth_user_id = p_user_id)
-  order by case when auth_user_id = p_user_id then 0 else 1 end
+    and (id::text = p_user_id or auth_user_id::text = p_user_id)
+  order by case when auth_user_id::text = p_user_id then 0 else 1 end
   limit 1
   for update;
 
@@ -72,7 +72,7 @@ begin
   subscription_user_id := coalesce(
     nullif(target_profile.auth_user_id, ''),
     nullif(subscription_user_id, ''),
-    target_profile.id
+    target_profile.id::text
   );
 
   insert into public.bia_subscription_profiles (
