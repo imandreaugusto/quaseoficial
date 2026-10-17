@@ -3153,8 +3153,19 @@ Return ONLY a JSON object strictly following the schema.`;
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
+    app.use(express.static(distPath, {
+      setHeaders: (res, filePath) => {
+        if (path.extname(filePath) === '.html') {
+          res.setHeader('Cache-Control', 'no-store, must-revalidate');
+        } else if (/[\\/]assets[\\/].+-[A-Za-z0-9_-]{8,}\./.test(filePath)) {
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        } else {
+          res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+        }
+      },
+    }));
     app.get('*', (req, res) => {
+      res.setHeader('Cache-Control', 'no-store, must-revalidate');
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }

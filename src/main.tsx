@@ -7,6 +7,23 @@ import { apiFetch } from './lib/api';
 import { getSupabaseConfig } from './utils/supabaseClient';
 import './index.css';
 
+const PRELOAD_RECOVERY_KEY = 'bia-vite-preload-recovery';
+const PRELOAD_RECOVERY_COOLDOWN_MS = 30_000;
+
+window.addEventListener('vite:preloadError', (event) => {
+  try {
+    const now = Date.now();
+    const lastRecovery = Number(sessionStorage.getItem(PRELOAD_RECOVERY_KEY));
+    if (Number.isFinite(lastRecovery) && now - lastRecovery < PRELOAD_RECOVERY_COOLDOWN_MS) return;
+
+    sessionStorage.setItem(PRELOAD_RECOVERY_KEY, String(now));
+    event.preventDefault();
+    window.location.reload();
+  } catch (error) {
+    console.error('Could not automatically recover from a stale application module:', error);
+  }
+});
+
 const renderApplication = () => {
   const legal = new URLSearchParams(window.location.search).get('legal');
   const initialView = legal === 'terms' || legal === 'privacy'
@@ -61,4 +78,3 @@ const loadRuntimeSupabaseConfig = async () => {
 void loadRuntimeSupabaseConfig().then((redirecting) => {
   if (!redirecting) renderApplication();
 }, () => renderApplication());
-
