@@ -34,6 +34,7 @@ import { PageReveal } from './components/PageReveal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { BrazilianLogo } from './components/BrazilianLogo';
 import { CleanStudentStage } from './components/CleanStudentStage';
+import { SiteLegalFooter } from './components/SiteLegalFooter';
 import { ClassItem, ExpenseItem, AppSettings, StoryItem, ReadSession, GlossaryEntry, UserProfile } from './types';
 import { INITIAL_READ_LIBRARY, SLIDESHOW_IMAGES, US_LANDMARKS } from './data';
 import { formatLyricsLibrary, formatStoryLibrary } from './lib/storyFormatting';
@@ -1685,6 +1686,11 @@ export default function App() {
             </AnimatePresence>
           )}
         </main>
+        {currentUser && isSubscriptionActive && (
+          <div className="relative z-10 mx-auto w-full max-w-7xl px-3 pb-3">
+            <SiteLegalFooter />
+          </div>
+        )}
 
         {/* QUICK TRADUTOR MODAL (ACCESSIBLE FROM ANY APP) */}
         <AnimatePresence>
