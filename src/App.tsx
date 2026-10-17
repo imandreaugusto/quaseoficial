@@ -113,7 +113,7 @@ const LandmarkControlsWidget: React.FC<{
       animate={{ opacity: 1, y: 0, right: 'clamp(0.75rem, 2vw, 2rem)' }}
       transition={{ type: 'spring', damping: 25, stiffness: 240 }}
       style={{ position: 'fixed', right: 'clamp(0.75rem, 2vw, 2rem)', bottom: '12px', zIndex: 2500 }}
-      className="select-none text-right flex items-center gap-2 p-1.5 px-3 rounded-2xl"
+      className="select-none flex max-w-[min(90vw,44rem)] flex-col items-end gap-1 p-1.5 px-3 text-right"
     >
       <AnimatePresence mode="wait">
         <motion.div
@@ -130,6 +130,29 @@ const LandmarkControlsWidget: React.FC<{
           </span>
         </motion.div>
       </AnimatePresence>
+      {US_LANDMARKS[bgIndex]?.attribution && (
+        <div className="flex flex-wrap justify-end gap-x-1 text-[9px] leading-tight text-white/75 drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)]">
+          <span>Foto:</span>
+          <a
+            href={US_LANDMARKS[bgIndex].attribution.sourceUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-2 hover:text-white"
+          >
+            {US_LANDMARKS[bgIndex].attribution.author}
+          </a>
+          <span>·</span>
+          <a
+            href={US_LANDMARKS[bgIndex].attribution.licenseUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-2 hover:text-white"
+          >
+            {US_LANDMARKS[bgIndex].attribution.licenseName}
+          </a>
+          <span>· {US_LANDMARKS[bgIndex].attribution.modification}</span>
+        </div>
+      )}
     </motion.div>
   );
 };

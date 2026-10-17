@@ -429,6 +429,7 @@ async function startServer() {
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     const practiceMediaOrigins = [
       '"https://episoden.com"',
+      '"https://www.episoden.com"',
       '"https://www.free4talk.com"',
       '"https://web.hellotalk.com"',
       '"https://www.hilokal.com"',

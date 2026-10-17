@@ -256,66 +256,40 @@ The singer describes themselves as a "dreamer", hoping others will join.`
   }
 ];
 
-export const US_LANDMARKS = [
+type LandmarkAttribution = {
+  author: string;
+  sourceUrl: string;
+  licenseName: string;
+  licenseUrl: string;
+  modification: string;
+};
+
+type USLandmark = {
+  name: string;
+  url: string;
+  attribution?: LandmarkAttribution;
+};
+
+export const US_LANDMARKS: USLandmark[] = [
   {
     name: "National Mall, Washington, D.C.",
     url: "https://images.unsplash.com/photo-1501466044931-62695aada8e9?q=85&w=3840&auto=format&fit=crop"
   },
   {
     name: "Manhattan, New York, NY",
-    url: "https://upload.wikimedia.org/wikipedia/commons/7/7e/Skyline_of_Manhattan.jpg"
-  },
-  {
-    name: "Central Park, New York, NY",
-    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0a/Central_Park_New_York_City_New_York_23_cropped.jpg/3840px-Central_Park_New_York_City_New_York_23_cropped.jpg"
+    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7e/Skyline_of_Manhattan.jpg/3840px-Skyline_of_Manhattan.jpg"
   },
   {
     name: "Brooklyn Bridge, New York, NY",
     url: "https://images.unsplash.com/photo-1518235506717-e1ed3306a89b?q=85&w=3840&auto=format&fit=crop"
   },
   {
-    name: "Chicago, Illinois",
-    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1f/Downtown_Chicago_at_night_%28August_11%2C_1956%29.jpg/3840px-Downtown_Chicago_at_night_%28August_11%2C_1956%29.jpg"
-  },
-  {
-    name: "Golden Gate Bridge, San Francisco, CA",
-    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/93/Crissy_Field_beach_and_Golden_Gate_Bridge.jpg/3840px-Crissy_Field_beach_and_Golden_Gate_Bridge.jpg"
-  },
-  {
-    name: "Yosemite National Park, California",
-    url: "https://upload.wikimedia.org/wikipedia/commons/a/af/Yosemite_-_Tunnel_View.jpg"
-  },
-  {
     name: "Grand Canyon National Park, AZ",
     url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/12/Grand_Canyon_South_Rim_at_Sunset.jpg/3840px-Grand_Canyon_South_Rim_at_Sunset.jpg"
   },
   {
-    name: "Niagara Falls, New York",
-    url: "https://upload.wikimedia.org/wikipedia/commons/6/66/Niagara_Falls_seen_from_Skylon_tower.jpg"
-  },
-  {
     name: "Seattle, Washington",
     url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3a/Seattle_Skyline-.jpg/3840px-Seattle_Skyline-.jpg"
-  },
-  {
-    name: "Boston, Massachusetts",
-    url: "https://images.unsplash.com/photo-1541872703-74c5e44368f9?q=85&w=3840&auto=format&fit=crop"
-  },
-  {
-    name: "Hawaii coastline",
-    url: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=85&w=3840&auto=format&fit=crop"
-  },
-  {
-    name: "Las Vegas, Nevada",
-    url: "https://images.unsplash.com/photo-1581351721010-8cf859cb14a4?q=85&w=3840&auto=format&fit=crop"
-  },
-  {
-    name: "Denver and the Rocky Mountains, Colorado",
-    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4c/Denver_Skyline_%284801%29.jpg/3840px-Denver_Skyline_%284801%29.jpg"
-  },
-  {
-    name: "Lake Tahoe, California/Nevada",
-    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e8/Emerald_Bay%2C_Lake_Tahoe%2C_California._2015.jpg/3840px-Emerald_Bay%2C_Lake_Tahoe%2C_California._2015.jpg"
   },
   {
     name: "Miami, Florida",
@@ -326,8 +300,56 @@ export const US_LANDMARKS = [
     url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6b/Monument_Valley_Arizona_Panoramic.jpg/3840px-Monument_Valley_Arizona_Panoramic.jpg"
   },
   {
-    name: "Great Smoky Mountains, Tennessee/North Carolina",
-    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3a/Clifftops4-7-07.jpg/3840px-Clifftops4-7-07.jpg"
+    name: "Chicago, Illinois",
+    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8e/Skyline_de_Chicago_desde_el_centro%2C_Illinois%2C_Estados_Unidos%2C_2012-10-20%2C_DD_06.jpg/3840px-Skyline_de_Chicago_desde_el_centro%2C_Illinois%2C_Estados_Unidos%2C_2012-10-20%2C_DD_06.jpg",
+    attribution: {
+      author: "Diego Delso",
+      sourceUrl: "https://commons.wikimedia.org/wiki/File:Skyline_de_Chicago_desde_el_centro,_Illinois,_Estados_Unidos,_2012-10-20,_DD_06.jpg",
+      licenseName: "CC BY-SA 3.0",
+      licenseUrl: "https://creativecommons.org/licenses/by-sa/3.0",
+      modification: "Redimensionada para o slideshow"
+    }
+  },
+  {
+    name: "Times Square ao pôr do sol, New York, NY",
+    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/53/Sunset_at_Times_Square%2C_New_York_City_%282017%29.jpg/3840px-Sunset_at_Times_Square%2C_New_York_City_%282017%29.jpg"
+  },
+  {
+    name: "Chicago skyline",
+    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b8/Chicago_Skyline_%283195688409%29.jpg/3840px-Chicago_Skyline_%283195688409%29.jpg",
+    attribution: {
+      author: "Bryce Edwards",
+      sourceUrl: "https://commons.wikimedia.org/wiki/File:Chicago_Skyline_(3195688409).jpg",
+      licenseName: "CC BY 2.0",
+      licenseUrl: "https://creativecommons.org/licenses/by/2.0",
+      modification: "Redimensionada para o slideshow"
+    }
+  },
+  {
+    name: "Litoral do Lago Michigan e Chicago",
+    url: "https://upload.wikimedia.org/wikipedia/commons/5/52/LAKE_MICHIGAN_SHORELINE_WITH_A_MARINA_AND_PART_OF_THE_CHICAGO_SKYLINE_IN_THE_BACKGROUND._THE_CITY_HAS_THREE_OF_THE..._-_NARA_-_556189.jpg"
+  },
+  {
+    name: "Philadelphia skyline",
+    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3d/Philadelphia_from_South_Street_Bridge_July_2016_panorama_1.jpg/3840px-Philadelphia_from_South_Street_Bridge_July_2016_panorama_1.jpg",
+    attribution: {
+      author: "King of Hearts",
+      sourceUrl: "https://commons.wikimedia.org/wiki/File:Philadelphia_from_South_Street_Bridge_July_2016_panorama_1.jpg",
+      licenseName: "CC BY-SA 3.0",
+      licenseUrl: "https://creativecommons.org/licenses/by-sa/3.0",
+      modification: "Redimensionada para o slideshow"
+    }
+  },
+  {
+    name: "Empire State Building ao entardecer, New York, NY",
+    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4d/Empire_State_Building_at_dusk_seen_from_Brooklyn_Bridge%2C_New_York_City.jpg/3840px-Empire_State_Building_at_dusk_seen_from_Brooklyn_Bridge%2C_New_York_City.jpg",
+    attribution: {
+      author: "Christian David",
+      sourceUrl: "https://commons.wikimedia.org/wiki/File:Empire_State_Building_at_dusk_seen_from_Brooklyn_Bridge,_New_York_City.jpg",
+      licenseName: "CC BY-SA 4.0",
+      licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0",
+      modification: "Redimensionada para o slideshow"
+    }
   }
 ];
 

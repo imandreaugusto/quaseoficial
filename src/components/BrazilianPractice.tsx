@@ -26,6 +26,7 @@ interface PracticePortal {
   tagline: string;
   description: string;
   url: string;
+  embeddingBlocked?: boolean;
   isFeatured?: boolean;
   format: '1-on-1 Vídeo' | 'Mesas de Áudio' | 'Salas Temáticas' | 'Troca de Voz';
   level: 'Todos os Níveis' | 'Iniciante ao Avançado' | 'Intermediário / Avançado';
@@ -44,7 +45,7 @@ const PRACTICE_PORTALS: PracticePortal[] = [
     category: 'Conversação 1-on-1 em Vídeo',
     tagline: 'Imersão global de 7 minutos por rodada com pessoas reais ao vivo',
     description: 'Nosso ambiente favorito de prática direta. Conecte-se instantaneamente por vídeo ou áudio em rodadas rápidas de 7 minutos com parceiros globais. O formato mais dinâmico para destravar a fala e perder a timidez.',
-    url: 'https://episoden.com',
+    url: 'https://www.episoden.com',
     isFeatured: true,
     format: '1-on-1 Vídeo',
     level: 'Todos os Níveis',
@@ -67,6 +68,7 @@ const PRACTICE_PORTALS: PracticePortal[] = [
     tagline: 'Salas temáticas de áudio divididas por níveis de proficiência',
     description: 'Espaço aberto 24 horas por dia com salas de bate-papo em grupo organizadas por nível de inglês (Qualquer nível, Intermediário, Avançado) ou tópicos como música, cinema e cultura.',
     url: 'https://www.free4talk.com',
+    embeddingBlocked: true,
     format: 'Mesas de Áudio',
     level: 'Iniciante ao Avançado',
     badge: 'Salas em Grupo',
@@ -88,6 +90,7 @@ const PRACTICE_PORTALS: PracticePortal[] = [
     tagline: 'Salas de áudio ao vivo com falantes nativos e estudantes do mundo todo',
     description: 'Acesse o ambiente de salas de voz ao vivo para conversar, tirar dúvidas sobre expressões culturais e praticar pronúncia com moderação amigável e correção mútua.',
     url: 'https://web.hellotalk.com',
+    embeddingBlocked: true,
     format: 'Troca de Voz',
     level: 'Iniciante ao Avançado',
     badge: 'Voz & Conexão',
@@ -184,7 +187,7 @@ export const BrazilianPractice: React.FC<BrazilianPracticeProps> = ({
   const [copiedPromptIdx, setCopiedPromptIdx] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!activePortal) return;
+    if (!activePortal || activePortal.embeddingBlocked) return;
 
     const timeout = window.setTimeout(() => setPortalLoadTimedOut(true), 12000);
     return () => window.clearTimeout(timeout);
@@ -213,7 +216,7 @@ export const BrazilianPractice: React.FC<BrazilianPracticeProps> = ({
   const openPortal = (portal: PracticePortal) => {
     setActivePortal(portal);
     setIsPortalExpanded(false);
-    setIsPortalLoading(true);
+    setIsPortalLoading(!portal.embeddingBlocked);
     setPortalLoadTimedOut(false);
   };
 
@@ -505,42 +508,47 @@ export const BrazilianPractice: React.FC<BrazilianPracticeProps> = ({
               </div>
 
               <div className="relative min-h-0 flex-1 bg-neutral-950">
-                <iframe
-                  key={activePortal.id}
-                  src={activePortal.url}
-                  title={activePortal.name}
-                  className="h-full w-full border-0 bg-neutral-950"
-                  allow="camera; microphone; autoplay; fullscreen; clipboard-read; clipboard-write; display-capture"
-                  allowFullScreen
-                  referrerPolicy="strict-origin-when-cross-origin"
-                  onLoad={() => {
-                    setIsPortalLoading(false);
-                    setPortalLoadTimedOut(false);
-                  }}
-                />
-                {isPortalLoading && (
-                  <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center p-3">
-                    <span className="rounded-full border border-white/15 bg-neutral-900/90 px-4 py-2 text-xs text-white/80 shadow-lg">
-                      Carregando {activePortal.name}…
-                    </span>
+                {activePortal.embeddingBlocked ? (
+                  <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
+                    <Globe size={32} className="text-amber-300" aria-hidden="true" />
+                    <h3 className="text-lg font-bold text-white">Este site bloqueia a abertura incorporada</h3>
+                    <p className="max-w-xl text-sm leading-relaxed text-white/70">
+                      {activePortal.name} envia uma política de segurança que só permite abrir o site dentro de páginas do próprio domínio. O navegador bloqueia a incorporação, e isso não pode ser corrigido pelo Brazilian Practice. Para que ele abra aqui dentro, os responsáveis pelo site precisam autorizar nossa plataforma.
+                    </p>
                   </div>
+                ) : (
+                  <>
+                    <iframe
+                      key={activePortal.id}
+                      src={activePortal.url}
+                      title={activePortal.name}
+                      className="h-full w-full border-0 bg-neutral-950"
+                      allow="camera; microphone; autoplay; fullscreen; clipboard-read; clipboard-write; display-capture"
+                      allowFullScreen
+                      referrerPolicy="strict-origin-when-cross-origin"
+                      onLoad={() => {
+                        setIsPortalLoading(false);
+                        setPortalLoadTimedOut(false);
+                      }}
+                    />
+                    {isPortalLoading && (
+                      <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center p-3">
+                        <span className="rounded-full border border-white/15 bg-neutral-900/90 px-4 py-2 text-xs text-white/80 shadow-lg">
+                          Carregando {activePortal.name}…
+                        </span>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 
-              <div className="flex shrink-0 flex-col gap-2 border-t border-white/10 bg-neutral-900/95 px-4 py-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex shrink-0 border-t border-white/10 bg-neutral-900/95 px-4 py-2">
                 <p className="text-[11px] text-white/55">
-                  O navegador ainda pedirá sua autorização para câmera e microfone. Se o site limitar o uso incorporado, abra-o em outra aba.
+                  {activePortal.embeddingBlocked
+                    ? 'Para abrir neste espaço, os responsáveis pelo portal precisam autorizar a incorporação.'
+                    : 'O navegador ainda pedirá sua autorização para câmera e microfone.'}
                   {portalLoadTimedOut && ' O carregamento está demorando mais que o esperado.'}
                 </p>
-                <a
-                  href={activePortal.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/80 transition hover:bg-white/10 hover:text-white"
-                >
-                  <ExternalLink size={13} />
-                  Abrir em nova aba
-                </a>
               </div>
             </motion.div>
           </motion.div>
