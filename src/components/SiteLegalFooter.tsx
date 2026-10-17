@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Info, Mail, MessageCircle, X } from 'lucide-react';
+import { US_LANDMARKS } from '../data';
 import { InstagramIcon, SOCIAL_LINKS, TikTokIcon, YouTubeIcon } from './SocialLinksBar';
 
 export const SiteLegalFooter: React.FC = () => {
@@ -38,7 +39,7 @@ export const SiteLegalFooter: React.FC = () => {
             role="dialog"
             aria-modal="true"
             aria-labelledby="site-info-title"
-            className="w-full max-w-sm rounded-2xl border border-white/15 bg-slate-950 p-5 text-white shadow-2xl"
+            className="max-h-[min(85dvh,48rem)] w-full max-w-lg overflow-y-auto rounded-2xl border border-white/15 bg-slate-950 p-5 text-white shadow-2xl"
           >
             <div className="mb-4 flex items-center justify-between">
               <h2 id="site-info-title" className="text-sm font-bold">Informações</h2>
@@ -77,6 +78,44 @@ export const SiteLegalFooter: React.FC = () => {
               <a className="rounded-xl px-3 py-2.5 text-white/80 transition hover:bg-white/10 hover:text-white" href="?legal=privacy">
                 Política de privacidade
               </a>
+              <details className="rounded-xl border border-white/10 px-3 py-2.5 text-white/80">
+                <summary className="cursor-pointer font-medium hover:text-white">
+                  Créditos das fotografias
+                </summary>
+                <ul className="mt-3 grid gap-3 text-xs leading-5 text-white/65">
+                  {US_LANDMARKS.map((landmark) => {
+                    if (!landmark.attribution) return null;
+
+                    return (
+                      <li key={landmark.url} className="border-t border-white/10 pt-3 first:border-0 first:pt-0">
+                        <p className="font-semibold text-white/85">{landmark.name}</p>
+                        <p>
+                          Foto de {landmark.attribution.author}.{' '}
+                          <a
+                            href={landmark.attribution.sourceUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="underline underline-offset-2 hover:text-white"
+                          >
+                            Origem
+                          </a>
+                          {' · '}
+                          <a
+                            href={landmark.attribution.licenseUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="underline underline-offset-2 hover:text-white"
+                          >
+                            {landmark.attribution.licenseName}
+                          </a>
+                          {' · '}
+                          {landmark.attribution.modification}
+                        </p>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </details>
             </div>
 
             <div className="mt-2 flex justify-center gap-2 border-t border-white/10 pt-3">
