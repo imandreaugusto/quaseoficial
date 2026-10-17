@@ -1688,7 +1688,7 @@ export default function App() {
         </main>
         {currentUser && isSubscriptionActive && (
           <div className="relative z-10 mx-auto w-full max-w-7xl px-3 pb-3">
-            <SiteLegalFooter />
+            <SiteLegalFooter className="justify-start" />
           </div>
         )}
 

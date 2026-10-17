@@ -3,7 +3,11 @@ import { Info, Mail, MessageCircle, X } from 'lucide-react';
 import { US_LANDMARKS } from '../data';
 import { InstagramIcon, SOCIAL_LINKS, TikTokIcon, YouTubeIcon } from './SocialLinksBar';
 
-export const SiteLegalFooter: React.FC = () => {
+interface SiteLegalFooterProps {
+  className?: string;
+}
+
+export const SiteLegalFooter: React.FC<SiteLegalFooterProps> = ({ className = '' }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
@@ -17,7 +21,7 @@ export const SiteLegalFooter: React.FC = () => {
   }, [isOpen]);
 
   return (
-    <footer className="flex w-full justify-end px-1 pb-1 pt-1">
+    <footer className={`flex w-full justify-end px-1 pb-1 pt-1 ${className}`}>
       <button
         type="button"
         aria-label="Informações de contato e legais"
