@@ -427,7 +427,16 @@ async function startServer() {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'SAMEORIGIN');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-    res.setHeader('Permissions-Policy', 'camera=(self), microphone=(self), geolocation=()');
+    const practiceMediaOrigins = [
+      '"https://episoden.com"',
+      '"https://www.free4talk.com"',
+      '"https://web.hellotalk.com"',
+      '"https://www.hilokal.com"',
+    ].join(' ');
+    res.setHeader(
+      'Permissions-Policy',
+      `camera=(self ${practiceMediaOrigins}), microphone=(self ${practiceMediaOrigins}), geolocation=()`
+    );
     next();
   });
 

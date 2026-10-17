@@ -444,36 +444,6 @@ const COMMON_DICTIONARY: Record<string, string> = {
     setTranslationText(fastMatch || wordClean);
   };
 
-  // Translate full sentence or paragraph
-  const handleTranslateSentence = async (e: React.MouseEvent, fullText: string) => {
-    e.stopPropagation();
-    if (!fullText || !activeBook) return;
-
-    const targetEl = e.currentTarget as HTMLElement;
-    const rect = targetEl.getBoundingClientRect();
-    setTransCoords({
-      x: rect.left + rect.width / 2,
-      y: rect.top - 12,
-    });
-
-    const displayWord = fullText.length > 35 ? fullText.substring(0, 35) + '...' : fullText;
-    setSelectedTranslateWord(`Frase: "${displayWord}"`);
-    setTranslationText('Traduzindo frase completa...');
-    startTransTimer(5000);
-
-    try {
-      const translation = await translateText(fullText);
-      if (translation && translation.toLowerCase() !== fullText.toLowerCase()) {
-        setTranslationText(translation);
-        return;
-      }
-    } catch (e) {
-      console.warn('Sentence translate error', e);
-    }
-
-    setTranslationText('Não foi possível obter a tradução desta frase.');
-  };
-
   // Story CRUD Modals
   const [modalTextValue, setModalTextValue] = useState('');
 
@@ -827,17 +797,6 @@ const COMMON_DICTIONARY: Record<string, string> = {
                                     <BookmarkCheck size={9} /> Continuar
                                   </span>
                                 ) : null}
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleTranslateSentence(e, b.title);
-                                  }}
-                                  className="p-1 rounded text-white/40 hover:text-amber-300 hover:bg-white/10 transition-all cursor-pointer opacity-0 group-hover:opacity-100 shrink-0"
-                                  title="Traduzir título"
-                                >
-                                  <Languages size={11} />
-                                </button>
                               </div>
 
                               {/* Sessions nested inside */}
@@ -931,14 +890,6 @@ const COMMON_DICTIONARY: Record<string, string> = {
                   <h4 className="text-xs font-semibold uppercase tracking-widest text-amber-400 truncate">
                     <span className="notranslate" translate="no">{activeBook.title}</span>
                   </h4>
-                  <button
-                    type="button"
-                    onClick={(e) => handleTranslateSentence(e, activeBook.title)}
-                    className="p-1 rounded-full hover:bg-white/10 text-white/40 hover:text-amber-300 transition-all cursor-pointer shrink-0"
-                    title="Traduzir título da história/música"
-                  >
-                    <Languages size={12} />
-                  </button>
                 </div>
                 <span className="rounded-full border border-amber-300/35 bg-amber-400/15 px-2.5 py-1 text-[10px] font-extrabold tracking-wide text-amber-100 shadow-sm">
                   {activeBook.level?.trim() || 'Nível não informado'}
@@ -1182,15 +1133,6 @@ const COMMON_DICTIONARY: Record<string, string> = {
                       );
                     })}
                   </h1>
-                  <button
-                    type="button"
-                    onClick={(e) => handleTranslateSentence(e, activeBook.title)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/5 hover:bg-amber-500/20 text-white/50 hover:text-amber-300 border border-white/10 hover:border-amber-500/30 text-xs font-medium transition-all cursor-pointer shadow-sm mt-1"
-                    title="Traduzir título completo da história/música"
-                  >
-                    <Languages size={14} />
-                    <span>Traduzir Título</span>
-                  </button>
                 </div>
 
                 {/* Optional Story Cover Image / Illustration Banner */}
@@ -1248,16 +1190,6 @@ const COMMON_DICTIONARY: Record<string, string> = {
                             </React.Fragment>
                           ))}
                         </div>
-
-                        {/* Instant Paragraph Translation Trigger */}
-                        <button
-                          type="button"
-                          onClick={(e) => handleTranslateSentence(e, para)}
-                          className="ml-2 inline-flex items-center justify-center p-1.5 rounded-lg bg-white/5 hover:bg-amber-500/20 text-white/30 hover:text-amber-300 border border-white/10 hover:border-amber-500/30 transition-all cursor-pointer opacity-0 group-hover/para:opacity-100"
-                          title="Traduzir parágrafo / estrofe"
-                        >
-                          <Languages size={13} />
-                        </button>
 
                         {onUpdateLearnedWords && (
                           <button

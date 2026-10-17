@@ -96,7 +96,6 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({
   const [editableTranslatedLyrics, setEditableTranslatedLyrics] = useState(activeItem.translatedLyrics || '');
   const [isEditingLyrics, setIsEditingLyrics] = useState(false);
   const [translationMode, setTranslationMode] = useState<'original' | 'bilingual' | 'english'>(isMusicMode ? 'english' : 'original');
-  const [isTranslatingLyrics, setIsTranslatingLyrics] = useState(false);
 
   // Google Meet Presentation Mode Options
   const [meetViewMode, setMeetViewMode] = useState<'split' | 'lyrics_focus' | 'lyrics_only'>('split');
@@ -413,25 +412,6 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({
     saveLibraryState(updatedList);
     setActiveItem(updatedItem);
     setIsEditingLyrics(false);
-  };
-
-  const handleAutoTranslateLyrics = async (targetLang: 'pt' | 'en' = 'en') => {
-    if (!editableLyrics.trim()) return;
-    setIsTranslatingLyrics(true);
-    try {
-      const translated = await translateText(editableLyrics, 'auto', targetLang);
-      if (translated?.trim()) {
-        setEditableTranslatedLyrics(translated.trim());
-        const updatedItem = { ...activeItem, translatedLyrics: translated.trim() };
-        setActiveItem(updatedItem);
-        saveLibraryState(library.map((item) => item.id === updatedItem.id ? updatedItem : item));
-        setTranslationMode('bilingual');
-      }
-    } catch (error) {
-      console.error('Error auto-translating full lyrics:', error);
-    } finally {
-      setIsTranslatingLyrics(false);
-    }
   };
 
   // Interactive Word Translation Click Handler (Instant lookup into Portuguese 🇧🇷 or English 🇺🇸)
@@ -814,12 +794,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        setTranslationMode('bilingual');
-                        if (!editableTranslatedLyrics) {
-                          handleAutoTranslateLyrics();
-                        }
-                      }}
+                      onClick={() => setTranslationMode('bilingual')}
                       className={`px-2.5 py-1 rounded-lg text-[11px] font-medium flex items-center gap-1 transition-all cursor-pointer ${
                         translationMode === 'bilingual'
                           ? 'bg-amber-500 text-black font-bold shadow-sm'
@@ -831,12 +806,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        setTranslationMode('english');
-                        if (!editableTranslatedLyrics) {
-                          handleAutoTranslateLyrics();
-                        }
-                      }}
+                      onClick={() => setTranslationMode('english')}
                       className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all cursor-pointer ${
                         translationMode === 'english'
                           ? 'bg-blue-600 text-white font-semibold shadow-sm'
@@ -922,22 +892,13 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({
                         <label className="text-xs text-blue-300 font-semibold font-mono">
                           Tradução da Letra (Inglês):
                         </label>
-                        <button
-                          type="button"
-                          onClick={() => handleAutoTranslateLyrics('en')}
-                          disabled={isTranslatingLyrics || !editableLyrics.trim()}
-                          className="px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/35 text-amber-300 border border-amber-500/30 text-[11px] font-medium flex items-center gap-1 cursor-pointer disabled:opacity-40"
-                        >
-                          {isTranslatingLyrics ? <Loader2 size={11} className="animate-spin" /> : <Languages size={11} />}
-                          <span>Traduzir com IA</span>
-                        </button>
                       </div>
                       <textarea
                         value={editableTranslatedLyrics}
                         onChange={(e) => setEditableTranslatedLyrics(e.target.value)}
                         onBlur={() => setEditableTranslatedLyrics((lyrics) => formatStoryText(lyrics, 'music'))}
                         rows={10}
-                        placeholder="Tradução em inglês (ou clique em 'Traduzir com IA' acima)..."
+                        placeholder="Digite ou cole a tradução em inglês..."
                         className="w-full p-3.5 rounded-xl bg-black/60 border border-white/15 text-white placeholder-white/20 focus:outline-none focus:border-blue-400/50 font-sans text-sm leading-relaxed"
                       />
                     </div>}
@@ -974,18 +935,6 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({
                     </span>
 
                     <div className="flex items-center gap-3">
-                      {!isMusicMode && !editableTranslatedLyrics && (
-                        <button
-                          type="button"
-                          onClick={() => handleAutoTranslateLyrics('en')}
-                          disabled={isTranslatingLyrics}
-                          className="text-amber-300 hover:text-amber-200 flex items-center gap-1 font-semibold text-[11px] bg-amber-500/20 border border-amber-500/30 px-2.5 py-1 rounded-lg cursor-pointer transition-all"
-                        >
-                          {isTranslatingLyrics ? <Loader2 size={12} className="animate-spin" /> : <Languages size={12} />}
-                          <span>Ativar Tradução Bilíngue</span>
-                        </button>
-                      )}
-
                       <button
                         type="button"
                         onClick={() => handleSpeakWord(editableLyrics.slice(0, 150), isMusicMode ? 'en-US' : 'pt-BR')}
@@ -1656,10 +1605,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setTranslationMode('bilingual');
-                    if (!editableTranslatedLyrics) handleAutoTranslateLyrics();
-                  }}
+                  onClick={() => setTranslationMode('bilingual')}
                   className={`px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-0.5 transition-all cursor-pointer ${
                     translationMode === 'bilingual'
                       ? 'bg-amber-500 text-black font-bold'
@@ -1671,10 +1617,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setTranslationMode('english');
-                    if (!editableTranslatedLyrics) handleAutoTranslateLyrics();
-                  }}
+                  onClick={() => setTranslationMode('english')}
                   className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-all cursor-pointer ${
                     translationMode === 'english'
                       ? 'bg-amber-500 text-black font-bold'
