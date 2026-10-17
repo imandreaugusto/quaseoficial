@@ -711,6 +711,9 @@ export async function translateText(
 ): Promise<string> {
   const clean = text ? text.trim() : '';
   if (!clean) return '';
+  if (/\s/u.test(clean)) {
+    throw new Error('A tradução está disponível somente para palavras individuais.');
+  }
 
   const sl = sourceLang || 'auto';
   const tl = targetLang || 'pt';
@@ -853,4 +856,3 @@ export async function translateText(
 
   return clean;
 }
-

@@ -462,11 +462,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const currentItem = menuItems.find((m) => m.id === currentApp) || { label: 'Brazilian in Action' };
 
-  // If user is not authenticated, do not show top navigation bar or menu
-  if (!currentUser) {
-    return null;
-  }
-
   const handleNavigate = (id: string) => {
     onNavigate(id);
     closeMenu();
@@ -533,6 +528,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
     document.addEventListener('keydown', handleMenuKeyDown);
     return () => document.removeEventListener('keydown', handleMenuKeyDown);
   }, [isOpen]);
+
+  // If user is not authenticated, do not show top navigation bar or menu
+  if (!currentUser) {
+    return null;
+  }
 
   const navContainerVariants: Variants = {
     hidden: { x: '-100%', opacity: 0.8 },

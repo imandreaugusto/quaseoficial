@@ -467,6 +467,8 @@ async function startServer() {
         return res.status(401).json({ error: 'Entre com uma conta verificada para acessar a plataforma.' });
       }
 
+      res.locals.authenticatedEmail = email;
+
       if (email === CEO_EMAIL) return next();
 
       const profile = await getAuthenticatedProfileByAuthId(authUser.id);
@@ -502,6 +504,13 @@ async function startServer() {
       return res.status(503).json({ error: 'Não foi possível verificar a autorização agora. Tente novamente.' });
     }
   });
+
+  const requireCeoAiAccess: express.RequestHandler = (_req, res, next) => {
+    if (res.locals.authenticatedEmail !== CEO_EMAIL) {
+      return res.status(403).json({ error: 'Este recurso de IA está disponível somente para o CEO.' });
+    }
+    return next();
+  };
 
   // 1. Health check endpoint
   app.get('/api/health', (req, res) => {
@@ -2163,7 +2172,7 @@ async function startServer() {
   });
 
   // 2. Gemini Conversation Generation endpoint
-  app.post('/api/generate-conversation', async (req, res) => {
+  app.post('/api/generate-conversation', requireCeoAiAccess, async (req, res) => {
     const { level, goal, theme, duration } = req.body;
 
     if (!level || !goal || !theme || !duration) {
@@ -2303,7 +2312,7 @@ IMPORTANT: Return the response exactly matching the requested JSON schema. Make 
   });
 
   // 2b. Word Definition translation proxy endpoint
-  app.post('/api/define-word', async (req, res) => {
+  app.post('/api/define-word', requireCeoAiAccess, async (req, res) => {
     const { word, context } = req.body;
     if (!word) {
       res.status(400).json({ error: 'Missing word parameter' });
@@ -2444,7 +2453,7 @@ Return a JSON object with:
   // In-memory Server Translation Cache (< 1ms)
   const serverTransCache = new Map<string, string>();
 
-  // 2c. Universal Translation endpoint for words, phrases, lyrics and full sentences (Default target: PT)
+  // 2c. Translation endpoint for individual words (Default target: PT)
   app.post('/api/translate', async (req, res) => {
     const { text, sourceLang, targetLang } = req.body;
     if (!text || typeof text !== 'string') {
@@ -2455,6 +2464,10 @@ Return a JSON object with:
     const cleanText = text.trim();
     if (!cleanText) {
       res.status(400).json({ error: 'Text cannot be empty' });
+      return;
+    }
+    if (/\s/u.test(cleanText)) {
+      res.status(400).json({ error: 'A tradução está disponível somente para palavras individuais.' });
       return;
     }
 
@@ -2500,71 +2513,16 @@ Return a JSON object with:
       throw new Error('Clients5 fail');
     };
 
-    // For single words or short phrases (< 15 words): Race the ultra-fast endpoints directly (~40ms)
-    const wordCount = cleanText.split(/\s+/).length;
-    if (wordCount <= 15) {
-      try {
-        const fastTranslation = await Promise.any([fetchGoogleGtx(), fetchGoogleClients5()]);
-        if (fastTranslation) {
-          serverTransCache.set(cacheKey, fastTranslation);
-          res.json({ translation: fastTranslation, source: 'fast_google', sl, tl });
-          return;
-        }
-      } catch (fastErr) {
-        // Fall through to other providers
+    // Use fast public translation providers first for short words and expressions.
+    try {
+      const fastTranslation = await Promise.any([fetchGoogleGtx(), fetchGoogleClients5()]);
+      if (fastTranslation) {
+        serverTransCache.set(cacheKey, fastTranslation);
+        res.json({ translation: fastTranslation, source: 'fast_google', sl, tl });
+        return;
       }
-    }
-
-    const apiKey = process.env.GEMINI_API_KEY;
-
-    // For long paragraphs or if fast endpoint failed: Try Gemini if key is present
-    if (apiKey && wordCount > 15) {
-      try {
-        const ai = new GoogleGenAI({
-          apiKey,
-          httpOptions: {
-            headers: {
-              'User-Agent': 'aistudio-build',
-            }
-          }
-        });
-
-        const targetLangName = tl === 'en' ? 'English (en-US)' : 'Brazilian Portuguese (pt-BR)';
-        const sourceLangName = sl === 'pt' ? 'Brazilian Portuguese (pt-BR)' : sl === 'en' ? 'English' : 'source language';
-
-        const prompt = `You are a professional literary and musical translator. Translate the following text from ${sourceLangName} into natural, accurate ${targetLangName}. Preserve line breaks and structural formatting if it is lyrics.
-Text to translate:
-"""
-${cleanText}
-"""
-Return ONLY a valid JSON object with the key "translation".`;
-
-        const transSchema = {
-          type: Type.OBJECT,
-          properties: {
-            translation: { type: Type.STRING }
-          },
-          required: ['translation']
-        };
-
-        const response = await ai.models.generateContent({
-          model: 'gemini-3.6-flash',
-          contents: prompt,
-          config: {
-            responseMimeType: 'application/json',
-            responseSchema: transSchema
-          }
-        });
-        const responseText = response.text || '';
-        const resultJson = JSON.parse(responseText || '{}');
-        if (resultJson.translation) {
-          serverTransCache.set(cacheKey, resultJson.translation);
-          res.json({ translation: resultJson.translation, source: 'gemini', sl, tl });
-          return;
-        }
-      } catch (geminiErr) {
-        console.warn('Gemini translation failed, falling back to public translation endpoints', geminiErr);
-      }
+    } catch (fastErr) {
+      // Fall through to other public translation providers.
     }
 
     // High-reliability Fallback 1: Google Translate public API (gtx)
@@ -2635,7 +2593,7 @@ Return ONLY a valid JSON object with the key "translation".`;
   });
 
   // --- API Endpoint: /api/format-paragraphs ---
-  app.post('/api/format-paragraphs', async (req, res) => {
+  app.post('/api/format-paragraphs', requireCeoAiAccess, async (req, res) => {
     try {
       const { text, mode } = req.body || {};
       const cleanText = typeof text === 'string' ? text.trim() : '';
@@ -2747,7 +2705,7 @@ Return ONLY a valid JSON object with the key "formattedText".`;
   });
 
   // --- API Endpoint: /api/generate-quiz ---
-  app.post('/api/generate-quiz', async (req, res) => {
+  app.post('/api/generate-quiz', requireCeoAiAccess, async (req, res) => {
     try {
       const { topic, level = 'Intermediário', numQuestions = 5 } = req.body || {};
       const cleanTopic = typeof topic === 'string' && topic.trim() ? topic.trim() : 'Falsos Cognatos e Expressões Idiomáticas';
@@ -2985,7 +2943,7 @@ Return ONLY a valid JSON object following the schema provided.`;
   }
 
   // --- API Endpoint: /api/cultural-translate ---
-  app.post('/api/cultural-translate', async (req, res) => {
+  app.post('/api/cultural-translate', requireCeoAiAccess, async (req, res) => {
     try {
       const { text } = req.body || {};
       const cleanText = typeof text === 'string' ? text.trim() : '';
