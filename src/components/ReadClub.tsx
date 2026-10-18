@@ -1275,9 +1275,9 @@ const COMMON_DICTIONARY: Record<string, string> = {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 8 }}
                   transition={{ duration: 0.18 }}
-                  className="relative z-20 mx-auto mb-2 flex max-h-[26dvh] w-full max-w-3xl shrink-0 flex-col overflow-hidden rounded-2xl border border-white/25 bg-white/[0.09] p-2 shadow-xl backdrop-blur-2xl sm:p-2.5"
+                  className="relative z-20 mx-auto mb-2 flex max-h-[18dvh] w-full max-w-3xl shrink-0 flex-col overflow-hidden rounded-2xl border border-white/25 bg-white/[0.09] p-1.5 shadow-xl backdrop-blur-2xl sm:p-2"
                 >
-                  <div className="mb-1.5 flex shrink-0 items-center justify-between gap-2">
+                  <div className="mb-1 flex shrink-0 items-center justify-between gap-2">
                     <h3 className="flex min-w-0 items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-200">
                       <HelpCircle size={15} aria-hidden="true" />
                       <span className="truncate">Pergunta {questionList.length ? `${currentQIdx + 1} / ${questionList.length}` : ''}</span>
@@ -1326,15 +1326,15 @@ const COMMON_DICTIONARY: Record<string, string> = {
                     <p className="text-sm italic text-white/70">Sem perguntas para este item.</p>
                   ) : (
                     <>
-                      <div className="min-h-0 flex-1 overflow-y-auto px-0.5 py-0.5">
-                        <div className="rounded-xl border border-white/15 bg-black/15 px-2.5 py-1.5">
-                          <p className="text-sm leading-snug text-white/95 sm:text-base">
+                      <div className="min-h-0 flex-1 overflow-y-auto px-0.5">
+                        <div className="rounded-xl border border-white/15 bg-black/15 px-2.5 py-1">
+                          <p className="text-center text-sm leading-snug text-white/95 sm:text-base">
                             {renderTranslatableText(questionList[currentQIdx])}
                           </p>
                         </div>
 
                         {hintList[currentQIdx] && (
-                          <div className="mt-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
+                          <div className="mt-1 rounded-xl border border-white/10 bg-white/[0.04] px-2.5 py-1">
                             <button
                               type="button"
                               onClick={() => setHintRevealed(!hintRevealed)}
@@ -1344,7 +1344,7 @@ const COMMON_DICTIONARY: Record<string, string> = {
                               {hintRevealed ? 'Ocultar dica' : 'Exibir dica'}
                             </button>
                             {hintRevealed && (
-                              <p className="mt-1 text-sm italic leading-relaxed text-white/80">
+                              <p className="mt-0.5 text-center text-xs italic leading-snug text-white/80 sm:text-sm">
                                 {renderTranslatableText(hintList[currentQIdx])}
                               </p>
                             )}
