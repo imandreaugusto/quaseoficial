@@ -650,12 +650,36 @@ const COMMON_DICTIONARY: Record<string, string> = {
 
   const questionList = activeBook?.qs ? activeBook.qs.split('\n').filter((q) => q.trim()) : [];
   const hintList = activeBook?.hints ? activeBook.hints.split('\n').filter((h) => h.trim()) : [];
+  const renderTranslatableText = (text: string) => text.split(/(\s+)/).map((word, index) => {
+    const cleanWord = word.toLowerCase().replace(/[^a-zA-ZáéíóúâêîôûãõçÁÉÍÓÚÂÊÎÔÛÃÕÇ]/g, '');
+    if (!cleanWord) return <React.Fragment key={index}>{word}</React.Fragment>;
+
+    return (
+      <span
+        key={index}
+        role="button"
+        tabIndex={0}
+        onClick={(event) => handleWordClick(event, word)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            event.currentTarget.click();
+          }
+        }}
+        className="notranslate cursor-pointer rounded-sm border-b border-dotted border-white/40 px-px text-white/95 transition-colors hover:border-amber-200 hover:text-amber-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-200"
+        translate="no"
+        title="Clique para ver a tradução e ouvir a pronúncia"
+      >
+        {word}
+      </span>
+    );
+  });
 
   return (
-    <div className={`${heightClass} w-full flex overflow-hidden text-white`}>
+    <div className={`readclub-shell ${heightClass} w-full flex overflow-hidden overscroll-none text-white`}>
       {/* 1. Left Sidebar: Library Selector */}
       {!activeBook && (
-        <div className="readclub-library-panel mx-auto w-full max-w-[28rem] md:mx-0 md:w-80 md:max-w-none box-border min-h-0 flex flex-col overflow-y-auto rounded-2xl border border-white/15 bg-neutral-950/60 p-4 pt-16 shadow-xl backdrop-blur-xl md:pt-4 h-full flex-shrink-0 z-20">
+        <div className="readclub-library-panel mx-auto w-full max-w-[28rem] md:mx-0 md:w-80 md:max-w-none box-border min-h-0 flex flex-col overflow-x-hidden overflow-y-auto rounded-2xl border border-white/20 bg-neutral-950/35 p-4 pt-16 shadow-xl backdrop-blur-xl md:pt-4 h-full flex-shrink-0 z-20">
           <div className="text-center mb-4">
             <h3 className="text-xs font-light tracking-[0.25em] uppercase text-white/50">Biblioteca</h3>
           </div>
@@ -1078,7 +1102,7 @@ const COMMON_DICTIONARY: Record<string, string> = {
             </div>
 
             {/* Centered glass sheet: fixed-size box, text scrolls inside and fades out at the edges */}
-            <div className="flex-1 overflow-hidden px-4 sm:px-6 pt-8 pb-6 flex justify-center relative z-10">
+            <div className="min-h-0 flex-1 overflow-hidden px-4 sm:px-6 pt-8 pb-3 flex justify-center relative z-10">
               <div className="pointer-events-none absolute inset-x-4 sm:inset-x-6 top-3 flex justify-center" aria-hidden="true">
                 <div className="h-1 w-full max-w-3xl overflow-hidden rounded-full bg-white/15">
                   <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-cyan-300 transition-[width] duration-200" style={{ width: `${Math.round(readProgress * 100)}%` }} />
@@ -1241,6 +1265,101 @@ const COMMON_DICTIONARY: Record<string, string> = {
               </div>
             </div>
 
+            <AnimatePresence initial={false}>
+              {isQsOpen && (
+                <motion.section
+                  id="readclub-question-panel"
+                  role="region"
+                  aria-label="Perguntas e dicas da história"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 8 }}
+                  transition={{ duration: 0.18 }}
+                  className="relative z-20 mx-auto mb-3 flex max-h-[36dvh] w-full max-w-3xl shrink-0 flex-col overflow-hidden rounded-2xl border border-white/25 bg-white/[0.09] p-3 shadow-xl backdrop-blur-2xl sm:p-4"
+                >
+                  <div className="mb-2 flex shrink-0 items-center justify-between gap-3">
+                    <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-200">
+                      <HelpCircle size={15} aria-hidden="true" />
+                      Guia de perguntas
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => setIsQsOpen(false)}
+                      aria-label="Fechar perguntas"
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white/75 transition-colors hover:bg-white/20 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-200 cursor-pointer"
+                    >
+                      <X size={15} />
+                    </button>
+                  </div>
+
+                  {questionList.length === 0 ? (
+                    <p className="text-sm italic text-white/70">Sem perguntas para este item.</p>
+                  ) : (
+                    <>
+                      <div className="min-h-0 flex-1 overflow-y-auto px-0.5 py-0.5">
+                        <div className="rounded-xl border border-white/15 bg-black/15 p-3">
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-amber-200/80">
+                            Pergunta {currentQIdx + 1} de {questionList.length}
+                          </span>
+                          <p className="mt-1 text-sm leading-relaxed text-white/95 sm:text-base">
+                            {renderTranslatableText(questionList[currentQIdx])}
+                          </p>
+                        </div>
+
+                        {hintList[currentQIdx] && (
+                          <div className="mt-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
+                            <button
+                              type="button"
+                              onClick={() => setHintRevealed(!hintRevealed)}
+                              aria-expanded={hintRevealed}
+                              className="text-left text-[11px] font-bold uppercase tracking-wider text-amber-200 hover:text-amber-100 cursor-pointer"
+                            >
+                              {hintRevealed ? 'Ocultar dica' : 'Exibir dica'}
+                            </button>
+                            {hintRevealed && (
+                              <p className="mt-1 text-sm italic leading-relaxed text-white/80">
+                                {renderTranslatableText(hintList[currentQIdx])}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="mt-2 flex shrink-0 items-center justify-between gap-3 border-t border-white/15 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCurrentQIdx((prev) => Math.max(0, prev - 1));
+                            setHintRevealed(false);
+                          }}
+                          disabled={currentQIdx === 0}
+                          aria-label="Pergunta anterior"
+                          className="flex h-8 w-8 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white/80 transition-colors hover:bg-white/20 disabled:opacity-35 cursor-pointer"
+                        >
+                          <ChevronLeft size={16} />
+                        </button>
+                        <span className="text-xs font-medium text-white/65">
+                          {currentQIdx + 1} / {questionList.length}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCurrentQIdx((prev) => Math.min(questionList.length - 1, prev + 1));
+                            setHintRevealed(false);
+                          }}
+                          disabled={currentQIdx === questionList.length - 1}
+                          aria-label="Próxima pergunta"
+                          className="flex h-8 w-8 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white/80 transition-colors hover:bg-white/20 disabled:opacity-35 cursor-pointer"
+                        >
+                          <ChevronRight size={16} />
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </motion.section>
+              )}
+            </AnimatePresence>
+
             {/* Dynamic visual focusing ruler */}
             {rulerActive && (
               <div
@@ -1338,91 +1457,6 @@ const COMMON_DICTIONARY: Record<string, string> = {
                   <button
                     onClick={() => setIsNotesOpen(false)}
                     className="w-full py-2.5 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl text-xs font-bold tracking-wider uppercase cursor-pointer"
-                  >
-                    Fechar
-                  </button>
-                </motion.div>
-              )}
-
-              {isQsOpen && (
-                <motion.div
-                  id="readclub-question-panel"
-                  role="region"
-                  aria-label="Perguntas e dicas da história"
-                  initial={{ x: '100%' }}
-                  animate={{ x: 0 }}
-                  exit={{ x: '100%' }}
-                  className="fixed right-0 top-0 h-full w-80 bg-neutral-950 border-l border-white/10 p-6 shadow-2xl z-[1500] flex flex-col justify-between"
-                >
-                  <div className="flex-1 flex flex-col gap-4">
-                    <h3 className="text-xs font-bold tracking-widest text-amber-400 uppercase">
-                      Guia de Perguntas
-                    </h3>
-
-                    {questionList.length === 0 ? (
-                      <p className="text-xs text-white/30 italic">Sem perguntas para este item.</p>
-                    ) : (
-                      <div className="flex-1 flex flex-col justify-between">
-                        <div className="flex flex-col gap-4">
-                          <div className="p-4 bg-white/[0.02] border border-white/5 rounded-xl">
-                            <span className="text-[10px] font-bold text-amber-400/60 uppercase font-mono tracking-widest">
-                              Question {currentQIdx + 1}
-                            </span>
-                            <p className="text-sm font-light mt-2 leading-relaxed text-white/95">
-                              {questionList[currentQIdx]}
-                            </p>
-                          </div>
-
-                          {hintList[currentQIdx] && (
-                            <div className="flex flex-col gap-1.5">
-                              <button
-                                onClick={() => setHintRevealed(!hintRevealed)}
-                                className="text-left text-[10px] font-bold tracking-wider uppercase text-amber-500 hover:text-amber-400 cursor-pointer"
-                              >
-                                {hintRevealed ? 'Ocultar Dica' : 'Exibir Dica'}
-                              </button>
-                              {hintRevealed && (
-                                <p className="text-xs text-white/50 italic leading-relaxed bg-white/[0.01] p-3 rounded border border-white/5">
-                                  {hintList[currentQIdx]}
-                                </p>
-                              )}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Pagination steps */}
-                        <div className="flex justify-between items-center bg-white/[0.02] p-2 rounded-xl">
-                          <button
-                            onClick={() => {
-                              setCurrentQIdx((prev) => Math.max(0, prev - 1));
-                              setHintRevealed(false);
-                            }}
-                            disabled={currentQIdx === 0}
-                            className="px-3 py-1.5 rounded-lg text-xs bg-white/5 text-white disabled:opacity-30 cursor-pointer"
-                          >
-                            Prev
-                          </button>
-                          <span className="text-xs font-mono font-bold text-white/50">
-                            {currentQIdx + 1} / {questionList.length}
-                          </span>
-                          <button
-                            onClick={() => {
-                              setCurrentQIdx((prev) => Math.min(questionList.length - 1, prev + 1));
-                              setHintRevealed(false);
-                            }}
-                            disabled={currentQIdx === questionList.length - 1}
-                            className="px-3 py-1.5 rounded-lg text-xs bg-white/5 text-white disabled:opacity-30 cursor-pointer"
-                          >
-                            Next
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <button
-                    onClick={() => setIsQsOpen(false)}
-                    className="w-full py-2.5 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl text-xs font-bold tracking-wider uppercase mt-4 cursor-pointer"
                   >
                     Fechar
                   </button>
