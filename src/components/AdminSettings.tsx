@@ -76,6 +76,7 @@ import { getEffectiveSubscriptionStatus, isActiveSubscription } from '../lib/sub
 import { CeoOverview } from './ceo/CeoOverview';
 import { CeoLocation } from './ceo/CeoLocation';
 import { CeoUpdatesEditor } from './ceo/CeoUpdatesEditor';
+import { getCountryName } from '../utils/countries';
 import {
   createTrialCoupon,
   deleteExpiredBrazilianFriendMessages,
@@ -1374,7 +1375,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                         <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[11px] text-white/50 mt-0.5">
                           <div className="flex items-center gap-1">
                             <Globe size={11} className="text-blue-400" />
-                            <span>{student.ip_city || 'São Paulo'}, {student.ip_region || 'SP'} ({student.ip_country || 'Brasil'})</span>
+                            <span>{student.profile_city || student.ip_city || '—'}, {student.profile_state || student.ip_region || '—'} ({getCountryName(student.profile_country || student.ip_country) || '—'})</span>
                           </div>
                           <span className="hidden sm:inline">•</span>
                           <div className="flex items-center gap-1 font-mono text-[10px]">

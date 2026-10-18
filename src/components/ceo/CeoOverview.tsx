@@ -21,6 +21,7 @@ import type { LucideIcon } from 'lucide-react';
 import { PixPaymentRecord, TrialCoupon, UserProfile } from '../../types';
 import { CeoWorldMap } from './CeoWorldMap';
 import { isVerifiedCeoEmail } from '../../utils/security';
+import { getCountryName } from '../../utils/countries';
 import {
   getEffectiveSubscriptionStatus,
   getSubscriptionDaysRemaining,
@@ -168,7 +169,7 @@ export const CeoOverview: React.FC<CeoOverviewProps> = ({ users, pixPayments, co
 
     const countryMap = new Map<string, number>();
     students.forEach((student) => {
-      const country = (student.ip_country || '').trim();
+      const country = getCountryName(student.profile_country || student.ip_country).trim();
       if (country) countryMap.set(country, (countryMap.get(country) || 0) + 1);
     });
     const countries = [...countryMap.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
@@ -204,7 +205,7 @@ export const CeoOverview: React.FC<CeoOverviewProps> = ({ users, pixPayments, co
       countries,
       withoutCountry,
       plans,
-      recent: [...active].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 6),
+      subscribers: [...students].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
       daysLeft
     };
   }, [users, pixPayments, coupons]);
@@ -369,10 +370,10 @@ export const CeoOverview: React.FC<CeoOverviewProps> = ({ users, pixPayments, co
 
       <div className={`${GLASS} overflow-hidden p-4`}>
         <div className="mb-3 flex items-center justify-between gap-3">
-          <h3 className="flex items-center gap-2 text-sm font-bold text-white"><Users size={14} className="text-sky-300" /> Assinantes recentes</h3>
+          <h3 className="flex items-center gap-2 text-sm font-bold text-white"><Users size={14} className="text-sky-300" /> Todos os assinantes <span className="text-xs font-medium text-white/50">({data.subscribers.length})</span></h3>
           <button type="button" onClick={() => onOpen('students')} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[11px] font-semibold text-white/80 hover:bg-white/20"><Search size={12} /> Ver todos</button>
         </div>
-        <div className="overflow-x-auto">
+        <div className="max-h-[32rem] overflow-auto">
           <table className="w-full min-w-[720px] text-left text-xs">
             <thead>
               <tr className="text-[10px] uppercase tracking-wider text-white/45">
@@ -380,16 +381,17 @@ export const CeoOverview: React.FC<CeoOverviewProps> = ({ users, pixPayments, co
               </tr>
             </thead>
             <tbody className="divide-y divide-white/10">
-              {data.recent.map((student) => {
+              {data.subscribers.map((student) => {
                 const days = data.daysLeft(student);
-                const statusStyle = student.status === 'active' ? 'border-emerald-300/40 bg-emerald-400/20 text-emerald-100' : student.status === 'expired' ? 'border-rose-300/40 bg-rose-400/20 text-rose-100' : 'border-amber-300/40 bg-amber-400/20 text-amber-100';
-                const statusLabel = student.status === 'active' ? 'Ativo' : student.status === 'expired' ? 'Vencido' : student.status === 'trial' ? 'Teste' : 'Pendente';
+                const status = getEffectiveSubscriptionStatus(student.status, student.data_expiracao);
+                const statusStyle = status === 'active' ? 'border-emerald-300/40 bg-emerald-400/20 text-emerald-100' : status === 'expired' ? 'border-rose-300/40 bg-rose-400/20 text-rose-100' : 'border-amber-300/40 bg-amber-400/20 text-amber-100';
+                const statusLabel = status === 'active' ? 'Ativo' : status === 'expired' ? 'Vencido' : status === 'trial' ? 'Teste' : 'Pendente';
                 return (
                   <tr key={student.id} className="text-white/80">
                     <td className="py-2.5 pr-3 font-semibold text-white">{student.full_name || student.email.split('@')[0]}</td>
-                    <td className="pr-3">{student.ip_city || '—'}</td>
-                    <td className="pr-3">{student.ip_region || '—'}</td>
-                    <td className="pr-3">{student.ip_country || '—'}</td>
+                    <td className="pr-3">{student.profile_city || student.ip_city || '—'}</td>
+                    <td className="pr-3">{student.profile_state || student.ip_region || '—'}</td>
+                    <td className="pr-3">{getCountryName(student.profile_country || student.ip_country) || '—'}</td>
                     <td className="max-w-[180px] truncate pr-3">{student.email}</td>
                     <td className="pr-3">{new Date(student.created_at).toLocaleDateString('pt-BR')}</td>
                     <td className="pr-3">{student.cupom_usado || '—'}</td>
@@ -398,7 +400,7 @@ export const CeoOverview: React.FC<CeoOverviewProps> = ({ users, pixPayments, co
                   </tr>
                 );
               })}
-              {data.recent.length === 0 && <tr><td colSpan={9} className="py-6 text-center text-white/50">Nenhum assinante cadastrado ainda.</td></tr>}
+              {data.subscribers.length === 0 && <tr><td colSpan={9} className="py-6 text-center text-white/50">Nenhum assinante cadastrado ainda.</td></tr>}
             </tbody>
           </table>
         </div>
