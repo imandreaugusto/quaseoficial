@@ -901,9 +901,9 @@ const COMMON_DICTIONARY: Record<string, string> = {
       )}
 
       {/* 2. Right Workspace (Reading Room Stage) */}
-      <div className="flex-1 flex flex-col relative h-full overflow-hidden">
+      <div className="min-h-0 flex-1 flex flex-col relative h-full overflow-hidden">
         {activeBook ? (
-          <div className="flex-1 flex flex-col h-full relative overflow-hidden">
+          <div className="min-h-0 flex-1 flex flex-col h-full relative overflow-hidden">
             {/* Floating Topbar inside reader (No solid background bar, floating pills like Lousa de Horarios) */}
             <div className="px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-2 z-30 flex-shrink-0 pl-24 sm:pl-28 md:pl-6 pointer-events-auto">
               <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-wrap">
@@ -1102,7 +1102,7 @@ const COMMON_DICTIONARY: Record<string, string> = {
             </div>
 
             {/* Centered glass sheet: fixed-size box, text scrolls inside and fades out at the edges */}
-            <div className="min-h-0 flex-1 overflow-hidden px-4 sm:px-6 pt-8 pb-3 flex justify-center relative z-10">
+            <div className="min-h-[7rem] flex-1 overflow-hidden px-4 sm:px-6 pt-3 pb-2 flex justify-center relative z-10">
               <div className="pointer-events-none absolute inset-x-4 sm:inset-x-6 top-3 flex justify-center" aria-hidden="true">
                 <div className="h-1 w-full max-w-3xl overflow-hidden rounded-full bg-white/15">
                   <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-cyan-300 transition-[width] duration-200" style={{ width: `${Math.round(readProgress * 100)}%` }} />
@@ -1275,21 +1275,51 @@ const COMMON_DICTIONARY: Record<string, string> = {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 8 }}
                   transition={{ duration: 0.18 }}
-                  className="relative z-20 mx-auto mb-3 flex max-h-[36dvh] w-full max-w-3xl shrink-0 flex-col overflow-hidden rounded-2xl border border-white/25 bg-white/[0.09] p-3 shadow-xl backdrop-blur-2xl sm:p-4"
+                  className="relative z-20 mx-auto mb-2 flex max-h-[26dvh] w-full max-w-3xl shrink-0 flex-col overflow-hidden rounded-2xl border border-white/25 bg-white/[0.09] p-2 shadow-xl backdrop-blur-2xl sm:p-2.5"
                 >
-                  <div className="mb-2 flex shrink-0 items-center justify-between gap-3">
-                    <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-200">
+                  <div className="mb-1.5 flex shrink-0 items-center justify-between gap-2">
+                    <h3 className="flex min-w-0 items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-200">
                       <HelpCircle size={15} aria-hidden="true" />
-                      Guia de perguntas
+                      <span className="truncate">Pergunta {questionList.length ? `${currentQIdx + 1} / ${questionList.length}` : ''}</span>
                     </h3>
-                    <button
-                      type="button"
-                      onClick={() => setIsQsOpen(false)}
-                      aria-label="Fechar perguntas"
-                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white/75 transition-colors hover:bg-white/20 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-200 cursor-pointer"
-                    >
-                      <X size={15} />
-                    </button>
+                    <div className="flex shrink-0 items-center gap-1">
+                      {questionList.length > 0 && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCurrentQIdx((prev) => Math.max(0, prev - 1));
+                              setHintRevealed(false);
+                            }}
+                            disabled={currentQIdx === 0}
+                            aria-label="Pergunta anterior"
+                            className="flex h-7 w-7 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white/80 transition-colors hover:bg-white/20 disabled:opacity-35 cursor-pointer"
+                          >
+                            <ChevronLeft size={15} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCurrentQIdx((prev) => Math.min(questionList.length - 1, prev + 1));
+                              setHintRevealed(false);
+                            }}
+                            disabled={currentQIdx === questionList.length - 1}
+                            aria-label="Próxima pergunta"
+                            className="flex h-7 w-7 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white/80 transition-colors hover:bg-white/20 disabled:opacity-35 cursor-pointer"
+                          >
+                            <ChevronRight size={15} />
+                          </button>
+                        </>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setIsQsOpen(false)}
+                        aria-label="Fechar perguntas"
+                        className="flex h-7 w-7 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white/75 transition-colors hover:bg-white/20 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-200 cursor-pointer"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
                   </div>
 
                   {questionList.length === 0 ? (
@@ -1297,11 +1327,8 @@ const COMMON_DICTIONARY: Record<string, string> = {
                   ) : (
                     <>
                       <div className="min-h-0 flex-1 overflow-y-auto px-0.5 py-0.5">
-                        <div className="rounded-xl border border-white/15 bg-black/15 p-3">
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-amber-200/80">
-                            Pergunta {currentQIdx + 1} de {questionList.length}
-                          </span>
-                          <p className="mt-1 text-sm leading-relaxed text-white/95 sm:text-base">
+                        <div className="rounded-xl border border-white/15 bg-black/15 px-2.5 py-1.5">
+                          <p className="text-sm leading-snug text-white/95 sm:text-base">
                             {renderTranslatableText(questionList[currentQIdx])}
                           </p>
                         </div>
@@ -1325,35 +1352,6 @@ const COMMON_DICTIONARY: Record<string, string> = {
                         )}
                       </div>
 
-                      <div className="mt-2 flex shrink-0 items-center justify-between gap-3 border-t border-white/15 pt-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setCurrentQIdx((prev) => Math.max(0, prev - 1));
-                            setHintRevealed(false);
-                          }}
-                          disabled={currentQIdx === 0}
-                          aria-label="Pergunta anterior"
-                          className="flex h-8 w-8 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white/80 transition-colors hover:bg-white/20 disabled:opacity-35 cursor-pointer"
-                        >
-                          <ChevronLeft size={16} />
-                        </button>
-                        <span className="text-xs font-medium text-white/65">
-                          {currentQIdx + 1} / {questionList.length}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setCurrentQIdx((prev) => Math.min(questionList.length - 1, prev + 1));
-                            setHintRevealed(false);
-                          }}
-                          disabled={currentQIdx === questionList.length - 1}
-                          aria-label="Próxima pergunta"
-                          className="flex h-8 w-8 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white/80 transition-colors hover:bg-white/20 disabled:opacity-35 cursor-pointer"
-                        >
-                          <ChevronRight size={16} />
-                        </button>
-                      </div>
                     </>
                   )}
                 </motion.section>
