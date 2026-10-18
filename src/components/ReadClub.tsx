@@ -655,7 +655,7 @@ const COMMON_DICTIONARY: Record<string, string> = {
     <div className={`${heightClass} w-full flex overflow-hidden text-white`}>
       {/* 1. Left Sidebar: Library Selector */}
       {!activeBook && (
-        <div className="readclub-library-panel mx-auto w-full max-w-[28rem] md:mx-0 md:w-80 md:max-w-none box-border min-h-0 flex flex-col p-4 pt-16 md:pt-4 h-full flex-shrink-0 z-20">
+        <div className="readclub-library-panel mx-auto w-full max-w-[28rem] md:mx-0 md:w-80 md:max-w-none box-border min-h-0 flex flex-col overflow-y-auto rounded-2xl border border-white/15 bg-neutral-950/60 p-4 pt-16 shadow-xl backdrop-blur-xl md:pt-4 h-full flex-shrink-0 z-20">
           <div className="text-center mb-4">
             <h3 className="text-xs font-light tracking-[0.25em] uppercase text-white/50">Biblioteca</h3>
           </div>
@@ -742,36 +742,43 @@ const COMMON_DICTIONARY: Record<string, string> = {
           <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-white/50">
             {Object.values(groupedBooks).reduce((total, books) => total + books.length, 0)} histórias · role para ver todas
           </p>
-          <div className="readclub-library-list min-h-0 flex-1 overflow-y-auto flex flex-col gap-2">
+          <div className="readclub-library-list min-h-[8rem] flex-1 overflow-y-auto flex flex-col gap-2">
             {Object.keys(groupedBooks).length === 0 ? (
               <div className="text-center py-10 text-white/20 italic text-xs">Vazio</div>
             ) : (
               Object.keys(groupedBooks).map((category) => {
                 const isExpanded = searchQuery.trim().length > 0 ? true : expandedCategories[category] === true;
                 const categoryBooks = groupedBooks[category];
+                const categoryId = `readclub-category-${category.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
 
                 return (
-                  <div key={category} className="border-b border-white/5 pb-2">
+                  <div key={category} className="shrink-0 overflow-hidden rounded-xl border border-white/10 bg-black/25">
                     <button
+                      type="button"
                       onClick={() => handleToggleCategory(category)}
-                      className="w-full flex items-center justify-between py-2 text-left text-[10px] font-semibold tracking-wider text-white/40 uppercase cursor-pointer"
+                      aria-expanded={isExpanded}
+                      aria-controls={categoryId}
+                      className="flex min-h-11 w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs font-bold tracking-wide text-white/90 uppercase transition-colors hover:bg-white/[0.08] focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300 cursor-pointer"
                     >
-                      <span>{category} <span className="ml-1 text-white/30">({categoryBooks.length})</span></span>
-                      {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                      <BookOpen size={16} aria-hidden="true" className="shrink-0 text-amber-300" />
+                      <span className="min-w-0 flex-1 truncate">{category}</span>
+                      <span className="shrink-0 rounded-full border border-white/10 bg-white/10 px-2 py-0.5 text-[10px] font-bold text-white/80">
+                        {categoryBooks.length}
+                      </span>
+                      {isExpanded ? <ChevronDown size={16} aria-hidden="true" className="shrink-0 text-white/70" /> : <ChevronRight size={16} aria-hidden="true" className="shrink-0 text-white/70" />}
                     </button>
 
-                    {isExpanded && (
-                      <div className="pl-2 mt-1 flex flex-col gap-1">
+                    <div id={categoryId} hidden={!isExpanded} className="flex flex-col gap-1 border-t border-white/10 px-2 pb-2 pt-1">
                         {categoryBooks.map((b) => (
                           <div
                             key={b.id}
-                            className="group flex items-center justify-between p-2 rounded-lg hover:bg-white/[0.045] transition-all"
+                            className="group flex items-center justify-between rounded-lg border border-white/5 bg-white/[0.025] p-2 transition-colors hover:border-white/15 hover:bg-white/[0.07]"
                           >
                             <div className="flex-1 min-w-0 pr-2">
                               <div className="flex items-center justify-between w-full">
                                 <button
                                   onClick={() => enterReadingMode(b, null)}
-                                  className={`text-left text-xs font-medium hover:text-white truncate block cursor-pointer flex-1 ${isBookRead(b.id) ? 'text-white/70' : 'text-white'}`}
+                                  className={`min-w-0 flex-1 whitespace-normal break-words text-left text-xs font-medium leading-snug hover:text-white cursor-pointer ${isBookRead(b.id) ? 'text-white/70' : 'text-white'}`}
                                 >
                                   <span className="notranslate" translate="no">{b.title}</span>
                                   {b.level && (
@@ -860,8 +867,7 @@ const COMMON_DICTIONARY: Record<string, string> = {
                             )}
                           </div>
                         ))}
-                      </div>
-                    )}
+                    </div>
                   </div>
                 );
               })
