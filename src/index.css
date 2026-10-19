@@ -160,6 +160,15 @@ input, textarea, select {
   width: 8px;
   height: 8px;
 }
+.ceo-subscriber-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.ceo-subscriber-scroll::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
 .menu-cinematic-panel nav.custom-scrollbar {
   scrollbar-width: none;
 }

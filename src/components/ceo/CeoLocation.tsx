@@ -5,6 +5,7 @@ import { CeoWorldMap } from './CeoWorldMap';
 import { isVerifiedCeoEmail } from '../../utils/security';
 import { getCountryName } from '../../utils/countries';
 import { getEffectiveSubscriptionStatus, getSubscriptionDaysRemaining } from '../../lib/subscriptionStatus';
+import { deduplicateUsersByEmail } from '../../utils/deduplicateUsers';
 
 const GLASS = 'rounded-3xl border border-white/25 bg-slate-950/30 backdrop-blur-2xl shadow-[0_8px_40px_rgba(0,0,0,0.25)]';
 const COLORS = ['#38bdf8', '#a78bfa', '#f472b6', '#34d399', '#fbbf24'];
@@ -18,9 +19,9 @@ const countBy = (items: string[]) => {
 // Mapa e listas de localização usam primeiro os dados declarados no perfil.
 export const CeoLocation: React.FC<{ users: UserProfile[] }> = ({ users }) => {
   const { students, countries, regions, cities } = useMemo(() => {
-    const onlyStudents = users.filter((user) =>
+    const onlyStudents = deduplicateUsersByEmail(users.filter((user) =>
       user.role === 'student' && !isVerifiedCeoEmail(user.email)
-    );
+    ));
     return {
       students: onlyStudents,
       countries: countBy(onlyStudents.map((user) => getCountryName(user.profile_country || user.ip_country).trim())),
@@ -66,12 +67,23 @@ export const CeoLocation: React.FC<{ users: UserProfile[] }> = ({ users }) => {
           <h2 className="text-sm font-bold text-white">Todos os assinantes <span className="ml-1 font-medium text-white/50">({students.length})</span></h2>
           <p className="mt-1 text-xs text-white/55">Localização informada no perfil, com dados de IP como alternativa quando disponíveis.</p>
         </div>
-        <div className="max-h-[36rem] overflow-auto">
-          <table className="w-full min-w-[900px] text-left text-xs">
+        <div className="ceo-subscriber-scroll max-h-[36rem] overflow-auto">
+          <table className="w-full table-fixed text-left text-[10px]">
+            <colgroup>
+              <col className="w-[14%]" />
+              <col className="w-[10%]" />
+              <col className="w-[11%]" />
+              <col className="w-[9%]" />
+              <col className="w-[19%]" />
+              <col className="w-[13%]" />
+              <col className="w-[9%]" />
+              <col className="w-[8%]" />
+              <col className="w-[7%]" />
+            </colgroup>
             <thead className="sticky top-0 bg-slate-950/95 text-[10px] uppercase tracking-wider text-white/55 backdrop-blur">
               <tr>
                 {['Nome', 'Cidade', 'Estado / região', 'País', 'E-mail', 'Cadastro', 'Cupom', 'Dias restantes', 'Status'].map((heading) => (
-                  <th key={heading} className="px-3 py-3 font-semibold first:pl-5 last:pr-5">{heading}</th>
+                  <th key={heading} className="px-1 py-3 font-semibold first:pl-5 last:pr-5">{heading}</th>
                 ))}
               </tr>
             </thead>
@@ -89,16 +101,21 @@ export const CeoLocation: React.FC<{ users: UserProfile[] }> = ({ users }) => {
                   const statusLabel = status === 'active' ? 'Ativo' : status === 'expired' ? 'Vencido' : status === 'trial' ? 'Teste' : 'Pendente';
                   return (
                     <tr key={student.id} className="text-white/80">
-                      <td className="max-w-[180px] truncate py-3 pl-5 pr-3 font-semibold text-white">{student.full_name || student.email.split('@')[0]}</td>
-                      <td className="px-3">{student.profile_city || student.ip_city || '—'}</td>
-                      <td className="px-3">{student.profile_state || student.ip_region || '—'}</td>
-                      <td className="px-3">{getCountryName(student.profile_country || student.ip_country) || '—'}</td>
-                      <td className="max-w-[220px] truncate px-3" title={student.email}>{student.email}</td>
-                      <td className="whitespace-nowrap px-3">{new Date(student.created_at).toLocaleDateString('pt-BR')}</td>
-                      <td className="max-w-[140px] truncate px-3" title={student.cupom_usado || undefined}>{student.cupom_usado || '—'}</td>
-                      <td className="whitespace-nowrap px-3">{days === null ? '—' : days > 0 ? `${days} dias` : days === 0 ? 'Hoje' : 'Vencido'}</td>
-                      <td className="whitespace-nowrap py-3 pl-3 pr-5">
-                        <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${statusStyle}`}>{statusLabel}</span>
+                      <td className="truncate py-3 pl-5 pr-1 font-semibold text-white" title={student.full_name || student.email}>{student.full_name || student.email.split('@')[0]}</td>
+                      <td className="truncate px-1" title={student.profile_city || student.ip_city || undefined}>{student.profile_city || student.ip_city || '—'}</td>
+                      <td className="truncate px-1" title={student.profile_state || student.ip_region || undefined}>{student.profile_state || student.ip_region || '—'}</td>
+                      <td className="truncate px-1" title={getCountryName(student.profile_country || student.ip_country) || undefined}>{getCountryName(student.profile_country || student.ip_country) || '—'}</td>
+                      <td className="truncate px-1" title={student.email}>{student.email}</td>
+                      <td className="whitespace-nowrap px-1">
+                        <time dateTime={student.created_at}>
+                          {new Date(student.created_at).toLocaleDateString('pt-BR')}
+                          <span className="block text-white/55">{new Date(student.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                        </time>
+                      </td>
+                      <td className="truncate px-1" title={student.cupom_usado || undefined}>{student.cupom_usado || '—'}</td>
+                      <td className="truncate px-1">{days === null ? '—' : days > 0 ? `${days} dias` : days === 0 ? 'Hoje' : 'Vencido'}</td>
+                      <td className="whitespace-nowrap py-3 pl-1 pr-5">
+                        <span className={`rounded-full border px-1.5 py-0.5 text-[9px] font-bold ${statusStyle}`}>{statusLabel}</span>
                       </td>
                     </tr>
                   );

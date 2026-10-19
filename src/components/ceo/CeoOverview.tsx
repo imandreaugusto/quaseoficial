@@ -27,6 +27,7 @@ import {
   getSubscriptionDaysRemaining,
   isActiveSubscription
 } from '../../lib/subscriptionStatus';
+import { deduplicateUsersByEmail } from '../../utils/deduplicateUsers';
 
 interface CeoOverviewProps {
   users: UserProfile[];
@@ -128,9 +129,9 @@ export const CeoOverview: React.FC<CeoOverviewProps> = ({ users, pixPayments, co
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   const data = useMemo(() => {
-    const students = users.filter((user) =>
+    const students = deduplicateUsersByEmail(users.filter((user) =>
       user.role === 'student' && !isVerifiedCeoEmail(user.email)
-    );
+    ));
     const now = new Date();
     const months = lastMonths(8);
     const approved = pixPayments.filter((payment) => payment.status === 'approved');
@@ -373,11 +374,22 @@ export const CeoOverview: React.FC<CeoOverviewProps> = ({ users, pixPayments, co
           <h3 className="flex items-center gap-2 text-sm font-bold text-white"><Users size={14} className="text-sky-300" /> Todos os assinantes <span className="text-xs font-medium text-white/50">({data.subscribers.length})</span></h3>
           <button type="button" onClick={() => onOpen('students')} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[11px] font-semibold text-white/80 hover:bg-white/20"><Search size={12} /> Ver todos</button>
         </div>
-        <div className="max-h-[32rem] overflow-auto">
-          <table className="w-full min-w-[720px] text-left text-xs">
+        <div className="ceo-subscriber-scroll max-h-[32rem] overflow-auto">
+          <table className="w-full table-fixed text-left text-[10px]">
+            <colgroup>
+              <col className="w-[14%]" />
+              <col className="w-[10%]" />
+              <col className="w-[9%]" />
+              <col className="w-[8%]" />
+              <col className="w-[20%]" />
+              <col className="w-[13%]" />
+              <col className="w-[9%]" />
+              <col className="w-[9%]" />
+              <col className="w-[8%]" />
+            </colgroup>
             <thead>
               <tr className="text-[10px] uppercase tracking-wider text-white/45">
-                {['Nome', 'Cidade', 'Estado', 'País', 'E-mail', 'Cadastro', 'Cupom', 'Dias restantes', 'Status'].map((heading) => <th key={heading} className="pb-2 pr-3 font-semibold">{heading}</th>)}
+                {['Nome', 'Cidade', 'Estado', 'País', 'E-mail', 'Cadastro', 'Cupom', 'Dias restantes', 'Status'].map((heading) => <th key={heading} className="pb-2 pr-1 font-semibold">{heading}</th>)}
               </tr>
             </thead>
             <tbody className="divide-y divide-white/10">
@@ -388,15 +400,20 @@ export const CeoOverview: React.FC<CeoOverviewProps> = ({ users, pixPayments, co
                 const statusLabel = status === 'active' ? 'Ativo' : status === 'expired' ? 'Vencido' : status === 'trial' ? 'Teste' : 'Pendente';
                 return (
                   <tr key={student.id} className="text-white/80">
-                    <td className="py-2.5 pr-3 font-semibold text-white">{student.full_name || student.email.split('@')[0]}</td>
-                    <td className="pr-3">{student.profile_city || student.ip_city || '—'}</td>
-                    <td className="pr-3">{student.profile_state || student.ip_region || '—'}</td>
-                    <td className="pr-3">{getCountryName(student.profile_country || student.ip_country) || '—'}</td>
-                    <td className="max-w-[180px] truncate pr-3">{student.email}</td>
-                    <td className="pr-3">{new Date(student.created_at).toLocaleDateString('pt-BR')}</td>
-                    <td className="pr-3">{student.cupom_usado || '—'}</td>
-                    <td className="pr-3">{days === null ? '—' : days > 0 ? `${days} dias` : days === 0 ? 'Hoje' : 'Vencido'}</td>
-                    <td><span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold ${statusStyle}`}>{statusLabel}</span></td>
+                    <td className="truncate py-2.5 pr-1 font-semibold text-white" title={student.full_name || student.email}>{student.full_name || student.email.split('@')[0]}</td>
+                    <td className="truncate pr-1" title={student.profile_city || student.ip_city || undefined}>{student.profile_city || student.ip_city || '—'}</td>
+                    <td className="truncate pr-1" title={student.profile_state || student.ip_region || undefined}>{student.profile_state || student.ip_region || '—'}</td>
+                    <td className="truncate pr-1" title={getCountryName(student.profile_country || student.ip_country) || undefined}>{getCountryName(student.profile_country || student.ip_country) || '—'}</td>
+                    <td className="truncate pr-1" title={student.email}>{student.email}</td>
+                    <td className="whitespace-nowrap pr-1">
+                      <time dateTime={student.created_at}>
+                        {new Date(student.created_at).toLocaleDateString('pt-BR')}
+                        <span className="block text-white/55">{new Date(student.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                      </time>
+                    </td>
+                    <td className="truncate pr-1" title={student.cupom_usado || undefined}>{student.cupom_usado || '—'}</td>
+                    <td className="truncate pr-1">{days === null ? '—' : days > 0 ? `${days} dias` : days === 0 ? 'Hoje' : 'Vencido'}</td>
+                    <td><span className={`whitespace-nowrap rounded-full border px-1.5 py-0.5 text-[9px] font-bold ${statusStyle}`}>{statusLabel}</span></td>
                   </tr>
                 );
               })}
