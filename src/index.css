@@ -95,30 +95,17 @@ button, input, textarea, select {
   aspect-ratio: 1;
 }
 
-/* Hide the page scrollbar while preserving scrolling. */
-html,
-body {
+/* Hide scrollbars throughout the platform while preserving scrolling. */
+* {
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
-html::-webkit-scrollbar,
-body::-webkit-scrollbar {
+*::-webkit-scrollbar {
   display: none;
   width: 0;
   height: 0;
 }
 
-.readclub-shell,
-.readclub-shell * {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-.readclub-shell::-webkit-scrollbar,
-.readclub-shell *::-webkit-scrollbar {
-  display: none;
-  width: 0;
-  height: 0;
-}
 .readclub-library-list {
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 20px, #000 calc(100% - 20px), transparent 100%);
   mask-image: linear-gradient(to bottom, transparent 0, #000 20px, #000 calc(100% - 20px), transparent 100%);
@@ -150,30 +137,9 @@ input, textarea, select {
 }
 
 .custom-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(203, 213, 225, 0.38) transparent;
   overflow-y: auto !important;
   touch-action: pan-y !important;
   -webkit-overflow-scrolling: touch !important;
-}
-.custom-scrollbar::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-.ceo-subscriber-scroll {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-.ceo-subscriber-scroll::-webkit-scrollbar {
-  display: none;
-  width: 0;
-  height: 0;
-}
-.menu-cinematic-panel nav.custom-scrollbar {
-  scrollbar-width: none;
-}
-.menu-cinematic-panel nav.custom-scrollbar::-webkit-scrollbar {
-  display: none;
 }
 
 /* Efeito Glassmorphism Avançado */
