@@ -17,6 +17,7 @@ const BrazilianPractice = lazy(() => import('./components/BrazilianPractice').th
 const BrazilianStories = lazy(() => import('./components/BrazilianStories').then(({ BrazilianStories }) => ({ default: BrazilianStories })));
 const BrazilianHQ = lazy(() => import('./components/BrazilianHQ').then(({ BrazilianHQ }) => ({ default: BrazilianHQ })));
 const BrazilianFriends = lazy(() => import('./components/BrazilianFriends').then(({ BrazilianFriends }) => ({ default: BrazilianFriends })));
+const BrazilianSpace = lazy(() => import('./components/BrazilianSpace').then(({ BrazilianSpace }) => ({ default: BrazilianSpace })));
 const StreamStudio = lazy(() => import('./components/StreamStudio').then(({ StreamStudio }) => ({ default: StreamStudio })));
 const AdminSettings = lazy(() => import('./components/AdminSettings').then(({ AdminSettings }) => ({ default: AdminSettings })));
 const AdminFeedbackPanel = lazy(() => import('./components/AdminFeedbackPanel').then(({ AdminFeedbackPanel }) => ({ default: AdminFeedbackPanel })));
@@ -25,6 +26,7 @@ import { DEFAULT_YOUTUBE_LIBRARY, type YouTubeLibraryItem } from './youtubeLibra
 import { StoryRecordingBar } from './components/StoryRecordingBar';
 import { StudentFeedbackNotifications } from './components/StudentFeedbackNotifications';
 import { BrazilianFriendsGlobalStatus } from './components/BrazilianFriendsGlobalStatus';
+import { BrazilianSpaceMomentInsight } from './components/BrazilianSpaceMomentInsight';
 import { AuthModal } from './components/AuthModal';
 import { PixPaymentScreen } from './components/PixPaymentScreen';
 import { StudentProfileOnboarding } from './components/StudentProfileOnboarding';
@@ -81,7 +83,9 @@ const DEFAULT_SETTINGS: AppSettings = {
 };
 
 const getRequestedStartupApp = () =>
-  new URLSearchParams(window.location.search).get('open') === 'friends' ? 'friends' : 'home';
+  new URLSearchParams(window.location.search).get('open') === 'space'
+    ? 'brazilianspace'
+    : new URLSearchParams(window.location.search).get('open') === 'friends' ? 'friends' : 'home';
 
 type ReadClubProgress = {
   sessions: ReadSession[];
@@ -142,6 +146,8 @@ export default function App() {
   const [cloudSaveStatus, setCloudSaveStatus] = useState<'saving' | 'saved' | 'error' | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [currentApp, setCurrentApp] = useState<string>(getRequestedStartupApp);
+  const [spaceDraftSeed, setSpaceDraftSeed] = useState('');
+  const [spaceFocusRequest, setSpaceFocusRequest] = useState(0);
   const [quickTradutorModalOpen, setQuickTradutorModalOpen] = useState(false);
   const [isStudentPreviewMode, setIsStudentPreviewMode] = useState(false);
   const [liveActiveSubscriberCount, setLiveActiveSubscriberCount] = useState<number | null>(null);
@@ -1679,6 +1685,13 @@ export default function App() {
                       accentColor={settings.accentColor}
                     />
                   )}
+                  {currentApp === 'brazilianspace' && (
+                    <BrazilianSpace
+                      user={currentUser}
+                      initialDraft={spaceDraftSeed}
+                      focusRequestId={spaceFocusRequest}
+                    />
+                  )}
                   </Suspense>
                   </PageReveal>
                 </ErrorBoundary>
@@ -1762,6 +1775,13 @@ export default function App() {
           }}
         />
         <StoryRecordingBar onFinished={() => setCurrentApp('stories')} />
+        <BrazilianSpaceMomentInsight
+          onOpenSpace={(draft) => {
+            setSpaceDraftSeed(draft);
+            setSpaceFocusRequest((request) => request + 1);
+            setCurrentApp('brazilianspace');
+          }}
+        />
       </div>
       )}
     </LayoutPositionProvider>
