@@ -102,6 +102,13 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({
   const [meetFontSize, setMeetFontSize] = useState(32); // High default visibility for classrooms
   const [meetAlign, setMeetAlign] = useState<'left' | 'center'>('center');
   const [isMeetVideoMinimized, setIsMeetVideoMinimized] = useState(false);
+  const playerFramePositionClass = !isFullscreenMeet
+    ? 'relative w-full aspect-video'
+    : meetViewMode === 'split'
+    ? 'fixed left-6 top-20 z-[10000] aspect-video w-[calc(100vw-3rem)] lg:w-[40vw]'
+    : meetViewMode === 'lyrics_focus'
+    ? 'fixed left-6 top-20 z-[10000] aspect-video w-36'
+    : 'fixed left-[-10000px] top-0 z-[-1] h-px w-px opacity-0 pointer-events-none';
 
   // Word Translation Tooltip State
   const [selectedWord, setSelectedWord] = useState<string | null>(null);
@@ -723,7 +730,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({
             </div>
 
             {/* YouTube Embed */}
-            <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-black border border-white/10 shadow-inner">
+            <div className={`${playerFramePositionClass} rounded-xl overflow-hidden bg-black border border-white/10 shadow-inner`}>
               <iframe
                 src={`https://www.youtube-nocookie.com/embed/${activeItem.embedId}?autoplay=0&rel=0&modestbranding=1`}
                 title={activeItem.title}
@@ -1519,11 +1526,10 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({
 
       {/* FULLSCREEN PRESENTATION MODE - FLOATING CONTROLS & ULTRA READABLE */}
       {isFullscreenMeet && (
-        <div className="fixed inset-0 z-[9999] bg-neutral-950 p-2 sm:p-4 md:p-6 flex flex-col justify-between overflow-hidden select-none">
-          {/* Top Floating Controls - No Background Bar, Floating Pills Like Lousa de Horarios */}
-          <div className="flex flex-wrap items-center justify-between gap-2 pb-2 shrink-0 z-30 pointer-events-auto">
+        <div className="fixed inset-0 z-[9999] flex flex-col justify-between overflow-hidden bg-neutral-950 p-2 pt-[max(3.5rem,env(safe-area-inset-top))] select-none sm:p-4 sm:pt-16 md:p-6 md:pt-16">
+          <div className="z-30 flex w-full shrink-0 flex-col items-stretch gap-2 rounded-2xl border border-white/10 bg-neutral-950/95 p-2 shadow-xl pointer-events-auto">
             {/* Song Badge */}
-            <div className="flex items-center gap-2 bg-neutral-950/80 px-3 py-1.5 rounded-full border border-white/15 backdrop-blur-md shadow-md min-w-0 max-w-full">
+            <div className="flex min-w-0 max-w-full items-center gap-2 self-start rounded-full border border-white/15 bg-neutral-950/80 px-3 py-1.5 shadow-md backdrop-blur-md">
               <div className="p-1 bg-red-600 rounded-full text-white shadow-sm shrink-0">
                 <Youtube size={14} />
               </div>
@@ -1543,9 +1549,9 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({
             </div>
 
             {/* Floating Presentation Controls Toolbar */}
-            <div className="flex items-center gap-1.5 flex-wrap overflow-x-auto max-w-full py-0.5 custom-scrollbar">
+            <div className="flex w-full max-w-full flex-wrap items-center justify-start gap-2 py-0.5">
               {/* View Layout Selector */}
-              <div className="flex bg-neutral-950/80 p-0.5 rounded-full border border-white/15 backdrop-blur-md shadow-md text-xs">
+              <div className="flex shrink-0 rounded-full border border-white/15 bg-neutral-950/80 p-0.5 text-xs shadow-md backdrop-blur-md">
                 <button
                   type="button"
                   onClick={() => setMeetViewMode('split')}
@@ -1591,7 +1597,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({
               </div>
 
               {/* Translation Mode Selector */}
-              {!isMusicMode && <div className="flex bg-neutral-950/80 p-0.5 rounded-full border border-white/15 backdrop-blur-md shadow-md text-xs">
+              {!isMusicMode && <div className="flex shrink-0 rounded-full border border-white/15 bg-neutral-950/80 p-0.5 text-xs shadow-md backdrop-blur-md">
                 <button
                   type="button"
                   onClick={() => setTranslationMode('original')}
@@ -1629,7 +1635,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({
               </div>}
 
               {/* Font Size Adjuster */}
-              <div className="flex items-center gap-0.5 bg-neutral-950/80 px-2 py-0.5 rounded-full border border-white/15 backdrop-blur-md shadow-md text-xs">
+              <div className="flex shrink-0 items-center gap-0.5 rounded-full border border-white/15 bg-neutral-950/80 px-2 py-0.5 text-xs shadow-md backdrop-blur-md">
                 <button
                   type="button"
                   onClick={() => setMeetFontSize((prev) => Math.max(18, prev - 4))}
@@ -1653,7 +1659,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({
               <button
                 type="button"
                 onClick={() => handleSpeakWord(editableLyrics.slice(0, 150), 'pt-BR')}
-                className="p-1.5 px-2.5 rounded-full bg-neutral-950/80 hover:bg-amber-500/20 text-amber-300 border border-white/15 backdrop-blur-md shadow-md text-xs font-medium flex items-center gap-1 cursor-pointer"
+                className="flex shrink-0 cursor-pointer items-center gap-1 rounded-full border border-white/15 bg-neutral-950/80 px-2.5 py-1.5 text-xs font-medium text-amber-300 shadow-md backdrop-blur-md hover:bg-amber-500/20"
                 title="Ouvir áudio em português"
               >
                 <Volume2 size={12} />
@@ -1663,7 +1669,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({
               <button
                 type="button"
                 onClick={() => setIsFullscreenMeet(false)}
-                className="px-3 py-1 rounded-full bg-neutral-950/80 hover:bg-red-500/20 text-red-300 border border-red-500/30 text-xs font-bold transition-all cursor-pointer backdrop-blur-md shadow-md flex items-center gap-1"
+                className="flex shrink-0 cursor-pointer items-center gap-1 rounded-full border border-red-500/30 bg-neutral-950/80 px-3 py-1 text-xs font-bold text-red-300 shadow-md backdrop-blur-md transition-all hover:bg-red-500/20"
                 title="Sair da Tela Cheia"
               >
                 <X size={13} />
@@ -1679,15 +1685,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({
               <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch overflow-hidden">
                 {/* Video Player Column */}
                 <div className="lg:col-span-5 xl:col-span-5 flex flex-col justify-center min-h-0">
-                  <div className="w-full aspect-video rounded-2xl overflow-hidden border border-white/20 bg-black shadow-2xl relative">
-                    <iframe
-                      src={`https://www.youtube-nocookie.com/embed/${activeItem.embedId}?autoplay=1&rel=0&modestbranding=1`}
-                      title={activeItem.title}
-                      className="w-full h-full border-0"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                    />
-                  </div>
+                  <div className="w-full aspect-video rounded-2xl border border-white/20 bg-black/20" aria-hidden="true" />
                 </div>
 
                 {/* Lyrics Reader Column */}
@@ -1770,13 +1768,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({
                 <div className="shrink-0 flex items-center justify-between bg-black/60 border border-white/15 rounded-2xl p-2.5 px-4 backdrop-blur-md">
                   <div className="flex items-center gap-3">
                     <div className="w-28 sm:w-36 aspect-video rounded-lg overflow-hidden border border-white/20 bg-black shrink-0">
-                      <iframe
-                        src={`https://www.youtube-nocookie.com/embed/${activeItem.embedId}?autoplay=1&rel=0&modestbranding=1`}
-                        title={activeItem.title}
-                        className="w-full h-full border-0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                      />
+                      <div className="w-full h-full" aria-hidden="true" />
                     </div>
                     <div className="truncate">
                       <span className="notranslate text-xs font-bold text-white block truncate" translate="no">{activeItem.title}</span>

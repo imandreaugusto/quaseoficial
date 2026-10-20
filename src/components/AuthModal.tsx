@@ -682,7 +682,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 ? 'bg-red-600 hover:bg-red-500 text-white shadow-red-950/50'
                 : couponState.status === 'valid'
                 ? 'bg-emerald-500 hover:bg-emerald-400 text-black shadow-emerald-500/30'
-                : 'bg-gradient-to-r from-blue-500 to-violet-500 hover:brightness-110 text-white shadow-violet-500/30'
+                : 'border border-white/25 bg-white/[0.08] text-white shadow-black/10 backdrop-blur-xl hover:border-white/40 hover:bg-white/[0.14]'
             }`}
           >
             {loading ? (
@@ -777,12 +777,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </div>
         </div>
 
-        <div className="mt-auto w-full shrink-0 px-2 pb-2 pt-1">
-          <div className="flex w-full justify-start">
-            <div className="w-full max-w-[320px]">
-              <SiteLegalFooter />
-            </div>
-          </div>
+        <div className="fixed bottom-[max(0.75rem,env(safe-area-inset-bottom))] right-[max(0.75rem,env(safe-area-inset-right))] z-30 pointer-events-auto">
+          <SiteLegalFooter />
         </div>
       </div>
 
