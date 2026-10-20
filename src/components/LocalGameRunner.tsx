@@ -165,12 +165,25 @@ export const LocalGameRunner: React.FC<LocalGameRunnerProps> = ({ gameId, title,
   const [hangmanWordIndex, setHangmanWordIndex] = useState(0);
   const [memoryOrder] = useState(() => MEMORY_CARDS.map((_, index) => index).sort(() => Math.random() - 0.5));
   const memoryTimer = useRef<number | null>(null);
+  const roundAdvanceTimer = useRef<number | null>(null);
   const finishedRef = useRef(false);
+  const roundTransitionRef = useRef(false);
 
   useEffect(() => () => {
     if (memoryTimer.current !== null) window.clearTimeout(memoryTimer.current);
+    if (roundAdvanceTimer.current !== null) window.clearTimeout(roundAdvanceTimer.current);
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
   }, []);
+
+  const scheduleRoundAdvance = (delay: number, advance: () => void) => {
+    if (roundTransitionRef.current) return;
+    roundTransitionRef.current = true;
+    roundAdvanceTimer.current = window.setTimeout(() => {
+      roundAdvanceTimer.current = null;
+      advance();
+      roundTransitionRef.current = false;
+    }, delay);
+  };
 
   const complete = (finalScore: number) => {
     if (finishedRef.current) return;
@@ -188,20 +201,21 @@ export const LocalGameRunner: React.FC<LocalGameRunnerProps> = ({ gameId, title,
   };
 
   const answerChoice = (question: ChoiceQuestion, choice: string, points: number) => {
-    if (finished || feedback) return;
+    if (finished || roundTransitionRef.current || feedback) return;
     const correct = choice === question.answer;
     if (correct) celebrateCorrectAnswer();
     const nextScore = score + (correct ? points : 0);
     setScore(nextScore);
     setFeedback(correct ? `Correto! +${points} pontos` : `Resposta: ${question.answer}`);
-    window.setTimeout(() => {
+    scheduleRoundAdvance(550, () => {
       setFeedback('');
       if (roundIndex >= 4) complete(nextScore);
       else setRoundIndex((current) => current + 1);
-    }, 550);
+    });
   };
 
   const answerTextRound = (rounds: Array<{ prompt: string; answer: string }>, points: number) => {
+    if (finished || roundTransitionRef.current) return;
     if (normalize(answer) !== normalize(rounds[roundIndex].answer)) {
       setFeedback('Tente outra resposta.');
       return;
@@ -211,15 +225,15 @@ export const LocalGameRunner: React.FC<LocalGameRunnerProps> = ({ gameId, title,
     setScore(nextScore);
     setAnswer('');
     setFeedback(`Correto! +${points} pontos`);
-    window.setTimeout(() => {
+    scheduleRoundAdvance(400, () => {
       setFeedback('');
       if (roundIndex >= rounds.length - 1) complete(nextScore);
       else setRoundIndex((current) => current + 1);
-    }, 400);
+    });
   };
 
   const selectHexLetter = (letterIndex: number) => {
-    if (finished || feedback || hexSelectedLetters.includes(letterIndex)) return;
+    if (finished || roundTransitionRef.current || feedback || hexSelectedLetters.includes(letterIndex)) return;
     const puzzle = HEX_ROUNDS[roundIndex];
     const nextSelection = [...hexSelectedLetters, letterIndex];
     setHexSelectedLetters(nextSelection);
@@ -239,14 +253,14 @@ export const LocalGameRunner: React.FC<LocalGameRunnerProps> = ({ gameId, title,
     const nextScore = score + 10;
     setScore(nextScore);
     setFeedback('Palavra encontrada! +10 pontos');
-    window.setTimeout(() => {
+    scheduleRoundAdvance(450, () => {
       setFeedback('');
       if (roundIndex >= HEX_ROUNDS.length - 1) complete(nextScore);
       else {
         setRoundIndex((current) => current + 1);
         setHexSelectedLetters([]);
       }
-    }, 450);
+    });
   };
 
   const choiceRounds = CHOICE_ROUNDS[gameId];
@@ -258,25 +272,26 @@ export const LocalGameRunner: React.FC<LocalGameRunnerProps> = ({ gameId, title,
   const hangmanSolved = currentHangmanWord.split('').every((letter) => hangmanGuesses.includes(letter));
 
   const checkSentence = () => {
+    if (finished || roundTransitionRef.current) return;
     const isCorrect = selectedWords.join(' ') === currentSentence.join(' ');
     if (isCorrect) celebrateCorrectAnswer();
     const nextScore = score + (isCorrect ? 20 : 0);
     setScore(nextScore);
     setFeedback(isCorrect ? 'Frase correta! +20 pontos' : 'Quase lá. Tente reorganizar as palavras.');
     if (isCorrect) {
-      window.setTimeout(() => {
+      scheduleRoundAdvance(450, () => {
         setFeedback('');
         if (roundIndex >= SENTENCES.length - 1) complete(nextScore);
         else {
           setRoundIndex((current) => current + 1);
           setSelectedWords([]);
         }
-      }, 450);
+      });
     }
   };
 
   const clickMemoryCard = (cardIndex: number) => {
-    if (finished || memoryMatched.includes(cardIndex) || memoryOpen.includes(cardIndex) || memoryOpen.length >= 2) return;
+    if (finished || roundTransitionRef.current || memoryMatched.includes(cardIndex) || memoryOpen.includes(cardIndex) || memoryOpen.length >= 2) return;
     const nextOpen = [...memoryOpen, cardIndex];
     setMemoryOpen(nextOpen);
     if (nextOpen.length !== 2) return;
@@ -290,7 +305,7 @@ export const LocalGameRunner: React.FC<LocalGameRunnerProps> = ({ gameId, title,
       setScore(nextScore);
       setMemoryOpen([]);
       setFeedback('Par encontrado! +10 pontos');
-      if (nextMatched.length === MEMORY_CARDS.length) window.setTimeout(() => complete(nextScore), 450);
+      if (nextMatched.length === MEMORY_CARDS.length) scheduleRoundAdvance(450, () => complete(nextScore));
       else window.setTimeout(() => setFeedback(''), 650);
     } else {
       setFeedback('Não combinam. Tente de novo.');
@@ -302,7 +317,7 @@ export const LocalGameRunner: React.FC<LocalGameRunnerProps> = ({ gameId, title,
   };
 
   const clickWordSearchCell = (cellIndex: number) => {
-    if (finished || foundCells.includes(cellIndex)) return;
+    if (finished || roundTransitionRef.current || foundCells.includes(cellIndex)) return;
     const nextCells = [...selectedCells, cellIndex];
     setSelectedCells(nextCells);
     const target = WORD_SEARCH_TARGETS[roundIndex];
@@ -316,12 +331,15 @@ export const LocalGameRunner: React.FC<LocalGameRunnerProps> = ({ gameId, title,
       const nextFound = [...foundCells, ...nextCells];
       setFoundCells(nextFound);
       setFeedback(`${target.word} encontrada! +10 pontos`);
-      if (roundIndex >= WORD_SEARCH_TARGETS.length - 1) window.setTimeout(() => complete(nextScore), 450);
-      else window.setTimeout(() => {
+      scheduleRoundAdvance(450, () => {
+        if (roundIndex >= WORD_SEARCH_TARGETS.length - 1) {
+          complete(nextScore);
+          return;
+        }
         setRoundIndex((current) => current + 1);
         setSelectedCells([]);
         setFeedback('');
-      }, 450);
+      });
     } else {
       setFeedback('Esse caminho não combina. Tente de novo.');
       window.setTimeout(() => {
@@ -332,32 +350,51 @@ export const LocalGameRunner: React.FC<LocalGameRunnerProps> = ({ gameId, title,
   };
 
   const clickHangmanLetter = (letter: string) => {
-    if (finished || hangmanGuesses.includes(letter)) return;
+    if (finished || roundTransitionRef.current || hangmanGuesses.includes(letter)) return;
     const nextGuesses = [...hangmanGuesses, letter];
     setHangmanGuesses(nextGuesses);
     const solved = currentHangmanWord.split('').every((character) => nextGuesses.includes(character));
     const errors = nextGuesses.filter((character) => !currentHangmanWord.includes(character)).length;
     if (solved) {
       celebrateCorrectAnswer();
+      const nextScore = score + 10;
+      setScore(nextScore);
       setFeedback('Palavra descoberta! +10 pontos');
-      window.setTimeout(() => complete(10), 500);
+      scheduleRoundAdvance(500, () => {
+        if (hangmanWordIndex >= HANGMAN_WORDS.length - 1) {
+          complete(nextScore);
+          return;
+        }
+        setHangmanWordIndex((current) => current + 1);
+        setHangmanGuesses([]);
+        setFeedback('');
+      });
     } else if (errors >= 6) {
       setFeedback(`A palavra era “${currentHangmanWord}”.`);
-      window.setTimeout(() => complete(0), 650);
+      scheduleRoundAdvance(650, () => {
+        if (hangmanWordIndex >= HANGMAN_WORDS.length - 1) {
+          complete(score);
+          return;
+        }
+        setHangmanWordIndex((current) => current + 1);
+        setHangmanGuesses([]);
+        setFeedback('');
+      });
     }
   };
 
   const handleYesNo = (value: boolean) => {
+    if (finished || roundTransitionRef.current) return;
     const correct = value === YES_NO_ROUNDS[roundIndex].answer;
     if (correct) celebrateCorrectAnswer();
     const nextScore = score + (correct ? 10 : 0);
     setScore(nextScore);
     setFeedback(correct ? 'Correto! +10 pontos' : 'Quase lá.');
-    window.setTimeout(() => {
+    scheduleRoundAdvance(400, () => {
       setFeedback('');
       if (roundIndex >= YES_NO_ROUNDS.length - 1) complete(nextScore);
       else setRoundIndex((current) => current + 1);
-    }, 400);
+    });
   };
 
   const listenToWord = (word: string) => {
@@ -485,17 +522,23 @@ export const LocalGameRunner: React.FC<LocalGameRunnerProps> = ({ gameId, title,
               </button>
               <div className="mt-4 flex justify-center gap-3">
                 <button type="button" onClick={() => {
+                  if (finished || roundTransitionRef.current) return;
                   const nextIndex = roundIndex + 1;
-                  if (nextIndex >= FLASHCARDS.length) complete(score);
-                  else { setRoundIndex(nextIndex); setFlipped(false); }
+                  scheduleRoundAdvance(0, () => {
+                    if (nextIndex >= FLASHCARDS.length) complete(score);
+                    else { setRoundIndex(nextIndex); setFlipped(false); }
+                  });
                 }} className="rounded-2xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-bold text-white/80 backdrop-blur-xl hover:bg-white/20">Revisar de novo</button>
                 <button type="button" onClick={() => {
+                  if (finished || roundTransitionRef.current) return;
                   celebrateCorrectAnswer();
                   const nextScore = score + 10;
                   setScore(nextScore);
                   const nextIndex = roundIndex + 1;
-                  if (nextIndex >= FLASHCARDS.length) complete(nextScore);
-                  else { setRoundIndex(nextIndex); setFlipped(false); }
+                  scheduleRoundAdvance(0, () => {
+                    if (nextIndex >= FLASHCARDS.length) complete(nextScore);
+                    else { setRoundIndex(nextIndex); setFlipped(false); }
+                  });
                 }} className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-blue-500 to-violet-500 px-4 py-2.5 text-sm font-extrabold text-white shadow-lg shadow-violet-500/25">Eu sei <ArrowRight size={15} /></button>
               </div>
             </div>
@@ -511,7 +554,7 @@ export const LocalGameRunner: React.FC<LocalGameRunnerProps> = ({ gameId, title,
             </div>
           ) : gameId === 'hangman' ? (
             <div className="mx-auto max-w-xl text-center">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">Adivinhe a palavra · 6 erros permitidos</p>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/45">Palavra {hangmanWordIndex + 1} de {HANGMAN_WORDS.length} · 6 erros permitidos</p>
               <div className="mt-7 flex justify-center gap-2">
                 {currentHangmanWord.split('').map((letter, index) => <span key={`${letter}-${index}`} className="flex h-12 w-9 items-center justify-center border-b-2 border-cyan-300 text-xl font-black uppercase text-white">{hangmanGuesses.includes(letter) || finished ? letter : ''}</span>)}
               </div>

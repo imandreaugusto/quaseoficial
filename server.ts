@@ -1906,7 +1906,7 @@ async function startServer() {
     'word-rush': 110,
     'yes-no-speed': 50,
     'custom-quiz': 50,
-    hangman: 10
+    hangman: 50
   };
 
   app.post('/api/games/score', async (req, res) => {
