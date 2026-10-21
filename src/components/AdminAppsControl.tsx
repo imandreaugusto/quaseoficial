@@ -4,7 +4,6 @@ import {
   Instagram,
   Globe,
   BookOpen,
-  PenTool,
   HelpCircle,
   GitCompare,
   Mic,
@@ -20,13 +19,13 @@ import {
   Power,
   ArrowUp,
   ArrowDown,
-  RotateCcw,
 } from 'lucide-react';
 import { GlobalAppConfig, AppDefinition } from '../types';
 
 // TODOS OS 11 MÓDULOS DO ALUNO TOTALMENTE CONTROLADOS PELO CEO
 export const ALL_STUDENT_APPS: AppDefinition[] = [
-  { id: 'friends', label: 'Brazilian Friends', desc: 'Messenger e chat estilo MSN para prática de conversação com alunos, salas e IA', category: 'Conversação & Chat', targetRole: 'both' },
+  { id: 'brazilianfriends', label: 'Brazilian Friends', desc: 'Messenger e chat estilo MSN para prática de conversação com alunos, salas e IA', category: 'Conversação & Chat', targetRole: 'both' },
+  { id: 'brazilianspace', label: 'Brazilian Space', desc: 'Comunidade para compartilhar descobertas, tirar dúvidas e ajudar outros alunos', category: 'Comunidade & Aprendizagem', targetRole: 'both' },
   { id: 'stories', label: 'Brazilian Post', desc: 'Gravação de stories com teleprompter inteligente e mural de destaques no Instagram', category: 'Prática & Mídia', targetRole: 'both' },
   { id: 'practice', label: 'Brazilian Practice', desc: 'Ambientes ao vivo de conversação, pronúncia guiada e imersão livre', category: 'Conversação Ao Vivo', targetRole: 'both' },
   { id: 'readclub', label: 'Read Club', desc: 'Biblioteca de leitura com contos graduados, áudio nativo e vocabulário inteligente', category: 'Leitura & Compreensão', targetRole: 'both' },
@@ -57,6 +56,13 @@ export const AdminAppsControl: React.FC<AdminAppsControlProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
 
+  const orderedApps = [...ALL_STUDENT_APPS].sort((first, second) => {
+    const firstIndex = appConfig.studentAppOrder.indexOf(first.id);
+    const secondIndex = appConfig.studentAppOrder.indexOf(second.id);
+    return (firstIndex === -1 ? Number.MAX_SAFE_INTEGER : firstIndex)
+      - (secondIndex === -1 ? Number.MAX_SAFE_INTEGER : secondIndex);
+  });
+
   // Ativar / Desativar App para todos os alunos instantaneamente
   const handleToggleApp = (appId: string) => {
     const isEnabled = appConfig.studentGlobalEnabled[appId] !== false;
@@ -71,14 +77,20 @@ export const AdminAppsControl: React.FC<AdminAppsControlProps> = ({
   };
 
   // Mover Ordem do Menu
-  const handleMoveOrder = (index: number, direction: 'up' | 'down') => {
-    const newOrder = [...appConfig.studentAppOrder];
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= newOrder.length) return;
+  const handleMoveOrder = (appId: string, direction: 'up' | 'down') => {
+    const appIds = orderedApps.map((app) => app.id);
+    const appIndex = appIds.indexOf(appId);
+    const targetAppId = appIds[appIndex + (direction === 'up' ? -1 : 1)];
+    if (!targetAppId) return;
 
-    const temp = newOrder[index];
-    newOrder[index] = newOrder[targetIndex];
-    newOrder[targetIndex] = temp;
+    const newOrder = [...appConfig.studentAppOrder];
+    for (const id of appIds) {
+      if (!newOrder.includes(id)) newOrder.push(id);
+    }
+
+    const currentIndex = newOrder.indexOf(appId);
+    const targetIndex = newOrder.indexOf(targetAppId);
+    [newOrder[currentIndex], newOrder[targetIndex]] = [newOrder[targetIndex], newOrder[currentIndex]];
 
     onSaveConfig({
       ...appConfig,
@@ -119,7 +131,7 @@ export const AdminAppsControl: React.FC<AdminAppsControlProps> = ({
 
       {/* GRADE DE APLICATIVOS CONTROLADOS PELO CEO */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {ALL_STUDENT_APPS.map((app, index) => {
+        {orderedApps.map((app, index) => {
           const isEnabled = appConfig.studentGlobalEnabled[app.id] !== false;
 
           return (
@@ -171,7 +183,7 @@ export const AdminAppsControl: React.FC<AdminAppsControlProps> = ({
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
-                    onClick={() => handleMoveOrder(index, 'up')}
+                    onClick={() => handleMoveOrder(app.id, 'up')}
                     disabled={index === 0}
                     className="p-1 rounded bg-white/5 hover:bg-white/10 disabled:opacity-30 text-white/70"
                     title="Subir posição no menu"
@@ -180,8 +192,8 @@ export const AdminAppsControl: React.FC<AdminAppsControlProps> = ({
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleMoveOrder(index, 'down')}
-                    disabled={index === ALL_STUDENT_APPS.length - 1}
+                    onClick={() => handleMoveOrder(app.id, 'down')}
+                    disabled={index === orderedApps.length - 1}
                     className="p-1 rounded bg-white/5 hover:bg-white/10 disabled:opacity-30 text-white/70"
                     title="Descer posição no menu"
                   >

@@ -30,10 +30,11 @@ import {
   MessageSquareText,
   Download,
   Share,
-  Plus
+  Plus,
 } from 'lucide-react';
 import { UserProfile, GlobalAppConfig } from '../types';
 import { ensureAppAfter } from '../lib/appMenuOrder';
+import { PlanetOrbitIcon } from './PlanetOrbitIcon';
 import { BrazilianLogo } from './BrazilianLogo';
 import { SocialLinksBar } from './SocialLinksBar';
 import { getSupabaseClient, loadSharedContentFromSupabase } from '../utils/supabaseClient';
@@ -79,7 +80,7 @@ interface SidebarProps {
 const ALL_STUDENT_ITEMS = [
   { id: 'home', label: 'Home', icon: Home },
   { id: 'brazilianfriends', label: 'Brazilian Friends', icon: Users },
-  { id: 'brazilianspace', label: 'Brazilian Space', icon: Sparkles },
+  { id: 'brazilianspace', label: 'Brazilian Space', icon: PlanetOrbitIcon },
   { id: 'stories', label: 'Brazilian Post', icon: Instagram },
   { id: 'practice', label: 'Brazilian Practice', icon: Globe },
   { id: 'readclub', label: 'Read Club', icon: BookOpen },
@@ -236,7 +237,7 @@ const ALL_ADMIN_ITEMS = [
   { id: 'home', label: 'Home', icon: Home },
   { id: 'work', label: 'Work', icon: LayoutGrid },
   { id: 'brazilianfriends', label: 'Brazilian Friends', icon: Users },
-  { id: 'brazilianspace', label: 'Brazilian Space', icon: Sparkles },
+  { id: 'brazilianspace', label: 'Brazilian Space', icon: PlanetOrbitIcon },
   { id: 'stories', label: 'Brazilian Post', icon: Instagram },
   { id: 'practice', label: 'Brazilian Practice', icon: Globe },
   { id: 'dashboard', label: 'Controle Financeiro', icon: LayoutDashboard },

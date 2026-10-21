@@ -19,6 +19,7 @@ import {
   Check, 
   X,
   Sparkles,
+  Info,
   Eye,
   EyeOff
 } from 'lucide-react';
@@ -421,26 +422,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   return (
     <div className="app-auth-layer fixed inset-0 flex h-dvh flex-col overflow-y-auto overscroll-contain p-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] select-none sm:p-4 md:p-6">
       <div className="relative flex min-h-full w-full flex-col">
-        {/* TOP BAR: Exact Internal Clock component on Upper Left | Right "Como funciona?" Button */}
+        {/* TOP BAR: Exact Internal Clock component on Upper Left */}
         <div className="z-20 flex w-full shrink-0 items-start justify-between pointer-events-auto">
           
           {/* UPPER LEFT: IDENTICAL APP CLOCK */}
           <div className="p-1">
             <Clock clock24h={false} size="sm" align="left" />
           </div>
-
-          {/* UPPER RIGHT: COMO FUNCIONA */}
-          {!isAdminMode && (
-            <button
-              type="button"
-              onClick={() => setIsTourOpen(true)}
-              className="px-3.5 py-2 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/25 text-white/90 hover:text-white text-xs font-bold flex items-center gap-2 transition-all shadow-xl cursor-pointer group active:scale-95 backdrop-blur-xl"
-              title="Conheça todos os módulos da plataforma e planos de assinatura"
-            >
-              <Sparkles size={14} className="text-amber-400" />
-              <span>Como funciona?</span>
-            </button>
-          )}
         </div>
 
         {/* CENTER: Clean Floating Form Elements */}
@@ -780,6 +768,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         <div className="fixed bottom-[max(0.75rem,env(safe-area-inset-bottom))] right-[max(0.75rem,env(safe-area-inset-right))] z-30 pointer-events-auto">
           <SiteLegalFooter />
         </div>
+        {!isAdminMode && (
+          <button
+            type="button"
+            onClick={() => setIsTourOpen(true)}
+            className="fixed top-[max(0.75rem,env(safe-area-inset-top))] left-[max(0.75rem,env(safe-area-inset-left))] z-30 grid h-11 w-11 place-items-center rounded-full border border-white/25 bg-white/10 text-white/90 shadow-xl backdrop-blur-xl transition hover:bg-white/20 active:scale-95"
+            title="Conheça os módulos da plataforma e os planos"
+            aria-label="Informações sobre a plataforma"
+          >
+            <Info size={20} />
+          </button>
+        )}
       </div>
 
       {/* Subscription Tour Modal */}

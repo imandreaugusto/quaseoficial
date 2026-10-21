@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Orbit, Settings2, X } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 import type { UserProfile } from '../types';
 import { CEO_EMAIL } from '../utils/security';
@@ -30,14 +31,6 @@ interface SpacePost {
   comments: SpaceComment[];
 }
 
-interface SpaceLeaderboardEntry {
-  user_id: string;
-  help_points: number;
-  xp: number;
-  coins: number;
-  user: SpaceUser | null;
-}
-
 interface RewardSettings {
   mention_reply_points: number;
   mention_reply_xp: number;
@@ -46,13 +39,12 @@ interface RewardSettings {
 
 interface SpaceFeedData {
   posts: SpacePost[];
-  leaderboard: SpaceLeaderboardEntry[];
   helpers: SpaceUser[];
-  my_helper_awards: Array<{ season_key: string; source_season_key: string; place: number; help_points: number }>;
+  my_helper_awards: Array<{ season_key: string; source_season_key: string; place: number }>;
   badge_users: string[];
   badges: Array<{ badge_key: string; acquired_at: string }>;
   season_key: string;
-  reward_settings: RewardSettings;
+  reward_settings?: RewardSettings;
 }
 
 interface SpaceProps {
@@ -102,7 +94,7 @@ export function BrazilianSpace({ user, initialDraft = '', focusRequestId }: Spac
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeComment, setActiveComment] = useState('');
-  const [rewardSettings, setRewardSettings] = useState<RewardSettings | null>(null);
+  const [isRewardSettingsOpen, setIsRewardSettingsOpen] = useState(false);
   const [rewardForm, setRewardForm] = useState<RewardSettings>({
     mention_reply_points: 10,
     mention_reply_xp: 15,
@@ -110,6 +102,7 @@ export function BrazilianSpace({ user, initialDraft = '', focusRequestId }: Spac
   });
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const isCeo = user.email.trim().toLowerCase() === CEO_EMAIL;
+  const achievementStorageKey = `bia-space-seen-achievements:${user.email.trim().toLowerCase()}`;
 
   const helperIds = useMemo(() => new Set(feed?.helpers.map((helper) => helper.auth_user_id) || []), [feed?.helpers]);
 
@@ -117,9 +110,28 @@ export function BrazilianSpace({ user, initialDraft = '', focusRequestId }: Spac
     setError('');
     try {
       const data = await requestJson<SpaceFeedData>('/api/space/feed');
+      const achievements = [
+        ...data.badges.map((badge) => `badge:${badge.badge_key}`),
+        ...data.my_helper_awards.map((award) => `helper:${award.season_key}:${award.place}`)
+      ];
+      try {
+        const saved = window.localStorage.getItem(achievementStorageKey);
+        if (saved !== null) {
+          const seen = new Set(JSON.parse(saved) as string[]);
+          const newBadge = data.badges.find((badge) => !seen.has(`badge:${badge.badge_key}`));
+          const newHelperAward = data.my_helper_awards.find((award) => !seen.has(`helper:${award.season_key}:${award.place}`));
+          if (newBadge) {
+            setNotice('Conquista desbloqueada: Quebra-Gelo! Seu insight agora brilha no Space.');
+          } else if (newHelperAward) {
+            setNotice(`Parabéns! Você conquistou o título Space Helper na temporada ${newHelperAward.source_season_key.slice(0, 7)}.`);
+          }
+        }
+        window.localStorage.setItem(achievementStorageKey, JSON.stringify(achievements));
+      } catch (storageError) {
+        console.warn('Não foi possível salvar as conquistas já exibidas no Brazilian Space:', storageError);
+      }
       setFeed(data);
-      setRewardSettings(data.reward_settings);
-      setRewardForm(data.reward_settings);
+      if (data.reward_settings) setRewardForm(data.reward_settings);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Nao foi possivel carregar o Brazilian Space.');
     } finally {
@@ -130,6 +142,12 @@ export function BrazilianSpace({ user, initialDraft = '', focusRequestId }: Spac
   useEffect(() => {
     void loadFeed();
   }, []);
+
+  useEffect(() => {
+    if (!notice) return;
+    const timeout = window.setTimeout(() => setNotice(''), 5000);
+    return () => window.clearTimeout(timeout);
+  }, [notice]);
 
   useEffect(() => {
     setDraft(initialDraft);
@@ -183,16 +201,14 @@ export function BrazilianSpace({ user, initialDraft = '', focusRequestId }: Spac
     setError('');
     setNotice('');
     try {
-      const result = await requestJson<{ validation: { isValid: boolean; reason: string } }>('/api/space/posts', {
+      await requestJson('/api/space/posts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ body: draft.trim(), mentions: mentions.map((person) => person.handle) })
       });
       setDraft('');
       setMentions([]);
-      setNotice(result.validation.isValid
-        ? 'Publicado! A JEV validou sua contribuicao e o emblema Quebra-Gelo esta no seu perfil.'
-        : `Publicado sem emblema: ${result.validation.reason}`);
+      setNotice('Sua publicação foi compartilhada.');
       await loadFeed();
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'Falha ao publicar.');
@@ -222,8 +238,8 @@ export function BrazilianSpace({ user, initialDraft = '', focusRequestId }: Spac
       setCommentDrafts((current) => ({ ...current, [postId]: '' }));
       const rewards = result.rewards;
       setNotice(rewards?.recipients
-        ? `Resposta validada! Ambos receberam ${rewards.points} pontos, ${rewards.xp} XP e ${rewards.coins} moedas.`
-        : result.validation.isValid ? 'Resposta publicada e validada pela JEV.' : `Resposta publicada: ${result.validation.reason}`);
+        ? 'A ajuda de vocês foi reconhecida. Uma surpresa chegou para os dois!'
+        : 'Sua resposta foi compartilhada.');
       await loadFeed();
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : 'Falha ao responder.');
@@ -242,9 +258,9 @@ export function BrazilianSpace({ user, initialDraft = '', focusRequestId }: Spac
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(rewardForm)
       });
-      setRewardSettings(result.settings);
       setRewardForm(result.settings);
-      setNotice('Valores de recompensa atualizados.');
+      setIsRewardSettingsOpen(false);
+      setNotice('Preferências atualizadas.');
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Nao foi possivel atualizar as recompensas.');
     }
@@ -268,7 +284,6 @@ export function BrazilianSpace({ user, initialDraft = '', focusRequestId }: Spac
         <p className="space-post-body">{post.body}</p>
         <div className="space-post-meta">
           <span>{post.comments.length} {post.comments.length === 1 ? 'resposta' : 'respostas'}</span>
-          {post.jev_valid && <span className="space-validation">✓ Insight verificado pela JEV</span>}
         </div>
         {post.comments.map((comment) => (
           <div className="space-comment" key={comment.id}>
@@ -297,7 +312,7 @@ export function BrazilianSpace({ user, initialDraft = '', focusRequestId }: Spac
             disabled={activeComment === post.id}
             onClick={() => void submitComment(post.id)}
           >
-            {activeComment === post.id ? 'Verificando...' : 'Responder'}
+            {activeComment === post.id ? 'Enviando...' : 'Responder'}
           </button>
         </div>
       </article>
@@ -312,14 +327,27 @@ export function BrazilianSpace({ user, initialDraft = '', focusRequestId }: Spac
           <h1>Brazilian <span>Space</span></h1>
           <p>Compartilhe descobertas, tire duvidas e ajude outros alunos a decolarem.</p>
         </div>
-        <div className="space-season-pill">
-          <span>Temporada</span>
-          <strong>{feed?.season_key ? new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${feed.season_key}T00:00:00Z`)) : '—'}</strong>
+        <div className="space-hero-actions">
+          {isCeo && (
+            <button
+              type="button"
+              className="space-icon-button"
+              aria-label="Configurar recompensas"
+              title="Configurar recompensas"
+              onClick={() => setIsRewardSettingsOpen(true)}
+            >
+              <Settings2 size={18} />
+            </button>
+          )}
+          <div className="space-season-pill">
+            <span>Temporada</span>
+            <strong>{feed?.season_key ? new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${feed.season_key}T00:00:00Z`)) : '—'}</strong>
+          </div>
         </div>
       </header>
 
       {error && <div className="space-alert space-alert--error" role="alert">{error}</div>}
-      {notice && <div className="space-alert space-alert--success" role="status">{notice}</div>}
+      {notice && <div className="space-toast space-alert--success" role="status"><Orbit size={19} /><span>{notice}</span></div>}
 
       <div className="space-layout">
         <section className="space-main-column">
@@ -351,9 +379,8 @@ export function BrazilianSpace({ user, initialDraft = '', focusRequestId }: Spac
               </div>
             )}
             <div className="space-composer-footer">
-              <span>A JEV verifica se o conteudo e um insight ou uma duvida de estudo.</span>
               <button className="space-primary-button" type="submit" disabled={isSubmitting}>
-                {isSubmitting ? 'Verificando com JEV...' : 'Publicar no Space'}
+                {isSubmitting ? 'Publicando...' : 'Publicar no Space'}
               </button>
             </div>
           </form>
@@ -367,58 +394,25 @@ export function BrazilianSpace({ user, initialDraft = '', focusRequestId }: Spac
               ? feed.posts.map(renderPost)
               : <div className="space-glass space-empty">Ainda nao ha publicacoes. Seja a primeira pessoa a compartilhar um insight!</div>}
         </section>
-
-        <aside className="space-side-column">
-          <section className="space-glass space-panel">
-            <div className="space-panel-heading"><h2>Space Helpers</h2><span>Top 3 do mes</span></div>
-            <p className="space-panel-copy">Quem mais ajuda a comunidade nesta temporada.</p>
-            {feed?.leaderboard.length ? feed.leaderboard.slice(0, 3).map((entry, index) => (
-              <div className="space-rank-row" key={entry.user_id}>
-                <span className="space-rank-number">{index + 1}</span>
-                <Avatar person={entry.user} helper />
-                <div className="space-rank-user">
-                  <strong className="space-helper-name">{entry.user?.display_name || 'Aluno Space'}</strong>
-                  <span>@{entry.user?.handle || 'aluno'}</span>
-                </div>
-                <b>{entry.help_points} pts</b>
-              </div>
-            )) : <p className="space-empty-inline">As primeiras interacoes validas iniciam o placar.</p>}
-            <div className="space-reward-summary">
-              <span>Recompensa por resposta valida</span>
-              <strong>+{rewardSettings?.mention_reply_points ?? 10} pts · +{rewardSettings?.mention_reply_xp ?? 15} XP · +{rewardSettings?.mention_reply_coins ?? 5} moedas para cada aluno</strong>
-            </div>
-          </section>
-
-          <section className="space-glass space-panel">
-            <div className="space-panel-heading"><h2>Suas conquistas</h2><span>{feed?.badges.length || 0}</span></div>
-            {feed?.badges.some((badge) => badge.badge_key === 'break_the_ice')
-              ? <div className="space-badge-card">
-                <span className="space-badge-icon">✦</span>
-                <div><strong>Quebra-Gelo</strong><p>A JEV reconheceu sua contribuicao de estudo.</p></div>
-              </div>
-              : <p className="space-empty-inline">Publique seu primeiro insight ou duvida validada pela JEV para conquistar o Quebra-Gelo.</p>}
-            {feed?.my_helper_awards.map((award) => (
-              <div className="space-badge-card" key={award.season_key}>
-                <span className="space-badge-icon space-badge-icon--gold">✧</span>
-                <div>
-                  <strong>Space Helper · #{award.place}</strong>
-                  <p>Top 3 de {new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${award.source_season_key}T00:00:00Z`))} · {award.help_points} pontos</p>
-                </div>
-              </div>
-            ))}
-          </section>
-
-          {isCeo && (
-            <section className="space-glass space-panel space-admin-rewards">
-              <div className="space-panel-heading"><h2>Recompensas</h2><span>CEO</span></div>
-              <label>Pontos <input type="number" min="0" max="10000" value={rewardForm.mention_reply_points} onChange={(event) => setRewardForm((current) => ({ ...current, mention_reply_points: Number(event.target.value) }))} /></label>
-              <label>XP <input type="number" min="0" max="10000" value={rewardForm.mention_reply_xp} onChange={(event) => setRewardForm((current) => ({ ...current, mention_reply_xp: Number(event.target.value) }))} /></label>
-              <label>Moedas <input type="number" min="0" max="10000" value={rewardForm.mention_reply_coins} onChange={(event) => setRewardForm((current) => ({ ...current, mention_reply_coins: Number(event.target.value) }))} /></label>
-              <button type="button" className="space-quiet-button" onClick={() => void saveRewardSettings()}>Salvar valores</button>
-            </section>
-          )}
-        </aside>
       </div>
+
+      {isCeo && isRewardSettingsOpen && (
+        <div className="space-settings-backdrop" role="presentation" onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setIsRewardSettingsOpen(false);
+        }}>
+          <section className="space-settings-dialog space-glass" role="dialog" aria-modal="true" aria-labelledby="space-rewards-title">
+            <button type="button" className="space-icon-button space-settings-close" aria-label="Fechar configurações" onClick={() => setIsRewardSettingsOpen(false)}>
+              <X size={18} />
+            </button>
+            <span className="space-eyebrow">SOMENTE CEO</span>
+            <h2 id="space-rewards-title">Configuração de recompensas</h2>
+            <label>Pontos <input type="number" min="0" max="10000" value={rewardForm.mention_reply_points} onChange={(event) => setRewardForm((current) => ({ ...current, mention_reply_points: Number(event.target.value) }))} /></label>
+            <label>XP <input type="number" min="0" max="10000" value={rewardForm.mention_reply_xp} onChange={(event) => setRewardForm((current) => ({ ...current, mention_reply_xp: Number(event.target.value) }))} /></label>
+            <label>Moedas <input type="number" min="0" max="10000" value={rewardForm.mention_reply_coins} onChange={(event) => setRewardForm((current) => ({ ...current, mention_reply_coins: Number(event.target.value) }))} /></label>
+            <button type="button" className="space-primary-button" onClick={() => void saveRewardSettings()}>Salvar</button>
+          </section>
+        </div>
+      )}
     </main>
   );
 }

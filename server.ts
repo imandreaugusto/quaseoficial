@@ -565,6 +565,7 @@ async function startServer() {
     try {
       const authUser = await getSpaceVerifiedUser(req, res);
       if (!authUser) return;
+      const isCeo = normalizeEmail(authUser.email) === CEO_EMAIL;
       const seasonKey = `${new Date().getUTCFullYear()}-${String(new Date().getUTCMonth() + 1).padStart(2, '0')}-01`;
       const finalizeResponse = await supabaseServiceRequest('rpc/space_award_previous_season', {
         method: 'POST',
@@ -572,13 +573,10 @@ async function startServer() {
       });
       if (!finalizeResponse.ok) throw new Error(`Space season awards failed (${finalizeResponse.status}): ${await finalizeResponse.text()}`);
 
-      const [posts, leaderboard, badges, helpers, myHelperAwards, rewardSettings] = await Promise.all([
+      const [posts, badges, helpers, myHelperAwards, rewardSettings] = await Promise.all([
         getSpaceRows<{
           id: string; author_id: string; body: string; jev_valid: boolean; created_at: string;
         }>('space_posts?select=id,author_id,body,jev_valid,created_at&order=created_at.desc&limit=50'),
-        getSpaceRows<{
-          user_id: string; help_points: number; xp: number; coins: number;
-        }>(`season_points?season_key=eq.${seasonKey}&select=user_id,help_points,xp,coins&order=help_points.desc,xp.desc&limit=20`),
         getSpaceRows<{ badge_key: string; acquired_at: string }>(
           `space_badges_acquired?user_id=eq.${encodeURIComponent(authUser.id)}&select=badge_key,acquired_at&order=acquired_at.desc`
         ),
@@ -586,17 +584,19 @@ async function startServer() {
           `space_season_awards?season_key=eq.${seasonKey}&select=helper_user_id&order=place.asc&limit=3`
         ),
         getSpaceRows<{
-          season_key: string; source_season_key: string; place: number; help_points: number;
+          season_key: string; source_season_key: string; place: number;
         }>(
-          `space_season_awards?helper_user_id=eq.${encodeURIComponent(authUser.id)}&select=season_key,source_season_key,place,help_points&order=season_key.desc&limit=12`
+          `space_season_awards?helper_user_id=eq.${encodeURIComponent(authUser.id)}&select=season_key,source_season_key,place&order=season_key.desc&limit=12`
         ),
-        getSpaceRows<{
-          mention_reply_points: number;
-          mention_reply_xp: number;
-          mention_reply_coins: number;
-        }>(
-          'space_reward_settings?singleton=eq.true&select=mention_reply_points,mention_reply_xp,mention_reply_coins&limit=1'
-        )
+        isCeo
+          ? getSpaceRows<{
+            mention_reply_points: number;
+            mention_reply_xp: number;
+            mention_reply_coins: number;
+          }>(
+            'space_reward_settings?singleton=eq.true&select=mention_reply_points,mention_reply_xp,mention_reply_coins&limit=1'
+          )
+          : Promise.resolve([])
       ]);
       const postIds = posts.map((post) => post.id);
       const comments = postIds.length
@@ -607,7 +607,6 @@ async function startServer() {
       const relatedUserIds = [...new Set([
         ...posts.map((post) => post.author_id),
         ...comments.map((comment) => comment.author_id),
-        ...leaderboard.map((entry) => entry.user_id),
         ...helpers.map((entry) => entry.helper_user_id)
       ])];
       const users = relatedUserIds.length
@@ -635,19 +634,19 @@ async function startServer() {
           author: userById.get(comment.author_id) || null
         }))
       }));
-      const ranked = leaderboard.map((entry) => ({ ...entry, user: userById.get(entry.user_id) || null }));
       const helperUsers = helpers
         .map((entry) => userById.get(entry.helper_user_id))
         .filter((user): user is NonNullable<typeof user> => Boolean(user));
       return res.json({
         posts: feedPosts,
-        leaderboard: ranked,
         helpers: helperUsers,
         my_helper_awards: myHelperAwards,
         badge_users: badgeUsers.map((badge) => badge.user_id),
         badges,
         season_key: seasonKey,
-        reward_settings: rewardSettings[0] || { mention_reply_points: 10, mention_reply_xp: 15, mention_reply_coins: 5 }
+        ...(isCeo && {
+          reward_settings: rewardSettings[0] || { mention_reply_points: 10, mention_reply_xp: 15, mention_reply_coins: 5 }
+        })
       });
     } catch (error: any) {
       console.error('Brazilian Space feed failed:', error?.message || error);
@@ -693,7 +692,7 @@ async function startServer() {
       console.error('Brazilian Space post failed:', error?.message || error);
       const missingKey = error?.message?.includes('TYPESAFE_API_KEY');
       return res.status(missingKey ? 503 : 502).json({
-        error: missingKey ? 'A validação JEV está indisponível: configure TYPESAFE_API_KEY no servidor.' : 'A JEV não conseguiu validar a publicação agora. Tente novamente.'
+        error: 'Não foi possível compartilhar sua publicação agora. Tente novamente.'
       });
     }
   });
@@ -740,7 +739,7 @@ async function startServer() {
       console.error('Brazilian Space comment failed:', error?.message || error);
       const missingKey = error?.message?.includes('TYPESAFE_API_KEY');
       return res.status(missingKey ? 503 : 502).json({
-        error: missingKey ? 'A validação JEV está indisponível: configure TYPESAFE_API_KEY no servidor.' : 'A JEV não conseguiu validar a resposta agora. Tente novamente.'
+        error: 'Não foi possível compartilhar sua resposta agora. Tente novamente.'
       });
     }
   });
