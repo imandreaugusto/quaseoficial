@@ -32,6 +32,7 @@ import {
   submitBrazilianGameScore,
   type WeeklyGameLeaderboard
 } from '../lib/brazilianGamesApi';
+import { requestSpaceMomentInsight } from '../lib/brazilianSpaceEvents';
 import { LocalGameRunner, type LocalGameId } from './LocalGameRunner';
 
 type GameCategory = 'Palavras' | 'Vocabulário' | 'Gramática' | 'Leitura' | 'Pronúncia' | 'Memória';
@@ -138,6 +139,7 @@ export const BrazilianGames: React.FC = () => {
   const [leaderboardError, setLeaderboardError] = useState('');
   const sessionIdRef = useRef('');
   const scoreSubmittedRef = useRef(false);
+  const insightPromptedRef = useRef(false);
 
   const refreshLeaderboard = async () => {
     setLeaderboardLoading(true);
@@ -174,8 +176,14 @@ export const BrazilianGames: React.FC = () => {
   }, [playing]);
 
   useEffect(() => {
-    if (timeLeft === 0) setPlaying(false);
-  }, [timeLeft]);
+    if (timeLeft === 0) {
+      setPlaying(false);
+      if (showingRound && !insightPromptedRef.current) {
+        insightPromptedRef.current = true;
+        requestSpaceMomentInsight();
+      }
+    }
+  }, [showingRound, timeLeft]);
 
   useEffect(() => {
     if (!showingRound || playing || score < 1 || !sessionIdRef.current || scoreSubmittedRef.current) return;
@@ -195,6 +203,7 @@ export const BrazilianGames: React.FC = () => {
     setActiveGameId('word-rush');
     sessionIdRef.current = createSessionId();
     scoreSubmittedRef.current = false;
+    insightPromptedRef.current = false;
     setShowingRound(true);
     setWordIndex(0);
     setScrambledWord(scramble(WORDS[0].word));
@@ -227,6 +236,10 @@ export const BrazilianGames: React.FC = () => {
       setFeedback('Todas as palavras! +50 de bônus');
       setWon(true);
       setPlaying(false);
+      if (!insightPromptedRef.current) {
+        insightPromptedRef.current = true;
+        requestSpaceMomentInsight();
+      }
       return;
     }
 
@@ -331,7 +344,10 @@ export const BrazilianGames: React.FC = () => {
         gameId={activeGameId}
         title={activeGame?.title || 'Brazilian Games'}
         onBack={() => setActiveGameId(null)}
-        onComplete={(points) => recordScore(activeGameId, points, createSessionId())}
+        onComplete={(points) => {
+          if (activeGameId === 'idiom-blocks') requestSpaceMomentInsight();
+          return recordScore(activeGameId, points, createSessionId());
+        }}
       />
     );
   }

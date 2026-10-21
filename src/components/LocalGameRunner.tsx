@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
+import { requestSpaceMomentInsight } from '../lib/brazilianSpaceEvents';
 import {
   ArrowRight,
   Check,
@@ -190,6 +191,7 @@ export const LocalGameRunner: React.FC<LocalGameRunnerProps> = ({ gameId, title,
     finishedRef.current = true;
     setScore(finalScore);
     setFinished(true);
+    requestSpaceMomentInsight();
     if (finalScore < 1) {
       setScoreSync('no-points');
       return;

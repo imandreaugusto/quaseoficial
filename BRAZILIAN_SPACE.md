@@ -32,9 +32,11 @@ papel anonimo.
 - `GET /api/space/rewards` (via feed) e `POST /api/space/rewards`: leitura e ajuste restritos ao CEO.
 
 Os endpoints usam a sessao Supabase autenticada e a verificacao de assinatura ja
-aplicada pelo servidor. `GEMINI_API_KEY` deve estar configurada no servidor para
-a JEV; indisponibilidade da chave ou do provedor e reportada, sem validacao
-positiva de reserva.
+aplicada pelo servidor. A verificacao das contribuicoes e feita pelo modelo
+`jev-latest` via TypeSafe AI, usando `TYPESAFE_API_KEY`. Se a chave estiver
+ausente ou o provedor falhar, o servidor reporta a indisponibilidade e nao
+considera a contribuicao validada. `GEMINI_API_KEY` continua sendo usada por
+outros recursos de IA existentes, mas nao pela validacao do Brazilian Space.
 
 ## Componentes isolados e gatilho de saida
 
@@ -43,13 +45,15 @@ positiva de reserva.
 - `src/lib/brazilianSpaceEvents.ts` expõe `requestSpaceMomentInsight()` para aplicativos anfitrioes.
 - `src/components/BrazilianSpaceMomentInsight.tsx` exibe o popup padrao e encaminha para o compositor com foco.
 
-Um app que possua um evento de conclusao pode importar
-`requestSpaceMomentInsight` e chama-lo no callback existente, por exemplo:
+O Brazilian Games chama `requestSpaceMomentInsight()` ao concluir uma partida
+local, sem alterar a pontuacao ou as regras do jogo. Outros apps que possuam um
+evento proprio de conclusao podem importar e chamar a mesma funcao, por exemplo:
 
 ```ts
 requestSpaceMomentInsight({ draft: 'Meu insight desta atividade foi...' });
 ```
 
-O shell instala o ouvinte globalmente. Esta integracao entrega o ponto de
-extensao sem instrumentar ou alterar a logica interna de Brazilian Games,
-Brazilian Practice ou aulas existentes.
+O shell instala o ouvinte globalmente. Portais de conversacao de terceiros
+abertos pelo Brazilian Practice nao fornecem um evento de conclusao ao app; por
+isso, o popup nao pode ser acionado automaticamente ao encerrar uma atividade
+nesses sites.
