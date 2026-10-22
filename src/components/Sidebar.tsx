@@ -75,6 +75,7 @@ interface SidebarProps {
   onToggleFloatingCam?: () => void;
   isStudentPreviewMode?: boolean;
   onToggleStudentPreview?: () => void;
+  menuSoundsEnabled?: boolean;
 }
 
 const ALL_STUDENT_ITEMS = [
@@ -93,7 +94,8 @@ const ALL_STUDENT_ITEMS = [
   { id: 'tradutor', label: 'Tradutor Cultural', icon: Languages },
   { id: 'youtube', label: 'Brazilian Music', icon: Music },
   { id: 'studytime', label: 'Study Time', icon: StudyTimeIcon },
-  { id: 'feedback', label: 'Feedback', icon: MessageSquareText }
+  { id: 'feedback', label: 'Feedback', icon: MessageSquareText },
+  { id: 'settings', label: 'Configurações', icon: SettingsIcon }
 ];
 
 type NavItem = {
@@ -115,15 +117,16 @@ const NavButton: React.FC<{
   item: NavItem;
   isActive: boolean;
   accentColor: string;
+  menuSoundsEnabled: boolean;
   onClick: () => void;
-}> = ({ item, isActive, accentColor, onClick }) => {
+}> = ({ item, isActive, accentColor, menuSoundsEnabled, onClick }) => {
   const btnRef = useRef<HTMLButtonElement | null>(null);
   const iconRef = useRef<HTMLSpanElement | null>(null);
   const isPlatformBrand = item.label.startsWith('Brazilian ') || item.label === 'Read Club' || item.label === 'BIA Compare';
 
   // 1. Ao passar o mouse: toca o som e aciona o GSAP
   const handleMouseEnter = () => {
-    playHoverSound(0.15); // Dispara o som sintetizado
+    if (menuSoundsEnabled) playHoverSound(0.15);
 
     if (!btnRef.current) return;
 
@@ -193,7 +196,7 @@ const NavButton: React.FC<{
   };
 
   const handleClick = () => {
-    playMenuSelectSound(0.18); // Toca o som de seleção
+    if (menuSoundsEnabled) playMenuSelectSound(0.18);
     onClick();
   };
 
@@ -269,7 +272,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isFloatingCamActive,
   onToggleFloatingCam,
   isStudentPreviewMode = false,
-  onToggleStudentPreview
+  onToggleStudentPreview,
+  menuSoundsEnabled = true
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const menuToggleRef = useRef<HTMLButtonElement | null>(null);
@@ -280,11 +284,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [showInstallHelp, setShowInstallHelp] = useState(false);
   const [installError, setInstallError] = useState('');
   const [appConfig, setAppConfig] = useState<GlobalAppConfig>({
-    studentAppOrder: ['home', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'readclub', 'brazilianhq', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'studytime', 'feedback'],
+    studentAppOrder: ['home', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'readclub', 'brazilianhq', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'studytime', 'feedback', 'settings'],
     adminAppOrder: ['home', 'work', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'brazilianhq', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'studytime', 'settings'],
     studentGlobalEnabled: {
       brazilianfriends: true,
       brazilianspace: true,
+      settings: true,
       stories: true,
       practice: true,
       readclub: true,
@@ -341,6 +346,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         : ['brazilianfriends', ...parsed.studentAppOrder];
       if (!studentAppOrder.includes('brazilianspace')) studentAppOrder.push('brazilianspace');
       if (!studentAppOrder.includes('feedback')) studentAppOrder.push('feedback');
+      if (!studentAppOrder.includes('settings')) studentAppOrder.push('settings');
       const adminAppOrder = parsed.adminAppOrder.includes('brazilianfriends')
         ? parsed.adminAppOrder
         : ['brazilianfriends', ...parsed.adminAppOrder];
@@ -363,6 +369,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           braziliangames: true,
           brazilianhq: true,
           feedback: true,
+          settings: true,
           ...parsed.studentGlobalEnabled
         }
       };
@@ -450,7 +457,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     .map((appId) => ALL_STUDENT_ITEMS.find((item) => item.id === appId))
     .filter((item): item is typeof ALL_STUDENT_ITEMS[number] => {
       if (!item) return false;
-      if (item.id === 'home') return true;
+      if (item.id === 'home' || item.id === 'settings') return true;
       const isGloballyActive = appConfig.studentGlobalEnabled[item.id] !== false;
       return isGloballyActive;
     });
@@ -584,7 +591,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             type="button"
             id="hamburger-btn"
             onClick={() => {
-              playMenuSelectSound(0.18);
+              if (menuSoundsEnabled) playMenuSelectSound(0.18);
               setIsOpen(!isOpen);
             }}
             aria-label={isOpen ? 'Fechar menu de navegação' : 'Abrir menu de navegação'}
@@ -729,6 +736,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         item={item}
                         isActive={isActive}
                         accentColor={accentColor}
+                        menuSoundsEnabled={menuSoundsEnabled}
                         onClick={() => handleNavigate(item.id)}
                       />
                     </motion.div>

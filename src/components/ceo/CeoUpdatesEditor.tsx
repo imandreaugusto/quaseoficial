@@ -29,6 +29,7 @@ export const CeoUpdatesEditor: React.FC = () => {
     try {
       await saveUpdatesNotice(notice);
       setCurrent(notice);
+      let deliveryMessage = successText;
       if (notifyPhones) {
         const client = getSupabaseClient();
         if (!client) throw new Error('O aviso foi publicado, mas o serviço de notificações não está disponível.');
@@ -45,8 +46,13 @@ export const CeoUpdatesEditor: React.FC = () => {
           const result = await response.json().catch(() => ({})) as { error?: string };
           throw new Error(result.error || 'O aviso foi publicado, mas não foi possível notificar os telefones.');
         }
+        const result = await response.json() as { recipientCount?: number; sentCount?: number; failedCount?: number };
+        const delivered = result.sentCount ?? 0;
+        const notDelivered = result.failedCount ?? 0;
+        deliveryMessage = `${successText} Push entregue a ${delivered} de ${result.recipientCount ?? 0} assinantes com dispositivos ativos.`;
+        if (notDelivered > 0) deliveryMessage += ` ${notDelivered} não receberam; confira as inscrições push.`;
       }
-      setMessage({ type: 'success', text: successText });
+      setMessage({ type: 'success', text: deliveryMessage });
     } catch (error) {
       setMessage({
         type: 'error',
@@ -60,7 +66,7 @@ export const CeoUpdatesEditor: React.FC = () => {
   const publish = () =>
     persist(
       { id: `new-${Date.now()}`, title: title.trim(), body: body.trim(), publishedAt: new Date().toISOString(), active: true },
-      'Publicado! O aviso aparece na plataforma e foi enviado aos dispositivos inscritos.',
+      'Publicado! O aviso aparece na plataforma.',
       true
     );
 
@@ -74,7 +80,7 @@ export const CeoUpdatesEditor: React.FC = () => {
           <h2 className="text-lg font-extrabold text-white">Novidades da plataforma</h2>
         </div>
         <p className="text-xs leading-relaxed text-white/65">
-          Escreva as atualizações, novos menus e o que vem por aí. O aviso é exibido na plataforma e enviado aos dispositivos que ativaram as notificações; o selo NEW continua disponível na Home.
+          Escreva as atualizações, novos menus e o que vem por aí. Ao publicar, o aviso aparece na plataforma e uma notificação push é enviada aos assinantes ativos com notificações autorizadas. O lembrete diário de estudo é enviado às 6h (Brasília); cada aluno pode desativá-lo em Minhas configurações.
         </p>
         <label className="block">
           <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-white/60">Título</span>
@@ -90,7 +96,7 @@ export const CeoUpdatesEditor: React.FC = () => {
         )}
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={() => void publish()} disabled={busy || !title.trim() || !body.trim()} className="inline-flex cursor-pointer items-center gap-2 rounded-2xl bg-gradient-to-r from-blue-500 to-violet-500 px-5 py-2.5 text-xs font-extrabold uppercase tracking-wider text-white shadow-lg shadow-violet-500/25 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50">
-            {busy ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Publicar
+            {busy ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Publicar e notificar
           </button>
           {current?.active && (
             <button type="button" onClick={() => void unpublish()} disabled={busy} className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-white/85 backdrop-blur-xl transition hover:bg-white/20 disabled:opacity-50">

@@ -8,6 +8,8 @@ interface SettingsProps {
   onExportBackup: () => void;
   onImportBackup: (file: File) => void;
   onResetAll: () => void;
+  isStudent?: boolean;
+  onResetStudentSettings?: () => void;
 }
 
 export const Settings: React.FC<SettingsProps> = ({
@@ -16,6 +18,8 @@ export const Settings: React.FC<SettingsProps> = ({
   onExportBackup,
   onImportBackup,
   onResetAll,
+  isStudent = false,
+  onResetStudentSettings,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -41,6 +45,204 @@ export const Settings: React.FC<SettingsProps> = ({
       onImportBackup(file);
     }
   };
+
+  if (isStudent) {
+    const toggle = (
+      title: string,
+      description: string,
+      key: 'menuSoundsEnabled' | 'notificationSoundsEnabled' | 'dailyMotivationEnabled' | 'bgEnabled' | 'animOn' | 'showNextClass' | 'clock24h'
+    ) => (
+      <div key={key} className="flex items-center justify-between gap-4 rounded-xl border border-white/5 bg-white/[0.02] p-4">
+        <div>
+          <span className="block text-xs font-semibold text-white/80">{title}</span>
+          <span className="mt-1 block text-[10px] text-white/40">{description}</span>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={settings[key]}
+          aria-label={title}
+          onClick={() => handleToggle(key)}
+          className={`relative h-6 w-11 shrink-0 rounded-full transition-all ${settings[key] ? 'bg-amber-500' : 'bg-white/10'}`}
+          style={{ backgroundColor: settings[key] ? settings.accentColor : undefined }}
+        >
+          <span className={`absolute top-1 h-4 w-4 rounded-full bg-white transition-all ${settings[key] ? 'left-6' : 'left-1'}`} />
+        </button>
+      </div>
+    );
+
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-8 pb-32">
+        <div className="mb-8 text-center">
+          <h2 className="text-xl font-light tracking-widest uppercase" style={{ color: settings.accentColor }}>
+            Minhas configurações
+          </h2>
+          <p className="mt-2 text-xs tracking-wide text-white/50">
+            Suas preferências ficam salvas na sua conta e acompanham você em outros dispositivos.
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-7 rounded-3xl border border-white/20 bg-slate-950/40 p-5 shadow-xl backdrop-blur-2xl sm:p-7">
+          <section>
+            <h3 className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/50">
+              <Volume2 size={14} /> Sons
+            </h3>
+            <div className="flex flex-col gap-2">
+              {toggle('Sons do menu', 'Ativa ou desativa os sons ao abrir, selecionar ou passar pelos itens do menu.', 'menuSoundsEnabled')}
+              {toggle('Sons de notificações', 'Ativa ou desativa o som de novas mensagens.', 'notificationSoundsEnabled')}
+              {toggle('Lembretes diários de estudo', 'Receba um convite curto para explorar uma atividade da plataforma.', 'dailyMotivationEnabled')}
+            </div>
+          </section>
+
+          <section>
+            <h3 className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/50">
+              <Layout size={14} /> Fundo e aparência
+            </h3>
+            <div className="flex flex-col gap-2">
+              {toggle('Imagens de fundo', 'Mostrar ou ocultar o slideshow de cidades.', 'bgEnabled')}
+              <label className="flex items-center justify-between gap-4 rounded-xl border border-white/5 bg-white/[0.02] p-4">
+                <span>
+                  <span className="block text-xs font-semibold text-white/80">Brilho do fundo</span>
+                  <span className="mt-1 block text-[10px] text-white/40">Ajuste a intensidade das imagens.</span>
+                </span>
+                <select
+                  value={settings.bgBright}
+                  onChange={(event) => handleSelectChange('bgBright', event.target.value as AppSettings['bgBright'])}
+                  className="rounded-lg border border-white/10 bg-neutral-900 px-3 py-2 text-xs text-white"
+                >
+                  <option value="darker">Mais escuro</option>
+                  <option value="normal">Normal</option>
+                  <option value="lighter">Mais claro</option>
+                </select>
+              </label>
+              <div className="flex items-center justify-between gap-4 rounded-xl border border-white/5 bg-white/[0.02] p-4">
+                <div>
+                  <span className="block text-xs font-semibold text-white/80">Cor de destaque</span>
+                  <span className="mt-1 block text-[10px] text-white/40">Escolha a cor de botões e detalhes.</span>
+                </div>
+                <div className="flex gap-2">
+                  {colors.map((color) => (
+                    <button
+                      key={color.value}
+                      type="button"
+                      onClick={() => handleSelectChange('accentColor', color.value)}
+                      aria-label={`Usar cor ${color.name}`}
+                      aria-pressed={settings.accentColor === color.value}
+                      className={`h-7 w-7 rounded-full border border-white/20 transition-transform ${settings.accentColor === color.value ? 'scale-110 ring-2 ring-white/60' : ''}`}
+                      style={{ backgroundColor: color.value }}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <h3 className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/50">
+              <Sliders size={14} /> Leitura e acessibilidade
+            </h3>
+            <div className="flex flex-col gap-2">
+              <label className="flex items-center justify-between gap-4 rounded-xl border border-white/5 bg-white/[0.02] p-4">
+                <span>
+                  <span className="block text-xs font-semibold text-white/80">Tamanho da fonte de leitura</span>
+                  <span className="mt-1 block text-[10px] text-white/40">Ajuste o texto das histórias.</span>
+                </span>
+                <span className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min="14"
+                    max="36"
+                    value={settings.readerFont}
+                    onChange={(event) => handleSelectChange('readerFont', Number(event.target.value))}
+                    aria-label="Tamanho da fonte de leitura"
+                  />
+                  <span className="w-12 text-right text-xs font-mono text-white/80">{settings.readerFont}px</span>
+                </span>
+              </label>
+              <label className="flex items-center justify-between gap-4 rounded-xl border border-white/5 bg-white/[0.02] p-4">
+                <span>
+                  <span className="block text-xs font-semibold text-white/80">Fonte de leitura</span>
+                  <span className="mt-1 block text-[10px] text-white/40">Escolha o estilo usado nas histórias.</span>
+                </span>
+                <select
+                  value={settings.readerFontFamily}
+                  onChange={(event) => handleSelectChange('readerFontFamily', event.target.value as AppSettings['readerFontFamily'])}
+                  className="rounded-lg border border-white/10 bg-neutral-900 px-3 py-2 text-xs text-white"
+                >
+                  <option value="poppins">Poppins</option>
+                  <option value="lora">Lora</option>
+                  <option value="crimson">Crimson Pro</option>
+                </select>
+              </label>
+              <label className="flex items-center justify-between gap-4 rounded-xl border border-white/5 bg-white/[0.02] p-4">
+                <span>
+                  <span className="block text-xs font-semibold text-white/80">Alinhamento da leitura</span>
+                  <span className="mt-1 block text-[10px] text-white/40">Altere a disposição do texto.</span>
+                </span>
+                <select
+                  value={settings.readerAlign}
+                  onChange={(event) => handleSelectChange('readerAlign', event.target.value as AppSettings['readerAlign'])}
+                  className="rounded-lg border border-white/10 bg-neutral-900 px-3 py-2 text-xs text-white"
+                >
+                  <option value="center">Centralizado</option>
+                  <option value="justify">Justificado</option>
+                </select>
+              </label>
+              <label className="flex items-center justify-between gap-4 rounded-xl border border-white/5 bg-white/[0.02] p-4">
+                <span>
+                  <span className="block text-xs font-semibold text-white/80">Espaçamento da interface</span>
+                  <span className="mt-1 block text-[10px] text-white/40">Escolha entre mais compacto ou espaçado.</span>
+                </span>
+                <select
+                  value={settings.uiDensity}
+                  onChange={(event) => handleSelectChange('uiDensity', event.target.value as AppSettings['uiDensity'])}
+                  className="rounded-lg border border-white/10 bg-neutral-900 px-3 py-2 text-xs text-white"
+                >
+                  <option value="compact">Compacto</option>
+                  <option value="normal">Normal</option>
+                  <option value="spacious">Espaçado</option>
+                </select>
+              </label>
+              <label className="flex items-center justify-between gap-4 rounded-xl border border-white/5 bg-white/[0.02] p-4">
+                <span>
+                  <span className="block text-xs font-semibold text-white/80">Tamanho geral da interface</span>
+                  <span className="mt-1 block text-[10px] text-white/40">Aumente o tamanho dos textos e controles.</span>
+                </span>
+                <select
+                  value={settings.uiScale}
+                  onChange={(event) => handleSelectChange('uiScale', event.target.value as AppSettings['uiScale'])}
+                  className="rounded-lg border border-white/10 bg-neutral-900 px-3 py-2 text-xs text-white"
+                >
+                  <option value="sm">Pequeno</option>
+                  <option value="md">Médio</option>
+                  <option value="lg">Grande</option>
+                </select>
+              </label>
+              {toggle('Animações', 'Desative os movimentos entre as telas.', 'animOn')}
+            </div>
+          </section>
+
+          <section>
+            <h3 className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/50">
+              <Smartphone size={14} /> Preferências pessoais
+            </h3>
+            <div className="flex flex-col gap-2">
+              {toggle('Mostrar próxima aula na Home', 'Exibe o destaque da próxima aula na página inicial.', 'showNextClass')}
+              {toggle('Relógio de 24 horas', 'Usa o formato 24h nos horários.', 'clock24h')}
+            </div>
+          </section>
+
+          <button
+            type="button"
+            onClick={onResetStudentSettings}
+            className="flex items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-3 text-sm text-white/75 transition-colors hover:bg-white/10 hover:text-white"
+          >
+            <RotateCcw size={15} /> Restaurar configurações padrão
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 pb-32">

@@ -1,5 +1,10 @@
 // Gerenciador de Áudio com Web Audio API nativo
 let audioCtx: AudioContext | null = null;
+let notificationSoundsEnabled = true;
+
+export function setNotificationSoundsEnabled(enabled: boolean): void {
+  notificationSoundsEnabled = enabled;
+}
 
 function getAudioContext(): AudioContext | null {
   if (typeof window === 'undefined') return null;
@@ -78,6 +83,8 @@ export function playMenuSelectSound(volume: number = 0.18): void {
 }
 
 export function playPrivateMessageSound(): void {
+  if (!notificationSoundsEnabled) return;
+
   try {
     const ctx = getAudioContext();
     if (!ctx) return;

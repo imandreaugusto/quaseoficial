@@ -18,6 +18,8 @@ export interface ExpenseItem {
 
 export interface AppSettings {
   soundEnabled: boolean;
+  menuSoundsEnabled: boolean;
+  notificationSoundsEnabled: boolean;
   prewarnMin: number;
   clock24h: boolean;
   autoStart: boolean;
@@ -39,6 +41,24 @@ export interface AppSettings {
   compactStreamOverlay: boolean;
   bgInterval?: number;
 }
+
+export type StudentPreferences = Pick<
+  AppSettings,
+  | 'menuSoundsEnabled'
+  | 'notificationSoundsEnabled'
+  | 'dailyMotivationEnabled'
+  | 'bgEnabled'
+  | 'bgBright'
+  | 'accentColor'
+  | 'readerFont'
+  | 'readerFontFamily'
+  | 'readerAlign'
+  | 'clock24h'
+  | 'uiDensity'
+  | 'uiScale'
+  | 'showNextClass'
+  | 'animOn'
+>;
 
 export interface StoryItem {
   id: number;

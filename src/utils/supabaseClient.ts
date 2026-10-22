@@ -527,21 +527,78 @@ export const syncStudentProgressToSupabase = async (userId: string, progress: {
   if (!userId) throw new Error('O identificador do aluno está vazio.');
 
   try {
+    const progressData = {
+      sessions: progress.sessions,
+      glossary: progress.glossary,
+      learned_words: progress.learnedWords,
+      updated_at: new Date().toISOString()
+    };
     const { data, error } = await client
       .from('bia_student_progress')
-      .upsert({
-        user_id: userId,
-        sessions: progress.sessions,
-        glossary: progress.glossary,
-        learned_words: progress.learnedWords,
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'user_id' })
+      .update(progressData)
+      .eq('user_id', userId)
+      .select()
+      .maybeSingle();
+    if (error) throw error;
+    if (data) return data;
+
+    const { data: inserted, error: insertError } = await client
+      .from('bia_student_progress')
+      .insert({ user_id: userId, ...progressData })
       .select()
       .single();
-    if (error) throw error;
-    return data;
+    if (insertError?.code === '23505') {
+      const { data: updated, error: updateError } = await client
+        .from('bia_student_progress')
+        .update(progressData)
+        .eq('user_id', userId)
+        .select()
+        .single();
+      if (updateError) throw updateError;
+      return updated;
+    }
+    if (insertError) throw insertError;
+    return inserted;
   } catch (error) {
     console.warn('Supabase student progress sync failed:', error);
+    throw error;
+  }
+};
+
+export const syncStudentPreferencesToSupabase = async (userId: string, preferences: unknown) => {
+  const client = getSupabaseClient();
+  if (!client) throw new Error('Supabase não está configurado para salvar as preferências.');
+  if (!userId) throw new Error('O identificador do aluno está vazio.');
+
+  try {
+    const { data, error } = await client
+      .from('bia_student_progress')
+      .update({ preferences, updated_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .select('user_id')
+      .maybeSingle();
+    if (error) throw error;
+    if (data) return data;
+
+    const { data: inserted, error: insertError } = await client
+      .from('bia_student_progress')
+      .insert({ user_id: userId, preferences })
+      .select('user_id')
+      .single();
+    if (insertError?.code === '23505') {
+      const { data: updated, error: updateError } = await client
+        .from('bia_student_progress')
+        .update({ preferences, updated_at: new Date().toISOString() })
+        .eq('user_id', userId)
+        .select('user_id')
+        .single();
+      if (updateError) throw updateError;
+      return updated;
+    }
+    if (insertError) throw insertError;
+    return inserted;
+  } catch (error) {
+    console.warn('Supabase student preferences sync failed:', error);
     throw error;
   }
 };
@@ -554,7 +611,7 @@ export const loadStudentProgressFromSupabase = async (userId: string) => {
   try {
     const { data, error } = await client
       .from('bia_student_progress')
-      .select('sessions, glossary, learned_words')
+      .select('sessions, glossary, learned_words, preferences')
       .eq('user_id', userId)
       .maybeSingle();
     if (error) throw error;

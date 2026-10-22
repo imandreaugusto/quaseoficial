@@ -6,7 +6,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import * as webPush from 'web-push';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type } from '@google/genai';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, timingSafeEqual } from 'node:crypto';
 import dotenv from 'dotenv';
 import { validatePortuguesePhrase, validateSpaceContribution } from './src/lib/jevValidator';
 import {
@@ -1686,8 +1686,8 @@ async function startServer() {
       actions?: { action: string; title: string }[];
       vibrate?: number[];
     }
-  ) => {
-    if (!webPushConfigured) return;
+  ): Promise<boolean> => {
+    if (!webPushConfigured) return false;
 
     try {
       const query = new URLSearchParams({
@@ -1699,7 +1699,7 @@ async function startServer() {
       );
       if (!subscriptionsResponse.ok) {
         console.error('Private notification subscription lookup failed:', subscriptionsResponse.status, await subscriptionsResponse.text());
-        return;
+        return false;
       }
 
       const subscriptions = await subscriptionsResponse.json() as {
@@ -1730,8 +1730,10 @@ async function startServer() {
           console.error('Expired private notification subscription cleanup failed:', cleanupResponse.status, await cleanupResponse.text());
         }
       }
+      return deliveries.some((delivery) => delivery.status === 'fulfilled');
     } catch (error) {
       console.error('Private notification delivery failed:', error);
+      return false;
     }
   };
 
@@ -1805,22 +1807,221 @@ async function startServer() {
       const body = typeof req.body?.body === 'string' ? req.body.body.trim().slice(0, 1200) : '';
       if (!title || !body) return res.status(400).json({ error: 'O título e o texto do aviso são obrigatórios.' });
 
-      const response = await supabaseServiceRequest('brazilian_friends_push_subscriptions?select=user_id');
-      if (!response.ok) {
-        console.error('Platform update notification subscriber lookup failed:', response.status, await response.text());
+      const activeResponse = await supabaseServiceRequest(
+        `bia_subscription_profiles?status=eq.active&subscription_expires_at=gt.${encodeURIComponent(new Date().toISOString())}&select=user_id`
+      );
+      if (!activeResponse.ok) {
+        console.error('Platform update active subscriber lookup failed:', activeResponse.status, await activeResponse.text());
         return res.status(502).json({ error: 'Não foi possível localizar os dispositivos inscritos.' });
       }
-      const subscriptions = await response.json() as { user_id: string }[];
-      const recipients = [...new Set(subscriptions.map((subscription) => subscription.user_id).filter(Boolean))];
-      await Promise.all(recipients.map((recipientId) => sendFriendsPushNotification(recipientId, {
+      const activeSubscribers = await activeResponse.json() as { user_id?: string | null }[];
+      const activeIds = [...new Set(activeSubscribers.map(({ user_id }) => user_id).filter((id): id is string => Boolean(id)))];
+      const subscriptions: { user_id?: string | null }[] = [];
+      for (let offset = 0; offset < activeIds.length; offset += 100) {
+        const ids = activeIds.slice(offset, offset + 100);
+        const response = await supabaseServiceRequest(
+          `brazilian_friends_push_subscriptions?user_id=in.(${ids.map(encodeURIComponent).join(',')})&select=user_id`
+        );
+        if (!response.ok) {
+          console.error('Platform update notification subscriber lookup failed:', response.status, await response.text());
+          return res.status(502).json({ error: 'Não foi possível localizar os dispositivos inscritos.' });
+        }
+        subscriptions.push(...await response.json() as { user_id?: string | null }[]);
+      }
+      const recipients = [...new Set(subscriptions.map((subscription) => subscription.user_id).filter((id): id is string => Boolean(id)))];
+      const deliveryResults = await Promise.all(recipients.map((recipientId) => sendFriendsPushNotification(recipientId, {
         title: `Brazilian in Action · ${title}`,
         body,
         url: '/'
       })));
-      return res.json({ ok: true, recipientCount: recipients.length });
+      const sentCount = deliveryResults.filter(Boolean).length;
+      return res.json({ ok: true, recipientCount: recipients.length, sentCount, failedCount: recipients.length - sentCount });
     } catch (error) {
       console.error('Platform update notification broadcast failed:', error);
       return res.status(500).json({ error: 'Falha ao enviar notificações da plataforma.' });
+    }
+  });
+
+  app.post('/api/cron/daily-student-reminders', async (req, res) => {
+    try {
+      const configuredSecret = process.env.DAILY_REMINDER_CRON_SECRET || '';
+      const suppliedSecret = req.header('Authorization')?.replace(/^Bearer\s+/i, '') || '';
+      const expected = Buffer.from(configuredSecret);
+      const supplied = Buffer.from(suppliedSecret);
+      if (
+        !configuredSecret ||
+        expected.length !== supplied.length ||
+        !timingSafeEqual(expected, supplied)
+      ) {
+        return res.status(401).json({ error: 'Acesso não autorizado.' });
+      }
+      if (!webPushConfigured) {
+        return res.status(503).json({ error: 'As notificações push ainda não estão configuradas no servidor.' });
+      }
+      if (!process.env.GEMINI_API_KEY) {
+        return res.status(503).json({ error: 'A chave do JEV não está configurada no servidor.' });
+      }
+
+      const now = new Date();
+      const parts = new Intl.DateTimeFormat('en', {
+        timeZone: 'America/Sao_Paulo',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).formatToParts(now);
+      const datePart = (type: Intl.DateTimeFormatPartTypes) =>
+        parts.find((part) => part.type === type)?.value || '';
+      const reminderDate = `${datePart('year')}-${datePart('month')}-${datePart('day')}`;
+      const recentRunsResponse = await supabaseServiceRequest(
+        `brazilian_daily_reminder_runs?select=message&order=reminder_date.desc&limit=14`
+      );
+      if (!recentRunsResponse.ok) {
+        console.error('Daily reminder history lookup failed:', recentRunsResponse.status, await recentRunsResponse.text());
+        return res.status(502).json({ error: 'Não foi possível consultar o histórico de lembretes.' });
+      }
+      const recentRuns = await recentRunsResponse.json() as { message: string }[];
+      const activityCycle = [
+        'Read Club e leitura em inglês',
+        'Brazilian HQ e leitura de quadrinhos',
+        'Brazilian Space e participação na comunidade',
+        'Brazilian Practice e conversação',
+        'Brazilian Music e estudo com música',
+        'Brazilian Quiz e um desafio rápido'
+      ];
+      const dayNumber = Math.floor(Date.parse(`${reminderDate}T12:00:00-03:00`) / 86_400_000);
+      const focusActivity = activityCycle[((dayNumber % activityCycle.length) + activityCycle.length) % activityCycle.length];
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      let message = '';
+      const generatedMessages: string[] = [];
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        const response = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: [{
+            role: 'user',
+            parts: [{
+              text: [
+                'Você é JEV, o assistente acolhedor do Brazilian in Action.',
+                'Crie uma única mensagem curta e diferente para incentivar um assinante a estudar inglês hoje.',
+                `Tema do convite de hoje: ${focusActivity}.`,
+                'Escreva em português brasileiro, natural, amigável, com no máximo 150 caracteres.',
+                'Pode incluir uma expressão curta em inglês ou um emoji, mas não use nome, título, aspas, listas ou pressão/cobrança.',
+                'Devolva somente o texto da mensagem.',
+                `Mensagens recentes que não devem ser repetidas: ${[
+                  ...recentRuns.map((run) => run.message),
+                  ...generatedMessages
+                ].join(' | ') || 'nenhuma'}.`
+              ].join('\n')
+            }]
+          }],
+          config: { temperature: 0.9, maxOutputTokens: 100 }
+        });
+        message = response.text?.trim().replace(/^["'“”]+|["'“”]+$/g, '').replace(/\s+/g, ' ') || '';
+        const normalizedMessage = message.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        const repeated = [...recentRuns.map((run) => run.message), ...generatedMessages].some((recentMessage) =>
+          recentMessage.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() === normalizedMessage
+        );
+        if (message && message.length <= 180 && !repeated) break;
+        if (message) generatedMessages.push(message);
+        message = '';
+      }
+      if (!message) throw new Error('JEV não conseguiu gerar uma mensagem curta e inédita.');
+
+      const activeResponse = await supabaseServiceRequest(
+        `bia_subscription_profiles?status=eq.active&subscription_expires_at=gt.${encodeURIComponent(now.toISOString())}&select=user_id`
+      );
+      if (!activeResponse.ok) {
+        console.error('Daily reminder active subscriber lookup failed:', activeResponse.status, await activeResponse.text());
+        return res.status(502).json({ error: 'Não foi possível localizar assinantes ativos.' });
+      }
+      const activeRows = await activeResponse.json() as { user_id?: string | null }[];
+      const activeIds = [...new Set(activeRows.map(({ user_id }) => user_id).filter((id): id is string => Boolean(id)))];
+      const profiles: { auth_user_id?: string; first_name?: string | null; full_name?: string | null }[] = [];
+      const preferences: { user_id?: string; preferences?: Record<string, unknown> | null }[] = [];
+      const pushUserIds = new Set<string>();
+      for (let offset = 0; offset < activeIds.length; offset += 100) {
+        const ids = activeIds.slice(offset, offset + 100);
+        const inFilter = ids.map(encodeURIComponent).join(',');
+        const [profileResponse, preferenceResponse, pushResponse] = await Promise.all([
+          supabaseServiceRequest(`profiles?auth_user_id=in.(${inFilter})&role=eq.student&select=auth_user_id,first_name,full_name`),
+          supabaseServiceRequest(`bia_student_progress?user_id=in.(${inFilter})&select=user_id,preferences`),
+          supabaseServiceRequest(`brazilian_friends_push_subscriptions?user_id=in.(${inFilter})&select=user_id`)
+        ]);
+        if (!profileResponse.ok || !preferenceResponse.ok || !pushResponse.ok) {
+          const response = [profileResponse, preferenceResponse, pushResponse].find((item) => !item.ok);
+          console.error('Daily reminder audience lookup failed:', response?.status, await response?.text());
+          return res.status(502).json({ error: 'Não foi possível carregar as preferências dos assinantes.' });
+        }
+        profiles.push(...await profileResponse.json() as typeof profiles);
+        preferences.push(...await preferenceResponse.json() as typeof preferences);
+        const pushUsers = await pushResponse.json() as { user_id?: string | null }[];
+        for (const { user_id } of pushUsers) {
+          if (user_id) pushUserIds.add(user_id);
+        }
+      }
+
+      const preferenceByUserId = new Map(preferences.map((row) => [row.user_id, row.preferences]));
+      const profileByUserId = new Map(profiles.map((profile) => [profile.auth_user_id, profile]));
+      const recipients = [...pushUserIds].filter((userId) =>
+        profileByUserId.has(userId) && preferenceByUserId.get(userId)?.dailyMotivationEnabled !== false
+      );
+
+      const claimResponse = await supabaseServiceRequest(
+        'brazilian_daily_reminder_runs?on_conflict=reminder_date',
+        {
+          method: 'POST',
+          headers: { Prefer: 'resolution=ignore-duplicates,return=representation' },
+          body: JSON.stringify({
+            reminder_date: reminderDate,
+            message,
+            recipient_count: 0,
+            created_at: now.toISOString()
+          })
+        }
+      );
+      if (!claimResponse.ok) {
+        console.error('Daily reminder run claim failed:', claimResponse.status, await claimResponse.text());
+        return res.status(502).json({ error: 'Não foi possível registrar o lembrete do dia.' });
+      }
+      const claimedRuns = await claimResponse.json() as { reminder_date: string }[];
+      if (claimedRuns.length === 0) return res.json({ ok: true, skipped: true, reason: 'already_sent' });
+
+      let sentCount = 0;
+      for (let offset = 0; offset < recipients.length; offset += 25) {
+        const batch = recipients.slice(offset, offset + 25);
+        const deliveries = await Promise.all(batch.map((recipientId) => {
+          const profile = profileByUserId.get(recipientId);
+          const name = profile?.first_name?.trim() || profile?.full_name?.trim().split(/\s+/)[0] || 'amigo(a)';
+          return sendFriendsPushNotification(recipientId, {
+            title: `Good morning, ${name.slice(0, 40)}! ☀️`,
+            body: message,
+            url: '/',
+            tag: `daily-study-${reminderDate}`
+          });
+        }));
+        sentCount += deliveries.filter(Boolean).length;
+      }
+      const updateResponse = await supabaseServiceRequest(
+        `brazilian_daily_reminder_runs?reminder_date=eq.${reminderDate}`,
+        {
+          method: 'PATCH',
+          headers: { Prefer: 'return=minimal' },
+          body: JSON.stringify({ recipient_count: sentCount })
+        }
+      );
+      if (!updateResponse.ok) {
+        console.error('Daily reminder run result update failed:', updateResponse.status, await updateResponse.text());
+        return res.status(502).json({ error: 'As notificações foram processadas, mas o resultado não foi registrado.' });
+      }
+      return res.json({
+        ok: true,
+        date: reminderDate,
+        recipientCount: recipients.length,
+        sentCount,
+        failedCount: recipients.length - sentCount
+      });
+    } catch (error) {
+      console.error('Daily student reminder failed:', error);
+      return res.status(500).json({ error: 'Falha ao gerar ou enviar o lembrete diário.' });
     }
   });
 

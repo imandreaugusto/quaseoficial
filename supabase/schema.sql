@@ -128,8 +128,19 @@ create table if not exists bia_student_progress (
   sessions jsonb not null default '[]'::jsonb,
   glossary jsonb not null default '{}'::jsonb,
   learned_words jsonb not null default '{}'::jsonb,
+  preferences jsonb not null default '{}'::jsonb,
   updated_at timestamptz not null default now()
 );
+
+create table if not exists brazilian_daily_reminder_runs (
+  reminder_date date primary key,
+  message text not null,
+  recipient_count integer not null default 0,
+  created_at timestamptz not null default now()
+);
+alter table brazilian_daily_reminder_runs enable row level security;
+revoke all on brazilian_daily_reminder_runs from public, anon, authenticated;
+grant select, insert, update on brazilian_daily_reminder_runs to service_role;
 
 create table if not exists bia_student_feedback (
   id uuid primary key default gen_random_uuid(),

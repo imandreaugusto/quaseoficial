@@ -29,6 +29,7 @@ create table if not exists public.bia_student_progress (
   sessions jsonb not null default '[]'::jsonb,
   glossary jsonb not null default '{}'::jsonb,
   learned_words jsonb not null default '{}'::jsonb,
+  preferences jsonb not null default '{}'::jsonb,
   updated_at timestamptz not null default now()
 );
 create table if not exists public.bia_ceo_friend_messages (

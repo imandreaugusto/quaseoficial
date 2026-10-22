@@ -37,7 +37,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { BrazilianLogo } from './components/BrazilianLogo';
 import { CleanStudentStage } from './components/CleanStudentStage';
 import { SiteLegalFooter } from './components/SiteLegalFooter';
-import { ClassItem, ExpenseItem, AppSettings, StoryItem, ReadSession, GlossaryEntry, UserProfile } from './types';
+import { ClassItem, ExpenseItem, AppSettings, StudentPreferences, StoryItem, ReadSession, GlossaryEntry, UserProfile } from './types';
 import { INITIAL_READ_LIBRARY, SLIDESHOW_IMAGES, US_LANDMARKS } from './data';
 import { formatLyricsLibrary, formatStoryLibrary } from './lib/storyFormatting';
 import { CEO_EMAIL, logAdminAccessAttempt, isAuthorizedCeoEmail } from './utils/security';
@@ -49,8 +49,10 @@ import {
   loadStudentProgressFromSupabase,
   removeCurrentDevicePrivatePushSubscription,
   syncSharedContentToSupabase,
+  syncStudentPreferencesToSupabase,
   syncStudentProgressToSupabase,
 } from './utils/supabaseClient';
+import { setNotificationSoundsEnabled } from './lib/menuSounds';
 import { Eye, EyeOff, MapPin } from 'lucide-react';
 import {
   getSupabaseClient,
@@ -60,6 +62,8 @@ import { isActiveSubscription } from './lib/subscriptionStatus';
 
 const DEFAULT_SETTINGS: AppSettings = {
   soundEnabled: true,
+  menuSoundsEnabled: true,
+  notificationSoundsEnabled: true,
   prewarnMin: 10,
   clock24h: false,
   autoStart: false,
@@ -80,6 +84,70 @@ const DEFAULT_SETTINGS: AppSettings = {
   focusMode: false,
   compactStreamOverlay: false,
   bgInterval: 8,
+};
+
+const DEFAULT_STUDENT_PREFERENCES: StudentPreferences = {
+  menuSoundsEnabled: true,
+  notificationSoundsEnabled: true,
+  dailyMotivationEnabled: true,
+  bgEnabled: true,
+  bgBright: 'normal',
+  accentColor: '#ff8c00',
+  readerFont: 22,
+  readerFontFamily: 'poppins',
+  readerAlign: 'center',
+  clock24h: false,
+  uiDensity: 'normal',
+  uiScale: 'md',
+  showNextClass: true,
+  animOn: true,
+};
+
+const STUDENT_PREFERENCES_CACHE_KEY = (userId: string) =>
+  `bia_student_preferences_${encodeURIComponent(userId)}`;
+
+const normalizeStudentPreferences = (value: unknown): StudentPreferences => {
+  const preferences = value && typeof value === 'object'
+    ? value as Partial<StudentPreferences>
+    : {};
+  const validAccents = ['#ff8c00', '#3b82f6', '#10b981', '#e10600', '#a855f7'];
+
+  return {
+    menuSoundsEnabled: typeof preferences.menuSoundsEnabled === 'boolean'
+      ? preferences.menuSoundsEnabled
+      : DEFAULT_STUDENT_PREFERENCES.menuSoundsEnabled,
+    notificationSoundsEnabled: typeof preferences.notificationSoundsEnabled === 'boolean'
+      ? preferences.notificationSoundsEnabled
+      : DEFAULT_STUDENT_PREFERENCES.notificationSoundsEnabled,
+    dailyMotivationEnabled: typeof preferences.dailyMotivationEnabled === 'boolean'
+      ? preferences.dailyMotivationEnabled
+      : DEFAULT_STUDENT_PREFERENCES.dailyMotivationEnabled,
+    bgEnabled: typeof preferences.bgEnabled === 'boolean' ? preferences.bgEnabled : DEFAULT_STUDENT_PREFERENCES.bgEnabled,
+    bgBright: ['darker', 'normal', 'lighter'].includes(preferences.bgBright || '')
+      ? preferences.bgBright as StudentPreferences['bgBright']
+      : DEFAULT_STUDENT_PREFERENCES.bgBright,
+    accentColor: validAccents.includes(preferences.accentColor || '')
+      ? preferences.accentColor as string
+      : DEFAULT_STUDENT_PREFERENCES.accentColor,
+    readerFont: typeof preferences.readerFont === 'number' && Number.isFinite(preferences.readerFont)
+      ? Math.min(36, Math.max(14, preferences.readerFont))
+      : DEFAULT_STUDENT_PREFERENCES.readerFont,
+    readerFontFamily: ['poppins', 'lora', 'crimson'].includes(preferences.readerFontFamily || '')
+      ? preferences.readerFontFamily as StudentPreferences['readerFontFamily']
+      : DEFAULT_STUDENT_PREFERENCES.readerFontFamily,
+    readerAlign: preferences.readerAlign === 'justify' ? 'justify' : 'center',
+    clock24h: typeof preferences.clock24h === 'boolean' ? preferences.clock24h : DEFAULT_STUDENT_PREFERENCES.clock24h,
+    uiDensity: ['normal', 'compact', 'spacious'].includes(preferences.uiDensity || '')
+      ? preferences.uiDensity as StudentPreferences['uiDensity']
+      : DEFAULT_STUDENT_PREFERENCES.uiDensity,
+    uiScale: ['sm', 'md', 'lg'].includes(preferences.uiScale || '')
+      ? preferences.uiScale as StudentPreferences['uiScale']
+      : DEFAULT_STUDENT_PREFERENCES.uiScale,
+    showNextClass: typeof preferences.showNextClass === 'boolean'
+      ? preferences.showNextClass
+      : DEFAULT_STUDENT_PREFERENCES.showNextClass,
+    animOn: typeof preferences.animOn === 'boolean' ? preferences.animOn : DEFAULT_STUDENT_PREFERENCES.animOn,
+  };
 };
 
 const getRequestedStartupApp = () =>
@@ -210,9 +278,28 @@ export default function App() {
     progress: ReadClubProgress;
   } | null>(null);
   const pendingYoutubeLibraryRef = useRef<YouTubeLibraryItem[] | null>(null);
+  const studentPreferencesRef = useRef<StudentPreferences>(DEFAULT_STUDENT_PREFERENCES);
+  const studentPreferencesSyncTimerRef = useRef<number | null>(null);
+  const adminSettingsBeforePreviewRef = useRef<AppSettings | null>(null);
   const sharedReadClubLibrarySnapshotRef = useRef('');
   const sharedYoutubeLibrarySnapshotRef = useRef('');
   const liveActiveSubscriberCountRef = useRef<number | null>(null);
+
+  const queueStudentPreferencesSync = (userId: string, preferences: StudentPreferences) => {
+    if (studentPreferencesSyncTimerRef.current !== null) {
+      window.clearTimeout(studentPreferencesSyncTimerRef.current);
+    }
+    setCloudSaveStatus('saving');
+    studentPreferencesSyncTimerRef.current = window.setTimeout(() => {
+      studentPreferencesSyncTimerRef.current = null;
+      void syncStudentPreferencesToSupabase(userId, preferences)
+        .then(() => setCloudSaveStatus('saved'))
+        .catch((error) => {
+          console.error('Could not save this student’s preferences:', error);
+          setCloudSaveStatus('error');
+        });
+    }, 500);
+  };
 
   const queuePlatformSync = (payload: {
     classes: ClassItem[];
@@ -288,6 +375,16 @@ export default function App() {
   useEffect(() => {
     window.addEventListener('online', retryPendingCloudSaves);
     return () => window.removeEventListener('online', retryPendingCloudSaves);
+  }, []);
+
+  useEffect(() => {
+    setNotificationSoundsEnabled(settings.notificationSoundsEnabled);
+  }, [settings.notificationSoundsEnabled]);
+
+  useEffect(() => () => {
+    if (studentPreferencesSyncTimerRef.current !== null) {
+      window.clearTimeout(studentPreferencesSyncTimerRef.current);
+    }
   }, []);
 
   // Initial Auth & Session Verification
@@ -368,6 +465,23 @@ export default function App() {
 
     let cancelled = false;
     const authUserId = currentUser.auth_user_id || currentUser.id;
+    const isStudentAccount = currentUser.role !== 'admin' || !isAuthorizedCeoEmail(currentUser.email);
+    if (isStudentAccount) {
+      studentPreferencesRef.current = DEFAULT_STUDENT_PREFERENCES;
+      setSettings((previous) => ({ ...previous, ...DEFAULT_STUDENT_PREFERENCES }));
+    } else {
+      const storedSettings = localStorage.getItem('bia_settings_final');
+      if (storedSettings) {
+        try {
+          setSettings({ ...DEFAULT_SETTINGS, ...JSON.parse(storedSettings) });
+        } catch (error) {
+          console.warn('Saved administrator settings are invalid:', error);
+          setSettings(DEFAULT_SETTINGS);
+        }
+      } else {
+        setSettings(DEFAULT_SETTINGS);
+      }
+    }
     setReadClubProgressUserId(null);
     const emptyProgress = createEmptyReadClubProgress();
     progressRef.current = emptyProgress;
@@ -381,6 +495,7 @@ export default function App() {
           sessions?: ReadSession[] | null;
           glossary?: Record<string, GlossaryEntry> | null;
           learned_words?: Record<number, string[]> | null;
+          preferences?: unknown;
         } | null = null;
         let progressLoadFailed = false;
         try {
@@ -390,6 +505,27 @@ export default function App() {
           console.error('Could not load this user’s Read Club progress:', error);
         }
         if (cancelled) return;
+
+        if (isStudentAccount) {
+          let cachedPreferences: unknown = null;
+          const cachedPreferencesRaw = localStorage.getItem(STUDENT_PREFERENCES_CACHE_KEY(authUserId));
+          if (cachedPreferencesRaw) {
+            try {
+              cachedPreferences = JSON.parse(cachedPreferencesRaw);
+            } catch (error) {
+              console.warn('This user’s local preferences cache is invalid:', error);
+            }
+          }
+          const cloudPreferences = progress?.preferences;
+          const hasCloudPreferences = cloudPreferences && typeof cloudPreferences === 'object'
+            && Object.keys(cloudPreferences).length > 0;
+          const nextPreferences = normalizeStudentPreferences(
+            hasCloudPreferences ? cloudPreferences : cachedPreferences
+          );
+          studentPreferencesRef.current = nextPreferences;
+          setSettings((previous) => ({ ...previous, ...nextPreferences }));
+          localStorage.setItem(STUDENT_PREFERENCES_CACHE_KEY(authUserId), JSON.stringify(nextPreferences));
+        }
 
         const progressCacheKey = getReadClubProgressCacheKey(authUserId);
         let cachedProgress: ReadClubProgress | null = null;
@@ -445,9 +581,17 @@ export default function App() {
             localStorage.setItem('bia_v14_final', JSON.stringify({ ...parsed, desp: shared.expenses }));
           }
           if (shared.settings) {
-            const nextSettings = { ...DEFAULT_SETTINGS, ...shared.settings };
+            const nextSettings = {
+              ...DEFAULT_SETTINGS,
+              ...shared.settings,
+              ...(isStudentAccount
+                ? { ...DEFAULT_STUDENT_PREFERENCES, ...studentPreferencesRef.current }
+                : {}),
+            };
             setSettings(nextSettings);
-            localStorage.setItem('bia_settings_final', JSON.stringify(nextSettings));
+            if (!isStudentAccount) {
+              localStorage.setItem('bia_settings_final', JSON.stringify(nextSettings));
+            }
           }
           if (shared.library) {
             const formattedLibrary = formatStoryLibrary(shared.library);
@@ -493,7 +637,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [currentUser?.auth_user_id, currentUser?.id]);
+  }, [currentUser?.auth_user_id, currentUser?.id, currentUser?.role, currentUser?.email]);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -661,7 +805,7 @@ export default function App() {
       const storedSettings = localStorage.getItem('bia_settings_final');
       if (storedSettings) {
         const parsed = JSON.parse(storedSettings);
-        setSettings({ ...DEFAULT_SETTINGS, ...parsed, bgEnabled: true });
+        setSettings({ ...DEFAULT_SETTINGS, ...parsed });
       } else {
         setSettings(DEFAULT_SETTINGS);
       }
@@ -743,8 +887,39 @@ export default function App() {
   const handleUpdateSettings = (updated: Partial<AppSettings>) => {
     const next = { ...settings, ...updated };
     setSettings(next);
+    if (isStudentPreviewMode) return;
+
+    const studentUserId = currentUser && !(currentUser.role === 'admin' && isAuthorizedCeoEmail(currentUser.email))
+      ? currentUser.auth_user_id || currentUser.id
+      : null;
+    if (studentUserId) {
+      const nextPreferences = normalizeStudentPreferences({
+        ...studentPreferencesRef.current,
+        ...updated,
+      });
+      studentPreferencesRef.current = nextPreferences;
+      localStorage.setItem(STUDENT_PREFERENCES_CACHE_KEY(studentUserId), JSON.stringify(nextPreferences));
+      queueStudentPreferencesSync(studentUserId, nextPreferences);
+      return;
+    }
+
     queuePlatformSync({ classes, expenses, settings: next, library });
     localStorage.setItem('bia_settings_final', JSON.stringify(next));
+  };
+
+  const handleResetStudentSettings = () => {
+    if (isStudentPreviewMode) {
+      setSettings((current) => ({ ...current, ...DEFAULT_STUDENT_PREFERENCES }));
+      return;
+    }
+    const userId = currentUser && !(currentUser.role === 'admin' && isAuthorizedCeoEmail(currentUser.email))
+      ? currentUser.auth_user_id || currentUser.id
+      : null;
+    if (!userId) return;
+    studentPreferencesRef.current = DEFAULT_STUDENT_PREFERENCES;
+    setSettings((current) => ({ ...current, ...DEFAULT_STUDENT_PREFERENCES }));
+    localStorage.setItem(STUDENT_PREFERENCES_CACHE_KEY(userId), JSON.stringify(DEFAULT_STUDENT_PREFERENCES));
+    queueStudentPreferencesSync(userId, DEFAULT_STUDENT_PREFERENCES);
   };
 
   const handleUpdateLibrary = (next: StoryItem[]) => {
@@ -1268,11 +1443,15 @@ export default function App() {
   }, [currentApp, isAdmin, currentUser]);
 
   const handleToggleStudentPreview = () => {
-    setIsStudentPreviewMode((prev) => {
-      const next = !prev;
-      setCurrentApp('home');
-      return next;
-    });
+    if (isStudentPreviewMode) {
+      if (adminSettingsBeforePreviewRef.current) setSettings(adminSettingsBeforePreviewRef.current);
+      adminSettingsBeforePreviewRef.current = null;
+    } else {
+      adminSettingsBeforePreviewRef.current = settings;
+      setSettings((current) => ({ ...current, ...DEFAULT_STUDENT_PREFERENCES }));
+    }
+    setIsStudentPreviewMode((previous) => !previous);
+    setCurrentApp('home');
   };
 
   if (isBooting) {
@@ -1348,6 +1527,7 @@ export default function App() {
           onToggleFloatingCam={() => setIsFloatingCamActive((prev) => !prev)}
           isStudentPreviewMode={isStudentPreviewMode}
           onToggleStudentPreview={handleToggleStudentPreview}
+          menuSoundsEnabled={settings.menuSoundsEnabled}
         />
 
         {cloudSaveStatus && currentUser && isSubscriptionActive && (
@@ -1364,7 +1544,7 @@ export default function App() {
           >
             <span>
               {cloudSaveStatus === 'saving' && 'Salvando alterações na nuvem…'}
-              {cloudSaveStatus === 'saved' && 'Plataforma atualizada na nuvem.'}
+              {cloudSaveStatus === 'saved' && 'Alterações salvas na nuvem.'}
               {cloudSaveStatus === 'error' && 'Não foi possível sincronizar. Os dados locais foram mantidos.'}
             </span>
             {cloudSaveStatus === 'error' && (
@@ -1586,6 +1766,18 @@ export default function App() {
                       onExportBackup={handleExportBackup}
                       onImportBackup={handleImportBackup}
                       onResetAll={handleResetAll}
+                    />
+                  )}
+
+                  {!effectiveIsAdmin && currentApp === 'settings' && (
+                    <Settings
+                      settings={settings}
+                      onUpdateSettings={handleUpdateSettings}
+                      onExportBackup={handleExportBackup}
+                      onImportBackup={handleImportBackup}
+                      onResetAll={handleResetAll}
+                      isStudent
+                      onResetStudentSettings={handleResetStudentSettings}
                     />
                   )}
 
