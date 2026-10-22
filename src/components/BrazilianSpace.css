@@ -289,6 +289,100 @@
   line-height: 1.65;
 }
 
+.space-post-body a,
+.space-comment p a {
+  color: #a8eaff;
+  text-decoration: underline;
+  text-underline-offset: 0.16em;
+  overflow-wrap: anywhere;
+}
+
+.space-reactions,
+.space-comment-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.space-reactions {
+  margin: 0.45rem 0 0.8rem;
+}
+
+.space-reaction {
+  display: inline-flex;
+  min-height: 1.9rem;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.48rem;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: white;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.76rem;
+}
+
+.space-reaction--active {
+  border-color: rgba(121, 218, 255, 0.65);
+  background: rgba(63, 179, 220, 0.2);
+}
+
+.space-reaction:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.space-comment-actions {
+  margin-top: 0.25rem;
+}
+
+.space-comment-actions .space-reactions {
+  margin: 0;
+}
+
+.space-text-button {
+  padding: 0.25rem 0.4rem;
+  border: 0;
+  background: transparent;
+  color: #a8eaff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.75rem;
+}
+
+.space-comment--nested {
+  margin-left: clamp(1rem, 4vw, 2.5rem);
+  padding-left: 0.7rem;
+  border-left: 2px solid rgba(121, 218, 255, 0.22);
+}
+
+.space-reply-context {
+  display: block;
+  margin-top: 0.35rem;
+  color: var(--space-muted);
+  font-size: 0.72rem;
+}
+
+.space-replying-to {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.75rem;
+  color: var(--space-muted);
+  font-size: 0.77rem;
+}
+
+.space-replying-to button {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: white;
+  cursor: pointer;
+  font-size: 1.2rem;
+}
+
 .space-post-meta {
   justify-content: flex-start;
   padding-bottom: 0.8rem;

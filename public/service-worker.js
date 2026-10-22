@@ -13,7 +13,9 @@ self.addEventListener('push', (event) => {
     tag: payload.tag || 'brazilian-friends-private-message',
     renotify: true,
     requireInteraction: Boolean(payload.requireInteraction),
-    vibrate: payload.requireInteraction ? [350, 180, 350, 180, 600] : [70],
+    vibrate: Array.isArray(payload.vibrate)
+      ? payload.vibrate
+      : payload.requireInteraction ? [350, 180, 350, 180, 600] : [70],
     actions: Array.isArray(payload.actions) ? payload.actions.slice(0, 2) : [],
     data: { url: payload.url || '/' }
   }));

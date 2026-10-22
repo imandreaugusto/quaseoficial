@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Orbit, Settings2, X } from 'lucide-react';
+import { Bell, Orbit, Settings2, X } from 'lucide-react';
 import { apiFetch } from '../lib/api';
+import { playPrivateMessageSound } from '../lib/menuSounds';
 import type { UserProfile } from '../types';
 import { CEO_EMAIL } from '../utils/security';
 import './BrazilianSpace.css';
@@ -17,8 +18,16 @@ interface SpaceComment {
   author_id: string;
   body: string;
   jev_valid: boolean;
+  parent_comment_id: string | null;
   created_at: string;
   author: SpaceUser | null;
+  reactions: SpaceReaction[];
+}
+
+interface SpaceReaction {
+  emoji: string;
+  count: number;
+  reacted: boolean;
 }
 
 interface SpacePost {
@@ -29,6 +38,7 @@ interface SpacePost {
   created_at: string;
   author: SpaceUser | null;
   comments: SpaceComment[];
+  reactions: SpaceReaction[];
 }
 
 interface RewardSettings {
@@ -72,6 +82,30 @@ const formatDate = (value: string) => new Intl.DateTimeFormat('pt-BR', {
   minute: '2-digit'
 }).format(new Date(value));
 
+const reactionEmojis = ['👍', '❤️', '😂', '👏', '💡'];
+
+const decodeVapidPublicKey = (encodedKey: string) => {
+  const base64 = encodedKey.replace(/-/g, '+').replace(/_/g, '/');
+  const raw = window.atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, '='));
+  return Uint8Array.from(raw, (character) => character.charCodeAt(0));
+};
+
+const LinkifiedText = ({ text }: { text: string }) => (
+  <>
+    {text.split(/(https?:\/\/[^\s<]+)/gi).map((part, index) => {
+      if (!/^https?:\/\//i.test(part)) return part;
+      const url = part.replace(/[),.!?;:]+$/, '');
+      const suffix = part.slice(url.length);
+      return (
+        <span key={`${index}-${url}`}>
+          <a href={url} target="_blank" rel="noopener noreferrer">{url}</a>
+          {suffix}
+        </span>
+      );
+    })}
+  </>
+);
+
 const Avatar = ({ person, helper, badge }: { person: SpaceUser | null; helper?: boolean; badge?: boolean }) => {
   const displayName = person?.display_name || 'Aluno Space';
   return (
@@ -89,11 +123,15 @@ export function BrazilianSpace({ user, initialDraft = '', focusRequestId }: Spac
   const [mentions, setMentions] = useState<SpaceUser[]>([]);
   const [suggestions, setSuggestions] = useState<SpaceUser[]>([]);
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
+  const [replyTargets, setReplyTargets] = useState<Record<string, SpaceComment | null>>({});
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeComment, setActiveComment] = useState('');
+  const [activeReaction, setActiveReaction] = useState('');
+  const [isPushEnabled, setIsPushEnabled] = useState(false);
+  const [isPushBusy, setIsPushBusy] = useState(false);
   const [isRewardSettingsOpen, setIsRewardSettingsOpen] = useState(false);
   const [rewardForm, setRewardForm] = useState<RewardSettings>({
     mention_reply_points: 10,
@@ -101,6 +139,8 @@ export function BrazilianSpace({ user, initialDraft = '', focusRequestId }: Spac
     mention_reply_coins: 5
   });
   const composerRef = useRef<HTMLTextAreaElement>(null);
+  const notificationCursorRef = useRef(new Date().toISOString());
+  const notifiedPostIdsRef = useRef(new Set<string>());
   const isCeo = user.email.trim().toLowerCase() === CEO_EMAIL;
   const achievementStorageKey = `bia-space-seen-achievements:${user.email.trim().toLowerCase()}`;
 
@@ -141,6 +181,78 @@ export function BrazilianSpace({ user, initialDraft = '', focusRequestId }: Spac
 
   useEffect(() => {
     void loadFeed();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const checkForNewPosts = async () => {
+      if (cancelled || document.visibilityState !== 'visible') return;
+      try {
+        const updates = await requestJson<{
+          posts: Array<{ id: string; author_id: string; body: string; created_at: string; author: SpaceUser | null }>;
+        }>(`/api/space/updates?since=${encodeURIComponent(notificationCursorRef.current)}`);
+        if (cancelled || updates.posts.length === 0) return;
+        const newPosts = updates.posts.filter((post) => !notifiedPostIdsRef.current.has(post.id));
+        updates.posts.forEach((post) => notifiedPostIdsRef.current.add(post.id));
+        if (newPosts.length === 0) return;
+        const latestTimestamp = newPosts.reduce((latest, post) =>
+          Date.parse(post.created_at) > Date.parse(latest) ? post.created_at : latest,
+          notificationCursorRef.current
+        );
+        notificationCursorRef.current = latestTimestamp;
+        const latestPost = newPosts[newPosts.length - 1];
+        const authorName = latestPost.author?.display_name || 'Alguém';
+        const preview = latestPost.body.replace(/\s+/g, ' ').trim().slice(0, 120);
+        setNotice(`${authorName} publicou no Brazilian Space: ${preview}`);
+        playPrivateMessageSound();
+        if (typeof navigator.vibrate === 'function') navigator.vibrate([180, 100, 180]);
+        if (
+          'Notification' in window &&
+          Notification.permission === 'granted' &&
+          'serviceWorker' in navigator
+        ) {
+          const registration = await navigator.serviceWorker.getRegistration('/');
+          await registration?.showNotification(`${authorName} publicou no Brazilian Space`, {
+            body: preview,
+            icon: '/brazilian-in-action-icon.svg',
+            badge: '/brazilian-in-action-icon.svg',
+            tag: `brazilian-space-post-${latestPost.id}`,
+            data: { url: '/' }
+          });
+        }
+        void loadFeed();
+      } catch (updateError) {
+        if (!cancelled) console.error('Não foi possível verificar novas publicações do Space:', updateError);
+      }
+    };
+    void checkForNewPosts();
+    const interval = window.setInterval(() => void checkForNewPosts(), 15_000);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') void checkForNewPosts();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    let cancelled = false;
+    void navigator.serviceWorker.getRegistration('/').then(async (registration) => {
+      const subscription = await registration?.pushManager.getSubscription();
+      const subscribedUserId = localStorage.getItem('bia_space_push_user_id');
+      if (!cancelled) {
+        setIsPushEnabled(Boolean(subscription && subscribedUserId === (user.auth_user_id || user.id)));
+      }
+    }).catch((pushError: unknown) => {
+      console.error('Não foi possível verificar as notificações do Brazilian Space:', pushError);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -233,9 +345,10 @@ export function BrazilianSpace({ user, initialDraft = '', focusRequestId }: Spac
       }>(`/api/space/posts/${encodeURIComponent(postId)}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ body })
+        body: JSON.stringify({ body, parentCommentId: replyTargets[postId]?.id || null })
       });
       setCommentDrafts((current) => ({ ...current, [postId]: '' }));
+      setReplyTargets((current) => ({ ...current, [postId]: null }));
       const rewards = result.rewards;
       setNotice(rewards?.recipients
         ? 'A ajuda de vocês foi reconhecida. Uma surpresa chegou para os dois!'
@@ -266,8 +379,91 @@ export function BrazilianSpace({ user, initialDraft = '', focusRequestId }: Spac
     }
   };
 
+  const enableSpaceNotifications = async () => {
+    if (isPushBusy) return;
+    setIsPushBusy(true);
+    setError('');
+    try {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+        throw new Error('Este navegador não oferece suporte a notificações push.');
+      }
+      const permission = Notification.permission === 'default'
+        ? await Notification.requestPermission()
+        : Notification.permission;
+      if (permission !== 'granted') {
+        throw new Error('Permita notificações nas configurações do navegador para receber avisos.');
+      }
+      const registration = await navigator.serviceWorker.register('/service-worker.js');
+      const configResponse = await apiFetch('/api/public-config');
+      const config = await configResponse.json().catch(() => ({})) as { webPushPublicKey?: string | null };
+      if (!configResponse.ok || !config.webPushPublicKey) {
+        throw new Error('As notificações push ainda não estão configuradas no servidor.');
+      }
+      const subscription = await registration.pushManager.getSubscription() ||
+        await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: decodeVapidPublicKey(config.webPushPublicKey)
+        });
+      const response = await apiFetch('/api/space/push-subscriptions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(subscription.toJSON())
+      });
+      const result = await response.json().catch(() => ({})) as { error?: string };
+      if (!response.ok) throw new Error(result.error || 'Não foi possível ativar as notificações.');
+      localStorage.setItem('bia_space_push_user_id', user.auth_user_id || user.id);
+      setIsPushEnabled(true);
+      setNotice('Notificações de novas publicações ativadas neste dispositivo.');
+    } catch (pushError) {
+      setError(pushError instanceof Error ? pushError.message : 'Não foi possível ativar as notificações.');
+    } finally {
+      setIsPushBusy(false);
+    }
+  };
+
+  const toggleReaction = async (targetType: 'post' | 'comment', targetId: string, emoji: string) => {
+    const actionKey = `${targetType}:${targetId}:${emoji}`;
+    setActiveReaction(actionKey);
+    setError('');
+    try {
+      await requestJson('/api/space/reactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetType, targetId, emoji })
+      });
+      await loadFeed();
+    } catch (reactionError) {
+      setError(reactionError instanceof Error ? reactionError.message : 'Não foi possível salvar a reação.');
+    } finally {
+      setActiveReaction('');
+    }
+  };
+
+  const renderReactions = (targetType: 'post' | 'comment', targetId: string, reactions: SpaceReaction[]) => (
+    <div className="space-reactions" aria-label="Reações">
+      {reactionEmojis.map((emoji) => {
+        const reaction = reactions.find((item) => item.emoji === emoji);
+        const actionKey = `${targetType}:${targetId}:${emoji}`;
+        return (
+          <button
+            key={emoji}
+            type="button"
+            className={`space-reaction ${reaction?.reacted ? 'space-reaction--active' : ''}`}
+            aria-label={`${reaction?.reacted ? 'Remover' : 'Adicionar'} reação ${emoji}${reaction?.count ? `, ${reaction.count}` : ''}`}
+            aria-pressed={Boolean(reaction?.reacted)}
+            disabled={activeReaction === actionKey}
+            onClick={() => void toggleReaction(targetType, targetId, emoji)}
+          >
+            <span>{emoji}</span>{reaction?.count ? <span>{reaction.count}</span> : null}
+          </button>
+        );
+      })}
+    </div>
+  );
+
   const renderPost = (post: SpacePost) => {
     const hasIceBadge = feed?.badge_users.includes(post.author_id);
+    const commentsById = new Map(post.comments.map((comment) => [comment.id, comment]));
     return (
       <article className="space-glass space-post" key={post.id}>
         <div className="space-post-header">
@@ -281,12 +477,13 @@ export function BrazilianSpace({ user, initialDraft = '', focusRequestId }: Spac
             <span>@{post.author?.handle || 'aluno'} · {formatDate(post.created_at)}</span>
           </div>
         </div>
-        <p className="space-post-body">{post.body}</p>
+        <p className="space-post-body"><LinkifiedText text={post.body} /></p>
+        {renderReactions('post', post.id, post.reactions)}
         <div className="space-post-meta">
           <span>{post.comments.length} {post.comments.length === 1 ? 'resposta' : 'respostas'}</span>
         </div>
         {post.comments.map((comment) => (
-          <div className="space-comment" key={comment.id}>
+          <div className={`space-comment ${comment.parent_comment_id ? 'space-comment--nested' : ''}`} key={comment.id}>
             <Avatar person={comment.author} helper={helperIds.has(comment.author_id)} />
             <div>
               <div className="space-author-line">
@@ -294,10 +491,31 @@ export function BrazilianSpace({ user, initialDraft = '', focusRequestId }: Spac
                 {helperIds.has(comment.author_id) && <span className="space-helper-label">Space Helper</span>}
                 <time>{formatDate(comment.created_at)}</time>
               </div>
-              <p>{comment.body}</p>
+              {comment.parent_comment_id && commentsById.get(comment.parent_comment_id) && (
+                <span className="space-reply-context">
+                  Respondendo a {commentsById.get(comment.parent_comment_id)?.author?.display_name || 'Aluno Space'}
+                </span>
+              )}
+              <p><LinkifiedText text={comment.body} /></p>
+              <div className="space-comment-actions">
+                {renderReactions('comment', comment.id, comment.reactions)}
+                <button
+                  type="button"
+                  className="space-text-button"
+                  onClick={() => setReplyTargets((current) => ({ ...current, [post.id]: comment }))}
+                >
+                  Responder
+                </button>
+              </div>
             </div>
           </div>
         ))}
+        {replyTargets[post.id] && (
+          <div className="space-replying-to">
+            Respondendo a <strong>{replyTargets[post.id]?.author?.display_name || 'Aluno Space'}</strong>
+            <button type="button" aria-label="Cancelar resposta" onClick={() => setReplyTargets((current) => ({ ...current, [post.id]: null }))}>×</button>
+          </div>
+        )}
         <div className="space-reply-row">
           <input
             value={commentDrafts[post.id] || ''}
@@ -328,6 +546,16 @@ export function BrazilianSpace({ user, initialDraft = '', focusRequestId }: Spac
           <p>Compartilhe descobertas, tire duvidas e ajude outros alunos a decolarem.</p>
         </div>
         <div className="space-hero-actions">
+          <button
+            type="button"
+            className="space-icon-button"
+            aria-label={isPushEnabled ? 'Notificações ativadas' : 'Ativar notificações de publicações'}
+            title={isPushEnabled ? 'Notificações ativadas neste dispositivo' : 'Ativar notificações de publicações'}
+            onClick={() => void enableSpaceNotifications()}
+            disabled={isPushBusy || isPushEnabled}
+          >
+            <Bell size={18} />
+          </button>
           {isCeo && (
             <button
               type="button"

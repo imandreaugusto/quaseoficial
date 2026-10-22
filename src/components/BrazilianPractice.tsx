@@ -15,6 +15,7 @@ import {
   ChevronRight,
   Maximize2,
   Minimize2,
+  ExternalLink,
   X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -483,6 +484,21 @@ export const BrazilianPractice: React.FC<BrazilianPracticeProps> = ({
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
+                  <a
+                    href={activePortal.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => {
+                      setActivePortal(null);
+                      setIsPortalExpanded(false);
+                    }}
+                    className="inline-flex items-center gap-2 rounded-lg border border-amber-300/35 bg-amber-400/10 px-3 py-2 text-xs font-semibold text-amber-100 transition hover:bg-amber-400/20"
+                    aria-label={`Abrir ${activePortal.name} em uma nova aba`}
+                    title="Abrir diretamente em uma nova aba"
+                  >
+                    <ExternalLink size={15} />
+                    <span className="hidden sm:inline">Abrir em nova aba</span>
+                  </a>
                   <button
                     type="button"
                     onClick={() => setIsPortalExpanded((expanded) => !expanded)}
@@ -546,7 +562,7 @@ export const BrazilianPractice: React.FC<BrazilianPracticeProps> = ({
                 <p className="text-[11px] text-white/55">
                   {activePortal.embeddingBlocked
                     ? 'Para abrir neste espaço, os responsáveis pelo portal precisam autorizar a incorporação.'
-                    : 'O navegador ainda pedirá sua autorização para câmera e microfone.'}
+                    : 'Se a câmera ou a verificação não funcionar incorporada, use “Abrir em nova aba” para acessar o site diretamente.'}
                   {portalLoadTimedOut && ' O carregamento está demorando mais que o esperado.'}
                 </p>
               </div>

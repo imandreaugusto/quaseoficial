@@ -561,6 +561,109 @@ async function startServer() {
     }
   });
 
+  app.post('/api/space/push-subscriptions', async (req, res) => {
+    try {
+      const authUser = await getSpaceVerifiedUser(req, res);
+      if (!authUser) return;
+      if (!webPushConfigured) {
+        return res.status(503).json({ error: 'As notificações push ainda não estão configuradas no servidor.' });
+      }
+      const endpoint = typeof req.body?.endpoint === 'string' ? req.body.endpoint.trim() : '';
+      const p256dh = typeof req.body?.keys?.p256dh === 'string' ? req.body.keys.p256dh : '';
+      const auth = typeof req.body?.keys?.auth === 'string' ? req.body.keys.auth : '';
+      let isSecureEndpoint = false;
+      try {
+        isSecureEndpoint = new URL(endpoint).protocol === 'https:';
+      } catch {
+        isSecureEndpoint = false;
+      }
+      if (!isSecureEndpoint || endpoint.length > 2048 || !p256dh || p256dh.length > 256 || !auth || auth.length > 256) {
+        return res.status(400).json({ error: 'Inscrição de notificações inválida.' });
+      }
+      const subscription: webPush.PushSubscription = {
+        endpoint,
+        expirationTime: typeof req.body?.expirationTime === 'number' ? req.body.expirationTime : null,
+        keys: { p256dh, auth }
+      };
+      const response = await supabaseServiceRequest('space_push_subscriptions?on_conflict=endpoint', {
+        method: 'POST',
+        headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify({
+          user_id: authUser.id,
+          endpoint,
+          subscription,
+          updated_at: new Date().toISOString()
+        })
+      });
+      if (!response.ok) {
+        console.error('Brazilian Space push subscription save failed:', response.status, await response.text());
+        return res.status(502).json({ error: 'Não foi possível ativar as notificações do Space.' });
+      }
+      return res.json({ ok: true });
+    } catch (error: any) {
+      console.error('Brazilian Space push subscription save failed:', error?.message || error);
+      return res.status(500).json({ error: 'Falha ao ativar as notificações do Space.' });
+    }
+  });
+
+  app.delete('/api/space/push-subscriptions', async (req, res) => {
+    try {
+      const authUser = await getSpaceVerifiedUser(req, res);
+      if (!authUser) return;
+      const endpoint = typeof req.body?.endpoint === 'string' ? req.body.endpoint.trim() : '';
+      if (!endpoint || endpoint.length > 2048) {
+        return res.status(400).json({ error: 'Inscrição de notificações inválida.' });
+      }
+      const query = new URLSearchParams({
+        user_id: `eq.${authUser.id}`,
+        endpoint: `eq.${endpoint}`
+      });
+      const response = await supabaseServiceRequest(`space_push_subscriptions?${query.toString()}`, {
+        method: 'DELETE'
+      });
+      if (!response.ok) {
+        console.error('Brazilian Space push subscription deletion failed:', response.status, await response.text());
+        return res.status(502).json({ error: 'Não foi possível desativar as notificações do Space.' });
+      }
+      return res.json({ ok: true });
+    } catch (error: any) {
+      console.error('Brazilian Space push subscription deletion failed:', error?.message || error);
+      return res.status(500).json({ error: 'Falha ao desativar as notificações do Space.' });
+    }
+  });
+
+  app.get('/api/space/updates', async (req, res) => {
+    try {
+      const authUser = await getSpaceVerifiedUser(req, res);
+      if (!authUser) return;
+      if (isRateLimited(`space-updates:${authUser.id}`, 30, 60_000)) {
+        return res.status(429).json({ error: 'Muitas verificações de novidades. Aguarde um momento.' });
+      }
+      const since = typeof req.query.since === 'string' ? req.query.since : '';
+      if (!since || !Number.isFinite(Date.parse(since))) {
+        return res.status(400).json({ error: 'Data de verificação inválida.' });
+      }
+      const posts = await getSpaceRows<{
+        id: string; author_id: string; body: string; created_at: string;
+      }>(`space_posts?created_at=gt.${encodeURIComponent(since)}&author_id=neq.${encodeURIComponent(authUser.id)}&select=id,author_id,body,created_at&order=created_at.asc&limit=25`);
+      const authorIds = [...new Set(posts.map((post) => post.author_id))];
+      const authors = authorIds.length
+        ? await getSpaceRows<{
+          auth_user_id: string; handle: string; display_name: string; photo_url: string | null;
+        }>(
+          `space_users?auth_user_id=in.(${authorIds.map(encodeURIComponent).join(',')})&select=auth_user_id,handle,display_name,photo_url`
+        )
+        : [];
+      const authorById = new Map(authors.map((author) => [author.auth_user_id, author]));
+      return res.json({
+        posts: posts.map((post) => ({ ...post, author: authorById.get(post.author_id) || null }))
+      });
+    } catch (error: any) {
+      console.error('Brazilian Space update check failed:', error?.message || error);
+      return res.status(502).json({ error: 'Não foi possível verificar novas publicações.' });
+    }
+  });
+
   app.get('/api/space/feed', async (req, res) => {
     try {
       const authUser = await getSpaceVerifiedUser(req, res);
@@ -601,8 +704,15 @@ async function startServer() {
       const postIds = posts.map((post) => post.id);
       const comments = postIds.length
         ? await getSpaceRows<{
-          id: string; post_id: string; author_id: string; body: string; jev_valid: boolean; created_at: string;
-        }>(`space_comments?post_id=in.(${postIds.join(',')})&select=id,post_id,author_id,body,jev_valid,created_at&order=created_at.asc`)
+          id: string; post_id: string; author_id: string; body: string; jev_valid: boolean;
+          parent_comment_id: string | null; created_at: string;
+        }>(`space_comments?post_id=in.(${postIds.join(',')})&select=id,post_id,author_id,body,jev_valid,parent_comment_id,created_at&order=created_at.asc`)
+        : [];
+      const reactionTargetIds = [...postIds, ...comments.map((comment) => comment.id)];
+      const reactions = reactionTargetIds.length
+        ? await getSpaceRows<{
+          target_type: 'post' | 'comment'; target_id: string; user_id: string; emoji: string;
+        }>(`space_reactions?target_id=in.(${reactionTargetIds.join(',')})&select=target_type,target_id,user_id,emoji&limit=5000`)
         : [];
       const relatedUserIds = [...new Set([
         ...posts.map((post) => post.author_id),
@@ -626,11 +736,29 @@ async function startServer() {
         values.push(comment);
         commentsByPost.set(comment.post_id, values);
       }
+      const reactionGroups = new Map<string, Map<string, { count: number; reacted: boolean }>>();
+      for (const reaction of reactions) {
+        const targetKey = `${reaction.target_type}:${reaction.target_id}`;
+        const byEmoji = reactionGroups.get(targetKey) || new Map<string, { count: number; reacted: boolean }>();
+        const summary = byEmoji.get(reaction.emoji) || { count: 0, reacted: false };
+        summary.count += 1;
+        summary.reacted ||= reaction.user_id === authUser.id;
+        byEmoji.set(reaction.emoji, summary);
+        reactionGroups.set(targetKey, byEmoji);
+      }
+      const getReactions = (targetType: 'post' | 'comment', targetId: string) => {
+        const byEmoji = reactionGroups.get(`${targetType}:${targetId}`);
+        return byEmoji
+          ? [...byEmoji.entries()].map(([emoji, summary]) => ({ emoji, ...summary }))
+          : [];
+      };
       const feedPosts = posts.map((post) => ({
         ...post,
+        reactions: getReactions('post', post.id),
         author: userById.get(post.author_id) || null,
         comments: (commentsByPost.get(post.id) || []).map((comment) => ({
           ...comment,
+          reactions: getReactions('comment', comment.id),
           author: userById.get(comment.author_id) || null
         }))
       }));
@@ -687,6 +815,9 @@ async function startServer() {
         });
       }
       const post = await response.json();
+      void notifySpacePostSubscribers(post.id, authUser.id).catch((error: unknown) => {
+        console.error('Brazilian Space post notification broadcast failed:', error);
+      });
       return res.status(201).json({ post, validation });
     } catch (error: any) {
       console.error('Brazilian Space post failed:', error?.message || error);
@@ -706,8 +837,12 @@ async function startServer() {
       }
       const postId = req.params.id;
       const body = typeof req.body?.body === 'string' ? req.body.body.trim() : '';
+      const parentCommentId = typeof req.body?.parentCommentId === 'string' ? req.body.parentCommentId : null;
       if (!/^[0-9a-f-]{36}$/i.test(postId) || body.length < 8 || body.length > 1200) {
         return res.status(400).json({ error: 'Publicação inválida ou resposta fora do limite de 8 a 1200 caracteres.' });
+      }
+      if (parentCommentId && !/^[0-9a-f-]{36}$/i.test(parentCommentId)) {
+        return res.status(400).json({ error: 'O comentário escolhido para responder é inválido.' });
       }
       const validation = await validateSpaceContribution(body, 'reply');
       const response = await supabaseServiceRequest('rpc/space_create_comment_and_reward', {
@@ -717,7 +852,8 @@ async function startServer() {
           p_post_id: postId,
           p_body: body,
           p_jev_valid: validation.isValid,
-          p_jev_reason: validation.reason
+          p_jev_reason: validation.reason,
+          p_parent_comment_id: parentCommentId
         })
       });
       if (!response.ok) {
@@ -741,6 +877,42 @@ async function startServer() {
       return res.status(missingKey ? 503 : 502).json({
         error: 'Não foi possível compartilhar sua resposta agora. Tente novamente.'
       });
+    }
+  });
+
+  app.post('/api/space/reactions', async (req, res) => {
+    try {
+      const authUser = await getSpaceVerifiedUser(req, res);
+      if (!authUser) return;
+      const targetType = req.body?.targetType;
+      const targetId = typeof req.body?.targetId === 'string' ? req.body.targetId : '';
+      const emoji = req.body?.emoji;
+      const allowedEmojis = ['👍', '❤️', '😂', '👏', '💡'];
+      if (
+        (targetType !== 'post' && targetType !== 'comment') ||
+        !/^[0-9a-f-]{36}$/i.test(targetId) ||
+        typeof emoji !== 'string' ||
+        !allowedEmojis.includes(emoji)
+      ) {
+        return res.status(400).json({ error: 'Reação inválida.' });
+      }
+      const response = await supabaseServiceRequest('rpc/space_toggle_reaction', {
+        method: 'POST',
+        body: JSON.stringify({
+          p_user_id: authUser.id,
+          p_target_type: targetType,
+          p_target_id: targetId,
+          p_emoji: emoji
+        })
+      });
+      if (!response.ok) {
+        console.error('Brazilian Space reaction save failed:', response.status, await response.text());
+        return res.status(502).json({ error: 'Não foi possível salvar sua reação.' });
+      }
+      return res.json({ active: await response.json() });
+    } catch (error: any) {
+      console.error('Brazilian Space reaction failed:', error?.message || error);
+      return res.status(500).json({ error: 'Não foi possível salvar sua reação.' });
     }
   });
 
@@ -1512,6 +1684,7 @@ async function startServer() {
       tag?: string;
       requireInteraction?: boolean;
       actions?: { action: string; title: string }[];
+      vibrate?: number[];
     }
   ) => {
     if (!webPushConfigured) return;
@@ -1559,6 +1732,53 @@ async function startServer() {
       }
     } catch (error) {
       console.error('Private notification delivery failed:', error);
+    }
+  };
+
+  const notifySpacePostSubscribers = async (postId: string, authorId: string) => {
+    if (!webPushConfigured) return;
+    const [subscribers, authors] = await Promise.all([
+      getSpaceRows<{
+        endpoint: string; user_id: string; subscription: webPush.PushSubscription;
+      }>('space_push_subscriptions?select=endpoint,user_id,subscription'),
+      getSpaceRows<{ display_name: string }>(
+        `space_users?auth_user_id=eq.${encodeURIComponent(authorId)}&select=display_name&limit=1`
+      )
+    ]);
+    const posts = await getSpaceRows<{ body: string }>(
+      `space_posts?id=eq.${encodeURIComponent(postId)}&select=body&limit=1`
+    );
+    if (!posts[0]) throw new Error('The published Brazilian Space post could not be loaded for notification.');
+
+    const authorName = authors[0]?.display_name || 'Alguém';
+    const preview = posts[0].body.replace(/\s+/g, ' ').trim().slice(0, 150);
+    const recipients = subscribers.filter(({ user_id }) => user_id && user_id !== authorId);
+    const payload = JSON.stringify({
+      title: `${authorName} publicou no Brazilian Space`,
+      body: preview,
+      url: '/',
+      tag: `brazilian-space-post-${postId}`,
+      vibrate: [180, 100, 180]
+    });
+    const deliveries = await Promise.allSettled(recipients.map(({ subscription }) =>
+      webPush.sendNotification(subscription, payload, { TTL: 60, urgency: 'high' })
+    ));
+    const expiredEndpoints: string[] = [];
+    deliveries.forEach((delivery, index) => {
+      if (delivery.status !== 'rejected') return;
+      console.error('Brazilian Space notification delivery failed:', delivery.reason);
+      if (delivery.reason instanceof webPush.WebPushError && [404, 410].includes(delivery.reason.statusCode)) {
+        expiredEndpoints.push(recipients[index].endpoint);
+      }
+    });
+    if (expiredEndpoints.length > 0) {
+      const cleanupResponse = await supabaseServiceRequest(
+        `space_push_subscriptions?endpoint=in.(${expiredEndpoints.map(encodeURIComponent).join(',')})`,
+        { method: 'DELETE' }
+      );
+      if (!cleanupResponse.ok) {
+        console.error('Expired Brazilian Space notification cleanup failed:', cleanupResponse.status, await cleanupResponse.text());
+      }
     }
   };
 

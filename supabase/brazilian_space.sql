@@ -84,8 +84,31 @@ create table if not exists public.space_comments (
   body text not null check (char_length(body) between 8 and 1200),
   jev_valid boolean not null default false,
   jev_reason text,
+  parent_comment_id uuid references public.space_comments(id) on delete cascade,
   created_at timestamptz not null default now()
 );
+
+alter table public.space_comments
+  add column if not exists parent_comment_id uuid references public.space_comments(id) on delete cascade;
+
+create table if not exists public.space_reactions (
+  id uuid primary key default gen_random_uuid(),
+  target_type text not null check (target_type in ('post', 'comment')),
+  target_id uuid not null,
+  user_id text not null references public.space_users(auth_user_id) on delete cascade,
+  emoji text not null check (emoji in ('👍', '❤️', '😂', '👏', '💡')),
+  created_at timestamptz not null default now(),
+  constraint space_reactions_once unique (target_type, target_id, user_id, emoji)
+);
+
+create table if not exists public.space_push_subscriptions (
+  endpoint text primary key,
+  user_id text not null references public.space_users(auth_user_id) on delete cascade,
+  subscription jsonb not null,
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_space_push_subscriptions_user on public.space_push_subscriptions (user_id);
 
 create table if not exists public.space_mentions (
   id uuid primary key default gen_random_uuid(),
@@ -142,6 +165,7 @@ create table if not exists public.space_season_awards (
 create index if not exists idx_space_posts_created_at on public.space_posts (created_at desc);
 create index if not exists idx_space_posts_author_created_at on public.space_posts (author_id, created_at desc);
 create index if not exists idx_space_comments_post_created_at on public.space_comments (post_id, created_at);
+create index if not exists idx_space_reactions_target on public.space_reactions (target_type, target_id);
 create index if not exists idx_space_mentions_recipient on public.space_mentions (mentioned_user_id, post_id) where rewarded_at is null;
 create index if not exists idx_season_points_rank on public.season_points (season_key, help_points desc, xp desc);
 create index if not exists idx_space_awards_user on public.space_season_awards (helper_user_id, season_key desc);
@@ -210,12 +234,15 @@ begin
 end;
 $$;
 
+drop function if exists public.space_create_comment_and_reward(text, uuid, text, boolean, text);
+
 create or replace function public.space_create_comment_and_reward(
   p_author_id text,
   p_post_id uuid,
   p_body text,
   p_jev_valid boolean,
-  p_jev_reason text
+  p_jev_reason text,
+  p_parent_comment_id uuid default null
 )
 returns jsonb
 language plpgsql
@@ -234,9 +261,15 @@ begin
   if not exists (select 1 from public.space_posts where id = p_post_id) then
     raise exception 'Publicacao nao encontrada.';
   end if;
+  if p_parent_comment_id is not null and not exists (
+    select 1 from public.space_comments
+    where id = p_parent_comment_id and post_id = p_post_id
+  ) then
+    raise exception 'Comentario nao encontrado nesta publicacao.';
+  end if;
 
-  insert into public.space_comments (post_id, author_id, body, jev_valid, jev_reason)
-  values (p_post_id, p_author_id, trim(p_body), coalesce(p_jev_valid, false), left(p_jev_reason, 500))
+  insert into public.space_comments (post_id, author_id, body, jev_valid, jev_reason, parent_comment_id)
+  values (p_post_id, p_author_id, trim(p_body), coalesce(p_jev_valid, false), left(p_jev_reason, 500), p_parent_comment_id)
   returning * into v_comment;
   select * into v_settings from public.space_reward_settings where singleton = true;
 
@@ -275,6 +308,44 @@ begin
 end;
 $$;
 
+create or replace function public.space_toggle_reaction(
+  p_user_id text,
+  p_target_type text,
+  p_target_id uuid,
+  p_emoji text
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_deleted uuid;
+begin
+  if p_target_type not in ('post', 'comment') or p_emoji not in ('👍', '❤️', '😂', '👏', '💡') then
+    raise exception 'Reacao invalida.';
+  end if;
+  if (p_target_type = 'post' and not exists (select 1 from public.space_posts where id = p_target_id))
+    or (p_target_type = 'comment' and not exists (select 1 from public.space_comments where id = p_target_id)) then
+    raise exception 'Conteudo nao encontrado.';
+  end if;
+
+  delete from public.space_reactions
+  where target_type = p_target_type and target_id = p_target_id
+    and user_id = p_user_id and emoji = p_emoji
+  returning id into v_deleted;
+
+  if v_deleted is not null then
+    return false;
+  end if;
+
+  insert into public.space_reactions (target_type, target_id, user_id, emoji)
+  values (p_target_type, p_target_id, p_user_id, p_emoji)
+  on conflict (target_type, target_id, user_id, emoji) do nothing;
+  return found;
+end;
+$$;
+
 create or replace function public.space_award_previous_season()
 returns void
 language plpgsql
@@ -309,7 +380,8 @@ declare
   v_table text;
 begin
   foreach v_table in array array[
-    'space_users', 'space_posts', 'space_comments', 'space_mentions',
+    'space_users', 'space_posts', 'space_comments', 'space_reactions',
+    'space_push_subscriptions', 'space_mentions',
     'space_badges_acquired', 'season_points', 'space_reward_settings', 'space_season_awards'
   ] loop
     execute format('alter table public.%I enable row level security', v_table);
@@ -320,8 +392,12 @@ end;
 $$;
 
 revoke all on function public.space_create_post(text, text, boolean, text, text[]) from public, anon, authenticated;
-revoke all on function public.space_create_comment_and_reward(text, uuid, text, boolean, text) from public, anon, authenticated;
+revoke all on function public.space_create_comment_and_reward(text, uuid, text, boolean, text, uuid) from public, anon, authenticated;
+revoke all on function public.space_toggle_reaction(text, text, uuid, text) from public, anon, authenticated;
 revoke all on function public.space_award_previous_season() from public, anon, authenticated;
 grant execute on function public.space_create_post(text, text, boolean, text, text[]) to service_role;
-grant execute on function public.space_create_comment_and_reward(text, uuid, text, boolean, text) to service_role;
+grant execute on function public.space_create_comment_and_reward(text, uuid, text, boolean, text, uuid) to service_role;
+grant execute on function public.space_toggle_reaction(text, text, uuid, text) to service_role;
 grant execute on function public.space_award_previous_season() to service_role;
+
+notify pgrst, 'reload schema';
