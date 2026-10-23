@@ -37,14 +37,3 @@ services:
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
-  - type: cron
-    name: brazilianinaction-daily-reminders
-    runtime: node
-    schedule: "0 9 * * *"
-    buildCommand: npm ci
-    startCommand: node scripts/send-daily-reminders.mjs
-    envVars:
-      - key: API_PUBLIC_URL
-        value: https://brazilian-in-action-i036.onrender.com
-      - key: DAILY_REMINDER_CRON_SECRET
-        sync: false
