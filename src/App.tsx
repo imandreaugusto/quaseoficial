@@ -1420,7 +1420,7 @@ export default function App() {
 
   // Track access to CEO/Admin dashboards
   useEffect(() => {
-    if (['dashboard', 'admin_settings', 'streamstudio', 'classroom', 'meet', 'settings'].includes(currentApp)) {
+    if (['dashboard', 'admin_settings', 'streamstudio', 'classroom', 'meet'].includes(currentApp)) {
       if (isAdmin) {
         logAdminAccessAttempt({
           email: currentUser?.email || 'unknown',
