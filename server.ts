@@ -1694,18 +1694,30 @@ async function startServer() {
         select: 'endpoint,subscription',
         user_id: `eq.${recipientId}`
       });
-      const subscriptionsResponse = await supabaseServiceRequest(
-        `brazilian_friends_push_subscriptions?${query.toString()}`
-      );
-      if (!subscriptionsResponse.ok) {
-        console.error('Private notification subscription lookup failed:', subscriptionsResponse.status, await subscriptionsResponse.text());
+      const spaceQuery = new URLSearchParams({
+        select: 'endpoint,subscription',
+        user_id: `eq.${recipientId}`
+      });
+      const [subscriptionsResponse, spaceSubscriptionsResponse] = await Promise.all([
+        supabaseServiceRequest(`brazilian_friends_push_subscriptions?${query.toString()}`),
+        supabaseServiceRequest(`space_push_subscriptions?${spaceQuery.toString()}`)
+      ]);
+      if (!subscriptionsResponse.ok || !spaceSubscriptionsResponse.ok) {
+        const failedResponse = !subscriptionsResponse.ok ? subscriptionsResponse : spaceSubscriptionsResponse;
+        console.error('Push notification subscription lookup failed:', failedResponse.status, await failedResponse.text());
         return false;
       }
 
-      const subscriptions = await subscriptionsResponse.json() as {
+      const friendsSubscriptions = await subscriptionsResponse.json() as {
         endpoint: string;
         subscription: webPush.PushSubscription;
       }[];
+      const spaceSubscriptions = await spaceSubscriptionsResponse.json() as typeof friendsSubscriptions;
+      const subscriptionsByEndpoint = new Map<string, typeof friendsSubscriptions[number]>();
+      for (const subscription of [...spaceSubscriptions, ...friendsSubscriptions]) {
+        subscriptionsByEndpoint.set(subscription.endpoint, subscription);
+      }
+      const subscriptions = [...subscriptionsByEndpoint.values()];
       const deliveries = await Promise.allSettled(subscriptions.map(({ subscription }) =>
         webPush.sendNotification(subscription, JSON.stringify(payload), { TTL: 60, urgency: 'high' })
       ));
@@ -1722,12 +1734,15 @@ async function startServer() {
         const staleQuery = new URLSearchParams({
           endpoint: `in.(${expiredEndpoints.join(',')})`
         });
-        const cleanupResponse = await supabaseServiceRequest(
-          `brazilian_friends_push_subscriptions?${staleQuery.toString()}`,
-          { method: 'DELETE' }
-        );
-        if (!cleanupResponse.ok) {
-          console.error('Expired private notification subscription cleanup failed:', cleanupResponse.status, await cleanupResponse.text());
+        const [friendsCleanupResponse, spaceCleanupResponse] = await Promise.all([
+          supabaseServiceRequest(`brazilian_friends_push_subscriptions?${staleQuery.toString()}`, { method: 'DELETE' }),
+          supabaseServiceRequest(`space_push_subscriptions?${staleQuery.toString()}`, { method: 'DELETE' })
+        ]);
+        if (!friendsCleanupResponse.ok) {
+          console.error('Expired global push subscription cleanup failed:', friendsCleanupResponse.status, await friendsCleanupResponse.text());
+        }
+        if (!spaceCleanupResponse.ok) {
+          console.error('Expired Brazilian Space subscription cleanup failed:', spaceCleanupResponse.status, await spaceCleanupResponse.text());
         }
       }
       return deliveries.some((delivery) => delivery.status === 'fulfilled');
@@ -1739,7 +1754,8 @@ async function startServer() {
 
   const notifySpacePostSubscribers = async (postId: string, authorId: string) => {
     if (!webPushConfigured) return;
-    const [subscribers, authors] = await Promise.all([
+    const [globalSubscriptionsResponse, legacySubscribers, authors] = await Promise.all([
+      supabaseServiceRequest('brazilian_friends_push_subscriptions?select=endpoint,user_id,subscription'),
       getSpaceRows<{
         endpoint: string; user_id: string; subscription: webPush.PushSubscription;
       }>('space_push_subscriptions?select=endpoint,user_id,subscription'),
@@ -1747,6 +1763,18 @@ async function startServer() {
         `space_users?auth_user_id=eq.${encodeURIComponent(authorId)}&select=display_name&limit=1`
       )
     ]);
+    if (!globalSubscriptionsResponse.ok) {
+      throw new Error(`Global push subscription lookup failed: ${globalSubscriptionsResponse.status}`);
+    }
+    const globalSubscribers = await globalSubscriptionsResponse.json() as {
+      endpoint: string; user_id: string; subscription: webPush.PushSubscription;
+    }[];
+    const subscribersByEndpoint = new Map<string, {
+      endpoint: string; user_id: string; subscription: webPush.PushSubscription;
+    }>();
+    for (const subscriber of legacySubscribers) subscribersByEndpoint.set(subscriber.endpoint, subscriber);
+    for (const subscriber of globalSubscribers) subscribersByEndpoint.set(subscriber.endpoint, subscriber);
+    const subscribers = [...subscribersByEndpoint.values()];
     const posts = await getSpaceRows<{ body: string }>(
       `space_posts?id=eq.${encodeURIComponent(postId)}&select=body&limit=1`
     );
@@ -1774,12 +1802,16 @@ async function startServer() {
       }
     });
     if (expiredEndpoints.length > 0) {
-      const cleanupResponse = await supabaseServiceRequest(
-        `space_push_subscriptions?endpoint=in.(${expiredEndpoints.map(encodeURIComponent).join(',')})`,
-        { method: 'DELETE' }
-      );
-      if (!cleanupResponse.ok) {
-        console.error('Expired Brazilian Space notification cleanup failed:', cleanupResponse.status, await cleanupResponse.text());
+      const endpointFilter = `in.(${expiredEndpoints.map(encodeURIComponent).join(',')})`;
+      const [spaceCleanupResponse, globalCleanupResponse] = await Promise.all([
+        supabaseServiceRequest(`space_push_subscriptions?endpoint=${endpointFilter}`, { method: 'DELETE' }),
+        supabaseServiceRequest(`brazilian_friends_push_subscriptions?endpoint=${endpointFilter}`, { method: 'DELETE' })
+      ]);
+      if (!spaceCleanupResponse.ok) {
+        console.error('Expired Brazilian Space notification cleanup failed:', spaceCleanupResponse.status, await spaceCleanupResponse.text());
+      }
+      if (!globalCleanupResponse.ok) {
+        console.error('Expired global push notification cleanup failed:', globalCleanupResponse.status, await globalCleanupResponse.text());
       }
     }
   };
@@ -1819,14 +1851,20 @@ async function startServer() {
       const subscriptions: { user_id?: string | null }[] = [];
       for (let offset = 0; offset < activeIds.length; offset += 100) {
         const ids = activeIds.slice(offset, offset + 100);
-        const response = await supabaseServiceRequest(
-          `brazilian_friends_push_subscriptions?user_id=in.(${ids.map(encodeURIComponent).join(',')})&select=user_id`
-        );
-        if (!response.ok) {
-          console.error('Platform update notification subscriber lookup failed:', response.status, await response.text());
+        const inFilter = ids.map(encodeURIComponent).join(',');
+        const [friendsResponse, spaceResponse] = await Promise.all([
+          supabaseServiceRequest(`brazilian_friends_push_subscriptions?user_id=in.(${inFilter})&select=user_id`),
+          supabaseServiceRequest(`space_push_subscriptions?user_id=in.(${inFilter})&select=user_id`)
+        ]);
+        if (!friendsResponse.ok || !spaceResponse.ok) {
+          const failedResponse = !friendsResponse.ok ? friendsResponse : spaceResponse;
+          console.error('Platform update notification subscriber lookup failed:', failedResponse.status, await failedResponse.text());
           return res.status(502).json({ error: 'Não foi possível localizar os dispositivos inscritos.' });
         }
-        subscriptions.push(...await response.json() as { user_id?: string | null }[]);
+        subscriptions.push(
+          ...await friendsResponse.json() as { user_id?: string | null }[],
+          ...await spaceResponse.json() as { user_id?: string | null }[]
+        );
       }
       const recipients = [...new Set(subscriptions.map((subscription) => subscription.user_id).filter((id): id is string => Boolean(id)))];
       const deliveryResults = await Promise.all(recipients.map((recipientId) => sendFriendsPushNotification(recipientId, {
@@ -1941,19 +1979,23 @@ async function startServer() {
       for (let offset = 0; offset < activeIds.length; offset += 100) {
         const ids = activeIds.slice(offset, offset + 100);
         const inFilter = ids.map(encodeURIComponent).join(',');
-        const [profileResponse, preferenceResponse, pushResponse] = await Promise.all([
+        const [profileResponse, preferenceResponse, pushResponse, spacePushResponse] = await Promise.all([
           supabaseServiceRequest(`profiles?auth_user_id=in.(${inFilter})&role=eq.student&select=auth_user_id,first_name,full_name`),
           supabaseServiceRequest(`bia_student_progress?user_id=in.(${inFilter})&select=user_id,preferences`),
-          supabaseServiceRequest(`brazilian_friends_push_subscriptions?user_id=in.(${inFilter})&select=user_id`)
+          supabaseServiceRequest(`brazilian_friends_push_subscriptions?user_id=in.(${inFilter})&select=user_id`),
+          supabaseServiceRequest(`space_push_subscriptions?user_id=in.(${inFilter})&select=user_id`)
         ]);
-        if (!profileResponse.ok || !preferenceResponse.ok || !pushResponse.ok) {
-          const response = [profileResponse, preferenceResponse, pushResponse].find((item) => !item.ok);
+        if (!profileResponse.ok || !preferenceResponse.ok || !pushResponse.ok || !spacePushResponse.ok) {
+          const response = [profileResponse, preferenceResponse, pushResponse, spacePushResponse].find((item) => !item.ok);
           console.error('Daily reminder audience lookup failed:', response?.status, await response?.text());
           return res.status(502).json({ error: 'Não foi possível carregar as preferências dos assinantes.' });
         }
         profiles.push(...await profileResponse.json() as typeof profiles);
         preferences.push(...await preferenceResponse.json() as typeof preferences);
-        const pushUsers = await pushResponse.json() as { user_id?: string | null }[];
+        const pushUsers = [
+          ...await pushResponse.json() as { user_id?: string | null }[],
+          ...await spacePushResponse.json() as { user_id?: string | null }[]
+        ];
         for (const { user_id } of pushUsers) {
           if (user_id) pushUserIds.add(user_id);
         }
@@ -1965,6 +2007,7 @@ async function startServer() {
         profileByUserId.has(userId) && preferenceByUserId.get(userId)?.dailyMotivationEnabled !== false
       );
 
+      const runPath = `brazilian_daily_reminder_runs?reminder_date=eq.${encodeURIComponent(reminderDate)}`;
       const claimResponse = await supabaseServiceRequest(
         'brazilian_daily_reminder_runs?on_conflict=reminder_date',
         {
@@ -1974,6 +2017,7 @@ async function startServer() {
             reminder_date: reminderDate,
             message,
             recipient_count: 0,
+            status: 'processing',
             created_at: now.toISOString()
           })
         }
@@ -1982,8 +2026,102 @@ async function startServer() {
         console.error('Daily reminder run claim failed:', claimResponse.status, await claimResponse.text());
         return res.status(502).json({ error: 'Não foi possível registrar o lembrete do dia.' });
       }
-      const claimedRuns = await claimResponse.json() as { reminder_date: string }[];
-      if (claimedRuns.length === 0) return res.json({ ok: true, skipped: true, reason: 'already_sent' });
+      let claimedRuns = await claimResponse.json() as { reminder_date: string }[];
+      if (claimedRuns.length === 0) {
+        const existingResponse = await supabaseServiceRequest(
+          `${runPath}&select=status,created_at,recipient_count`
+        );
+        if (!existingResponse.ok) {
+          console.error('Daily reminder run lookup failed:', existingResponse.status, await existingResponse.text());
+          return res.status(502).json({ error: 'Não foi possível verificar o lembrete do dia.' });
+        }
+        const [existingRun] = await existingResponse.json() as {
+          status: string;
+          created_at: string;
+          recipient_count: number;
+        }[];
+        if (!existingRun) {
+          return res.status(502).json({ error: 'O registro do lembrete do dia não foi encontrado.' });
+        }
+        if (
+          existingRun.status === 'partial' ||
+          (existingRun.status === 'sent' && existingRun.recipient_count > 0)
+        ) {
+          return res.json({ ok: true, skipped: true, reason: 'already_processed', status: existingRun.status });
+        }
+
+        const staleProcessingCutoff = new Date(now.getTime() - 15 * 60 * 1000).toISOString();
+        const canRetry = existingRun.status === 'failed' ||
+          existingRun.status === 'no_recipients' ||
+          (existingRun.status === 'sent' && existingRun.recipient_count === 0) ||
+          (existingRun.status === 'processing' && Date.parse(existingRun.created_at) < Date.parse(staleProcessingCutoff));
+        if (!canRetry) return res.json({ ok: true, skipped: true, reason: 'already_processing' });
+
+        const retryFilters = new URLSearchParams({
+          reminder_date: `eq.${reminderDate}`,
+          status: `eq.${existingRun.status}`
+        });
+        if (existingRun.status === 'processing') {
+          retryFilters.set('created_at', `lt.${staleProcessingCutoff}`);
+        }
+        if (existingRun.status === 'sent') retryFilters.set('recipient_count', 'eq.0');
+        const retryResponse = await supabaseServiceRequest(
+          `brazilian_daily_reminder_runs?${retryFilters.toString()}&select=reminder_date`,
+          {
+            method: 'PATCH',
+            headers: { Prefer: 'return=representation' },
+            body: JSON.stringify({
+              message,
+              recipient_count: 0,
+              status: 'processing',
+              last_error: null,
+              created_at: now.toISOString()
+            })
+          }
+        );
+        if (!retryResponse.ok) {
+          console.error('Daily reminder run retry claim failed:', retryResponse.status, await retryResponse.text());
+          return res.status(502).json({ error: 'Não foi possível retomar o lembrete do dia.' });
+        }
+        claimedRuns = await retryResponse.json() as { reminder_date: string }[];
+        if (claimedRuns.length === 0) {
+          return res.json({ ok: true, skipped: true, reason: 'already_processed' });
+        }
+      }
+
+      const updateRun = async (values: Record<string, unknown>) => {
+        const response = await supabaseServiceRequest(runPath, {
+          method: 'PATCH',
+          headers: { Prefer: 'return=minimal' },
+          body: JSON.stringify(values)
+        });
+        if (!response.ok) {
+          console.error('Daily reminder run update failed:', response.status, await response.text());
+          return false;
+        }
+        return true;
+      };
+
+      if (recipients.length === 0) {
+        const reason = 'Nenhum assinante ativo com notificações push permitidas e lembretes habilitados.';
+        console.warn('Daily reminder has no eligible recipients:', {
+          date: reminderDate,
+          activeSubscriberCount: activeIds.length,
+          activePushSubscriptionCount: pushUserIds.size,
+          activeProfileCount: profileByUserId.size
+        });
+        if (!await updateRun({ status: 'no_recipients', last_error: reason, recipient_count: 0 })) {
+          return res.status(502).json({ error: 'Não foi possível registrar que não havia destinatários.' });
+        }
+        return res.json({
+          ok: true,
+          skipped: true,
+          reason: 'no_recipients',
+          activeSubscriberCount: activeIds.length,
+          activePushSubscriptionCount: pushUserIds.size,
+          activeProfileCount: profileByUserId.size
+        });
+      }
 
       let sentCount = 0;
       for (let offset = 0; offset < recipients.length; offset += 25) {
@@ -2000,24 +2138,30 @@ async function startServer() {
         }));
         sentCount += deliveries.filter(Boolean).length;
       }
-      const updateResponse = await supabaseServiceRequest(
-        `brazilian_daily_reminder_runs?reminder_date=eq.${reminderDate}`,
-        {
-          method: 'PATCH',
-          headers: { Prefer: 'return=minimal' },
-          body: JSON.stringify({ recipient_count: sentCount })
-        }
-      );
-      if (!updateResponse.ok) {
-        console.error('Daily reminder run result update failed:', updateResponse.status, await updateResponse.text());
+      const failedCount = recipients.length - sentCount;
+      const status = sentCount === 0 ? 'failed' : failedCount === 0 ? 'sent' : 'partial';
+      const lastError = failedCount > 0
+        ? `${failedCount} de ${recipients.length} assinantes não receberam o push.`
+        : null;
+      if (!await updateRun({ status, last_error: lastError, recipient_count: sentCount })) {
         return res.status(502).json({ error: 'As notificações foram processadas, mas o resultado não foi registrado.' });
+      }
+      if (sentCount === 0) {
+        console.error('Daily reminder delivery failed for every eligible recipient:', {
+          date: reminderDate,
+          recipientCount: recipients.length
+        });
+        return res.status(502).json({
+          error: 'Nenhuma notificação foi entregue. A rotina poderá ser tentada novamente.'
+        });
       }
       return res.json({
         ok: true,
         date: reminderDate,
         recipientCount: recipients.length,
         sentCount,
-        failedCount: recipients.length - sentCount
+        failedCount,
+        status
       });
     } catch (error) {
       console.error('Daily student reminder failed:', error);
@@ -2177,11 +2321,13 @@ async function startServer() {
         user_id: `eq.${authUser.id}`,
         endpoint: `eq.${endpoint}`
       });
-      const response = await supabaseServiceRequest(`brazilian_friends_push_subscriptions?${query.toString()}`, {
-        method: 'DELETE'
-      });
-      if (!response.ok) {
-        console.error('Brazilian Friends push subscription deletion failed:', response.status, await response.text());
+      const [friendsDeleteResponse, spaceDeleteResponse] = await Promise.all([
+        supabaseServiceRequest(`brazilian_friends_push_subscriptions?${query.toString()}`, { method: 'DELETE' }),
+        supabaseServiceRequest(`space_push_subscriptions?${query.toString()}`, { method: 'DELETE' })
+      ]);
+      if (!friendsDeleteResponse.ok || !spaceDeleteResponse.ok) {
+        const failedResponse = !friendsDeleteResponse.ok ? friendsDeleteResponse : spaceDeleteResponse;
+        console.error('Global push subscription deletion failed:', failedResponse.status, await failedResponse.text());
         return res.status(502).json({ error: 'Não foi possível desativar as notificações.' });
       }
       return res.json({ ok: true });

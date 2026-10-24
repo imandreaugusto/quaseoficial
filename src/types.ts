@@ -20,6 +20,7 @@ export interface AppSettings {
   soundEnabled: boolean;
   menuSoundsEnabled: boolean;
   notificationSoundsEnabled: boolean;
+  dailyMotivationEnabled?: boolean;
   prewarnMin: number;
   clock24h: boolean;
   autoStart: boolean;

@@ -1,9 +1,14 @@
 create extension if not exists pg_cron;
 create extension if not exists pg_net with schema extensions;
 
+select cron.unschedule(jobid)
+from cron.job
+where jobname = 'bia-daily-student-reminders';
+
+-- 12:00 UTC corresponds to 09:00 in Sao Paulo (UTC-3).
 select cron.schedule(
   'bia-daily-student-reminders',
-  '0 9 * * *',
+  '0 12 * * *',
   $job$
     select net.http_post(
       url := 'https://brazilian-in-action-i036.onrender.com/api/cron/daily-student-reminders',

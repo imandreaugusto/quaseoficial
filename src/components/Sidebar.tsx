@@ -369,8 +369,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           braziliangames: true,
           brazilianhq: true,
           feedback: true,
-          settings: true,
-          ...parsed.studentGlobalEnabled
+          ...parsed.studentGlobalEnabled,
+          settings: true
         }
       };
       setAppConfig(normalized);
@@ -378,6 +378,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       if (
         (currentUser?.role !== 'admin' || isStudentPreviewMode) &&
         currentApp !== 'home' &&
+        currentApp !== 'settings' &&
         normalized.studentGlobalEnabled[currentApp] === false
       ) {
         onNavigate('home');

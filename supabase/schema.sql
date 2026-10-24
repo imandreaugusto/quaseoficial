@@ -136,6 +136,8 @@ create table if not exists brazilian_daily_reminder_runs (
   reminder_date date primary key,
   message text not null,
   recipient_count integer not null default 0,
+  status text not null default 'sent',
+  last_error text,
   created_at timestamptz not null default now()
 );
 alter table brazilian_daily_reminder_runs enable row level security;

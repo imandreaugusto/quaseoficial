@@ -1365,11 +1365,11 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
                   className="friends-header-action-button friends-header-notifications"
                   onClick={() => void handlePushSubscriptionToggle()}
                   disabled={isPushActionPending || isLoading}
-                  aria-label={pushSubscribed ? 'Desativar notificações de mensagens privadas' : 'Ativar notificações de mensagens privadas'}
-                  title={pushSubscribed ? 'Desativar avisos de mensagens privadas' : 'Ativar avisos de mensagens privadas'}
+                  aria-label={pushSubscribed ? 'Desativar notificações da plataforma' : 'Ativar notificações da plataforma'}
+                  title={pushSubscribed ? 'Desativar notificações da plataforma' : 'Ativar notificações da plataforma'}
                 >
                   {pushSubscribed ? <BellOff size={15} /> : <Bell size={15} />}
-                  <span>{isPushActionPending ? 'Aguarde...' : pushSubscribed ? 'Avisos ativos' : 'Ativar avisos'}</span>
+                  <span>{isPushActionPending ? 'Aguarde...' : pushSubscribed ? 'Notificações ativas' : 'Ativar notificações'}</span>
                 </button>
               )}
               <a

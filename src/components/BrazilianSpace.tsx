@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Bell, Orbit, Settings2, X } from 'lucide-react';
+import { Orbit } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 import { playPrivateMessageSound } from '../lib/menuSounds';
 import type { UserProfile } from '../types';
-import { CEO_EMAIL } from '../utils/security';
 import './BrazilianSpace.css';
 
 interface SpaceUser {
@@ -41,12 +40,6 @@ interface SpacePost {
   reactions: SpaceReaction[];
 }
 
-interface RewardSettings {
-  mention_reply_points: number;
-  mention_reply_xp: number;
-  mention_reply_coins: number;
-}
-
 interface SpaceFeedData {
   posts: SpacePost[];
   helpers: SpaceUser[];
@@ -54,7 +47,6 @@ interface SpaceFeedData {
   badge_users: string[];
   badges: Array<{ badge_key: string; acquired_at: string }>;
   season_key: string;
-  reward_settings?: RewardSettings;
 }
 
 interface SpaceProps {
@@ -83,12 +75,6 @@ const formatDate = (value: string) => new Intl.DateTimeFormat('pt-BR', {
 }).format(new Date(value));
 
 const reactionEmojis = ['👍', '❤️', '😂', '👏', '💡'];
-
-const decodeVapidPublicKey = (encodedKey: string) => {
-  const base64 = encodedKey.replace(/-/g, '+').replace(/_/g, '/');
-  const raw = window.atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, '='));
-  return Uint8Array.from(raw, (character) => character.charCodeAt(0));
-};
 
 const LinkifiedText = ({ text }: { text: string }) => (
   <>
@@ -130,18 +116,9 @@ export function BrazilianSpace({ user, initialDraft = '', focusRequestId }: Spac
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeComment, setActiveComment] = useState('');
   const [activeReaction, setActiveReaction] = useState('');
-  const [isPushEnabled, setIsPushEnabled] = useState(false);
-  const [isPushBusy, setIsPushBusy] = useState(false);
-  const [isRewardSettingsOpen, setIsRewardSettingsOpen] = useState(false);
-  const [rewardForm, setRewardForm] = useState<RewardSettings>({
-    mention_reply_points: 10,
-    mention_reply_xp: 15,
-    mention_reply_coins: 5
-  });
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const notificationCursorRef = useRef(new Date().toISOString());
   const notifiedPostIdsRef = useRef(new Set<string>());
-  const isCeo = user.email.trim().toLowerCase() === CEO_EMAIL;
   const achievementStorageKey = `bia-space-seen-achievements:${user.email.trim().toLowerCase()}`;
 
   const helperIds = useMemo(() => new Set(feed?.helpers.map((helper) => helper.auth_user_id) || []), [feed?.helpers]);
@@ -171,7 +148,6 @@ export function BrazilianSpace({ user, initialDraft = '', focusRequestId }: Spac
         console.warn('Não foi possível salvar as conquistas já exibidas no Brazilian Space:', storageError);
       }
       setFeed(data);
-      if (data.reward_settings) setRewardForm(data.reward_settings);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Nao foi possivel carregar o Brazilian Space.');
     } finally {
@@ -235,23 +211,6 @@ export function BrazilianSpace({ user, initialDraft = '', focusRequestId }: Spac
       cancelled = true;
       window.clearInterval(interval);
       document.removeEventListener('visibilitychange', onVisibilityChange);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
-    let cancelled = false;
-    void navigator.serviceWorker.getRegistration('/').then(async (registration) => {
-      const subscription = await registration?.pushManager.getSubscription();
-      const subscribedUserId = localStorage.getItem('bia_space_push_user_id');
-      if (!cancelled) {
-        setIsPushEnabled(Boolean(subscription && subscribedUserId === (user.auth_user_id || user.id)));
-      }
-    }).catch((pushError: unknown) => {
-      console.error('Não foi possível verificar as notificações do Brazilian Space:', pushError);
-    });
-    return () => {
-      cancelled = true;
     };
   }, []);
 
@@ -358,66 +317,6 @@ export function BrazilianSpace({ user, initialDraft = '', focusRequestId }: Spac
       setError(submitError instanceof Error ? submitError.message : 'Falha ao responder.');
     } finally {
       setActiveComment('');
-    }
-  };
-
-  const saveRewardSettings = async () => {
-    if (!rewardForm || !isCeo) return;
-    setError('');
-    setNotice('');
-    try {
-      const result = await requestJson<{ settings: RewardSettings }>('/api/space/rewards', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(rewardForm)
-      });
-      setRewardForm(result.settings);
-      setIsRewardSettingsOpen(false);
-      setNotice('Preferências atualizadas.');
-    } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Nao foi possivel atualizar as recompensas.');
-    }
-  };
-
-  const enableSpaceNotifications = async () => {
-    if (isPushBusy) return;
-    setIsPushBusy(true);
-    setError('');
-    try {
-      if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
-        throw new Error('Este navegador não oferece suporte a notificações push.');
-      }
-      const permission = Notification.permission === 'default'
-        ? await Notification.requestPermission()
-        : Notification.permission;
-      if (permission !== 'granted') {
-        throw new Error('Permita notificações nas configurações do navegador para receber avisos.');
-      }
-      const registration = await navigator.serviceWorker.register('/service-worker.js');
-      const configResponse = await apiFetch('/api/public-config');
-      const config = await configResponse.json().catch(() => ({})) as { webPushPublicKey?: string | null };
-      if (!configResponse.ok || !config.webPushPublicKey) {
-        throw new Error('As notificações push ainda não estão configuradas no servidor.');
-      }
-      const subscription = await registration.pushManager.getSubscription() ||
-        await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: decodeVapidPublicKey(config.webPushPublicKey)
-        });
-      const response = await apiFetch('/api/space/push-subscriptions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(subscription.toJSON())
-      });
-      const result = await response.json().catch(() => ({})) as { error?: string };
-      if (!response.ok) throw new Error(result.error || 'Não foi possível ativar as notificações.');
-      localStorage.setItem('bia_space_push_user_id', user.auth_user_id || user.id);
-      setIsPushEnabled(true);
-      setNotice('Notificações de novas publicações ativadas neste dispositivo.');
-    } catch (pushError) {
-      setError(pushError instanceof Error ? pushError.message : 'Não foi possível ativar as notificações.');
-    } finally {
-      setIsPushBusy(false);
     }
   };
 
@@ -546,27 +445,6 @@ export function BrazilianSpace({ user, initialDraft = '', focusRequestId }: Spac
           <p>Compartilhe descobertas, tire duvidas e ajude outros alunos a decolarem.</p>
         </div>
         <div className="space-hero-actions">
-          <button
-            type="button"
-            className="space-icon-button"
-            aria-label={isPushEnabled ? 'Notificações ativadas' : 'Ativar notificações de publicações'}
-            title={isPushEnabled ? 'Notificações ativadas neste dispositivo' : 'Ativar notificações de publicações'}
-            onClick={() => void enableSpaceNotifications()}
-            disabled={isPushBusy || isPushEnabled}
-          >
-            <Bell size={18} />
-          </button>
-          {isCeo && (
-            <button
-              type="button"
-              className="space-icon-button"
-              aria-label="Configurar recompensas"
-              title="Configurar recompensas"
-              onClick={() => setIsRewardSettingsOpen(true)}
-            >
-              <Settings2 size={18} />
-            </button>
-          )}
           <div className="space-season-pill">
             <span>Temporada</span>
             <strong>{feed?.season_key ? new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${feed.season_key}T00:00:00Z`)) : '—'}</strong>
@@ -624,23 +502,6 @@ export function BrazilianSpace({ user, initialDraft = '', focusRequestId }: Spac
         </section>
       </div>
 
-      {isCeo && isRewardSettingsOpen && (
-        <div className="space-settings-backdrop" role="presentation" onMouseDown={(event) => {
-          if (event.target === event.currentTarget) setIsRewardSettingsOpen(false);
-        }}>
-          <section className="space-settings-dialog space-glass" role="dialog" aria-modal="true" aria-labelledby="space-rewards-title">
-            <button type="button" className="space-icon-button space-settings-close" aria-label="Fechar configurações" onClick={() => setIsRewardSettingsOpen(false)}>
-              <X size={18} />
-            </button>
-            <span className="space-eyebrow">SOMENTE CEO</span>
-            <h2 id="space-rewards-title">Configuração de recompensas</h2>
-            <label>Pontos <input type="number" min="0" max="10000" value={rewardForm.mention_reply_points} onChange={(event) => setRewardForm((current) => ({ ...current, mention_reply_points: Number(event.target.value) }))} /></label>
-            <label>XP <input type="number" min="0" max="10000" value={rewardForm.mention_reply_xp} onChange={(event) => setRewardForm((current) => ({ ...current, mention_reply_xp: Number(event.target.value) }))} /></label>
-            <label>Moedas <input type="number" min="0" max="10000" value={rewardForm.mention_reply_coins} onChange={(event) => setRewardForm((current) => ({ ...current, mention_reply_coins: Number(event.target.value) }))} /></label>
-            <button type="button" className="space-primary-button" onClick={() => void saveRewardSettings()}>Salvar</button>
-          </section>
-        </div>
-      )}
     </main>
   );
 }

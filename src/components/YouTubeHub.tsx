@@ -560,7 +560,7 @@ export const YouTubeHub: React.FC<YouTubeHubProps> = ({
                   <div className="flex items-center gap-2 mb-0.5">
                     {!isMusicMode && (
                       <span className="text-[10px] font-mono font-medium text-red-400 uppercase tracking-wider">
-                        Aulas, gramática & conversação
+                        Canal de estudos em vídeo: gramática, listening e conversação
                       </span>
                     )}
                   </div>
