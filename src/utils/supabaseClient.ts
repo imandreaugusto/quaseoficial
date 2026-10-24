@@ -716,6 +716,36 @@ export const loadAllStudentFeedback = async () => {
   return (data || []) as StudentFeedbackRecord[];
 };
 
+export const loadPendingStudentFeedbackCounts = async () => {
+  const client = getSupabaseClient();
+  if (!client) throw new Error('Supabase não está configurado para carregar os totais de feedback.');
+
+  const [pendingResult, newResult] = await Promise.all([
+    client
+      .from('bia_student_feedback')
+      .select('id', { count: 'exact', head: true })
+      .in('status', ['new', 'reviewing']),
+    client
+      .from('bia_student_feedback')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'new')
+  ]);
+
+  if (pendingResult.error) {
+    console.error('Pending student feedback count load failed:', pendingResult.error);
+    throw pendingResult.error;
+  }
+  if (newResult.error) {
+    console.error('New student feedback count load failed:', newResult.error);
+    throw newResult.error;
+  }
+
+  return {
+    pendingCount: pendingResult.count || 0,
+    newCount: newResult.count || 0
+  };
+};
+
 export const updateStudentFeedback = async (
   id: string,
   update: Pick<StudentFeedbackRecord, 'status' | 'admin_reply'>

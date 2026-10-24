@@ -37,7 +37,7 @@ import { ensureAppAfter } from '../lib/appMenuOrder';
 import { PlanetOrbitIcon } from './PlanetOrbitIcon';
 import { BrazilianLogo } from './BrazilianLogo';
 import { SocialLinksBar } from './SocialLinksBar';
-import { getSupabaseClient, loadSharedContentFromSupabase } from '../utils/supabaseClient';
+import { getSupabaseClient, loadPendingStudentFeedbackCounts, loadSharedContentFromSupabase } from '../utils/supabaseClient';
 
 const StudyTimeIcon: React.FC<{ size?: number; style?: React.CSSProperties; className?: string }> = ({
   size = 20,
@@ -118,8 +118,9 @@ const NavButton: React.FC<{
   isActive: boolean;
   accentColor: string;
   menuSoundsEnabled: boolean;
+  notificationCount?: number;
   onClick: () => void;
-}> = ({ item, isActive, accentColor, menuSoundsEnabled, onClick }) => {
+}> = ({ item, isActive, accentColor, menuSoundsEnabled, notificationCount = 0, onClick }) => {
   const btnRef = useRef<HTMLButtonElement | null>(null);
   const iconRef = useRef<HTMLSpanElement | null>(null);
   const isPlatformBrand = item.label.startsWith('Brazilian ') || item.label === 'Read Club' || item.label === 'BIA Compare';
@@ -232,6 +233,14 @@ const NavButton: React.FC<{
       >
         {item.label}
       </span>
+      {notificationCount > 0 && (
+        <span
+          aria-label={`${notificationCount} feedbacks pendentes`}
+          className="flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[11px] font-extrabold text-white shadow-lg"
+        >
+          {notificationCount > 99 ? '99+' : notificationCount}
+        </span>
+      )}
     </button>
   );
 };
@@ -476,6 +485,64 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const menuItems = isAdmin ? adminItems : studentItems;
 
   const currentItem = menuItems.find((m) => m.id === currentApp) || { label: 'Brazilian in Action' };
+  const canMonitorStudentFeedback = isActualAdmin && !isStudentPreviewMode;
+  const [pendingFeedbackCount, setPendingFeedbackCount] = useState(0);
+  const [newFeedbackNotice, setNewFeedbackNotice] = useState<number | null>(null);
+  const lastNewFeedbackCountRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!canMonitorStudentFeedback) {
+      setPendingFeedbackCount(0);
+      setNewFeedbackNotice(null);
+      lastNewFeedbackCountRef.current = null;
+      return;
+    }
+
+    let cancelled = false;
+    let refreshInProgress = false;
+    const refreshFeedbackCounts = async () => {
+      if (refreshInProgress) return;
+      refreshInProgress = true;
+      try {
+        const counts = await loadPendingStudentFeedbackCounts();
+        if (cancelled) return;
+
+        const previousNewCount = lastNewFeedbackCountRef.current;
+        lastNewFeedbackCountRef.current = counts.newCount;
+        setPendingFeedbackCount(counts.pendingCount);
+        if (previousNewCount !== null && counts.newCount > previousNewCount) {
+          setNewFeedbackNotice(counts.newCount - previousNewCount);
+        }
+      } catch (error) {
+        if (!cancelled) console.error('Could not refresh CEO feedback notifications:', error);
+      } finally {
+        refreshInProgress = false;
+      }
+    };
+
+    void refreshFeedbackCounts();
+    const refreshInterval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void refreshFeedbackCounts();
+    }, 20_000);
+    const client = getSupabaseClient();
+    const channel = client?.channel('ceo-student-feedback-notifications')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'bia_student_feedback' },
+        () => void refreshFeedbackCounts()
+      )
+      .subscribe((status, error) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('Realtime feedback notifications are unavailable; periodic refresh remains active.', error);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(refreshInterval);
+      if (channel && client) void client.removeChannel(channel);
+    };
+  }, [canMonitorStudentFeedback]);
 
   const handleNavigate = (id: string) => {
     onNavigate(id);
@@ -738,6 +805,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         isActive={isActive}
                         accentColor={accentColor}
                         menuSoundsEnabled={menuSoundsEnabled}
+                        notificationCount={canMonitorStudentFeedback && item.id === 'feedback' ? pendingFeedbackCount : 0}
                         onClick={() => handleNavigate(item.id)}
                       />
                     </motion.div>
@@ -775,6 +843,44 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             </motion.div>
           </>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {canMonitorStudentFeedback && newFeedbackNotice !== null && (
+          <motion.aside
+            role="status"
+            aria-live="polite"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 12 }}
+            className="fixed bottom-5 right-5 z-[4000] flex max-w-[min(92vw,26rem)] items-center gap-3 rounded-xl border border-rose-300/25 bg-slate-950/95 px-4 py-3 text-sm text-white shadow-2xl backdrop-blur"
+          >
+            <MessageSquareText size={19} className="shrink-0 text-rose-300" aria-hidden="true" />
+            <p className="min-w-0 flex-1">
+              {newFeedbackNotice === 1
+                ? 'Você recebeu um novo feedback de assinante.'
+                : `Você recebeu ${newFeedbackNotice} novos feedbacks de assinantes.`}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setNewFeedbackNotice(null);
+                handleNavigate('feedback');
+              }}
+              className="shrink-0 rounded-lg bg-rose-300/15 px-3 py-2 text-xs font-semibold text-rose-100 hover:bg-rose-300/25"
+            >
+              Ver
+            </button>
+            <button
+              type="button"
+              aria-label="Fechar aviso de novo feedback"
+              onClick={() => setNewFeedbackNotice(null)}
+              className="shrink-0 rounded-lg px-2 py-2 text-white/60 hover:bg-white/10 hover:text-white"
+            >
+              <X size={15} aria-hidden="true" />
+            </button>
+          </motion.aside>
         )}
       </AnimatePresence>
 
