@@ -101,6 +101,10 @@ export const StudentFeedback: React.FC<StudentFeedbackProps> = ({ currentUser, a
           Em um único campo, conte o que está achando da plataforma, como podemos melhorar
           e o que você espera encontrar. Sua mensagem será lida pela equipe.
         </p>
+        <p className="mt-2 text-xs text-white/45">
+          A equipe pode usar o Jev da TypeSafe para sugerir a categoria e prioridade do feedback.
+          Não inclua senhas, códigos ou dados de pagamento.
+        </p>
       </header>
 
       <form onSubmit={handleSubmit} className="space-y-5 rounded-2xl border border-white/10 bg-white/[0.04] p-5 sm:p-7">

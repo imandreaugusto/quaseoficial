@@ -8,7 +8,7 @@ import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type } from '@google/genai';
 import { randomUUID, timingSafeEqual } from 'node:crypto';
 import dotenv from 'dotenv';
-import { validatePortuguesePhrase, validateSpaceContribution } from './src/lib/jevValidator';
+import { classifyStudentFeedback, validatePortuguesePhrase, validateSpaceContribution } from './src/lib/jevValidator';
 import {
   ABACATEPAY_WEBHOOK_PUBLIC_KEY,
   abacatePayApiEndpoint,
@@ -511,6 +511,29 @@ async function startServer() {
     }
     return next();
   };
+
+  app.post('/api/admin/feedback/classify', requireCeoAiAccess, async (req, res) => {
+    const text = typeof req.body?.text === 'string' ? req.body.text.trim() : '';
+    if (!text || text.length > 5000) {
+      return res.status(400).json({ error: 'Informe um feedback com até 5000 caracteres.' });
+    }
+    if (isRateLimited(`feedback-classify:${res.locals.authenticatedEmail}`, 20, 60_000)) {
+      return res.status(429).json({ error: 'Muitas classificações em sequência. Aguarde um minuto.' });
+    }
+
+    try {
+      const classification = await classifyStudentFeedback(text);
+      return res.json({ classification });
+    } catch (error) {
+      console.error('Student feedback classification failed:', error);
+      const missingKey = error instanceof Error && error.message.includes('TYPESAFE_API_KEY');
+      return res.status(missingKey ? 503 : 502).json({
+        error: missingKey
+          ? 'A triagem com Jev ainda não está configurada no servidor.'
+          : 'Não foi possível classificar este feedback agora. Tente novamente.'
+      });
+    }
+  });
 
   const getSpaceRows = async <T,>(resource: string): Promise<T[]> => {
     const response = await supabaseServiceRequest(resource);

@@ -6,6 +6,10 @@
 
 Aplicativo React + Vite + TypeScript com API Node/Express, publicado no Render. O codigo-fonte e mantido no GitHub.
 
+## Integracoes Jev
+
+O Jev da TypeSafe e usado no Brazilian Space para avaliar publicacoes e respostas, e pode ser solicitado pelo CEO no painel de Feedback para sugerir assunto e prioridade. A triagem do feedback e opcional, nao bloqueia envios e requer `TYPESAFE_API_KEY` no servidor. Os lembretes diarios usam Gemini 2.5 Flash com a persona JEV; eles nao usam o modelo Jev da TypeSafe.
+
 ## Publicacao automatica
 
 - Cada push em `main` executa `.github/workflows/deploy-pages.yml` para validar TypeScript, testes e build; esse workflow nao publica no GitHub Pages.

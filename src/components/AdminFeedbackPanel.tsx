@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Loader2, MessageSquareText, RefreshCw, Save } from 'lucide-react';
 import {
+  classifyStudentFeedback,
   loadAllStudentFeedback,
   StudentFeedbackRecord,
+  StudentFeedbackTriage,
   updateStudentFeedback,
 } from '../utils/supabaseClient';
 
@@ -12,11 +14,28 @@ const STATUS_LABELS: Record<StudentFeedbackRecord['status'], string> = {
   answered: 'Respondido',
 };
 
+const CATEGORY_LABELS: Record<StudentFeedbackTriage['category'], string> = {
+  access: 'Acesso / login',
+  payment: 'Pagamento',
+  technical: 'Problema técnico',
+  content: 'Conteúdo / aulas',
+  suggestion: 'Sugestão',
+  other: 'Outro',
+};
+
+const PRIORITY_LABELS: Record<StudentFeedbackTriage['priority'], string> = {
+  high: 'Alta',
+  normal: 'Normal',
+  low: 'Baixa',
+};
+
 export const AdminFeedbackPanel: React.FC = () => {
   const [feedback, setFeedback] = useState<StudentFeedbackRecord[]>([]);
   const [drafts, setDrafts] = useState<Record<string, { status: StudentFeedbackRecord['status']; reply: string }>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [classifyingId, setClassifyingId] = useState<string | null>(null);
+  const [classifications, setClassifications] = useState<Record<string, StudentFeedbackTriage>>({});
   const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
 
   const refresh = useCallback(async () => {
@@ -75,6 +94,31 @@ export const AdminFeedbackPanel: React.FC = () => {
     }
   };
 
+  const handleClassify = async (item: StudentFeedbackRecord) => {
+    const text = item.answers.message?.trim() || [
+      item.answers.platform,
+      item.answers.improve,
+      item.answers.expectations,
+      item.answers.other,
+    ].map((answer) => answer?.trim()).filter(Boolean).join('\n');
+    if (!text) return;
+
+    setClassifyingId(item.id);
+    setMessage(null);
+    try {
+      const classification = await classifyStudentFeedback(text);
+      setClassifications((previous) => ({ ...previous, [item.id]: classification }));
+    } catch (error) {
+      console.error('Could not classify student feedback:', error);
+      setMessage({
+        text: error instanceof Error ? error.message : 'Não foi possível classificar este feedback.',
+        error: true,
+      });
+    } finally {
+      setClassifyingId(null);
+    }
+  };
+
   const hasReply = (item: StudentFeedbackRecord) => Boolean(item.admin_reply?.trim());
   const isAnswered = (item: StudentFeedbackRecord) => item.status === 'answered' || hasReply(item);
   const awaitingReply = feedback.filter((item) => !isAnswered(item));
@@ -120,6 +164,42 @@ export const AdminFeedbackPanel: React.FC = () => {
               </p>
             ))
           )}
+        </div>
+
+        <div className="mb-4 rounded-lg border border-violet-400/20 bg-violet-400/[0.05] p-3">
+          <p className="mb-2 text-xs text-white/50">
+            Ao classificar, o texto da mensagem é enviado ao Jev da TypeSafe; nome e e-mail não são enviados.
+            A classificação é uma sugestão automática; revise antes de priorizar.
+          </p>
+          {classifications[item.id] ? (
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <span className="font-semibold text-violet-200">Triagem Jev:</span>
+              <span className="rounded-full border border-white/10 px-2 py-1 text-white/80">
+                {CATEGORY_LABELS[classifications[item.id].category]}
+              </span>
+              <span className={`rounded-full border px-2 py-1 font-semibold ${
+                classifications[item.id].priority === 'high'
+                  ? 'border-red-400/30 bg-red-400/10 text-red-200'
+                  : classifications[item.id].priority === 'normal'
+                    ? 'border-amber-400/30 bg-amber-400/10 text-amber-200'
+                    : 'border-white/10 bg-white/5 text-white/65'
+              }`}>
+                Prioridade {PRIORITY_LABELS[classifications[item.id].priority]}
+              </span>
+              <span className="text-white/45">
+                Confiança {Math.round(classifications[item.id].categoryConfidence * 100)}% / {Math.round(classifications[item.id].priorityConfidence * 100)}%
+              </span>
+            </div>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => void handleClassify(item)}
+            disabled={classifyingId === item.id || !item.answers.message?.trim() && !item.answers.platform && !item.answers.improve && !item.answers.expectations && !item.answers.other}
+            className="mt-2 inline-flex items-center gap-2 rounded-lg border border-violet-300/20 px-3 py-1.5 text-xs font-semibold text-violet-100 hover:bg-violet-300/10 disabled:opacity-50"
+          >
+            {classifyingId === item.id ? <Loader2 size={13} className="animate-spin" /> : null}
+            {classifyingId === item.id ? 'Classificando...' : classifications[item.id] ? 'Classificar novamente' : 'Classificar com Jev'}
+          </button>
         </div>
 
         {item.admin_reply && (

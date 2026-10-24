@@ -5,6 +5,13 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { UserProfile } from '../types';
 import { apiFetch, setApiAccessTokenProvider } from '../lib/api';
 
+export interface StudentFeedbackTriage {
+  category: 'access' | 'payment' | 'technical' | 'content' | 'suggestion' | 'other';
+  categoryConfidence: number;
+  priority: 'high' | 'normal' | 'low';
+  priorityConfidence: number;
+}
+
 export interface StudentFeedbackRecord {
   id: string;
   auth_user_id: string;
@@ -729,6 +736,19 @@ export const updateStudentFeedback = async (
     throw error;
   }
   return data;
+};
+
+export const classifyStudentFeedback = async (text: string): Promise<StudentFeedbackTriage> => {
+  const response = await apiFetch('/api/admin/feedback/classify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text })
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || !result.classification) {
+    throw new Error(result.error || 'Não foi possível classificar este feedback.');
+  }
+  return result.classification as StudentFeedbackTriage;
 };
 
 export const findUserProfileByEmail = async (email: string) => {
