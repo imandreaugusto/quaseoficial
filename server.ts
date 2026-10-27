@@ -452,7 +452,8 @@ async function startServer() {
       '/api/auth/redeem-coupon',
       '/api/auth/google/redeem-coupon',
       '/api/payments/create-pix',
-      '/api/webhook/payment'
+      '/api/webhook/payment',
+      '/api/cron/daily-student-reminders'
     ].includes(route)) return true;
     return request.method === 'GET' && route.startsWith('/api/payments/status/');
   };
