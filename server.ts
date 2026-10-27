@@ -512,6 +512,12 @@ async function startServer() {
     }
     return next();
   };
+  const requireCeoAccess: express.RequestHandler = (_req, res, next) => {
+    if (res.locals.authenticatedEmail !== CEO_EMAIL) {
+      return res.status(403).json({ error: 'Esta ação está disponível somente para o CEO.' });
+    }
+    return next();
+  };
 
   app.post('/api/admin/feedback/classify', requireCeoAiAccess, async (req, res) => {
     const text = typeof req.body?.text === 'string' ? req.body.text.trim() : '';
@@ -1775,6 +1781,68 @@ async function startServer() {
       return false;
     }
   };
+
+  app.post('/api/admin/feedback/:id/reply', requireCeoAccess, async (req, res) => {
+    const feedbackId = req.params.id;
+    const status = req.body?.status;
+    const adminReply = typeof req.body?.admin_reply === 'string'
+      ? req.body.admin_reply.trim().slice(0, 5000) || null
+      : null;
+    if (
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(feedbackId) ||
+      !['new', 'reviewing', 'answered'].includes(status) ||
+      (typeof req.body?.admin_reply !== 'string' && req.body?.admin_reply !== null)
+    ) {
+      return res.status(400).json({ error: 'Os dados da resposta ao feedback são inválidos.' });
+    }
+
+    try {
+      const lookupResponse = await supabaseServiceRequest(
+        `bia_student_feedback?id=eq.${encodeURIComponent(feedbackId)}&select=id,auth_user_id,admin_reply&limit=1`
+      );
+      if (!lookupResponse.ok) {
+        console.error('Student feedback lookup before reply failed:', lookupResponse.status, await lookupResponse.text());
+        return res.status(502).json({ error: 'Não foi possível localizar o feedback.' });
+      }
+      const [existingFeedback] = await lookupResponse.json() as {
+        id: string;
+        auth_user_id: string;
+        admin_reply: string | null;
+      }[];
+      if (!existingFeedback) return res.status(404).json({ error: 'Feedback não encontrado.' });
+
+      const updateResponse = await supabaseServiceRequest(
+        `bia_student_feedback?id=eq.${encodeURIComponent(feedbackId)}`,
+        {
+          method: 'PATCH',
+          headers: { Prefer: 'return=representation' },
+          body: JSON.stringify({
+            status,
+            admin_reply: adminReply,
+            updated_at: new Date().toISOString()
+          })
+        }
+      );
+      if (!updateResponse.ok) {
+        console.error('Student feedback reply update failed:', updateResponse.status, await updateResponse.text());
+        return res.status(502).json({ error: 'Não foi possível salvar a resposta ao feedback.' });
+      }
+      const [updatedFeedback] = await updateResponse.json() as { id: string }[];
+
+      if (adminReply && adminReply !== existingFeedback.admin_reply?.trim()) {
+        await sendFriendsPushNotification(existingFeedback.auth_user_id, {
+          title: 'Nova resposta ao seu feedback',
+          body: 'O Brazilian in Action respondeu ao seu feedback. Toque para abrir.',
+          url: '/?open=feedback',
+          tag: `feedback-reply-${feedbackId}`
+        });
+      }
+      return res.json({ feedback: updatedFeedback || { id: feedbackId } });
+    } catch (error) {
+      console.error('Student feedback reply endpoint failed:', error);
+      return res.status(500).json({ error: 'Falha ao salvar a resposta ao feedback.' });
+    }
+  });
 
   const notifySpacePostSubscribers = async (postId: string, authorId: string) => {
     if (!webPushConfigured) return;

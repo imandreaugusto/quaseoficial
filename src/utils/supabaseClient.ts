@@ -750,22 +750,23 @@ export const updateStudentFeedback = async (
   id: string,
   update: Pick<StudentFeedbackRecord, 'status' | 'admin_reply'>
 ) => {
-  const client = getSupabaseClient();
-  if (!client) throw new Error('Supabase não está configurado para atualizar feedbacks.');
   if (!id) throw new Error('O identificador do feedback está vazio.');
 
-  const { data, error } = await client
-    .from('bia_student_feedback')
-    .update({ ...update, updated_at: new Date().toISOString() })
-    .eq('id', id)
-    .select('id')
-    .single();
-
-  if (error) {
-    console.error('Admin feedback update failed:', error);
-    throw error;
-  }
-  return data;
+  const accessToken = await getAuthenticatedAccessToken();
+  const response = await apiFetch(`/api/admin/feedback/${encodeURIComponent(id)}/reply`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`
+    },
+    body: JSON.stringify(update)
+  });
+  const result = await response.json().catch(() => ({})) as {
+    feedback?: { id: string };
+    error?: string;
+  };
+  if (!response.ok) throw new Error(result.error || 'Não foi possível atualizar o feedback.');
+  return result.feedback;
 };
 
 export const classifyStudentFeedback = async (text: string): Promise<StudentFeedbackTriage> => {
