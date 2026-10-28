@@ -94,10 +94,19 @@ const LinkifiedText = ({ text }: { text: string }) => (
 
 const Avatar = ({ person, helper, badge }: { person: SpaceUser | null; helper?: boolean; badge?: boolean }) => {
   const displayName = person?.display_name || 'Aluno Space';
+  const photoUrl = person?.photo_url?.trim() || '';
+  const [hasImageError, setHasImageError] = useState(false);
+
+  useEffect(() => {
+    setHasImageError(false);
+  }, [photoUrl]);
+
+  const canRenderImage = photoUrl && /^https?:\/\/i.test(photoUrl) && !hasImageError;
+
   return (
     <div className={`space-avatar ${helper ? 'space-avatar--helper' : ''} ${badge ? 'space-avatar--ice' : ''}`}>
-      {person?.photo_url
-        ? <img src={person.photo_url} alt="" />
+      {canRenderImage
+        ? <img src={photoUrl} alt="" referrerPolicy="no-referrer" onError={() => setHasImageError(true)} />
         : <span aria-hidden="true">{displayName.slice(0, 1).toUpperCase()}</span>}
     </div>
   );
