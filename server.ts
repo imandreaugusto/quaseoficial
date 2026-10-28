@@ -875,23 +875,42 @@ async function startServer() {
         return res.status(400).json({ error: 'O comentário escolhido para responder é inválido.' });
       }
       const validation = await validateSpaceContribution(body, 'reply');
-      const response = await supabaseServiceRequest('rpc/space_create_comment_and_reward', {
+      const rpcPath = 'rpc/space_create_comment_and_reward';
+      const rpcArgs = {
+        p_author_id: authUser.id,
+        p_post_id: postId,
+        p_body: body,
+        p_jev_valid: validation.isValid,
+        p_jev_reason: validation.reason
+      };
+      let response = await supabaseServiceRequest(rpcPath, {
         method: 'POST',
         body: JSON.stringify({
-          p_author_id: authUser.id,
-          p_post_id: postId,
-          p_body: body,
-          p_jev_valid: validation.isValid,
-          p_jev_reason: validation.reason,
+          ...rpcArgs,
           p_parent_comment_id: parentCommentId
         })
       });
       if (!response.ok) {
-        const details = await response.text();
-        console.error('Brazilian Space comment save failed:', response.status, details);
-        return res.status(response.status === 400 ? 404 : 502).json({
-          error: response.status === 400 ? 'A publicação não foi encontrada ou a resposta é inválida.' : 'Não foi possível salvar a resposta.'
-        });
+        let details = await response.text();
+        const missingReplySignature = response.status === 404 &&
+          details.includes('PGRST202') &&
+          details.includes('space_create_comment_and_reward');
+
+        if (!parentCommentId && missingReplySignature) {
+          console.warn('Brazilian Space comment RPC lacks the parent-comment argument; retrying with the legacy signature.');
+          response = await supabaseServiceRequest(rpcPath, {
+            method: 'POST',
+            body: JSON.stringify(rpcArgs)
+          });
+          if (!response.ok) details = await response.text();
+        }
+
+        if (!response.ok) {
+          console.error('Brazilian Space comment save failed:', response.status, details);
+          return res.status(response.status === 400 ? 404 : 502).json({
+            error: response.status === 400 ? 'A publicação não foi encontrada ou a resposta é inválida.' : 'Não foi possível salvar a resposta.'
+          });
+        }
       }
       const result = await response.json() as {
         comment: unknown; recipients: number; points: number; xp: number; coins: number;
