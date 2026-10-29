@@ -402,7 +402,7 @@
   font-size: 0.75rem;
 }
 
-.space-comment > div {
+.space-comment > div:not(.space-avatar) {
   min-width: 0;
   flex: 1;
 }
