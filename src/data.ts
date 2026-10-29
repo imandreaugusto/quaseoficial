@@ -273,35 +273,35 @@ type USLandmark = {
 export const US_LANDMARKS: USLandmark[] = [
   {
     name: "National Mall, Washington, D.C.",
-    url: "https://images.unsplash.com/photo-1501466044931-62695aada8e9?q=85&w=3840&auto=format&fit=crop"
+    url: "https://images.unsplash.com/photo-1501466044931-62695aada8e9?q=85&w=1920&auto=format&fit=crop"
   },
   {
     name: "Manhattan, New York, NY",
-    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7e/Skyline_of_Manhattan.jpg/3840px-Skyline_of_Manhattan.jpg"
+    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7e/Skyline_of_Manhattan.jpg/1920px-Skyline_of_Manhattan.jpg"
   },
   {
     name: "Brooklyn Bridge, New York, NY",
-    url: "https://images.unsplash.com/photo-1518235506717-e1ed3306a89b?q=85&w=3840&auto=format&fit=crop"
+    url: "https://images.unsplash.com/photo-1518235506717-e1ed3306a89b?q=85&w=1920&auto=format&fit=crop"
   },
   {
     name: "Grand Canyon National Park, AZ",
-    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/12/Grand_Canyon_South_Rim_at_Sunset.jpg/3840px-Grand_Canyon_South_Rim_at_Sunset.jpg"
+    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/12/Grand_Canyon_South_Rim_at_Sunset.jpg/1920px-Grand_Canyon_South_Rim_at_Sunset.jpg"
   },
   {
     name: "Seattle, Washington",
-    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3a/Seattle_Skyline-.jpg/3840px-Seattle_Skyline-.jpg"
+    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3a/Seattle_Skyline-.jpg/1920px-Seattle_Skyline-.jpg"
   },
   {
     name: "Miami, Florida",
-    url: "https://images.unsplash.com/photo-1506966953602-c20cc11f75e3?q=85&w=3840&auto=format&fit=crop"
+    url: "https://images.unsplash.com/photo-1506966953602-c20cc11f75e3?q=85&w=1920&auto=format&fit=crop"
   },
   {
     name: "Monument Valley, Arizona/Utah",
-    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6b/Monument_Valley_Arizona_Panoramic.jpg/3840px-Monument_Valley_Arizona_Panoramic.jpg"
+    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6b/Monument_Valley_Arizona_Panoramic.jpg/1920px-Monument_Valley_Arizona_Panoramic.jpg"
   },
   {
     name: "Chicago, Illinois",
-    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8e/Skyline_de_Chicago_desde_el_centro%2C_Illinois%2C_Estados_Unidos%2C_2012-10-20%2C_DD_06.jpg/3840px-Skyline_de_Chicago_desde_el_centro%2C_Illinois%2C_Estados_Unidos%2C_2012-10-20%2C_DD_06.jpg",
+    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8e/Skyline_de_Chicago_desde_el_centro%2C_Illinois%2C_Estados_Unidos%2C_2012-10-20%2C_DD_06.jpg/1920px-Skyline_de_Chicago_desde_el_centro%2C_Illinois%2C_Estados_Unidos%2C_2012-10-20%2C_DD_06.jpg",
     attribution: {
       author: "Diego Delso",
       sourceUrl: "https://commons.wikimedia.org/wiki/File:Skyline_de_Chicago_desde_el_centro,_Illinois,_Estados_Unidos,_2012-10-20,_DD_06.jpg",
@@ -312,11 +312,11 @@ export const US_LANDMARKS: USLandmark[] = [
   },
   {
     name: "Times Square ao pôr do sol, New York, NY",
-    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/53/Sunset_at_Times_Square%2C_New_York_City_%282017%29.jpg/3840px-Sunset_at_Times_Square%2C_New_York_City_%282017%29.jpg"
+    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/53/Sunset_at_Times_Square%2C_New_York_City_%282017%29.jpg/1920px-Sunset_at_Times_Square%2C_New_York_City_%282017%29.jpg"
   },
   {
     name: "Chicago skyline",
-    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b8/Chicago_Skyline_%283195688409%29.jpg/3840px-Chicago_Skyline_%283195688409%29.jpg",
+    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b8/Chicago_Skyline_%283195688409%29.jpg/1920px-Chicago_Skyline_%283195688409%29.jpg",
     attribution: {
       author: "Bryce Edwards",
       sourceUrl: "https://commons.wikimedia.org/wiki/File:Chicago_Skyline_(3195688409).jpg",
@@ -331,7 +331,7 @@ export const US_LANDMARKS: USLandmark[] = [
   },
   {
     name: "Philadelphia skyline",
-    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3d/Philadelphia_from_South_Street_Bridge_July_2016_panorama_1.jpg/3840px-Philadelphia_from_South_Street_Bridge_July_2016_panorama_1.jpg",
+    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3d/Philadelphia_from_South_Street_Bridge_July_2016_panorama_1.jpg/1920px-Philadelphia_from_South_Street_Bridge_July_2016_panorama_1.jpg",
     attribution: {
       author: "King of Hearts",
       sourceUrl: "https://commons.wikimedia.org/wiki/File:Philadelphia_from_South_Street_Bridge_July_2016_panorama_1.jpg",
@@ -342,7 +342,7 @@ export const US_LANDMARKS: USLandmark[] = [
   },
   {
     name: "Empire State Building ao entardecer, New York, NY",
-    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4d/Empire_State_Building_at_dusk_seen_from_Brooklyn_Bridge%2C_New_York_City.jpg/3840px-Empire_State_Building_at_dusk_seen_from_Brooklyn_Bridge%2C_New_York_City.jpg",
+    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4d/Empire_State_Building_at_dusk_seen_from_Brooklyn_Bridge%2C_New_York_City.jpg/1920px-Empire_State_Building_at_dusk_seen_from_Brooklyn_Bridge%2C_New_York_City.jpg",
     attribution: {
       author: "Christian David",
       sourceUrl: "https://commons.wikimedia.org/wiki/File:Empire_State_Building_at_dusk_seen_from_Brooklyn_Bridge,_New_York_City.jpg",
@@ -352,8 +352,6 @@ export const US_LANDMARKS: USLandmark[] = [
     }
   }
 ];
-
-export const SLIDESHOW_IMAGES = US_LANDMARKS.map(l => l.url);
 
 export const INITIAL_CONVERSATION_LIBRARY = [
   {

@@ -19,12 +19,10 @@ import {
   Check, 
   X,
   Sparkles,
-  Info,
   Eye,
   EyeOff
 } from 'lucide-react';
 import { BrazilianLogo } from './BrazilianLogo';
-import { SubscriptionInfoModal } from './SubscriptionInfoModal';
 import { Clock } from './Clock';
 import { fetchCouponFromSupabase, redeemAuthenticatedTrialCoupon, getSupabaseConfig, getSupabaseClient, signInWithGoogle, registerAuthenticatedProfile } from '../utils/supabaseClient';
 import { SiteLegalFooter } from './SiteLegalFooter';
@@ -76,7 +74,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [, setEggCounter] = useState(0);
-  const [isTourOpen, setIsTourOpen] = useState(false);
   const couponCheckRequestRef = useRef(0);
   const loginContentRef = useRef<HTMLDivElement | null>(null);
 
@@ -765,31 +762,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </div>
         </div>
 
-        <div className="fixed bottom-[max(0.75rem,env(safe-area-inset-bottom))] right-[max(0.75rem,env(safe-area-inset-right))] z-30 pointer-events-auto">
-          <SiteLegalFooter />
-        </div>
-        {!isAdminMode && (
-          <button
-            type="button"
-            onClick={() => setIsTourOpen(true)}
-            className="fixed bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-[max(0.75rem,env(safe-area-inset-left))] z-30 grid h-11 w-11 place-items-center rounded-full border border-white/25 bg-white/10 text-white/90 shadow-xl backdrop-blur-xl transition hover:bg-white/20 active:scale-95"
-            title="Conheça os módulos da plataforma e os planos"
-            aria-label="Informações sobre a plataforma"
-          >
-            <Info size={20} />
-          </button>
-        )}
+        <SiteLegalFooter
+          onStartSubscription={() => {
+            setIsSignUp(true);
+            setErrorMsg('');
+            setSuccessMsg('');
+          }}
+        />
       </div>
 
-      {/* Subscription Tour Modal */}
-      <SubscriptionInfoModal
-        isOpen={isTourOpen}
-        onClose={() => setIsTourOpen(false)}
-        onStartSubscription={() => {
-          setIsTourOpen(false);
-          setIsSignUp(true);
-        }}
-      />
     </div>
   );
 };

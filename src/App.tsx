@@ -22,23 +22,24 @@ const StreamStudio = lazy(() => import('./components/StreamStudio').then(({ Stre
 const AdminSettings = lazy(() => import('./components/AdminSettings').then(({ AdminSettings }) => ({ default: AdminSettings })));
 const AdminFeedbackPanel = lazy(() => import('./components/AdminFeedbackPanel').then(({ AdminFeedbackPanel }) => ({ default: AdminFeedbackPanel })));
 const StudentFeedback = lazy(() => import('./components/StudentFeedback').then(({ StudentFeedback }) => ({ default: StudentFeedback })));
+const PixPaymentScreen = lazy(() => import('./components/PixPaymentScreen').then(({ PixPaymentScreen }) => ({ default: PixPaymentScreen })));
 import { DEFAULT_YOUTUBE_LIBRARY, type YouTubeLibraryItem } from './youtubeLibrary';
 import { StoryRecordingBar } from './components/StoryRecordingBar';
 import { StudentFeedbackNotifications } from './components/StudentFeedbackNotifications';
 import { BrazilianFriendsGlobalStatus } from './components/BrazilianFriendsGlobalStatus';
 import { BrazilianSpaceMomentInsight } from './components/BrazilianSpaceMomentInsight';
 import { AuthModal } from './components/AuthModal';
-import { PixPaymentScreen } from './components/PixPaymentScreen';
 import { StudentProfileOnboarding } from './components/StudentProfileOnboarding';
 import { GlobalStreamOverlay } from './components/GlobalStreamOverlay';
 import { GlobalFloatingCamera } from './components/GlobalFloatingCamera';
 import { PageReveal } from './components/PageReveal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { BrazilianLogo } from './components/BrazilianLogo';
+import { BackgroundSlideshow } from './components/BackgroundSlideshow';
 import { CleanStudentStage } from './components/CleanStudentStage';
 import { SiteLegalFooter } from './components/SiteLegalFooter';
 import { ClassItem, ExpenseItem, AppSettings, StudentPreferences, StoryItem, ReadSession, GlossaryEntry, UserProfile } from './types';
-import { INITIAL_READ_LIBRARY, SLIDESHOW_IMAGES, US_LANDMARKS } from './data';
+import { INITIAL_READ_LIBRARY } from './data';
 import { formatLyricsLibrary, formatStoryLibrary } from './lib/storyFormatting';
 import { CEO_EMAIL, logAdminAccessAttempt, isAuthorizedCeoEmail } from './utils/security';
 import { motion, AnimatePresence } from 'motion/react';
@@ -53,7 +54,7 @@ import {
   syncStudentProgressToSupabase,
 } from './utils/supabaseClient';
 import { setNotificationSoundsEnabled } from './lib/menuSounds';
-import { Eye, EyeOff, MapPin } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import {
   getSupabaseClient,
   getSubscriptionStatusFromSupabase,
@@ -170,43 +171,6 @@ const createEmptyReadClubProgress = (): ReadClubProgress => ({
 const getReadClubProgressCacheKey = (userId: string) =>
   `bia_readclub_progress_${encodeURIComponent(userId)}`;
 
-// Dynamic Landmark Controls Subcomponent (Displays current city name automatically)
-const LandmarkControlsWidget: React.FC<{
-  settings: AppSettings;
-  bgIndex: number;
-  setBgIndex: React.Dispatch<React.SetStateAction<number>>;
-  bgPaused: boolean;
-  setBgPaused: React.Dispatch<React.SetStateAction<boolean>>;
-}> = ({ settings, bgIndex }) => {
-  if (!settings.bgEnabled || !US_LANDMARKS[bgIndex]) return null;
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 15 }}
-      animate={{ opacity: 1, y: 0, right: 'clamp(0.75rem, 2vw, 2rem)' }}
-      transition={{ type: 'spring', damping: 25, stiffness: 240 }}
-      style={{ position: 'fixed', right: 'clamp(0.75rem, 2vw, 2rem)', bottom: '12px', zIndex: 2500 }}
-      className="select-none text-right flex items-center gap-2 p-1.5 px-3 rounded-2xl"
-    >
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={bgIndex}
-          initial={{ opacity: 0, x: 10 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -10 }}
-          transition={{ duration: 0.3 }}
-          className="flex max-w-[min(80vw,24rem)] items-center gap-1.5 text-xs font-medium text-white/90 drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)]"
-        >
-          <MapPin size={12} className="text-amber-400 shrink-0" />
-          <span className="font-semibold tracking-wide uppercase text-[11px] text-white/90">
-            {US_LANDMARKS[bgIndex]?.name}
-          </span>
-        </motion.div>
-      </AnimatePresence>
-    </motion.div>
-  );
-};
-
 export default function App() {
   // SAAS Authentication & Access Control States
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
@@ -223,7 +187,6 @@ export default function App() {
   const [subscriberCountUnavailable, setSubscriberCountUnavailable] = useState(false);
 
   // Background Slideshow state
-  const [bgIndex, setBgIndex] = useState(0);
   const [bgPaused, setBgPaused] = useState(false);
 
   // App core persistent databases
@@ -838,26 +801,6 @@ export default function App() {
       console.error('Error loading initial data:', e);
     }
   }, []);
-
-  // 2. Automated Background Slideshow Rotator (7 seconds per landmark)
-  useEffect(() => {
-    if (!settings.bgEnabled || bgPaused || SLIDESHOW_IMAGES.length === 0) return;
-    
-    // Preload next 2 images in sequence for instantaneous transitions
-    const nextIdx = (bgIndex + 1) % SLIDESHOW_IMAGES.length;
-    const nextNextIdx = (bgIndex + 2) % SLIDESHOW_IMAGES.length;
-    const img1 = new Image();
-    img1.src = SLIDESHOW_IMAGES[nextIdx];
-    const img2 = new Image();
-    img2.src = SLIDESHOW_IMAGES[nextNextIdx];
-
-    const slideDuration = (settings.bgInterval && settings.bgInterval > 0 ? settings.bgInterval : 7) * 1000;
-    const timer = setTimeout(() => {
-      setBgIndex((prev) => (prev + 1) % SLIDESHOW_IMAGES.length);
-    }, slideDuration);
-
-    return () => clearTimeout(timer);
-  }, [settings.bgEnabled, settings.bgInterval, bgPaused, bgIndex]);
 
   // Sync state helpers with atomic persistence
   const handleUpdateClasses = (next: ClassItem[]) => {
@@ -1491,29 +1434,7 @@ export default function App() {
           settings.uiDensity === 'compact' ? 'compact' : settings.uiDensity === 'spacious' ? 'spacious' : ''
         } scale-${settings.uiScale}`}
       >
-        {/* Dynamic Background Image Layers with smooth crossfade */}
-        {settings.bgEnabled && (
-          <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden bg-neutral-950">
-            {SLIDESHOW_IMAGES.map((imgUrl, idx) => (
-              <div
-                key={idx}
-                className={`absolute inset-0 bg-cover bg-center transition-opacity duration-1000 ease-in-out ${
-                  idx === bgIndex ? 'opacity-100' : 'opacity-0'
-                }`}
-                style={{
-                  backgroundImage: `url(${imgUrl})`,
-                  filter:
-                    settings.bgBright === 'darker'
-                      ? 'brightness(0.45) saturate(1.1)'
-                      : settings.bgBright === 'lighter'
-                      ? 'brightness(0.92) saturate(1.15)'
-                      : 'brightness(0.78) saturate(1.2)',
-                }}
-              />
-            ))}
-            <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-black/10 to-black/55 pointer-events-none" />
-          </div>
-        )}
+        <BackgroundSlideshow settings={settings} paused={bgPaused} />
 
         {/* Global Navigation Header with RBAC filtering (Floating islands when logged in) */}
         <Sidebar
@@ -1562,17 +1483,6 @@ export default function App() {
           </div>
         )}
 
-        {/* Dynamic Floating US Landmark & Background Slideshow Controls (Always active when background is enabled) */}
-        {settings.bgEnabled && (
-          <LandmarkControlsWidget
-            settings={settings}
-            bgIndex={bgIndex}
-            setBgIndex={setBgIndex}
-            bgPaused={bgPaused}
-            setBgPaused={setBgPaused}
-          />
-        )}
-
         {/* Main View Port Routing */}
         <main className={`relative z-10 ${currentUser ? 'pt-18 sm:pt-20' : 'pt-24 pb-8'} ${
           currentUser && isStudent && !isSubscriptionActive ? 'pb-0' : currentUser ? 'pb-12' : ''
@@ -1613,12 +1523,14 @@ export default function App() {
 
           {/* 2. PIX PAYMENT SCREEN (For Students with pending or expired subscriptions) */}
           {currentUser && isStudent && !isSubscriptionActive && (
-            <PixPaymentScreen
-              user={currentUser}
-              onPaymentSuccess={handlePaymentSuccess}
-              onSubscriptionUpdate={handleRealtimeSubscriptionUpdate}
-              onLogout={handleLogout}
-            />
+            <Suspense fallback={<div className="flex min-h-64 items-center justify-center text-sm text-white/70">Carregando pagamento...</div>}>
+              <PixPaymentScreen
+                user={currentUser}
+                onPaymentSuccess={handlePaymentSuccess}
+                onSubscriptionUpdate={handleRealtimeSubscriptionUpdate}
+                onLogout={handleLogout}
+              />
+            </Suspense>
           )}
 
           {/* 3. PROTECTED PLATFORM CONTENT (Strictly Rendered only when authenticated & active) */}
@@ -1892,9 +1804,7 @@ export default function App() {
           )}
         </main>
         {currentUser && isSubscriptionActive && (
-          <div className="relative z-10 mx-auto w-full max-w-7xl px-3 pb-3">
-            <SiteLegalFooter className="justify-start" />
-          </div>
+          <SiteLegalFooter />
         )}
 
         {/* QUICK TRADUTOR MODAL (ACCESSIBLE FROM ANY APP) */}

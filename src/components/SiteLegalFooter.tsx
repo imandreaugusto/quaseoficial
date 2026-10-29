@@ -1,42 +1,45 @@
 import React, { useEffect, useState } from 'react';
-import { Info, Mail, MessageCircle, X } from 'lucide-react';
+import { Info, Mail, MessageCircle, Sparkles, X } from 'lucide-react';
 import { US_LANDMARKS } from '../data';
 import { InstagramIcon, SOCIAL_LINKS, TikTokIcon, YouTubeIcon } from './SocialLinksBar';
+import { SubscriptionInfoModal } from './SubscriptionInfoModal';
 
 interface SiteLegalFooterProps {
-  className?: string;
+  onStartSubscription?: () => void;
 }
 
-export const SiteLegalFooter: React.FC<SiteLegalFooterProps> = ({ className = '' }) => {
-  const [isOpen, setIsOpen] = useState(false);
+export const SiteLegalFooter: React.FC<SiteLegalFooterProps> = ({ onStartSubscription }) => {
+  const [isLegalInfoOpen, setIsLegalInfoOpen] = useState(false);
+  const [isPlatformInfoOpen, setIsPlatformInfoOpen] = useState(false);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isLegalInfoOpen) return;
 
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setIsOpen(false);
+      if (event.key === 'Escape') setIsLegalInfoOpen(false);
     };
     window.addEventListener('keydown', closeOnEscape);
     return () => window.removeEventListener('keydown', closeOnEscape);
-  }, [isOpen]);
+  }, [isLegalInfoOpen]);
 
   return (
-    <footer className={`flex w-full justify-end px-1 pb-1 pt-1 ${className}`}>
+    <>
       <button
         type="button"
-        aria-label="Informações de contato e legais"
-        aria-expanded={isOpen}
-        onClick={() => setIsOpen((open) => !open)}
-        className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-black/30 text-white/60 transition hover:border-white/30 hover:bg-black/50 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+        aria-label="Abrir informações da plataforma, contato e informações legais"
+        aria-haspopup="dialog"
+        aria-expanded={isLegalInfoOpen}
+        onClick={() => setIsLegalInfoOpen(true)}
+        className="fixed bottom-[max(0.5rem,env(safe-area-inset-bottom))] left-[max(0.5rem,env(safe-area-inset-left))] z-[6500] flex h-11 w-11 items-center justify-center bg-transparent text-white/45 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
       >
-        <Info size={17} />
+        <Info size={14} />
       </button>
 
-      {isOpen && (
+      {isLegalInfoOpen && (
         <div
-          className="fixed inset-0 z-[100] flex items-end justify-center bg-black/65 p-4 backdrop-blur-sm sm:items-center"
+          className="fixed inset-0 z-[7000] flex items-end justify-center bg-black/65 p-4 backdrop-blur-sm sm:items-center"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setIsOpen(false);
+            if (event.target === event.currentTarget) setIsLegalInfoOpen(false);
           }}
         >
           <section
@@ -50,7 +53,7 @@ export const SiteLegalFooter: React.FC<SiteLegalFooterProps> = ({ className = ''
               <button
                 type="button"
                 aria-label="Fechar informações"
-                onClick={() => setIsOpen(false)}
+                onClick={() => setIsLegalInfoOpen(false)}
                 className="rounded-lg p-1.5 text-white/60 transition hover:bg-white/10 hover:text-white"
               >
                 <X size={18} />
@@ -58,6 +61,17 @@ export const SiteLegalFooter: React.FC<SiteLegalFooterProps> = ({ className = ''
             </div>
 
             <div className="grid gap-2 text-sm">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsLegalInfoOpen(false);
+                  setIsPlatformInfoOpen(true);
+                }}
+                className="flex min-h-11 items-center gap-2 rounded-xl px-3 py-2.5 text-left font-medium text-amber-200 transition hover:bg-white/10 hover:text-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+              >
+                <Sparkles size={16} className="text-amber-300" />
+                Conheça a plataforma e os planos
+              </button>
               <a
                 className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-white/80 transition hover:bg-white/10 hover:text-white"
                 href="https://mail.google.com/mail/?view=cm&fs=1&to=brazilianinaction@gmail.com"
@@ -158,6 +172,15 @@ export const SiteLegalFooter: React.FC<SiteLegalFooterProps> = ({ className = ''
           </section>
         </div>
       )}
-    </footer>
+
+      <SubscriptionInfoModal
+        isOpen={isPlatformInfoOpen}
+        onClose={() => setIsPlatformInfoOpen(false)}
+        onStartSubscription={() => {
+          setIsPlatformInfoOpen(false);
+          onStartSubscription?.();
+        }}
+      />
+    </>
   );
 };

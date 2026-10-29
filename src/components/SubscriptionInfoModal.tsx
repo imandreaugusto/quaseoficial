@@ -25,7 +25,7 @@ import { BrazilianLogo } from './BrazilianLogo';
 interface SubscriptionInfoModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onStartSubscription: () => void;
+  onStartSubscription?: () => void;
 }
 
 export const SubscriptionInfoModal: React.FC<SubscriptionInfoModalProps> = ({
@@ -115,6 +115,7 @@ export const SubscriptionInfoModal: React.FC<SubscriptionInfoModalProps> = ({
         <button
           type="button"
           onClick={onClose}
+          aria-label="Fechar informações da plataforma"
           className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all cursor-pointer z-20"
         >
           <X size={18} />
@@ -207,17 +208,19 @@ export const SubscriptionInfoModal: React.FC<SubscriptionInfoModalProps> = ({
         </div>
 
         {/* CTA Button */}
-        <button
-          type="button"
-          onClick={() => {
-            onClose();
-            onStartSubscription();
-          }}
-          className="w-full py-3.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-black font-black text-sm tracking-wide transition-all cursor-pointer shadow-xl shadow-amber-500/25 flex items-center justify-center gap-2 active:scale-95 group"
-        >
-          <span>QUERO ASSINAR AGORA POR R$ {priceFormatted}/MÊS</span>
-          <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
-        </button>
+        {onStartSubscription && (
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              onStartSubscription();
+            }}
+            className="w-full py-3.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-black font-black text-sm tracking-wide transition-all cursor-pointer shadow-xl shadow-amber-500/25 flex items-center justify-center gap-2 active:scale-95 group"
+          >
+            <span>QUERO ASSINAR AGORA POR R$ {priceFormatted}/MÊS</span>
+            <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+          </button>
+        )}
       </motion.div>
     </div>
   );
