@@ -101,7 +101,7 @@ const Avatar = ({ person, helper, badge }: { person: SpaceUser | null; helper?: 
     setHasImageError(false);
   }, [photoUrl]);
 
-  const canRenderImage = photoUrl && /^https?:\/\/i.test(photoUrl) && !hasImageError;
+  const canRenderImage = photoUrl && /^https?:\/\//i.test(photoUrl) && !hasImageError;
 
   return (
     <div className={`space-avatar ${helper ? 'space-avatar--helper' : ''} ${badge ? 'space-avatar--ice' : ''}`}>
