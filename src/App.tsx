@@ -34,6 +34,7 @@ import { GlobalStreamOverlay } from './components/GlobalStreamOverlay';
 import { GlobalFloatingCamera } from './components/GlobalFloatingCamera';
 import { PageReveal } from './components/PageReveal';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { BiaLoadingSpinner } from './components/BiaLoadingSpinner';
 import { BrazilianLogo } from './components/BrazilianLogo';
 import { BackgroundSlideshow } from './components/BackgroundSlideshow';
 import { CleanStudentStage } from './components/CleanStudentStage';
@@ -1523,7 +1524,7 @@ export default function App() {
 
           {/* 2. PIX PAYMENT SCREEN (For Students with pending or expired subscriptions) */}
           {currentUser && isStudent && !isSubscriptionActive && (
-            <Suspense fallback={<div className="flex min-h-64 items-center justify-center text-sm text-white/70">Carregando pagamento...</div>}>
+            <Suspense fallback={<BiaLoadingSpinner size="lg" />}>
               <PixPaymentScreen
                 user={currentUser}
                 onPaymentSuccess={handlePaymentSuccess}
@@ -1549,7 +1550,7 @@ export default function App() {
               >
                 <ErrorBoundary fallbackTitle="Erro ao carregar este módulo">
                   <PageReveal enabled={settings.animOn} glassSkin={['quiz', 'conversation', 'tradutor', 'youtube', 'biacompare', 'board', 'dashboard', 'admin_settings', 'feedback', 'settings'].includes(currentApp)}>
-                  <Suspense fallback={<div className="flex min-h-64 items-center justify-center text-sm text-white/70">Carregando módulo...</div>}>
+                  <Suspense fallback={<BiaLoadingSpinner size="lg" />}>
                   {/* HOME TAB - Accessible to all authenticated users */}
                   {currentApp === 'home' && (
                     <Home
@@ -1817,7 +1818,7 @@ export default function App() {
                 exit={{ opacity: 0, scale: 0.95, y: 15 }}
                 className="bg-slate-950/50 border border-white/25 backdrop-blur-2xl rounded-3xl w-full max-w-5xl max-h-[90vh] overflow-y-auto shadow-2xl relative p-2 sm:p-4 my-auto"
               >
-                <Suspense fallback={<div className="flex min-h-64 items-center justify-center text-sm text-white/70">Carregando tradutor...</div>}>
+                <Suspense fallback={<BiaLoadingSpinner size="lg" />}>
                   <BrazilianTradutor
                     accentColor={settings.accentColor}
                     isModal={true}
