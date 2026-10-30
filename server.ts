@@ -2084,11 +2084,25 @@ async function startServer() {
       }
       const activeRows = await activeResponse.json() as { user_id?: string | null }[];
       const activeIds = [...new Set(activeRows.map(({ user_id }) => user_id).filter((id): id is string => Boolean(id)))];
+      const ceoProfileResponse = await supabaseServiceRequest(
+        `profiles?email=eq.${encodeURIComponent(CEO_EMAIL)}&select=auth_user_id,first_name,full_name&limit=1`
+      );
+      if (!ceoProfileResponse.ok) {
+        console.error('Daily reminder CEO profile lookup failed:', ceoProfileResponse.status, await ceoProfileResponse.text());
+        return res.status(502).json({ error: 'Não foi possível localizar o perfil do CEO.' });
+      }
+      const [ceoProfile] = await ceoProfileResponse.json() as {
+        auth_user_id?: string | null;
+        first_name?: string | null;
+        full_name?: string | null;
+      }[];
+      const ceoUserId = ceoProfile?.auth_user_id || null;
+      const audienceIds = [...new Set([...activeIds, ...(ceoUserId ? [ceoUserId] : [])])];
       const profiles: { auth_user_id?: string; first_name?: string | null; full_name?: string | null }[] = [];
       const preferences: { user_id?: string; preferences?: Record<string, unknown> | null }[] = [];
       const pushUserIds = new Set<string>();
-      for (let offset = 0; offset < activeIds.length; offset += 100) {
-        const ids = activeIds.slice(offset, offset + 100);
+      for (let offset = 0; offset < audienceIds.length; offset += 100) {
+        const ids = audienceIds.slice(offset, offset + 100);
         const inFilter = ids.map(encodeURIComponent).join(',');
         const [profileResponse, preferenceResponse, pushResponse, spacePushResponse] = await Promise.all([
           supabaseServiceRequest(`profiles?auth_user_id=in.(${inFilter})&role=eq.student&select=auth_user_id,first_name,full_name`),
@@ -2110,6 +2124,13 @@ async function startServer() {
         for (const { user_id } of pushUsers) {
           if (user_id) pushUserIds.add(user_id);
         }
+      }
+      if (ceoUserId) {
+        profiles.push({
+          auth_user_id: ceoUserId,
+          first_name: ceoProfile?.first_name,
+          full_name: ceoProfile?.full_name
+        });
       }
 
       const preferenceByUserId = new Map(preferences.map((row) => [row.user_id, row.preferences]));

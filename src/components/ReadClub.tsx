@@ -182,6 +182,10 @@ export const ReadClub: React.FC<ReadClubProps> = ({
       groups[category].push(b);
     });
 
+    Object.values(groups).forEach((books) => {
+      books.sort((a, b) => a.title.localeCompare(b.title, 'pt-BR', { sensitivity: 'base' }));
+    });
+
     return groups;
   };
 
