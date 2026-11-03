@@ -14,26 +14,47 @@ const getLandmarkImageUrl = (url: string) =>
     ? url.replace('1920px-', '3840px-').replace('w=1920', 'w=3840')
     : url;
 
+const shuffleLandmarkIndexes = (count: number, avoidFirst?: number) => {
+  const indexes = Array.from({ length: count }, (_, index) => index);
+  for (let index = indexes.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [indexes[index], indexes[swapIndex]] = [indexes[swapIndex], indexes[index]];
+  }
+  if (indexes.length > 1 && indexes[0] === avoidFirst) {
+    const swapIndex = 1 + Math.floor(Math.random() * (indexes.length - 1));
+    [indexes[0], indexes[swapIndex]] = [indexes[swapIndex], indexes[0]];
+  }
+  return indexes;
+};
+
 export function BackgroundSlideshow({ settings, paused }: BackgroundSlideshowProps) {
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [sequence, setSequence] = useState(() => shuffleLandmarkIndexes(US_LANDMARKS.length));
+  const [currentPosition, setCurrentPosition] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(() => sequence[0] ?? 0);
   const [incomingIndex, setIncomingIndex] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!settings.bgEnabled || paused) {
-      setIncomingIndex(null);
-      return;
-    }
-    if (incomingIndex !== null || US_LANDMARKS.length < 2) return;
+    if (!settings.bgEnabled || paused) return;
+    if (incomingIndex !== null || sequence.length < 2) return;
 
     const slideDuration =
       (settings.bgInterval && settings.bgInterval > 0 ? settings.bgInterval : 7) * 1000;
     const slideTimer = window.setTimeout(() => {
-      const nextIndex = (currentIndex + 1) % US_LANDMARKS.length;
-      setIncomingIndex(nextIndex);
+      const nextPosition = currentPosition + 1;
+      if (nextPosition < sequence.length) {
+        setCurrentPosition(nextPosition);
+        setIncomingIndex(sequence[nextPosition]);
+        return;
+      }
+
+      const nextSequence = shuffleLandmarkIndexes(US_LANDMARKS.length, currentIndex);
+      setSequence(nextSequence);
+      setCurrentPosition(0);
+      setIncomingIndex(nextSequence[0] ?? 0);
     }, slideDuration);
 
     return () => window.clearTimeout(slideTimer);
-  }, [currentIndex, incomingIndex, paused, settings.bgEnabled, settings.bgInterval]);
+  }, [currentIndex, currentPosition, incomingIndex, paused, sequence, settings.bgEnabled, settings.bgInterval]);
 
   useEffect(() => {
     if (incomingIndex === null) return;
@@ -48,7 +69,7 @@ export function BackgroundSlideshow({ settings, paused }: BackgroundSlideshowPro
 
   if (!settings.bgEnabled || US_LANDMARKS.length === 0) return null;
 
-  const nextIndex = (currentIndex + 1) % US_LANDMARKS.length;
+  const nextIndex = sequence[(currentPosition + 1) % sequence.length] ?? currentIndex;
   const brightness =
     settings.bgBright === 'darker'
       ? 'brightness(0.45) saturate(1.1)'

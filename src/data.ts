@@ -350,6 +350,94 @@ export const US_LANDMARKS: USLandmark[] = [
       licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0",
       modification: "Redimensionada para o slideshow"
     }
+  },
+  {
+    name: "Brooklyn Bridge and Lower Manhattan, New York",
+    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f0/Brooklyn_Bridge_and_the_Lower_Manhattan_skyline_from_Pebble_Beach%2C_New_York.jpg/1920px-Brooklyn_Bridge_and_the_Lower_Manhattan_skyline_from_Pebble_Beach%2C_New_York.jpg",
+    attribution: {
+      author: "Christian David",
+      sourceUrl: "https://commons.wikimedia.org/wiki/File:Brooklyn_Bridge_and_the_Lower_Manhattan_skyline_from_Pebble_Beach,_New_York.jpg",
+      licenseName: "CC BY-SA 4.0",
+      licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0",
+      modification: "Redimensionada para o slideshow"
+    }
+  },
+  {
+    name: "Niagara Falls, New York",
+    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2b/Niagara_Falls_-_ON_-_Niagaraf%C3%A4lle3.jpg/1920px-Niagara_Falls_-_ON_-_Niagaraf%C3%A4lle3.jpg",
+    attribution: {
+      author: "Taxiarchos228",
+      sourceUrl: "https://commons.wikimedia.org/wiki/File:Niagara_Falls_-_ON_-_Niagaraf%C3%A4lle3.jpg",
+      licenseName: "Free Art License",
+      licenseUrl: "http://artlibre.org/licence/lal/en",
+      modification: "Redimensionada para o slideshow"
+    }
+  },
+  {
+    name: "Boston, Massachusetts",
+    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/26/Boston%2C_Massachusetts_skyline_20_June_2021.jpg/1920px-Boston%2C_Massachusetts_skyline_20_June_2021.jpg",
+    attribution: {
+      author: "Sharon Hahn Darlin",
+      sourceUrl: "https://commons.wikimedia.org/wiki/File:Boston,_Massachusetts_skyline_20_June_2021.jpg",
+      licenseName: "CC BY 2.0",
+      licenseUrl: "https://creativecommons.org/licenses/by/2.0",
+      modification: "Redimensionada para o slideshow"
+    }
+  },
+  {
+    name: "Portland, Maine",
+    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ab/83_Commercial_Street%2C_Portland_ME.jpg/1920px-83_Commercial_Street%2C_Portland_ME.jpg",
+    attribution: {
+      author: "John Phelan",
+      sourceUrl: "https://commons.wikimedia.org/wiki/File:83_Commercial_Street,_Portland_ME.jpg",
+      licenseName: "CC BY-SA 3.0",
+      licenseUrl: "https://creativecommons.org/licenses/by-sa/3.0",
+      modification: "Redimensionada para o slideshow"
+    }
+  },
+  {
+    name: "Charleston, South Carolina",
+    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5f/Charleston_Historic_District.jpg/1920px-Charleston_Historic_District.jpg",
+    attribution: {
+      author: "Jesse Lee Tucker",
+      sourceUrl: "https://commons.wikimedia.org/wiki/File:Charleston_Historic_District.jpg",
+      licenseName: "CC BY-SA 4.0",
+      licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0",
+      modification: "Redimensionada para o slideshow"
+    }
+  },
+  {
+    name: "Savannah, Georgia",
+    url: "https://upload.wikimedia.org/wikipedia/commons/3/37/Savannah%2C_GA_-_Historic_District_%283%29.jpg",
+    attribution: {
+      author: "Jrozwado",
+      sourceUrl: "https://commons.wikimedia.org/wiki/File:Savannah,_GA_-_Historic_District_(3).jpg",
+      licenseName: "CC BY-SA 4.0",
+      licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0",
+      modification: "Usada na resolução original"
+    }
+  },
+  {
+    name: "Key West, Florida",
+    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/46/Buildings_on_the_Corner_of_Front_and_Duval_Street%2C_Key_West%2C_Florida.jpg/1920px-Buildings_on_the_Corner_of_Front_and_Duval_Street%2C_Key_West%2C_Florida.jpg",
+    attribution: {
+      author: "Julian Lupyan",
+      sourceUrl: "https://commons.wikimedia.org/wiki/File:Buildings_on_the_Corner_of_Front_and_Duval_Street,_Key_West,_Florida.jpg",
+      licenseName: "CC0",
+      licenseUrl: "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+      modification: "Redimensionada para o slideshow"
+    }
+  },
+  {
+    name: "Austin, Texas",
+    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1a/Austin_Texas_Skyline.jpg/1920px-Austin_Texas_Skyline.jpg",
+    attribution: {
+      author: "Comrade Goose",
+      sourceUrl: "https://commons.wikimedia.org/wiki/File:Austin_Texas_Skyline.jpg",
+      licenseName: "CC BY 4.0",
+      licenseUrl: "https://creativecommons.org/licenses/by/4.0",
+      modification: "Redimensionada para o slideshow"
+    }
   }
 ];
 

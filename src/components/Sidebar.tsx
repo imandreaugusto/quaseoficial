@@ -211,9 +211,7 @@ const NavButton: React.FC<{
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
       aria-current={isActive ? 'page' : undefined}
-      className={`min-h-11 w-full flex items-center gap-3.5 px-3 py-2.5 rounded-2xl border select-none cursor-pointer ${
-        isActive ? 'border-white/25 bg-white/10 backdrop-blur-xl shadow-[0_4px_24px_rgba(0,0,0,0.25)]' : 'border-transparent bg-transparent'
-      }`}
+      className="min-h-11 w-full flex items-center gap-3.5 px-3 py-2.5 rounded-2xl border border-transparent bg-transparent select-none cursor-pointer"
     >
       <span ref={iconRef} className="shrink-0 flex items-center justify-center">
         <item.icon
@@ -226,7 +224,7 @@ const NavButton: React.FC<{
       <span
         className={`text-sm tracking-wide flex-1 text-left font-semibold menu-cinematic-text ${isPlatformBrand ? 'notranslate' : ''}`}
         style={{
-          color: isActive ? '#ffffff' : 'rgba(255,255,255,0.82)',
+          color: isActive ? accentColor : 'rgba(255,255,255,0.82)',
           fontWeight: isActive ? 800 : 600,
         }}
         translate={isPlatformBrand ? 'no' : undefined}
