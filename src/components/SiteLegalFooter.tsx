@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Info, Mail, MessageCircle, Sparkles, X } from 'lucide-react';
-import { US_LANDMARKS } from '../data';
+import { BACKGROUND_SLIDES } from '../data';
 import { InstagramIcon, SOCIAL_LINKS, TikTokIcon, YouTubeIcon } from './SocialLinksBar';
 import { SubscriptionInfoModal } from './SubscriptionInfoModal';
 
@@ -101,37 +101,36 @@ export const SiteLegalFooter: React.FC<SiteLegalFooterProps> = ({ onStartSubscri
                   Créditos das fotografias
                 </summary>
                 <ul className="mt-3 grid gap-3 text-xs leading-5 text-white/65">
-                  {US_LANDMARKS.map((landmark) => {
-                    if (!landmark.attribution) return null;
-
-                    return (
-                      <li key={landmark.url} className="border-t border-white/10 pt-3 first:border-0 first:pt-0">
-                        <p className="font-semibold text-white/85">{landmark.name}</p>
-                        <p>
-                          Foto de {landmark.attribution.author}.{' '}
+                  {BACKGROUND_SLIDES.map((slide) => (
+                    <li key={slide.url} className="border-t border-white/10 pt-3 first:border-0 first:pt-0">
+                      <p className="font-semibold text-white/85">{slide.name}</p>
+                      <p>
+                        Foto de {slide.attribution.author}.{' '}
+                        <a
+                          href={slide.attribution.sourceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="underline underline-offset-2 hover:text-white"
+                        >
+                          Origem
+                        </a>
+                        {' · '}
+                        {slide.attribution.licenseUrl ? (
                           <a
-                            href={landmark.attribution.sourceUrl}
+                            href={slide.attribution.licenseUrl}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="underline underline-offset-2 hover:text-white"
                           >
-                            Origem
+                            {slide.attribution.licenseName}
                           </a>
-                          {' · '}
-                          <a
-                            href={landmark.attribution.licenseUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="underline underline-offset-2 hover:text-white"
-                          >
-                            {landmark.attribution.licenseName}
-                          </a>
-                          {' · '}
-                          {landmark.attribution.modification}
-                        </p>
-                      </li>
-                    );
-                  })}
+                        ) : (
+                          slide.attribution.licenseName
+                        )}
+                        {' · Imagem redimensionada para Full HD/4K; distribuída sob a licença indicada.'}
+                      </p>
+                    </li>
+                  ))}
                 </ul>
               </details>
             </div>

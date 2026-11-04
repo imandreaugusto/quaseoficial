@@ -256,189 +256,221 @@ The singer describes themselves as a "dreamer", hoping others will join.`
   }
 ];
 
-type LandmarkAttribution = {
+type BackgroundAttribution = {
   author: string;
   sourceUrl: string;
   licenseName: string;
-  licenseUrl: string;
-  modification: string;
+  licenseUrl?: string;
 };
 
-type USLandmark = {
+type BackgroundSlide = {
   name: string;
   url: string;
-  attribution?: LandmarkAttribution;
+  highResolutionUrl: string;
+  attribution: BackgroundAttribution;
 };
 
-export const US_LANDMARKS: USLandmark[] = [
+const getBackgroundImageUrl = (fileName: string, width: 1920 | 3840) =>
+  `${import.meta.env.BASE_URL}backgrounds/${fileName}-${width}.jpg`;
+
+export const BACKGROUND_SLIDES: BackgroundSlide[] = [
   {
-    name: "National Mall, Washington, D.C.",
-    url: "https://images.unsplash.com/photo-1501466044931-62695aada8e9?q=85&w=1920&auto=format&fit=crop"
-  },
-  {
-    name: "Manhattan, New York, NY",
-    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7e/Skyline_of_Manhattan.jpg/1920px-Skyline_of_Manhattan.jpg"
-  },
-  {
-    name: "Brooklyn Bridge, New York, NY",
-    url: "https://images.unsplash.com/photo-1518235506717-e1ed3306a89b?q=85&w=1920&auto=format&fit=crop"
-  },
-  {
-    name: "Grand Canyon National Park, AZ",
-    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/12/Grand_Canyon_South_Rim_at_Sunset.jpg/1920px-Grand_Canyon_South_Rim_at_Sunset.jpg"
-  },
-  {
-    name: "Seattle, Washington",
-    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3a/Seattle_Skyline-.jpg/1920px-Seattle_Skyline-.jpg"
-  },
-  {
-    name: "Miami, Florida",
-    url: "https://images.unsplash.com/photo-1506966953602-c20cc11f75e3?q=85&w=1920&auto=format&fit=crop"
-  },
-  {
-    name: "Monument Valley, Arizona/Utah",
-    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6b/Monument_Valley_Arizona_Panoramic.jpg/1920px-Monument_Valley_Arizona_Panoramic.jpg"
-  },
-  {
-    name: "Chicago, Illinois",
-    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8e/Skyline_de_Chicago_desde_el_centro%2C_Illinois%2C_Estados_Unidos%2C_2012-10-20%2C_DD_06.jpg/1920px-Skyline_de_Chicago_desde_el_centro%2C_Illinois%2C_Estados_Unidos%2C_2012-10-20%2C_DD_06.jpg",
+    name: 'National Mall, Washington, D.C.',
+    url: getBackgroundImageUrl('washington-dc', 1920),
+    highResolutionUrl: getBackgroundImageUrl('washington-dc', 3840),
     attribution: {
-      author: "Diego Delso",
-      sourceUrl: "https://commons.wikimedia.org/wiki/File:Skyline_de_Chicago_desde_el_centro,_Illinois,_Estados_Unidos,_2012-10-20,_DD_06.jpg",
-      licenseName: "CC BY-SA 3.0",
-      licenseUrl: "https://creativecommons.org/licenses/by-sa/3.0",
-      modification: "Redimensionada para o slideshow"
-    }
+      author: 'Ron Cogswell',
+      sourceUrl: 'https://commons.wikimedia.org/wiki/File%3AThe_Reflecting_Pool_--_National_Mall_Washington_(DC)_2012_(8110123412).jpg',
+      licenseName: 'CC BY 2.0',
+      licenseUrl: 'https://creativecommons.org/licenses/by/2.0/',
+    },
   },
   {
-    name: "Times Square ao pôr do sol, New York, NY",
-    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/53/Sunset_at_Times_Square%2C_New_York_City_%282017%29.jpg/1920px-Sunset_at_Times_Square%2C_New_York_City_%282017%29.jpg"
-  },
-  {
-    name: "Chicago skyline",
-    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b8/Chicago_Skyline_%283195688409%29.jpg/1920px-Chicago_Skyline_%283195688409%29.jpg",
+    name: 'Manhattan, New York, NY',
+    url: getBackgroundImageUrl('manhattan-ny', 1920),
+    highResolutionUrl: getBackgroundImageUrl('manhattan-ny', 3840),
     attribution: {
-      author: "Bryce Edwards",
-      sourceUrl: "https://commons.wikimedia.org/wiki/File:Chicago_Skyline_(3195688409).jpg",
-      licenseName: "CC BY 2.0",
-      licenseUrl: "https://creativecommons.org/licenses/by/2.0",
-      modification: "Redimensionada para o slideshow"
-    }
+      author: 'Percival Kestreltail',
+      sourceUrl: 'https://commons.wikimedia.org/wiki/File%3ALower_Manhattan%2C_New_York_skyline_from_Liberty_Island_2021.jpg',
+      licenseName: 'CC BY-SA 3.0',
+      licenseUrl: 'https://creativecommons.org/licenses/by-sa/3.0/',
+    },
   },
   {
-    name: "Litoral do Lago Michigan e Chicago",
-    url: "https://upload.wikimedia.org/wikipedia/commons/5/52/LAKE_MICHIGAN_SHORELINE_WITH_A_MARINA_AND_PART_OF_THE_CHICAGO_SKYLINE_IN_THE_BACKGROUND._THE_CITY_HAS_THREE_OF_THE..._-_NARA_-_556189.jpg"
-  },
-  {
-    name: "Philadelphia skyline",
-    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3d/Philadelphia_from_South_Street_Bridge_July_2016_panorama_1.jpg/1920px-Philadelphia_from_South_Street_Bridge_July_2016_panorama_1.jpg",
+    name: 'Brooklyn Bridge, New York, NY',
+    url: getBackgroundImageUrl('brooklyn-bridge-ny', 1920),
+    highResolutionUrl: getBackgroundImageUrl('brooklyn-bridge-ny', 3840),
     attribution: {
-      author: "King of Hearts",
-      sourceUrl: "https://commons.wikimedia.org/wiki/File:Philadelphia_from_South_Street_Bridge_July_2016_panorama_1.jpg",
-      licenseName: "CC BY-SA 3.0",
-      licenseUrl: "https://creativecommons.org/licenses/by-sa/3.0",
-      modification: "Redimensionada para o slideshow"
-    }
+      author: 'Arild Vågen',
+      sourceUrl: 'https://commons.wikimedia.org/wiki/File%3ABrooklyn_Bridge_August_2017.jpg',
+      licenseName: 'CC BY-SA 4.0',
+      licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0/',
+    },
   },
   {
-    name: "Empire State Building ao entardecer, New York, NY",
-    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4d/Empire_State_Building_at_dusk_seen_from_Brooklyn_Bridge%2C_New_York_City.jpg/1920px-Empire_State_Building_at_dusk_seen_from_Brooklyn_Bridge%2C_New_York_City.jpg",
+    name: 'Grand Canyon National Park, AZ',
+    url: getBackgroundImageUrl('grand-canyon-az', 1920),
+    highResolutionUrl: getBackgroundImageUrl('grand-canyon-az', 3840),
     attribution: {
-      author: "Christian David",
-      sourceUrl: "https://commons.wikimedia.org/wiki/File:Empire_State_Building_at_dusk_seen_from_Brooklyn_Bridge,_New_York_City.jpg",
-      licenseName: "CC BY-SA 4.0",
-      licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0",
-      modification: "Redimensionada para o slideshow"
-    }
+      author: 'Dietmar Rabich',
+      sourceUrl: 'https://commons.wikimedia.org/wiki/File%3AGrand_Canyon_(Arizona%2C_USA)%2C_South_Rim_nahe_Tusayan_--_2012_--_6040.jpg',
+      licenseName: 'CC BY-SA 4.0',
+      licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0/',
+    },
   },
   {
-    name: "Brooklyn Bridge and Lower Manhattan, New York",
-    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f0/Brooklyn_Bridge_and_the_Lower_Manhattan_skyline_from_Pebble_Beach%2C_New_York.jpg/1920px-Brooklyn_Bridge_and_the_Lower_Manhattan_skyline_from_Pebble_Beach%2C_New_York.jpg",
+    name: 'Seattle, Washington',
+    url: getBackgroundImageUrl('seattle-wa', 1920),
+    highResolutionUrl: getBackgroundImageUrl('seattle-wa', 3840),
     attribution: {
-      author: "Christian David",
-      sourceUrl: "https://commons.wikimedia.org/wiki/File:Brooklyn_Bridge_and_the_Lower_Manhattan_skyline_from_Pebble_Beach,_New_York.jpg",
-      licenseName: "CC BY-SA 4.0",
-      licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0",
-      modification: "Redimensionada para o slideshow"
-    }
+      author: 'Cacophony',
+      sourceUrl: 'https://commons.wikimedia.org/wiki/File%3ASeattleI5Skyline.jpg',
+      licenseName: 'CC BY-SA 3.0',
+      licenseUrl: 'https://creativecommons.org/licenses/by-sa/3.0/',
+    },
   },
   {
-    name: "Niagara Falls, New York",
-    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2b/Niagara_Falls_-_ON_-_Niagaraf%C3%A4lle3.jpg/1920px-Niagara_Falls_-_ON_-_Niagaraf%C3%A4lle3.jpg",
+    name: 'Miami, Florida',
+    url: getBackgroundImageUrl('miami-fl', 1920),
+    highResolutionUrl: getBackgroundImageUrl('miami-fl', 3840),
     attribution: {
-      author: "Taxiarchos228",
-      sourceUrl: "https://commons.wikimedia.org/wiki/File:Niagara_Falls_-_ON_-_Niagaraf%C3%A4lle3.jpg",
-      licenseName: "Free Art License",
-      licenseUrl: "http://artlibre.org/licence/lal/en",
-      modification: "Redimensionada para o slideshow"
-    }
+      author: 'Wilfredor',
+      sourceUrl: 'https://commons.wikimedia.org/wiki/File%3AMiami%2C_Florida_skyline.jpg',
+      licenseName: 'CC0',
+      licenseUrl: 'https://creativecommons.org/publicdomain/zero/1.0/deed.en',
+    },
   },
   {
-    name: "Boston, Massachusetts",
-    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/26/Boston%2C_Massachusetts_skyline_20_June_2021.jpg/1920px-Boston%2C_Massachusetts_skyline_20_June_2021.jpg",
+    name: 'Monument Valley, Arizona/Utah',
+    url: getBackgroundImageUrl('monument-valley-az-ut', 1920),
+    highResolutionUrl: getBackgroundImageUrl('monument-valley-az-ut', 3840),
     attribution: {
-      author: "Sharon Hahn Darlin",
-      sourceUrl: "https://commons.wikimedia.org/wiki/File:Boston,_Massachusetts_skyline_20_June_2021.jpg",
-      licenseName: "CC BY 2.0",
-      licenseUrl: "https://creativecommons.org/licenses/by/2.0",
-      modification: "Redimensionada para o slideshow"
-    }
+      author: 'Wolfgang Moroder',
+      sourceUrl: 'https://commons.wikimedia.org/wiki/File%3AMonument_Valley_Arizona_october_2012_sunrise_view.jpg',
+      licenseName: 'CC BY-SA 3.0',
+      licenseUrl: 'https://creativecommons.org/licenses/by-sa/3.0/',
+    },
   },
   {
-    name: "Portland, Maine",
-    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ab/83_Commercial_Street%2C_Portland_ME.jpg/1920px-83_Commercial_Street%2C_Portland_ME.jpg",
+    name: 'Chicago, Illinois',
+    url: getBackgroundImageUrl('chicago-il-grant-park', 1920),
+    highResolutionUrl: getBackgroundImageUrl('chicago-il-grant-park', 3840),
     attribution: {
-      author: "John Phelan",
-      sourceUrl: "https://commons.wikimedia.org/wiki/File:83_Commercial_Street,_Portland_ME.jpg",
-      licenseName: "CC BY-SA 3.0",
-      licenseUrl: "https://creativecommons.org/licenses/by-sa/3.0",
-      modification: "Redimensionada para o slideshow"
-    }
+      author: 'Diego Delso',
+      sourceUrl: 'https://commons.wikimedia.org/wiki/File%3AGrant_Park%2C_Chicago%2C_Illinois%2C_Estados_Unidos%2C_2012-10-20%2C_DD_03.jpg',
+      licenseName: 'CC BY-SA 3.0',
+      licenseUrl: 'https://creativecommons.org/licenses/by-sa/3.0/',
+    },
   },
   {
-    name: "Charleston, South Carolina",
-    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5f/Charleston_Historic_District.jpg/1920px-Charleston_Historic_District.jpg",
+    name: 'Times Square ao pôr do sol, New York, NY',
+    url: getBackgroundImageUrl('times-square-ny', 1920),
+    highResolutionUrl: getBackgroundImageUrl('times-square-ny', 3840),
     attribution: {
-      author: "Jesse Lee Tucker",
-      sourceUrl: "https://commons.wikimedia.org/wiki/File:Charleston_Historic_District.jpg",
-      licenseName: "CC BY-SA 4.0",
-      licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0",
-      modification: "Redimensionada para o slideshow"
-    }
+      author: 'Anthony Quintano',
+      sourceUrl: 'https://commons.wikimedia.org/wiki/File%3ATimes_Square_Ball_from_above.jpg',
+      licenseName: 'CC BY 2.0',
+      licenseUrl: 'https://creativecommons.org/licenses/by/2.0/',
+    },
   },
   {
-    name: "Savannah, Georgia",
-    url: "https://upload.wikimedia.org/wikipedia/commons/3/37/Savannah%2C_GA_-_Historic_District_%283%29.jpg",
+    name: 'Chicago skyline',
+    url: getBackgroundImageUrl('chicago-il-night', 1920),
+    highResolutionUrl: getBackgroundImageUrl('chicago-il-night', 3840),
     attribution: {
-      author: "Jrozwado",
-      sourceUrl: "https://commons.wikimedia.org/wiki/File:Savannah,_GA_-_Historic_District_(3).jpg",
-      licenseName: "CC BY-SA 4.0",
-      licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0",
-      modification: "Usada na resolução original"
-    }
+      author: 'Tony Webster',
+      sourceUrl: 'https://commons.wikimedia.org/wiki/File%3AChicago_Lakefront_Night_Skyline.jpg',
+      licenseName: 'CC BY-SA 3.0',
+      licenseUrl: 'https://creativecommons.org/licenses/by-sa/3.0/',
+    },
   },
   {
-    name: "Key West, Florida",
-    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/46/Buildings_on_the_Corner_of_Front_and_Duval_Street%2C_Key_West%2C_Florida.jpg/1920px-Buildings_on_the_Corner_of_Front_and_Duval_Street%2C_Key_West%2C_Florida.jpg",
+    name: 'Litoral do Lago Michigan e Chicago',
+    url: getBackgroundImageUrl('chicago-il-lakefront', 1920),
+    highResolutionUrl: getBackgroundImageUrl('chicago-il-lakefront', 3840),
     attribution: {
-      author: "Julian Lupyan",
-      sourceUrl: "https://commons.wikimedia.org/wiki/File:Buildings_on_the_Corner_of_Front_and_Duval_Street,_Key_West,_Florida.jpg",
-      licenseName: "CC0",
-      licenseUrl: "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
-      modification: "Redimensionada para o slideshow"
-    }
+      author: 'Daniel Schwen',
+      sourceUrl: 'https://commons.wikimedia.org/wiki/File%3AChicago_Lakefront_2.jpg',
+      licenseName: 'CC BY-SA 4.0',
+      licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0/',
+    },
   },
   {
-    name: "Austin, Texas",
-    url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1a/Austin_Texas_Skyline.jpg/1920px-Austin_Texas_Skyline.jpg",
+    name: 'Philadelphia skyline',
+    url: getBackgroundImageUrl('philadelphia-pa', 1920),
+    highResolutionUrl: getBackgroundImageUrl('philadelphia-pa', 3840),
     attribution: {
-      author: "Comrade Goose",
-      sourceUrl: "https://commons.wikimedia.org/wiki/File:Austin_Texas_Skyline.jpg",
-      licenseName: "CC BY 4.0",
-      licenseUrl: "https://creativecommons.org/licenses/by/4.0",
-      modification: "Redimensionada para o slideshow"
-    }
-  }
+      author: 'Mefman00',
+      sourceUrl: 'https://commons.wikimedia.org/wiki/File%3APhiladelphia_skyline_from_South_Street_Bridge.jpg',
+      licenseName: 'CC0',
+      licenseUrl: 'https://creativecommons.org/publicdomain/zero/1.0/deed.en',
+    },
+  },
+  {
+    name: 'Empire State Building ao entardecer, New York, NY',
+    url: getBackgroundImageUrl('empire-state-building-ny', 1920),
+    highResolutionUrl: getBackgroundImageUrl('empire-state-building-ny', 3840),
+    attribution: {
+      author: 'Dietmar Rabich',
+      sourceUrl: 'https://commons.wikimedia.org/wiki/File%3ANew_York_City_(New_York%2C_USA)%2C_Empire_State_Building_--_2012_--_6448.jpg',
+      licenseName: 'CC BY-SA 4.0',
+      licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0/',
+    },
+  },
+  {
+    name: 'Lower Manhattan, New York',
+    url: getBackgroundImageUrl('lower-manhattan-ny', 1920),
+    highResolutionUrl: getBackgroundImageUrl('lower-manhattan-ny', 3840),
+    attribution: {
+      author: 'Rhododendrites',
+      sourceUrl: 'https://commons.wikimedia.org/wiki/File%3ALower_Manhattan_from_Governors_Island_with_a_fishing_boat_(46294p).jpg',
+      licenseName: 'CC BY-SA 4.0',
+      licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0/',
+    },
+  },
+  {
+    name: 'Niagara Falls, New York',
+    url: getBackgroundImageUrl('niagara-falls-ny', 1920),
+    highResolutionUrl: getBackgroundImageUrl('niagara-falls-ny', 3840),
+    attribution: {
+      author: 'TheWxResearcher',
+      sourceUrl: 'https://commons.wikimedia.org/wiki/File%3APanorama_of_Niagara_Falls_October_2024.jpg',
+      licenseName: 'CC0',
+      licenseUrl: 'https://creativecommons.org/publicdomain/zero/1.0/deed.en',
+    },
+  },
+  {
+    name: 'Boston, Massachusetts',
+    url: getBackgroundImageUrl('boston-ma', 1920),
+    highResolutionUrl: getBackgroundImageUrl('boston-ma', 3840),
+    attribution: {
+      author: 'Robbie Shade',
+      sourceUrl: 'https://commons.wikimedia.org/wiki/File%3ABoston_skyline_from_Malone_Park%2C_Chelsea%2C_February_2014.jpg',
+      licenseName: 'CC BY 2.0',
+      licenseUrl: 'https://creativecommons.org/licenses/by/2.0/',
+    },
+  },
+  {
+    name: 'Portland, Maine',
+    url: getBackgroundImageUrl('portland-me', 1920),
+    highResolutionUrl: getBackgroundImageUrl('portland-me', 3840),
+    attribution: {
+      author: 'Carol M. Highsmith',
+      sourceUrl: 'https://commons.wikimedia.org/wiki/File%3AExterior._U.S._Custom_House%2C_Portland%2C_Maine_LCCN2014630028.tif',
+      licenseName: 'Public domain',
+    },
+  },
+  {
+    name: 'Charleston, South Carolina',
+    url: getBackgroundImageUrl('charleston-sc', 1920),
+    highResolutionUrl: getBackgroundImageUrl('charleston-sc', 3840),
+    attribution: {
+      author: 'Michael Rivera',
+      sourceUrl: 'https://commons.wikimedia.org/wiki/File%3AWaterfront_Park%2C_Charleston_1.jpg',
+      licenseName: 'CC BY-SA 4.0',
+      licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0/',
+    },
+  },
 ];
 
 export const INITIAL_CONVERSATION_LIBRARY = [

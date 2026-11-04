@@ -2,19 +2,17 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MapPin } from 'lucide-react';
 import type { AppSettings } from '../types';
-import { US_LANDMARKS } from '../data';
+import { BACKGROUND_SLIDES } from '../data';
 
 interface BackgroundSlideshowProps {
   settings: AppSettings;
   paused: boolean;
 }
 
-const getLandmarkImageUrl = (url: string) =>
-  window.innerWidth * window.devicePixelRatio > 1920
-    ? url.replace('1920px-', '3840px-').replace('w=1920', 'w=3840')
-    : url;
+const getLandmarkImageUrl = (slide: (typeof BACKGROUND_SLIDES)[number]) =>
+  window.innerWidth * window.devicePixelRatio > 1920 ? slide.highResolutionUrl : slide.url;
 
-const shuffleLandmarkIndexes = (count: number, avoidFirst?: number) => {
+const shuffleSlideIndexes = (count: number, avoidFirst?: number) => {
   const indexes = Array.from({ length: count }, (_, index) => index);
   for (let index = indexes.length - 1; index > 0; index -= 1) {
     const swapIndex = Math.floor(Math.random() * (index + 1));
@@ -28,7 +26,7 @@ const shuffleLandmarkIndexes = (count: number, avoidFirst?: number) => {
 };
 
 export function BackgroundSlideshow({ settings, paused }: BackgroundSlideshowProps) {
-  const [sequence, setSequence] = useState(() => shuffleLandmarkIndexes(US_LANDMARKS.length));
+  const [sequence, setSequence] = useState(() => shuffleSlideIndexes(BACKGROUND_SLIDES.length));
   const [currentPosition, setCurrentPosition] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(() => sequence[0] ?? 0);
   const [incomingIndex, setIncomingIndex] = useState<number | null>(null);
@@ -37,23 +35,49 @@ export function BackgroundSlideshow({ settings, paused }: BackgroundSlideshowPro
     if (!settings.bgEnabled || paused) return;
     if (incomingIndex !== null || sequence.length < 2) return;
 
+    let active = true;
     const slideDuration =
       (settings.bgInterval && settings.bgInterval > 0 ? settings.bgInterval : 7) * 1000;
     const slideTimer = window.setTimeout(() => {
-      const nextPosition = currentPosition + 1;
-      if (nextPosition < sequence.length) {
-        setCurrentPosition(nextPosition);
-        setIncomingIndex(sequence[nextPosition]);
-        return;
-      }
+      const startsNewSequence = currentPosition + 1 >= sequence.length;
+      const nextSequence = startsNewSequence
+        ? shuffleSlideIndexes(BACKGROUND_SLIDES.length, currentIndex)
+        : sequence;
+      const nextPosition = startsNewSequence ? 0 : currentPosition + 1;
+      const nextIndex = nextSequence[nextPosition] ?? currentIndex;
+      const nextImageUrl = getLandmarkImageUrl(BACKGROUND_SLIDES[nextIndex]);
+      const preloadedImage = new Image();
+      let handled = false;
 
-      const nextSequence = shuffleLandmarkIndexes(US_LANDMARKS.length, currentIndex);
-      setSequence(nextSequence);
-      setCurrentPosition(0);
-      setIncomingIndex(nextSequence[0] ?? 0);
+      const skipUnavailableSlide = () => {
+        if (!active || handled) return;
+        handled = true;
+        console.error('Background slideshow image failed to load:', nextImageUrl);
+        if (startsNewSequence) setSequence(nextSequence);
+        setCurrentPosition(nextPosition);
+      };
+      const showPreloadedSlide = () => {
+        if (!active || handled) return;
+        handled = true;
+        if (startsNewSequence) setSequence(nextSequence);
+        setCurrentPosition(nextPosition);
+        setIncomingIndex(nextIndex);
+      };
+
+      preloadedImage.onload = showPreloadedSlide;
+      preloadedImage.onerror = skipUnavailableSlide;
+      preloadedImage.src = nextImageUrl;
+
+      if (preloadedImage.complete) {
+        if (preloadedImage.naturalWidth > 0) showPreloadedSlide();
+        else skipUnavailableSlide();
+      }
     }, slideDuration);
 
-    return () => window.clearTimeout(slideTimer);
+    return () => {
+      active = false;
+      window.clearTimeout(slideTimer);
+    };
   }, [currentIndex, currentPosition, incomingIndex, paused, sequence, settings.bgEnabled, settings.bgInterval]);
 
   useEffect(() => {
@@ -67,17 +91,19 @@ export function BackgroundSlideshow({ settings, paused }: BackgroundSlideshowPro
     return () => window.clearTimeout(transitionTimer);
   }, [incomingIndex]);
 
-  if (!settings.bgEnabled || US_LANDMARKS.length === 0) return null;
+  if (!settings.bgEnabled || BACKGROUND_SLIDES.length === 0) return null;
 
-  const nextIndex = sequence[(currentPosition + 1) % sequence.length] ?? currentIndex;
   const brightness =
     settings.bgBright === 'darker'
       ? 'brightness(0.45) saturate(1.1)'
       : settings.bgBright === 'lighter'
         ? 'brightness(0.92) saturate(1.15)'
         : 'brightness(0.78) saturate(1.2)';
-  const currentImageUrl = getLandmarkImageUrl(US_LANDMARKS[currentIndex].url);
-  const nextImageUrl = getLandmarkImageUrl(US_LANDMARKS[incomingIndex ?? nextIndex].url);
+  const currentImageUrl = getLandmarkImageUrl(BACKGROUND_SLIDES[currentIndex]);
+  const nextImageUrl =
+    incomingIndex === null
+      ? currentImageUrl
+      : getLandmarkImageUrl(BACKGROUND_SLIDES[incomingIndex]);
 
   return (
     <>
@@ -121,7 +147,7 @@ export function BackgroundSlideshow({ settings, paused }: BackgroundSlideshowPro
           >
             <MapPin size={12} className="text-amber-400 shrink-0" />
             <span className="font-semibold tracking-wide uppercase text-[11px] text-white/90">
-              {US_LANDMARKS[incomingIndex ?? currentIndex].name}
+              {BACKGROUND_SLIDES[incomingIndex ?? currentIndex].name}
             </span>
           </motion.div>
         </AnimatePresence>
