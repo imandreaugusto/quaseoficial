@@ -21,7 +21,9 @@ Se um deploy falhar, consulte os eventos e logs do servico no Render. As verific
 
 ## Salvamento automatico entre dispositivos
 
-Para habilitar a sincronizacao global de aulas, biblioteca do Read Club/Brazilian Music e progresso individual dos alunos, execute uma vez o script [`supabase/enable_platform_autosave.sql`](./supabase/enable_platform_autosave.sql) no SQL Editor do projeto Supabase. O script restringe alteracoes do conteudo compartilhado aos e-mails administrativos autorizados.
+Para habilitar a sincronizacao global de aulas, biblioteca do Read Club/Brazilian Music e progresso individual dos alunos, execute uma vez o script [`supabase/enable_platform_autosave.sql`](./supabase/enable_platform_autosave.sql) no SQL Editor do projeto Supabase. As alteracoes do conteudo compartilhado ficam restritas aos administradores autorizados, com excecao da biblioteca Brazilian Music, que assinantes ativos podem adicionar e editar; a exclusao continua restrita aos administradores.
+
+Se a configuracao de salvamento ou de acesso pago ja foi aplicada, execute tambem [`supabase/allow_subscribers_manage_youtube_library.sql`](./supabase/allow_subscribers_manage_youtube_library.sql) no SQL Editor para liberar a escrita de assinantes ativos somente na biblioteca Brazilian Music.
 
 Para salvar as preferencias individuais dos alunos (sons, fundo, leitura e acessibilidade) entre dispositivos, execute tambem [`supabase/student_preferences.sql`](./supabase/student_preferences.sql) no SQL Editor do Supabase. As preferencias ficam no registro de progresso do proprio aluno, sob a mesma politica de acesso individual.
 

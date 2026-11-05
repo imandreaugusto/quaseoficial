@@ -1474,7 +1474,13 @@ export default function App() {
                 type="button"
                 className="shrink-0 font-semibold underline underline-offset-2"
                 onClick={() => {
-                  if (pendingPlatformPayloadRef.current || pendingProgressRef.current) retryPendingCloudSaves();
+                  if (
+                    pendingPlatformPayloadRef.current ||
+                    pendingProgressRef.current ||
+                    pendingYoutubeLibraryRef.current
+                  ) {
+                    retryPendingCloudSaves();
+                  }
                   else window.location.reload();
                 }}
               >

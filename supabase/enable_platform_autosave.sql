@@ -27,6 +27,8 @@ drop policy if exists "shared_content_authenticated_read" on public.bia_shared_c
 drop policy if exists "shared_content_ceo_insert" on public.bia_shared_content;
 drop policy if exists "shared_content_ceo_update" on public.bia_shared_content;
 drop policy if exists "shared_content_ceo_delete" on public.bia_shared_content;
+drop policy if exists "shared_content_subscriber_youtube_insert" on public.bia_shared_content;
+drop policy if exists "shared_content_subscriber_youtube_update" on public.bia_shared_content;
 
 create policy "shared_content_authenticated_read" on public.bia_shared_content
 for select to authenticated using (public.has_active_bia_subscription());
@@ -38,6 +40,15 @@ with check (lower(coalesce(auth.jwt() ->> 'email', '')) in (
   'brazilianinaction@gmail.com',
   'brazilianinactionidiomas@gmail.com'
 ));
+
+create policy "shared_content_subscriber_youtube_insert" on public.bia_shared_content
+for insert to authenticated
+with check (content_key = 'youtube_library' and public.has_active_bia_subscription());
+
+create policy "shared_content_subscriber_youtube_update" on public.bia_shared_content
+for update to authenticated
+using (content_key = 'youtube_library' and public.has_active_bia_subscription())
+with check (content_key = 'youtube_library' and public.has_active_bia_subscription());
 
 create policy "shared_content_ceo_update" on public.bia_shared_content
 for update to authenticated
