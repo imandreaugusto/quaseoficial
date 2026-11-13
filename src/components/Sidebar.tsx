@@ -10,6 +10,7 @@ import {
   GraduationCap, 
   Video, 
   BookOpen, 
+  Cross,
   VenetianMask,
   Presentation, 
   Settings as SettingsIcon, 
@@ -85,6 +86,7 @@ const ALL_STUDENT_ITEMS = [
   { id: 'stories', label: 'Brazilian Post', icon: Instagram },
   { id: 'practice', label: 'Brazilian Practice', icon: Globe },
   { id: 'readclub', label: 'Read Club', icon: BookOpen },
+  { id: 'holybible', label: 'Holy Bible', icon: Cross },
   { id: 'brazilianhq', label: 'Brazilian HQ', icon: VenetianMask },
   { id: 'board', label: 'Blackboard', icon: Presentation },
   { id: 'quiz', label: 'Brazilian Quiz', icon: HelpCircle },
@@ -123,7 +125,7 @@ const NavButton: React.FC<{
 }> = ({ item, isActive, accentColor, menuSoundsEnabled, notificationCount = 0, onClick }) => {
   const btnRef = useRef<HTMLButtonElement | null>(null);
   const iconRef = useRef<HTMLSpanElement | null>(null);
-  const isPlatformBrand = item.label.startsWith('Brazilian ') || item.label === 'Read Club' || item.label === 'BIA Compare';
+  const isPlatformBrand = item.label.startsWith('Brazilian ') || item.label === 'Read Club' || item.label === 'Holy Bible' || item.label === 'BIA Compare';
 
   // 1. Ao passar o mouse: toca o som e aciona o GSAP
   const handleMouseEnter = () => {
@@ -253,6 +255,7 @@ const ALL_ADMIN_ITEMS = [
   { id: 'dashboard', label: 'Controle Financeiro', icon: LayoutDashboard },
   { id: 'admin_settings', label: 'Painel do CEO', icon: Users },
   { id: 'readclub', label: 'Read Club', icon: BookOpen },
+  { id: 'holybible', label: 'Holy Bible', icon: Cross },
   { id: 'brazilianhq', label: 'Brazilian HQ', icon: VenetianMask },
   { id: 'board', label: 'Brazilian Board', icon: Presentation },
   { id: 'streamstudio', label: 'Brazilian LIVE', icon: Radio },
@@ -291,8 +294,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [showInstallHelp, setShowInstallHelp] = useState(false);
   const [installError, setInstallError] = useState('');
   const [appConfig, setAppConfig] = useState<GlobalAppConfig>({
-    studentAppOrder: ['home', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'readclub', 'brazilianhq', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'studytime', 'feedback', 'settings'],
-    adminAppOrder: ['home', 'work', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'brazilianhq', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'studytime', 'settings'],
+    studentAppOrder: ['home', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'readclub', 'holybible', 'brazilianhq', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'studytime', 'feedback', 'settings'],
+    adminAppOrder: ['home', 'work', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'holybible', 'brazilianhq', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'studytime', 'settings'],
     studentGlobalEnabled: {
       brazilianfriends: true,
       brazilianspace: true,
@@ -300,6 +303,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       stories: true,
       practice: true,
       readclub: true,
+      holybible: true,
       brazilianhq: true,
       board: true,
       quiz: true,
@@ -363,9 +367,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       if (!adminAppOrder.includes('youtube')) adminAppOrder.push('youtube');
       if (!studentAppOrder.includes('studytime')) studentAppOrder.push('studytime');
       if (!adminAppOrder.includes('studytime')) adminAppOrder.push('studytime');
+      const normalizedStudentBibleOrder = ensureAppAfter(studentAppOrder, 'holybible', 'readclub');
+      const normalizedAdminBibleOrder = ensureAppAfter(adminAppOrder, 'holybible', 'readclub');
       if (!adminAppOrder.includes('feedback')) adminAppOrder.push('feedback');
-      const normalizedStudentOrder = ensureAppAfter(studentAppOrder, 'brazilianhq', 'readclub');
-      const normalizedAdminOrder = ensureAppAfter(adminAppOrder, 'brazilianhq', 'readclub');
+      const normalizedStudentOrder = ensureAppAfter(normalizedStudentBibleOrder, 'brazilianhq', 'holybible');
+      const normalizedAdminOrder = ensureAppAfter(normalizedAdminBibleOrder, 'brazilianhq', 'holybible');
       const normalized: GlobalAppConfig = {
         ...parsed,
         studentAppOrder: normalizedStudentOrder,
@@ -375,6 +381,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           brazilianspace: true,
           braziliangames: true,
           brazilianhq: true,
+          holybible: true,
           feedback: true,
           ...parsed.studentGlobalEnabled,
           settings: true

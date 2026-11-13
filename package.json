@@ -10,6 +10,7 @@
     "start": "node dist/server.cjs",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
+    "bible:import": "node scripts/import-king-james-bible.mjs",
     "test:security": "tsx --test scripts/payment-security.test.ts",
     "test:games": "tsx --test scripts/brazilian-games.test.ts"
   },

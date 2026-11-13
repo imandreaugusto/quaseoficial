@@ -29,6 +29,7 @@ import {
   ToggleLeft,
   ToggleRight,
   BookOpen,
+  Cross,
   VenetianMask,
   Presentation,
   HelpCircle,
@@ -106,6 +107,7 @@ const ALL_STUDENT_APPS = [
   { id: 'stories', label: 'Brazilian Post', icon: Instagram, desc: 'Gravação de stories para o Instagram com teleprompter e mural de destaques' },
   { id: 'practice', label: 'Brazilian Practice', icon: Globe, desc: 'Ambientes ao vivo de conversação, imersão e prática livre' },
   { id: 'readclub', label: 'Read Club', icon: BookOpen, desc: 'Biblioteca imersiva e histórias com áudio' },
+  { id: 'holybible', label: 'Holy Bible', icon: Cross, desc: 'Bíblia em inglês com páginas interativas e tradução de vocabulário' },
   { id: 'brazilianhq', label: 'Brazilian HQ', icon: VenetianMask, desc: 'Histórias em quadrinhos em PDF' },
   { id: 'board', label: 'Blackboard', icon: Presentation, desc: 'Lousa digital interativa de estudos' },
   { id: 'quiz', label: 'Brazilian Quiz', icon: HelpCircle, desc: 'Desafios de vocabulário e gramática' },
@@ -148,6 +150,7 @@ const ALL_ADMIN_APPS = [
   { id: 'admin_settings', label: 'Painel do CEO', icon: Users, desc: 'Gestão geral de alunos, gateway e finanças' },
   { id: 'feedback', label: 'Feedback dos alunos', icon: MessageSquareText, desc: 'Sugestões enviadas pelos alunos' },
   { id: 'readclub', label: 'Read Club', icon: BookOpen, desc: 'Biblioteca completa de leitura' },
+  { id: 'holybible', label: 'Holy Bible', icon: Cross, desc: 'Leitura interativa da King James Version' },
   { id: 'brazilianhq', label: 'Brazilian HQ', icon: VenetianMask, desc: 'Leitura de histórias em quadrinhos' },
   { id: 'board', label: 'Brazilian Board', icon: Presentation, desc: 'Lousa de anotações e desenhos' },
   { id: 'streamstudio', label: 'Brazilian LIVE', icon: Radio, desc: 'Estúdio de transmissão com overlays' },
@@ -248,14 +251,15 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
 
   // App Order and Global Availability Configuration
   const [appConfig, setAppConfig] = useState<GlobalAppConfig>({
-    studentAppOrder: ['brazilianfriends', 'brazilianspace', 'stories', 'practice', 'readclub', 'brazilianhq', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'studytime', 'feedback'],
-    adminAppOrder: ['home', 'work', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'brazilianhq', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'studytime', 'settings'],
+    studentAppOrder: ['brazilianfriends', 'brazilianspace', 'stories', 'practice', 'readclub', 'holybible', 'brazilianhq', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'studytime', 'feedback'],
+    adminAppOrder: ['home', 'work', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'holybible', 'brazilianhq', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'studytime', 'settings'],
     studentGlobalEnabled: {
       brazilianfriends: true,
       brazilianspace: true,
       stories: true,
       practice: true,
       readclub: true,
+      holybible: true,
       brazilianhq: true,
       board: true,
       quiz: true,
@@ -346,9 +350,17 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
         if (!adminAppOrder.includes('brazilianspace')) {
           adminAppOrder.splice(adminAppOrder.indexOf('brazilianfriends') + 1, 0, 'brazilianspace');
         }
-        const orderedAdminAppOrder = ensureAppAfter(adminAppOrder, 'brazilianhq', 'readclub');
+        const orderedAdminAppOrder = ensureAppAfter(
+          ensureAppAfter(adminAppOrder, 'holybible', 'readclub'),
+          'brazilianhq',
+          'holybible',
+        );
         if (!orderedAdminAppOrder.includes('studytime')) orderedAdminAppOrder.push('studytime');
-        const orderedStudentApps = ensureAppAfter(studentAppOrder, 'brazilianhq', 'readclub');
+        const orderedStudentApps = ensureAppAfter(
+          ensureAppAfter(studentAppOrder, 'holybible', 'readclub'),
+          'brazilianhq',
+          'holybible',
+        );
         const normalizedConfig: GlobalAppConfig = {
           ...sharedConfig,
           studentAppOrder: orderedStudentApps,
@@ -357,6 +369,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
             brazilianhq: true,
             brazilianspace: true,
             feedback: true,
+            holybible: true,
             ...sharedConfig.studentGlobalEnabled
           }
         };
@@ -457,7 +470,11 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
           studentAppOrder.splice(studentAppOrder.indexOf('brazilianfriends') + 1, 0, 'brazilianspace');
         }
         if (!studentAppOrder.includes('studytime')) studentAppOrder.push('studytime');
-        const orderedStudentApps = ensureAppAfter(studentAppOrder, 'brazilianhq', 'readclub');
+        const orderedStudentApps = ensureAppAfter(
+          ensureAppAfter(studentAppOrder, 'holybible', 'readclub'),
+          'brazilianhq',
+          'holybible',
+        );
         if (!studentAppOrder.includes('feedback')) studentAppOrder.push('feedback');
         const adminAppOrder = [...parsed.adminAppOrder];
         if (!adminAppOrder.includes('brazilianfriends')) adminAppOrder.unshift('brazilianfriends');
@@ -466,7 +483,11 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
         }
         if (!adminAppOrder.includes('braziliangames')) adminAppOrder.push('braziliangames');
         if (!adminAppOrder.includes('studytime')) adminAppOrder.push('studytime');
-        const orderedAdminApps = ensureAppAfter(adminAppOrder, 'brazilianhq', 'readclub');
+        const orderedAdminApps = ensureAppAfter(
+          ensureAppAfter(adminAppOrder, 'holybible', 'readclub'),
+          'brazilianhq',
+          'holybible',
+        );
         if (!adminAppOrder.includes('feedback')) adminAppOrder.push('feedback');
         setAppConfig({
           ...parsed,
@@ -481,6 +502,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
             braziliangames: true,
             brazilianhq: true,
             feedback: true,
+            holybible: true,
             ...parsed.studentGlobalEnabled
           }
         });
@@ -954,8 +976,8 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   // Reset to Default Order
   const handleResetAppOrder = () => {
     const defaultConfig: GlobalAppConfig = {
-      studentAppOrder: ['brazilianfriends', 'brazilianspace', 'readclub', 'brazilianhq', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'studytime', 'feedback'],
-      adminAppOrder: ['home', 'work', 'brazilianfriends', 'brazilianspace', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'brazilianhq', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'studytime', 'settings'],
+      studentAppOrder: ['brazilianfriends', 'brazilianspace', 'readclub', 'holybible', 'brazilianhq', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'studytime', 'feedback'],
+      adminAppOrder: ['home', 'work', 'brazilianfriends', 'brazilianspace', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'holybible', 'brazilianhq', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'studytime', 'settings'],
       studentGlobalEnabled: {
         brazilianfriends: true,
         brazilianspace: true,
@@ -964,6 +986,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
         board: true,
         quiz: true,
         braziliangames: true,
+        holybible: true,
         biacompare: true,
         conversation: true,
         tradutor: true,

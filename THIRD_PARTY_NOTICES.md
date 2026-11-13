@@ -21,3 +21,9 @@ Copyright (c) 2020, Kiril Vatev
 Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
 
 THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+## King James Version Bible text
+
+The Holy Bible reader uses the English King James Version (1611), digitized text from [Project Gutenberg ebook #10](https://www.gutenberg.org/ebooks/10). The source is normalized into book, chapter, and verse data by `scripts/import-king-james-bible.mjs`; only the Bible text is included in the reader, not the Project Gutenberg ebook wrapper or branding. This project is not affiliated with or endorsed by Project Gutenberg.
+
+Project Gutenberg identifies this ebook as public domain in the United States and advises users elsewhere to check local law. The underlying 1611 translation is far older than the copyright terms in Brazil's Copyright Law (Law 9,610/1998). This notice is source attribution, not legal advice.

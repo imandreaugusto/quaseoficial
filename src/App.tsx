@@ -5,6 +5,7 @@ const Dashboard = lazy(() => import('./components/Dashboard').then(({ Dashboard 
 const GoogleClassroom = lazy(() => import('./components/GoogleClassroom').then(({ GoogleClassroom }) => ({ default: GoogleClassroom })));
 const GoogleMeet = lazy(() => import('./components/GoogleMeet').then(({ GoogleMeet }) => ({ default: GoogleMeet })));
 const ReadClub = lazy(() => import('./components/ReadClub').then(({ ReadClub }) => ({ default: ReadClub })));
+const HolyBible = lazy(() => import('./components/HolyBible').then(({ HolyBible }) => ({ default: HolyBible })));
 const BrazilianBoard = lazy(() => import('./components/BrazilianBoard').then(({ BrazilianBoard }) => ({ default: BrazilianBoard })));
 const Settings = lazy(() => import('./components/Settings').then(({ Settings }) => ({ default: Settings })));
 const BrazilianConversation = lazy(() => import('./components/BrazilianConversation').then(({ BrazilianConversation }) => ({ default: BrazilianConversation })));
@@ -1728,6 +1729,8 @@ export default function App() {
                       </div>
                     )
                   )}
+
+                  {currentApp === 'holybible' && <HolyBible />}
 
                   {currentApp === 'brazilianhq' && (
                     <BrazilianHQ
