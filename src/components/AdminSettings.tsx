@@ -2,6 +2,7 @@ import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { UserProfile, GatewaySettings, StudentPermissions, GlobalAppConfig, ClassItem, ExpenseItem, TrialCoupon, PixPaymentRecord } from '../types';
 import { ensureAppAfter } from '../lib/appMenuOrder';
+import { ChristianCrossIcon } from './ChristianCrossIcon';
 import { 
   getAuthorizedCeoEmails, 
   addAuthorizedCeoEmail, 
@@ -29,7 +30,6 @@ import {
   ToggleLeft,
   ToggleRight,
   BookOpen,
-  Cross,
   VenetianMask,
   Presentation,
   HelpCircle,
@@ -107,7 +107,7 @@ const ALL_STUDENT_APPS = [
   { id: 'stories', label: 'Brazilian Post', icon: Instagram, desc: 'Gravação de stories para o Instagram com teleprompter e mural de destaques' },
   { id: 'practice', label: 'Brazilian Practice', icon: Globe, desc: 'Ambientes ao vivo de conversação, imersão e prática livre' },
   { id: 'readclub', label: 'Read Club', icon: BookOpen, desc: 'Biblioteca imersiva e histórias com áudio' },
-  { id: 'holybible', label: 'Holy Bible', icon: Cross, desc: 'Bíblia em inglês com páginas interativas e tradução de vocabulário' },
+  { id: 'holybible', label: 'Holy Bible', icon: ChristianCrossIcon, desc: 'Bíblia em inglês com páginas interativas e tradução de vocabulário' },
   { id: 'brazilianhq', label: 'Brazilian HQ', icon: VenetianMask, desc: 'Histórias em quadrinhos em PDF' },
   { id: 'board', label: 'Blackboard', icon: Presentation, desc: 'Lousa digital interativa de estudos' },
   { id: 'quiz', label: 'Brazilian Quiz', icon: HelpCircle, desc: 'Desafios de vocabulário e gramática' },
@@ -150,7 +150,7 @@ const ALL_ADMIN_APPS = [
   { id: 'admin_settings', label: 'Painel do CEO', icon: Users, desc: 'Gestão geral de alunos, gateway e finanças' },
   { id: 'feedback', label: 'Feedback dos alunos', icon: MessageSquareText, desc: 'Sugestões enviadas pelos alunos' },
   { id: 'readclub', label: 'Read Club', icon: BookOpen, desc: 'Biblioteca completa de leitura' },
-  { id: 'holybible', label: 'Holy Bible', icon: Cross, desc: 'Leitura interativa da King James Version' },
+  { id: 'holybible', label: 'Holy Bible', icon: ChristianCrossIcon, desc: 'Leitura interativa da King James Version' },
   { id: 'brazilianhq', label: 'Brazilian HQ', icon: VenetianMask, desc: 'Leitura de histórias em quadrinhos' },
   { id: 'board', label: 'Brazilian Board', icon: Presentation, desc: 'Lousa de anotações e desenhos' },
   { id: 'streamstudio', label: 'Brazilian LIVE', icon: Radio, desc: 'Estúdio de transmissão com overlays' },

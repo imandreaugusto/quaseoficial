@@ -10,7 +10,6 @@ import {
   GraduationCap, 
   Video, 
   BookOpen, 
-  Cross,
   VenetianMask,
   Presentation, 
   Settings as SettingsIcon, 
@@ -36,6 +35,7 @@ import {
 import { UserProfile, GlobalAppConfig } from '../types';
 import { ensureAppAfter } from '../lib/appMenuOrder';
 import { PlanetOrbitIcon } from './PlanetOrbitIcon';
+import { ChristianCrossIcon } from './ChristianCrossIcon';
 import { BrazilianLogo } from './BrazilianLogo';
 import { SocialLinksBar } from './SocialLinksBar';
 import { getSupabaseClient, loadPendingStudentFeedbackCounts, loadSharedContentFromSupabase } from '../utils/supabaseClient';
@@ -86,7 +86,7 @@ const ALL_STUDENT_ITEMS = [
   { id: 'stories', label: 'Brazilian Post', icon: Instagram },
   { id: 'practice', label: 'Brazilian Practice', icon: Globe },
   { id: 'readclub', label: 'Read Club', icon: BookOpen },
-  { id: 'holybible', label: 'Holy Bible', icon: Cross },
+  { id: 'holybible', label: 'Holy Bible', icon: ChristianCrossIcon },
   { id: 'brazilianhq', label: 'Brazilian HQ', icon: VenetianMask },
   { id: 'board', label: 'Blackboard', icon: Presentation },
   { id: 'quiz', label: 'Brazilian Quiz', icon: HelpCircle },
@@ -255,7 +255,7 @@ const ALL_ADMIN_ITEMS = [
   { id: 'dashboard', label: 'Controle Financeiro', icon: LayoutDashboard },
   { id: 'admin_settings', label: 'Painel do CEO', icon: Users },
   { id: 'readclub', label: 'Read Club', icon: BookOpen },
-  { id: 'holybible', label: 'Holy Bible', icon: Cross },
+  { id: 'holybible', label: 'Holy Bible', icon: ChristianCrossIcon },
   { id: 'brazilianhq', label: 'Brazilian HQ', icon: VenetianMask },
   { id: 'board', label: 'Brazilian Board', icon: Presentation },
   { id: 'streamstudio', label: 'Brazilian LIVE', icon: Radio },

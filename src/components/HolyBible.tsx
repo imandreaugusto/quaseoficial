@@ -1,11 +1,15 @@
-import { useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
-import { BookOpen, ChevronLeft, ChevronRight, Cross, LoaderCircle, Volume2, VolumeX, X } from 'lucide-react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { AnimatePresence, motion, type Variants } from 'motion/react';
+import { BookOpen, Check, ChevronLeft, ChevronRight, Clipboard, LoaderCircle, Volume2, VolumeX, X } from 'lucide-react';
+import { ChristianCrossIcon } from './ChristianCrossIcon';
 import { lookupDictionary, translateText } from '../lib/translator';
 
 interface BibleVerse {
   number: number;
   text: string;
+  copyText?: string;
+  continuation?: boolean;
 }
 
 interface BibleChapter {
@@ -22,19 +26,49 @@ interface BibleData {
   books: BibleBook[];
 }
 
-const VERSES_PER_SPREAD = 20;
+interface ReaderGeometry {
+  width: number;
+  height: number;
+  columns: 1 | 2;
+}
+
+interface TranslationPopup {
+  word: string;
+  text: string;
+  loading: boolean;
+  error: string;
+  left: number;
+  top: number;
+}
 
 const cleanWord = (word: string) => word.toLowerCase().replace(/[^a-z']/g, '').replace(/^'+|'+$/g, '');
+const PAGE_CLASSES = 'relative min-w-0 overflow-hidden border-b border-[#8f704a]/25 px-5 py-5 sm:px-8 sm:py-7 md:border-b-0 md:px-8';
+const PAGE_CONTENT_GUTTER = 64;
+
+const pageFlipVariants: Variants = {
+  enter: (direction: number) => ({
+    opacity: 0.76,
+    rotateY: direction > 0 ? 20 : -20,
+    scale: 0.985,
+  }),
+  center: { opacity: 1, rotateY: 0, scale: 1 },
+  exit: (direction: number) => ({
+    opacity: 0.75,
+    rotateY: direction > 0 ? -88 : 88,
+    scale: 0.985,
+  }),
+};
 
 const playPageTurnSound = () => {
   const context = new window.AudioContext();
-  const duration = 0.24;
+  const duration = 0.48;
   const buffer = context.createBuffer(1, Math.floor(context.sampleRate * duration), context.sampleRate);
   const samples = buffer.getChannelData(0);
 
   for (let index = 0; index < samples.length; index += 1) {
-    const fade = 1 - index / samples.length;
-    samples[index] = (Math.random() * 2 - 1) * fade * fade;
+    const progress = index / samples.length;
+    const fade = Math.sin(Math.PI * progress) * (1 - progress * 0.45);
+    samples[index] = (Math.random() * 2 - 1) * fade * 0.55;
   }
 
   const source = context.createBufferSource();
@@ -42,9 +76,10 @@ const playPageTurnSound = () => {
   const volume = context.createGain();
   source.buffer = buffer;
   filter.type = 'lowpass';
-  filter.frequency.value = 1800;
+  filter.frequency.setValueAtTime(2400, context.currentTime);
+  filter.frequency.exponentialRampToValueAtTime(650, context.currentTime + duration);
   volume.gain.setValueAtTime(0.0001, context.currentTime);
-  volume.gain.exponentialRampToValueAtTime(0.16, context.currentTime + 0.025);
+  volume.gain.exponentialRampToValueAtTime(0.12, context.currentTime + 0.045);
   volume.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + duration);
   source.connect(filter);
   filter.connect(volume);
@@ -53,6 +88,34 @@ const playPageTurnSound = () => {
   source.start();
   source.stop(context.currentTime + duration);
 };
+
+const splitIntoPages = (verses: BibleVerse[], heights: number[], pageCapacity: number) => {
+  if (!verses.length) return [[]];
+  if (pageCapacity <= 0 || heights.length !== verses.length) return [verses];
+
+  const pages: BibleVerse[][] = [];
+  let page: BibleVerse[] = [];
+  let usedHeight = 0;
+
+  verses.forEach((verse, index) => {
+    const verseHeight = heights[index];
+    if (page.length && usedHeight + verseHeight > pageCapacity) {
+      pages.push(page);
+      page = [];
+      usedHeight = 0;
+    }
+    page.push(verse);
+    usedHeight += verseHeight;
+  });
+
+  if (page.length) pages.push(page);
+  return pages;
+};
+
+const getPopupPosition = (rect: DOMRect) => ({
+  left: Math.max(12, Math.min(rect.left + rect.width / 2 - 140, window.innerWidth - 292)),
+  top: Math.max(12, Math.min(rect.top - 120, window.innerHeight - 132)),
+});
 
 export const HolyBible = () => {
   const [books, setBooks] = useState<BibleBook[]>([]);
@@ -63,13 +126,19 @@ export const HolyBible = () => {
   const [chapterNumber, setChapterNumber] = useState(1);
   const [pageIndex, setPageIndex] = useState(0);
   const [turnDirection, setTurnDirection] = useState(1);
+  const [flipKey, setFlipKey] = useState(0);
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [selectedWord, setSelectedWord] = useState('');
-  const [translation, setTranslation] = useState('');
-  const [isTranslating, setIsTranslating] = useState(false);
-  const [translationError, setTranslationError] = useState('');
   const [soundError, setSoundError] = useState('');
+  const [geometry, setGeometry] = useState<ReaderGeometry>({ width: 0, height: 0, columns: 1 });
+  const [pageVerses, setPageVerses] = useState<BibleVerse[][][]>([]);
+  const [translationPopup, setTranslationPopup] = useState<TranslationPopup | null>(null);
+  const [copiedVerse, setCopiedVerse] = useState<number | null>(null);
+  const [copyError, setCopyError] = useState('');
+  const pageFrameRef = useRef<HTMLDivElement | null>(null);
+  const measurementRef = useRef<HTMLDivElement | null>(null);
   const translationRequest = useRef(0);
+  const copiedFeedbackTimer = useRef<number | null>(null);
+  const popupAnchor = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -97,18 +166,155 @@ export const HolyBible = () => {
     return () => controller.abort();
   }, [loadAttempt]);
 
+  useEffect(() => {
+    const frame = pageFrameRef.current;
+    if (!frame) return undefined;
+
+    const measure = () => {
+      const bounds = frame.getBoundingClientRect();
+      const columns: 1 | 2 = window.matchMedia('(min-width: 768px)').matches ? 2 : 1;
+      setGeometry((current) => {
+        const width = Math.floor(bounds.width);
+        const height = Math.floor(bounds.height);
+        if (current.width === width && current.height === height && current.columns === columns) return current;
+        return { width, height, columns };
+      });
+    };
+
+    const observer = new ResizeObserver(measure);
+    observer.observe(frame);
+    measure();
+    return () => observer.disconnect();
+  }, [isLoading]);
+
+  useEffect(() => () => {
+    if (copiedFeedbackTimer.current !== null) window.clearTimeout(copiedFeedbackTimer.current);
+  }, []);
+
+  useEffect(() => {
+    if (!translationPopup) return undefined;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setTranslationPopup(null);
+    };
+    const repositionPopup = () => {
+      if (!popupAnchor.current) return;
+      const position = getPopupPosition(popupAnchor.current.getBoundingClientRect());
+      setTranslationPopup((current) => current ? { ...current, ...position } : current);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    window.addEventListener('resize', repositionPopup);
+    window.addEventListener('scroll', repositionPopup, true);
+    return () => {
+      window.removeEventListener('keydown', closeOnEscape);
+      window.removeEventListener('resize', repositionPopup);
+      window.removeEventListener('scroll', repositionPopup, true);
+    };
+  }, [translationPopup]);
+
   const activeBook = books[bookIndex];
   const activeChapter = activeBook?.chapters.find((chapter) => chapter.number === chapterNumber);
-  const pageCount = activeChapter ? Math.max(1, Math.ceil(activeChapter.verses.length / VERSES_PER_SPREAD)) : 1;
-  const firstVerseIndex = pageIndex * VERSES_PER_SPREAD;
-  const visibleVerses = activeChapter?.verses.slice(firstVerseIndex, firstVerseIndex + VERSES_PER_SPREAD) ?? [];
-  const splitIndex = Math.ceil(visibleVerses.length / 2);
+  const horizontalPadding = window.innerWidth >= 640 ? 64 : 40;
+  const measurementWidth = Math.max(
+    0,
+    geometry.width / geometry.columns - horizontalPadding,
+  );
+  const verticalPadding = window.innerWidth >= 640 ? 56 : 40;
+  const pageCapacity = Math.max(0, geometry.height - verticalPadding - PAGE_CONTENT_GUTTER);
 
-  const changePosition = (nextBookIndex: number, nextChapterNumber: number, nextPageIndex: number, direction: number) => {
-    setTurnDirection(direction);
+  useLayoutEffect(() => {
+    const measurementNode = measurementRef.current;
+    if (!activeChapter || !measurementNode || geometry.width === 0 || geometry.height === 0) {
+      setPageVerses([]);
+      return;
+    }
+
+    const verseNodes = [...measurementNode.querySelectorAll<HTMLElement>('[data-measure-verse]')];
+    const measuredVerses: BibleVerse[] = [];
+    const heights: number[] = [];
+
+    activeChapter.verses.forEach((verse, index) => {
+      const node = verseNodes[index];
+      const verseHeight = node.getBoundingClientRect().height + 8;
+      if (verseHeight <= pageCapacity) {
+        measuredVerses.push(verse);
+        heights.push(verseHeight);
+        return;
+      }
+
+      const lineFragments = new Map<number, string>();
+      for (const token of node.querySelectorAll<HTMLElement>('[data-measure-token]')) {
+        const bounds = token.getBoundingClientRect();
+        const line = Math.round(bounds.top);
+        lineFragments.set(line, `${lineFragments.get(line) ?? ''}${token.textContent ?? ''}`);
+      }
+      const lines = [...lineFragments.values()].map((line) => line.trim()).filter(Boolean);
+      const paragraph = node.querySelector('p');
+      const lineHeight = paragraph ? Number.parseFloat(getComputedStyle(paragraph).lineHeight) : 22;
+      const maxLinesPerPage = Math.max(1, Math.floor((pageCapacity - 8) / lineHeight));
+
+      for (let start = 0; start < lines.length; start += maxLinesPerPage) {
+        const text = lines.slice(start, start + maxLinesPerPage).join(' ');
+        measuredVerses.push({
+          number: verse.number,
+          text: start > 0 ? ` ${text}` : text,
+          copyText: verse.text,
+          continuation: start > 0,
+        });
+        heights.push(Math.min(
+          pageCapacity,
+          Math.ceil(Math.min(lines.length - start, maxLinesPerPage) * lineHeight) + 8,
+        ));
+      }
+    });
+
+    const columns = splitIntoPages(measuredVerses, heights, pageCapacity);
+    const spreads: BibleVerse[][][] = [];
+
+    for (let index = 0; index < columns.length; index += geometry.columns) {
+      spreads.push(geometry.columns === 2
+        ? [columns[index], columns[index + 1] ?? []]
+        : [columns[index]]);
+    }
+
+    setPageVerses(spreads);
+  }, [activeChapter, geometry, measurementWidth, pageCapacity]);
+
+  useEffect(() => {
+    if (pageVerses.length && (pageIndex < 0 || pageIndex >= pageVerses.length)) {
+      setPageIndex(pageVerses.length - 1);
+    }
+  }, [pageIndex, pageVerses]);
+
+  const currentSpread = pageVerses[pageIndex] ?? [[], []];
+  const leftPage = currentSpread[0] ?? [];
+  const rightPage = currentSpread[1] ?? [];
+  const visibleVerses = currentSpread.flat();
+  const firstVerseIndex = visibleVerses[0]?.number ?? 1;
+  const lastVerseIndex = visibleVerses.at(-1)?.number ?? firstVerseIndex;
+  const isAtStart = bookIndex === 0 && chapterNumber === 1 && pageIndex === 0;
+  const isAtEnd = Boolean(activeBook && bookIndex === books.length - 1
+    && chapterNumber === activeBook.chapters.length
+    && pageIndex === pageVerses.length - 1);
+
+  const clearTranslation = () => {
     translationRequest.current += 1;
-    setIsTranslating(false);
-    if (soundEnabled) {
+    setTranslationPopup(null);
+  };
+
+  const changePosition = useCallback((
+    nextBookIndex: number,
+    nextChapterNumber: number,
+    nextPageIndex: number,
+    direction: number,
+    playSound = true,
+  ) => {
+    setTurnDirection(direction);
+    setFlipKey((key) => key + 1);
+    clearTranslation();
+    setCopyError('');
+    setCopiedVerse(null);
+
+    if (soundEnabled && playSound) {
       try {
         playPageTurnSound();
         setSoundError('');
@@ -117,18 +323,17 @@ export const HolyBible = () => {
         setSoundError('O navegador não conseguiu reproduzir o som da página.');
       }
     }
-    setSelectedWord('');
-    setTranslation('');
+
     setBookIndex(nextBookIndex);
     setChapterNumber(nextChapterNumber);
     setPageIndex(nextPageIndex);
-  };
+  }, [soundEnabled]);
 
   const turnPage = (direction: -1 | 1) => {
-    if (!activeBook || !activeChapter) return;
+    if (!activeBook || !activeChapter || pageVerses.length === 0) return;
 
     if (direction > 0) {
-      if (pageIndex + 1 < pageCount) {
+      if (pageIndex + 1 < pageVerses.length) {
         changePosition(bookIndex, chapterNumber, pageIndex + 1, direction);
         return;
       }
@@ -136,9 +341,7 @@ export const HolyBible = () => {
         changePosition(bookIndex, chapterNumber + 1, 0, direction);
         return;
       }
-      if (bookIndex + 1 < books.length) {
-        changePosition(bookIndex + 1, 1, 0, direction);
-      }
+      if (bookIndex + 1 < books.length) changePosition(bookIndex + 1, 1, 0, direction);
       return;
     }
 
@@ -148,28 +351,29 @@ export const HolyBible = () => {
     }
     if (chapterNumber > 1) {
       const previousChapter = activeBook.chapters[chapterNumber - 2];
-      changePosition(bookIndex, chapterNumber - 1, Math.ceil(previousChapter.verses.length / VERSES_PER_SPREAD) - 1, direction);
+      changePosition(bookIndex, chapterNumber - 1, -1, direction);
       return;
     }
     if (bookIndex > 0) {
       const previousBook = books[bookIndex - 1];
       const lastChapter = previousBook.chapters.at(-1);
       if (lastChapter) {
-        changePosition(bookIndex - 1, lastChapter.number, Math.ceil(lastChapter.verses.length / VERSES_PER_SPREAD) - 1, direction);
+        changePosition(bookIndex - 1, lastChapter.number, -1, direction);
       }
     }
   };
 
-  const handleWordClick = async (word: string) => {
+  const handleWordClick = async (word: string, event: React.MouseEvent<HTMLButtonElement>) => {
     const wordToTranslate = cleanWord(word);
     if (!wordToTranslate) return;
 
-    setSelectedWord(wordToTranslate);
-    setTranslation('');
-    setIsTranslating(false);
-    setTranslationError('');
+    const anchor = event.currentTarget;
+    const rect = anchor.getBoundingClientRect();
+    popupAnchor.current = anchor;
+    const position = getPopupPosition(rect);
     const requestId = translationRequest.current + 1;
     translationRequest.current = requestId;
+    setTranslationPopup({ word: wordToTranslate, text: '', loading: false, error: '', ...position });
 
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
@@ -180,46 +384,76 @@ export const HolyBible = () => {
 
     const dictionaryMatch = lookupDictionary(wordToTranslate);
     if (dictionaryMatch) {
-      setTranslation(dictionaryMatch);
+      setTranslationPopup((current) => current?.word === wordToTranslate ? { ...current, text: dictionaryMatch } : current);
       return;
     }
 
-    setIsTranslating(true);
+    setTranslationPopup((current) => current?.word === wordToTranslate ? { ...current, loading: true } : current);
     try {
       const translated = await translateText(wordToTranslate);
-      if (translationRequest.current === requestId) setTranslation(translated);
+      if (translationRequest.current === requestId) {
+        setTranslationPopup((current) => current?.word === wordToTranslate
+          ? { ...current, text: translated, loading: false }
+          : current);
+      }
     } catch (error) {
       console.error(`Could not translate Bible word "${wordToTranslate}":`, error);
       if (translationRequest.current === requestId) {
-        setTranslationError('Não foi possível obter a tradução agora.');
+        setTranslationPopup((current) => current?.word === wordToTranslate
+          ? { ...current, loading: false, error: 'Não foi possível obter a tradução agora.' }
+          : current);
       }
-    } finally {
-      if (translationRequest.current === requestId) setIsTranslating(false);
+    }
+  };
+
+  const handleCopyVerse = async (verse: BibleVerse) => {
+    try {
+      await navigator.clipboard.writeText(`${activeBook?.name} ${chapterNumber}:${verse.number} — ${verse.copyText ?? verse.text}`);
+      setCopiedVerse(verse.number);
+      setCopyError('');
+      if (copiedFeedbackTimer.current !== null) window.clearTimeout(copiedFeedbackTimer.current);
+      copiedFeedbackTimer.current = window.setTimeout(() => setCopiedVerse(null), 1800);
+    } catch (error) {
+      console.error('Could not copy Bible verse:', error);
+      setCopyError('Não foi possível copiar. Verifique a permissão de área de transferência do navegador.');
     }
   };
 
   const renderVerses = (verses: BibleVerse[]) => verses.map((verse) => (
-    <p key={verse.number} className="mb-2 text-justify text-[13px] leading-[1.75] text-[#3d3021] sm:text-sm">
-      <sup className="mr-1 select-none font-serif text-[10px] font-bold text-amber-800/70">{verse.number}</sup>
-      {verse.text.split(/(\s+)/).map((part, index) => {
-        if (!cleanWord(part)) return <span key={index}>{part}</span>;
-        return (
-          <button
-            key={index}
-            type="button"
-            onClick={() => void handleWordClick(part)}
-            className={`notranslate rounded-sm text-left transition-colors hover:bg-amber-300/50 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-800 ${
-              selectedWord === cleanWord(part) ? 'bg-amber-300/60' : ''
-            }`}
-            translate="no"
-            aria-label={`Traduzir ${cleanWord(part)}`}
-          >
-            {part}
-          </button>
-        );
-      })}
-    </p>
+    <div key={verse.number} className="relative mb-2 pr-7 text-[13px] leading-[1.65] text-[#3d3021] sm:text-sm">
+      <p className="m-0 text-justify">
+        {!verse.continuation && <sup className="mr-1 select-none font-serif text-[10px] font-bold text-amber-800/70">{verse.number}</sup>}
+        {verse.text.split(/(\s+)/).map((part, index) => {
+          if (!cleanWord(part)) return <span key={index}>{part}</span>;
+          return (
+            <button
+              key={index}
+              type="button"
+              onClick={(event) => void handleWordClick(part, event)}
+              className={`notranslate rounded-sm text-left transition-colors hover:bg-amber-300/50 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-800 ${
+                translationPopup?.word === cleanWord(part) ? 'bg-amber-300/60' : ''
+              }`}
+              translate="no"
+              aria-label={`Traduzir ${cleanWord(part)}`}
+            >
+              {part}
+            </button>
+          );
+        })}
+      </p>
+      <button
+        type="button"
+        onClick={() => void handleCopyVerse(verse)}
+        aria-label={copiedVerse === verse.number ? `Versículo ${verse.number} copiado` : `Copiar versículo ${verse.number}`}
+        title={copiedVerse === verse.number ? 'Copiado!' : 'Copiar versículo'}
+        className="absolute right-0 top-0 rounded p-1 text-[#8f704a] transition hover:bg-amber-200 hover:text-amber-950 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-800"
+      >
+        {copiedVerse === verse.number ? <Check size={13} /> : <Clipboard size={13} />}
+      </button>
+    </div>
   ));
+
+  const measurementVerses = activeChapter?.verses ?? [];
 
   if (isLoading) {
     return (
@@ -233,7 +467,7 @@ export const HolyBible = () => {
   if (loadError || !activeBook || !activeChapter) {
     return (
       <div className="mx-auto flex min-h-[50vh] max-w-lg flex-col items-center justify-center gap-4 rounded-3xl border border-white/10 bg-black/20 p-8 text-center text-white">
-        <Cross className="text-amber-300" size={30} />
+        <ChristianCrossIcon className="text-amber-300" size={30} />
         <p>{loadError || 'A leitura não está disponível.'}</p>
         {loadError && (
           <button
@@ -248,19 +482,15 @@ export const HolyBible = () => {
     );
   }
 
-  const leftPage = visibleVerses.slice(0, splitIndex);
-  const rightPage = visibleVerses.slice(splitIndex);
-  const isAtStart = bookIndex === 0 && chapterNumber === 1 && pageIndex === 0;
-  const isAtEnd = bookIndex === books.length - 1
-    && chapterNumber === activeBook.chapters.length
-    && pageIndex === pageCount - 1;
+  const firstVisibleVerse = visibleVerses[0]?.number ?? 1;
+  const lastVisibleVerse = visibleVerses.at(-1)?.number ?? firstVisibleVerse;
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-3 pb-8 pt-3 text-white sm:px-6">
-      <header className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-black/25 p-4 shadow-xl backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:p-5">
+    <main className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-3 pb-5 pt-3 text-white sm:gap-4 sm:px-6">
+      <header className="flex flex-col gap-3 rounded-3xl border border-white/10 bg-black/25 p-3 shadow-xl backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between sm:p-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-400/15 text-amber-300">
-            <Cross size={23} />
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-400/15 text-amber-300">
+            <ChristianCrossIcon size={24} />
           </div>
           <div>
             <h1 className="text-xl font-black tracking-wide">Holy Bible</h1>
@@ -273,8 +503,8 @@ export const HolyBible = () => {
           <select
             id="bible-book"
             value={bookIndex}
-            onChange={(event) => changePosition(Number(event.target.value), 1, 0, 1)}
-            className="min-w-36 rounded-xl border border-white/15 bg-neutral-900 px-3 py-2 text-sm text-white outline-none focus:border-amber-300"
+            onChange={(event) => changePosition(Number(event.target.value), 1, 0, 1, false)}
+            className="min-w-32 rounded-xl border border-white/15 bg-neutral-900 px-3 py-2 text-sm text-white outline-none focus:border-amber-300"
           >
             {books.map((book, index) => <option key={book.name} value={index}>{book.name}</option>)}
           </select>
@@ -282,7 +512,7 @@ export const HolyBible = () => {
           <select
             id="bible-chapter"
             value={chapterNumber}
-            onChange={(event) => changePosition(bookIndex, Number(event.target.value), 0, 1)}
+            onChange={(event) => changePosition(bookIndex, Number(event.target.value), 0, 1, false)}
             className="rounded-xl border border-white/15 bg-neutral-900 px-3 py-2 text-sm text-white outline-none focus:border-amber-300"
           >
             {activeBook.chapters.map((chapter) => (
@@ -306,96 +536,166 @@ export const HolyBible = () => {
           <BookOpen size={16} className="shrink-0 text-amber-300" />
           <span className="truncate">{activeBook.name} {chapterNumber}</span>
           <span className="shrink-0 text-white/40">·</span>
-          <span className="shrink-0">Pág. {pageIndex + 1} de {pageCount}</span>
+          <span className="shrink-0">Pág. {pageIndex + 1} de {pageVerses.length || '…'}</span>
         </div>
-        <p className="hidden text-right text-xs text-white/45 sm:block">Clique em uma palavra para ver a tradução e ouvir a pronúncia.</p>
+        <p className="hidden text-right text-xs text-white/45 sm:block">Clique numa palavra para traduzir e ouvir a pronúncia.</p>
       </div>
 
-      <section className="relative overflow-hidden rounded-[1.5rem] border border-amber-100/20 bg-[#24190f] p-2 shadow-[0_24px_70px_rgba(0,0,0,0.45)] sm:rounded-[2rem] sm:p-4">
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={`${bookIndex}-${chapterNumber}-${pageIndex}`}
-            initial={{ opacity: 0.6, rotateY: turnDirection > 0 ? -8 : 8, scale: 0.99 }}
-            animate={{ opacity: 1, rotateY: 0, scale: 1 }}
-            exit={{ opacity: 0.6, rotateY: turnDirection > 0 ? 8 : -8, scale: 0.99 }}
-            transition={{ duration: 0.28, ease: 'easeOut' }}
-            className="grid min-h-[30rem] grid-cols-1 overflow-hidden rounded-[1.15rem] bg-[#f7efd9] shadow-inner md:grid-cols-2 md:rounded-[1.5rem]"
-            style={{ transformPerspective: 1200 }}
+      <section
+        className="relative isolate overflow-hidden rounded-[1.25rem] border border-amber-100/20 bg-[#24190f] p-1.5 shadow-[0_24px_70px_rgba(0,0,0,0.45)] sm:rounded-[1.75rem] sm:p-3"
+        style={{ height: 'clamp(22rem, 55dvh, 42rem)' }}
+        aria-label="Livro aberto"
+      >
+        <div
+          ref={pageFrameRef}
+          className="relative h-full overflow-hidden rounded-[1rem] bg-[#f7efd9] shadow-inner md:rounded-[1.25rem]"
+          style={{ perspective: 1800 }}
+        >
+          <div
+            ref={measurementRef}
+            aria-hidden="true"
+            className="pointer-events-none invisible absolute left-[-200vw] top-0"
+            style={{ width: measurementWidth || '100%' }}
           >
-            <article className="relative border-b border-[#8f704a]/25 px-5 py-7 sm:px-8 sm:py-9 md:border-b-0 md:border-r md:px-10">
-              <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-5 bg-gradient-to-l from-[#725637]/10 to-transparent md:block" />
-              <h2 className="mb-5 text-center font-serif text-lg font-bold text-[#5b3c1f]">
-                {pageIndex === 0 ? `${activeBook.name} ${chapterNumber}` : `${activeBook.name} ${chapterNumber}`}
-              </h2>
-              {renderVerses(leftPage)}
-              {leftPage.length === 0 && <p className="text-sm text-[#3d3021]/60">Fim do capítulo</p>}
-              <span className="absolute bottom-3 left-1/2 -translate-x-1/2 font-serif text-xs text-[#8f704a]/70">
-                {firstVerseIndex + 1}
-              </span>
-            </article>
+            {measurementVerses.map((verse) => (
+              <div
+                key={verse.number}
+                data-measure-verse
+                className="mb-2 pr-7 text-[13px] leading-[1.65] text-[#3d3021] sm:text-sm"
+              >
+                <p className="m-0 text-justify">
+                  <sup className="mr-1 font-serif text-[10px] font-bold">{verse.number}</sup>
+                  {verse.text.split(/(\s+)/).map((part, index) => (
+                    <span data-measure-token key={index}>{part}</span>
+                  ))}
+                </p>
+              </div>
+            ))}
+          </div>
 
-            <article className="relative px-5 py-7 sm:px-8 sm:py-9 md:px-10">
-              <div className="pointer-events-none absolute inset-y-0 left-0 hidden w-5 bg-gradient-to-r from-[#725637]/10 to-transparent md:block" />
-              <h2 className="mb-5 text-center font-serif text-lg font-bold text-[#5b3c1f]">{activeBook.name}</h2>
-              {renderVerses(rightPage)}
-              <span className="absolute bottom-3 left-1/2 -translate-x-1/2 font-serif text-xs text-[#8f704a]/70">
-                {firstVerseIndex + splitIndex + 1}
-              </span>
-            </article>
-          </motion.div>
-        </AnimatePresence>
+          <AnimatePresence mode="wait" initial={false} custom={turnDirection}>
+            {pageVerses.length > 0 ? (
+              <motion.div
+                key={`${bookIndex}-${chapterNumber}-${pageIndex}-${flipKey}`}
+                variants={pageFlipVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{ duration: 0.62, ease: [0.42, 0, 0.2, 1] }}
+                className="absolute inset-0 grid h-full grid-cols-1 overflow-hidden bg-[#f7efd9] shadow-[inset_0_0_30px_rgba(90,60,30,0.12)] md:grid-cols-2"
+                style={{
+                  transformOrigin: turnDirection > 0 ? 'left center' : 'right center',
+                  transformStyle: 'preserve-3d',
+                  backfaceVisibility: 'hidden',
+                  boxShadow: '0 12px 30px rgba(48, 30, 12, 0.24)',
+                }}
+              >
+                <article className={`${PAGE_CLASSES} md:border-r`} style={{ height: '100%' }}>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-5 bg-gradient-to-l from-[#725637]/10 to-transparent md:block" />
+                  <h2 className="mb-3 h-8 text-center font-serif text-lg font-bold text-[#5b3c1f]">
+                    {activeBook.name} {chapterNumber}
+                  </h2>
+                  <div className="h-[calc(100%-4rem)] overflow-hidden">{renderVerses(leftPage)}</div>
+                  <span className="absolute bottom-2 left-1/2 -translate-x-1/2 font-serif text-xs text-[#8f704a]/70">
+                    {leftPage[0]?.number ?? firstVerseIndex}
+                  </span>
+                </article>
+
+                {geometry.columns === 2 && (
+                  <article className={`${PAGE_CLASSES} md:border-l-0`} style={{ height: '100%' }}>
+                    <div className="pointer-events-none absolute inset-y-0 left-0 hidden w-5 bg-gradient-to-r from-[#725637]/10 to-transparent md:block" />
+                    <h2 className="mb-3 h-8 text-center font-serif text-lg font-bold text-[#5b3c1f]">
+                      {activeBook.name}
+                    </h2>
+                    <div className="h-[calc(100%-4rem)] overflow-hidden">{renderVerses(rightPage)}</div>
+                    <span className="absolute bottom-2 left-1/2 -translate-x-1/2 font-serif text-xs text-[#8f704a]/70">
+                      {rightPage[0]?.number ?? lastVerseIndex}
+                    </span>
+                  </article>
+                )}
+              </motion.div>
+            ) : (
+              <div className="flex h-full items-center justify-center gap-2 text-sm text-[#725637]">
+                <LoaderCircle className="animate-spin" size={18} />
+                Preparando páginas...
+              </div>
+            )}
+          </AnimatePresence>
+        </div>
       </section>
 
-      {(selectedWord || translationError) && (
-        <div className="flex items-start justify-between gap-3 rounded-2xl border border-amber-300/25 bg-amber-950/30 px-4 py-3 text-sm text-amber-50">
-          <div className="min-w-0">
-            {selectedWord && <p className="font-bold text-amber-200">{selectedWord}</p>}
-            {isTranslating && <p className="mt-1 text-white/70">Traduzindo...</p>}
-            {translation && <p className="mt-1">{translation}</p>}
-            {translationError && <p className="mt-1 text-rose-200">{translationError}</p>}
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              translationRequest.current += 1;
-              setSelectedWord('');
-              setTranslation('');
-              setTranslationError('');
-              setIsTranslating(false);
-            }}
-            aria-label="Fechar tradução"
-            className="rounded-lg p-1 text-white/60 hover:bg-white/10 hover:text-white"
-          >
-            <X size={16} />
-          </button>
-        </div>
-      )}
-
-      <nav className="flex items-center justify-between gap-3" aria-label="Navegação da Bíblia">
+      <nav className="flex items-center justify-between gap-2" aria-label="Navegação da Bíblia">
         <button
           type="button"
           disabled={isAtStart}
           onClick={() => turnPage(-1)}
-          className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-35"
+          className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-35 sm:gap-2 sm:px-4"
         >
           <ChevronLeft size={18} /> Anterior
         </button>
-        <span className="text-xs text-white/50">{activeBook.name} {chapterNumber} · {firstVerseIndex + 1}–{Math.min(firstVerseIndex + visibleVerses.length, activeChapter.verses.length)}</span>
+        <span className="min-w-0 truncate text-center text-xs text-white/60">
+          {activeBook.name} {chapterNumber} · {firstVisibleVerse}–{lastVisibleVerse}
+        </span>
         <button
           type="button"
           disabled={isAtEnd}
           onClick={() => turnPage(1)}
-          className="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-4 py-2.5 text-sm font-bold text-neutral-950 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-35"
+          className="inline-flex items-center gap-1.5 rounded-xl bg-amber-400 px-3 py-2.5 text-sm font-bold text-neutral-950 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-35 sm:gap-2 sm:px-4"
         >
           Próxima <ChevronRight size={18} />
         </button>
       </nav>
 
-      {(soundError || translationError) && (
-        <p className="text-center text-xs text-rose-200" role="status">{soundError || translationError}</p>
+      {(translationPopup || copiedVerse !== null || copyError || soundError) && (
+        createPortal(
+          <div
+            role="status"
+            className={`fixed z-[100] max-h-[35dvh] w-[min(17.5rem,calc(100vw-1.5rem))] overflow-auto rounded-2xl border border-amber-200/30 bg-[#24190f]/95 p-3 text-sm text-amber-50 shadow-2xl backdrop-blur-xl ${
+              translationPopup ? '' : 'bottom-4 left-1/2 -translate-x-1/2'
+            }`}
+            style={translationPopup ? { left: translationPopup.left, top: translationPopup.top } : undefined}
+          >
+            {translationPopup ? (
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-bold text-amber-200">{translationPopup.word}</p>
+                  {translationPopup.loading && <p className="mt-1 text-white/70">Traduzindo...</p>}
+                  {translationPopup.text && <p className="mt-1">{translationPopup.text}</p>}
+                  {translationPopup.error && <p className="mt-1 text-rose-200">{translationPopup.error}</p>}
+                </div>
+                <button
+                  type="button"
+                  onClick={clearTranslation}
+                  aria-label="Fechar tradução"
+                  className="rounded-lg p-1 text-white/60 hover:bg-white/10 hover:text-white"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            ) : copiedVerse !== null ? (
+              <p>Versículo copiado.</p>
+            ) : (
+              <div className="flex items-start justify-between gap-3">
+                <span>{copyError || soundError}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCopyError('');
+                    setSoundError('');
+                  }}
+                  aria-label="Fechar aviso"
+                  className="rounded-lg p-1 text-white/60 hover:bg-white/10 hover:text-white"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            )}
+          </div>,
+          document.body,
+        )
       )}
 
-      <footer className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-center text-xs leading-relaxed text-white/55">
+      <footer className="rounded-2xl border border-white/10 bg-black/20 px-4 py-2.5 text-center text-xs leading-relaxed text-white/55">
         <p>King James Version (1611) · 66 livros do cânone protestante. Texto-fonte: edição digital nº 10.</p>
         <a
           href="https://www.gutenberg.org/ebooks/10"
