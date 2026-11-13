@@ -468,7 +468,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     ? appConfig.studentAppOrder
     : ['home', ...appConfig.studentAppOrder];
 
-  const studentItems = effectiveStudentOrder
+  const studentItems = ensureAppAfter(effectiveStudentOrder, 'holybible', 'readclub')
     .map((appId) => ALL_STUDENT_ITEMS.find((item) => item.id === appId))
     .filter((item): item is typeof ALL_STUDENT_ITEMS[number] => {
       if (!item) return false;
@@ -478,7 +478,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     });
 
   // Build Ordered Admin Items
-  const adminItems = appConfig.adminAppOrder
+  const adminItems = ensureAppAfter(appConfig.adminAppOrder, 'holybible', 'readclub')
     .map((appId) => ALL_ADMIN_ITEMS.find((item) => item.id === appId))
     .filter((item): item is typeof ALL_ADMIN_ITEMS[number] => Boolean(item));
   if (!adminItems.some((item) => item.id === 'feedback')) {
