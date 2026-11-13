@@ -169,6 +169,7 @@ export const HolyBible = () => {
   const [chapterNumber, setChapterNumber] = useState(1);
   const [pageIndex, setPageIndex] = useState(0);
   const [isBookOpen, setIsBookOpen] = useState(false);
+  const [isOpeningBook, setIsOpeningBook] = useState(false);
   const [annotations, setAnnotations] = useState<VerseAnnotations>(readVerseAnnotations);
   const [highlightColor, setHighlightColor] = useState(HIGHLIGHT_COLORS[0].value);
   const [editingNote, setEditingNote] = useState<{ reference: string; text: string } | null>(null);
@@ -182,6 +183,9 @@ export const HolyBible = () => {
   const [copiedVerse, setCopiedVerse] = useState<number | null>(null);
   const [copyError, setCopyError] = useState('');
   const pageFrameRef = useRef<HTMLDivElement | null>(null);
+  const openingSpreadRef = useRef<HTMLDivElement | null>(null);
+  const openingCoverRef = useRef<HTMLButtonElement | null>(null);
+  const openingShadowRef = useRef<HTMLDivElement | null>(null);
   const markerToolbarRef = useRef<HTMLDivElement | null>(null);
   const readerRef = useRef<HTMLElement | null>(null);
   const previousAnnotationsRef = useRef<VerseAnnotations>(annotations);
@@ -240,6 +244,58 @@ export const HolyBible = () => {
     return () => observer.disconnect();
   }, [isBookOpen, isLoading]);
 
+  useLayoutEffect(() => {
+    if (!isOpeningBook) return undefined;
+
+    const finishOpening = () => {
+      setIsBookOpen(true);
+      setIsOpeningBook(false);
+    };
+    const cover = openingCoverRef.current;
+    const spread = openingSpreadRef.current;
+    if (!cover || !spread || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      finishOpening();
+      return undefined;
+    }
+
+    const timeline = gsap.timeline({ onComplete: finishOpening });
+    timeline
+      .fromTo(spread, { autoAlpha: 0, scale: 0.985, filter: 'brightness(0.72)' }, {
+        autoAlpha: 1,
+        scale: 1,
+        filter: 'brightness(1)',
+        duration: 0.65,
+        ease: 'power2.out',
+      }, 0)
+      .to(cover, {
+        xPercent: window.matchMedia('(min-width: 768px)').matches ? 50 : 0,
+        rotationY: -154,
+        scaleX: 0.98,
+        duration: 0.95,
+        ease: 'power3.inOut',
+      }, 0.08)
+      .to(cover, {
+        rotationY: -180,
+        scaleX: 1,
+        duration: 0.4,
+        ease: 'power2.out',
+      }, '-=0.16');
+
+    if (openingShadowRef.current) {
+      timeline.fromTo(openingShadowRef.current, { opacity: 0.04 }, {
+        opacity: 0.48,
+        duration: 0.55,
+        ease: 'sine.inOut',
+        yoyo: true,
+        repeat: 1,
+      }, 0.08);
+    }
+
+    return () => {
+      timeline.kill();
+    };
+  }, [isOpeningBook]);
+
   useEffect(() => {
     try {
       window.localStorage.setItem(ANNOTATIONS_STORAGE_KEY, JSON.stringify(annotations));
@@ -254,6 +310,7 @@ export const HolyBible = () => {
     const toolbar = markerToolbarRef.current;
     const reader = readerRef.current;
     const animations: gsap.core.Tween[] = [];
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return undefined;
 
     if (toolbar) {
       animations.push(gsap.fromTo(toolbar, { autoAlpha: 0, y: 12 }, {
@@ -841,24 +898,84 @@ export const HolyBible = () => {
       </header>
 
       {!isBookOpen ? (
-        <button
-          type="button"
-          onClick={() => setIsBookOpen(true)}
-          aria-label="Abrir a Bíblia"
-          className="group relative mx-auto flex w-full max-w-[25rem] flex-col items-center justify-center overflow-hidden rounded-[1.35rem] border border-[#b99a5c]/65 bg-[radial-gradient(ellipse_at_50%_38%,#24211d_0%,#11100f_58%,#080808_100%)] px-8 py-10 text-[#d7bd82] shadow-[0_30px_70px_rgba(0,0,0,0.55),inset_8px_0_12px_rgba(255,255,255,0.035),inset_-8px_0_16px_rgba(0,0,0,0.75)] transition duration-300 hover:-translate-y-1 hover:border-[#d3b873] hover:shadow-[0_36px_80px_rgba(0,0,0,0.62),inset_8px_0_12px_rgba(255,255,255,0.04),inset_-8px_0_16px_rgba(0,0,0,0.75)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-amber-300"
-          style={{ height: 'clamp(26rem, 65dvh, 38rem)' }}
+        <section
+          className="relative isolate mx-auto w-full max-w-5xl overflow-hidden rounded-[1.75rem] border border-amber-100/20 bg-gradient-to-br from-[#3a2919] to-[#17100a] p-2 shadow-[0_30px_80px_rgba(0,0,0,0.55)] sm:p-3"
+          style={{ height: 'clamp(28rem, 68dvh, 42rem)', perspective: 1800 }}
+          aria-label="Bíblia fechada"
         >
-          <span aria-hidden="true" className="pointer-events-none absolute inset-3 rounded-[1rem] border border-[#c6a75f]/45" />
-          <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 w-3 bg-gradient-to-r from-[#9d824b]/60 via-[#342c1d] to-transparent" />
-          <span aria-hidden="true" className="pointer-events-none absolute inset-y-5 left-4 w-px bg-[#d0b36e]/20" />
-          <span className="mb-7 text-[10px] font-semibold tracking-[0.4em] text-[#c8ae72]/75">THE HOLY SCRIPTURES</span>
-          <ChristianCrossIcon size={64} className="mb-7 text-[#ddc581] drop-shadow-[0_2px_8px_rgba(214,184,111,0.28)] transition-transform duration-300 group-hover:scale-105" />
-          <span className="font-serif text-3xl font-semibold tracking-[0.24em]">HOLY</span>
-          <span className="mt-1 font-serif text-3xl font-semibold tracking-[0.24em]">BIBLE</span>
-          <span className="mt-5 text-[10px] tracking-[0.3em] text-[#c8ae72]/70">KING JAMES VERSION</span>
-          <span aria-hidden="true" className="mt-8 h-px w-20 bg-gradient-to-r from-transparent via-[#c6a75f]/70 to-transparent" />
-          <span className="mt-5 text-xs font-medium tracking-wide text-[#eee1bd]/75 transition-colors group-hover:text-[#fff5d8]">Toque para abrir</span>
-        </button>
+          <div
+            ref={openingSpreadRef}
+            aria-hidden="true"
+            className="absolute inset-2 grid grid-cols-2 overflow-hidden rounded-[1rem] bg-[#f7efd9] shadow-[inset_0_0_34px_rgba(90,60,30,0.2)] opacity-0 sm:inset-3 sm:rounded-[1.25rem]"
+            style={{ visibility: 'hidden' }}
+          >
+            {[activeChapter.verses.slice(0, Math.ceil(activeChapter.verses.length / 2)), activeChapter.verses.slice(Math.ceil(activeChapter.verses.length / 2), Math.ceil(activeChapter.verses.length / 2) + 10)].map((verses, page) => (
+              <article
+                key={page}
+                className={`min-w-0 overflow-hidden px-3 py-5 text-[#3d3021] sm:px-7 sm:py-8 ${
+                  page === 0 ? 'border-r border-[#8f704a]/25' : 'border-l border-white/50'
+                }`}
+              >
+                <h2 className="mb-4 text-center font-serif text-sm font-bold text-[#5b3c1f] sm:text-lg">
+                  {activeBook.name}{page === 0 ? '' : ` ${chapterNumber}`}
+                </h2>
+                <div className="space-y-2 font-serif text-[10px] leading-relaxed sm:text-xs">
+                  {verses.map((verse) => (
+                    <p key={verse.number} className="m-0 text-justify">
+                      <sup className="mr-1 font-bold text-amber-800/70">{verse.number}</sup>
+                      {verse.text}
+                    </p>
+                  ))}
+                </div>
+                <span className="mt-4 block text-center font-serif text-[10px] text-[#8f704a]/70">
+                  {verses[0]?.number ?? 1}
+                </span>
+              </article>
+            ))}
+          </div>
+          <div
+            ref={openingShadowRef}
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-y-3 left-1/2 z-10 w-16 -translate-x-1/2 bg-gradient-to-r from-transparent via-[#321e0c]/40 to-transparent opacity-0 sm:inset-y-4 sm:w-24"
+          />
+          <button
+            ref={openingCoverRef}
+            type="button"
+            onClick={() => setIsOpeningBook(true)}
+            disabled={isOpeningBook}
+            aria-label="Abrir a Bíblia"
+            className="group absolute inset-y-2 left-[7%] z-20 w-[86%] overflow-visible rounded-[1.35rem] border border-[#b99a5c]/65 p-0 text-[#d7bd82] shadow-[0_26px_48px_rgba(0,0,0,0.55),inset_8px_0_12px_rgba(255,255,255,0.035),inset_-8px_0_16px_rgba(0,0,0,0.75)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-amber-300 disabled:cursor-wait md:left-1/4 md:w-1/2 sm:inset-y-3"
+            style={{ transformOrigin: 'left center', transformStyle: 'preserve-3d', backfaceVisibility: 'hidden' }}
+          >
+            <span
+              className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden rounded-[1.3rem] bg-[radial-gradient(ellipse_at_50%_38%,#24211d_0%,#11100f_58%,#080808_100%)] px-5 py-8 transition-[border-color,box-shadow] duration-300 group-hover:border-[#d3b873] group-hover:shadow-[inset_8px_0_12px_rgba(255,255,255,0.04),inset_-8px_0_16px_rgba(0,0,0,0.75)] sm:px-8 sm:py-10"
+              style={{ backfaceVisibility: 'hidden' }}
+            >
+              <span aria-hidden="true" className="pointer-events-none absolute inset-3 rounded-[1rem] border border-[#c6a75f]/45" />
+              <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 w-3 bg-gradient-to-r from-[#9d824b]/60 via-[#342c1d] to-transparent" />
+              <span aria-hidden="true" className="pointer-events-none absolute inset-y-5 left-4 w-px bg-[#d0b36e]/20" />
+              <span className="mb-5 text-[9px] font-semibold tracking-[0.35em] text-[#c8ae72]/75 sm:mb-7 sm:text-[10px]">THE HOLY SCRIPTURES</span>
+              <ChristianCrossIcon size={56} className="mb-5 text-[#ddc581] drop-shadow-[0_2px_8px_rgba(214,184,111,0.28)] transition-transform duration-300 group-hover:scale-105 sm:mb-7 sm:h-16 sm:w-16" />
+              <span className="font-serif text-2xl font-semibold tracking-[0.24em] sm:text-3xl">HOLY</span>
+              <span className="mt-1 font-serif text-2xl font-semibold tracking-[0.24em] sm:text-3xl">BIBLE</span>
+              <span className="mt-4 text-[9px] tracking-[0.3em] text-[#c8ae72]/70 sm:mt-5 sm:text-[10px]">KING JAMES VERSION</span>
+              <span aria-hidden="true" className="mt-6 h-px w-20 bg-gradient-to-r from-transparent via-[#c6a75f]/70 to-transparent sm:mt-8" />
+              <span className="mt-4 text-xs font-medium tracking-wide text-[#eee1bd]/75 transition-colors group-hover:text-[#fff5d8] sm:mt-5">Toque para abrir</span>
+            </span>
+            <span
+              aria-hidden="true"
+              className="absolute inset-0 grid place-items-center overflow-hidden rounded-[1.3rem] border border-[#d6c18e]/60 bg-[linear-gradient(100deg,#e7d9b8_0%,#faf2dc_48%,#ddcba2_100%)] text-[#8f704a]"
+              style={{ transform: 'rotateY(180deg)', backfaceVisibility: 'hidden' }}
+            >
+              <span className="absolute inset-3 rounded-[1rem] border border-[#9b7a46]/25" />
+              <span className="flex flex-col items-center font-serif">
+                <ChristianCrossIcon size={36} className="text-[#9b7a46]/55" />
+                <span className="mt-3 text-[9px] tracking-[0.35em] text-[#8f704a]/70">THE HOLY SCRIPTURES</span>
+              </span>
+              <span className="absolute inset-y-0 right-0 w-3 bg-gradient-to-l from-[#8f704a]/20 to-transparent" />
+            </span>
+          </button>
+        </section>
       ) : (
         <>
       <div className="flex items-center justify-between gap-3 px-1">
@@ -900,7 +1017,7 @@ export const HolyBible = () => {
       <section
         ref={readerRef}
         className="relative isolate overflow-hidden rounded-[1.25rem] border border-amber-100/20 bg-gradient-to-br from-[#3a2919] to-[#17100a] p-2 shadow-[0_24px_70px_rgba(0,0,0,0.5)] sm:rounded-[1.75rem] sm:p-3"
-        style={{ height: 'clamp(28rem, 68dvh, 48rem)' }}
+        style={{ height: 'clamp(28rem, 68dvh, 42rem)' }}
         aria-label="Livro aberto"
       >
         <div
