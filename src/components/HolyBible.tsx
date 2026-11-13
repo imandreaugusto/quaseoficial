@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AnimatePresence, motion, type Variants } from 'motion/react';
+import { gsap } from 'gsap';
 import { BookOpen, Check, ChevronLeft, ChevronRight, Clipboard, LoaderCircle, Volume2, VolumeX, X } from 'lucide-react';
 import { ChristianCrossIcon } from './ChristianCrossIcon';
 import { lookupDictionary, translateText } from '../lib/translator';
@@ -41,23 +41,22 @@ interface TranslationPopup {
   top: number;
 }
 
+interface PageTurnState {
+  direction: -1 | 1;
+  frontVerses: BibleVerse[];
+  backVerses: BibleVerse[];
+  frontTitle: string;
+  backTitle: string;
+  frontPageNumber: number;
+  backPageNumber: number;
+  targetBookIndex: number;
+  targetChapterNumber: number;
+  targetPageIndex: number;
+}
+
 const cleanWord = (word: string) => word.toLowerCase().replace(/[^a-z']/g, '').replace(/^'+|'+$/g, '');
 const PAGE_CLASSES = 'relative min-w-0 overflow-hidden border-b border-[#8f704a]/25 px-5 py-5 sm:px-8 sm:py-7 md:border-b-0 md:px-8';
 const PAGE_CONTENT_GUTTER = 64;
-
-const pageFlipVariants: Variants = {
-  enter: (direction: number) => ({
-    opacity: 0.76,
-    rotateY: direction > 0 ? 20 : -20,
-    scale: 0.985,
-  }),
-  center: { opacity: 1, rotateY: 0, scale: 1 },
-  exit: (direction: number) => ({
-    opacity: 0.75,
-    rotateY: direction > 0 ? -88 : 88,
-    scale: 0.985,
-  }),
-};
 
 const playPageTurnSound = () => {
   const context = new window.AudioContext();
@@ -125,8 +124,7 @@ export const HolyBible = () => {
   const [bookIndex, setBookIndex] = useState(0);
   const [chapterNumber, setChapterNumber] = useState(1);
   const [pageIndex, setPageIndex] = useState(0);
-  const [turnDirection, setTurnDirection] = useState(1);
-  const [flipKey, setFlipKey] = useState(0);
+  const [pageTurn, setPageTurn] = useState<PageTurnState | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [soundError, setSoundError] = useState('');
   const [geometry, setGeometry] = useState<ReaderGeometry>({ width: 0, height: 0, columns: 1 });
@@ -136,6 +134,9 @@ export const HolyBible = () => {
   const [copyError, setCopyError] = useState('');
   const pageFrameRef = useRef<HTMLDivElement | null>(null);
   const measurementRef = useRef<HTMLDivElement | null>(null);
+  const pageTurnSheetRef = useRef<HTMLDivElement | null>(null);
+  const pageTurnShadowRef = useRef<HTMLDivElement | null>(null);
+  const isTurningPage = useRef(false);
   const translationRequest = useRef(0);
   const copiedFeedbackTimer = useRef<number | null>(null);
   const popupAnchor = useRef<HTMLElement | null>(null);
@@ -285,6 +286,54 @@ export const HolyBible = () => {
     }
   }, [pageIndex, pageVerses]);
 
+  useLayoutEffect(() => {
+    if (!pageTurn) return undefined;
+
+    const finishTurn = () => {
+      setBookIndex(pageTurn.targetBookIndex);
+      setChapterNumber(pageTurn.targetChapterNumber);
+      setPageIndex(pageTurn.targetPageIndex);
+      setPageTurn(null);
+      isTurningPage.current = false;
+    };
+
+    const sheet = pageTurnSheetRef.current;
+    if (!sheet || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      finishTurn();
+      return undefined;
+    }
+
+    const timeline = gsap.timeline({ onComplete: finishTurn });
+    timeline
+      .to(sheet, {
+        rotateY: pageTurn.direction > 0 ? -92 : 92,
+        scaleX: 0.97,
+        z: 8,
+        duration: 0.38,
+        ease: 'power2.in',
+      })
+      .to(sheet, {
+        rotateY: pageTurn.direction > 0 ? -180 : 180,
+        scaleX: 1,
+        z: 0,
+        duration: 0.38,
+        ease: 'power2.out',
+      });
+
+    if (pageTurnShadowRef.current) {
+      timeline.fromTo(
+        pageTurnShadowRef.current,
+        { opacity: 0.08 },
+        { opacity: 0.48, duration: 0.38, ease: 'sine.inOut', yoyo: true, repeat: 1 },
+        0,
+      );
+    }
+
+    return () => {
+      timeline.kill();
+    };
+  }, [pageTurn]);
+
   const currentSpread = pageVerses[pageIndex] ?? [[], []];
   const leftPage = currentSpread[0] ?? [];
   const rightPage = currentSpread[1] ?? [];
@@ -305,11 +354,10 @@ export const HolyBible = () => {
     nextBookIndex: number,
     nextChapterNumber: number,
     nextPageIndex: number,
-    direction: number,
     playSound = true,
   ) => {
-    setTurnDirection(direction);
-    setFlipKey((key) => key + 1);
+    isTurningPage.current = false;
+    setPageTurn(null);
     clearTranslation();
     setCopyError('');
     setCopiedVerse(null);
@@ -329,36 +377,91 @@ export const HolyBible = () => {
     setPageIndex(nextPageIndex);
   }, [soundEnabled]);
 
+  const startPageTurn = (
+    targetBookIndex: number,
+    targetChapterNumber: number,
+    targetPageIndex: number,
+    direction: -1 | 1,
+  ) => {
+    if (isTurningPage.current) return;
+
+    const targetSpread = targetBookIndex === bookIndex && targetChapterNumber === chapterNumber
+      ? pageVerses[targetPageIndex]
+      : undefined;
+    const frontVerses = geometry.columns === 2
+      ? direction > 0 ? rightPage : leftPage
+      : leftPage;
+    const backVerses = targetSpread
+      ? geometry.columns === 2
+        ? direction > 0 ? targetSpread[0] ?? [] : targetSpread[1] ?? targetSpread[0] ?? []
+        : targetSpread[0] ?? []
+      : [];
+    const targetBookName = books[targetBookIndex]?.name ?? activeBook?.name ?? '';
+    const frontTitle = geometry.columns === 2 && direction > 0
+      ? activeBook?.name ?? ''
+      : `${activeBook?.name ?? ''} ${chapterNumber}`;
+    const backTitle = geometry.columns === 2 && direction < 0
+      ? targetBookName
+      : `${targetBookName} ${targetChapterNumber}`;
+
+    isTurningPage.current = true;
+    clearTranslation();
+    setCopyError('');
+    setCopiedVerse(null);
+
+    if (soundEnabled) {
+      try {
+        playPageTurnSound();
+        setSoundError('');
+      } catch (error) {
+        console.warn('Could not play the page-turn sound:', error);
+        setSoundError('O navegador não conseguiu reproduzir o som da página.');
+      }
+    }
+
+    setPageTurn({
+      direction,
+      frontVerses,
+      backVerses,
+      frontTitle,
+      backTitle,
+      frontPageNumber: frontVerses[0]?.number ?? firstVerseIndex,
+      backPageNumber: backVerses[0]?.number ?? (direction > 0 ? lastVerseIndex + 1 : 1),
+      targetBookIndex,
+      targetChapterNumber,
+      targetPageIndex,
+    });
+  };
+
   const turnPage = (direction: -1 | 1) => {
     if (!activeBook || !activeChapter || pageVerses.length === 0) return;
 
     if (direction > 0) {
       if (pageIndex + 1 < pageVerses.length) {
-        changePosition(bookIndex, chapterNumber, pageIndex + 1, direction);
+        startPageTurn(bookIndex, chapterNumber, pageIndex + 1, direction);
         return;
       }
       if (chapterNumber < activeBook.chapters.length) {
-        changePosition(bookIndex, chapterNumber + 1, 0, direction);
+        startPageTurn(bookIndex, chapterNumber + 1, 0, direction);
         return;
       }
-      if (bookIndex + 1 < books.length) changePosition(bookIndex + 1, 1, 0, direction);
+      if (bookIndex + 1 < books.length) startPageTurn(bookIndex + 1, 1, 0, direction);
       return;
     }
 
     if (pageIndex > 0) {
-      changePosition(bookIndex, chapterNumber, pageIndex - 1, direction);
+      startPageTurn(bookIndex, chapterNumber, pageIndex - 1, direction);
       return;
     }
     if (chapterNumber > 1) {
-      const previousChapter = activeBook.chapters[chapterNumber - 2];
-      changePosition(bookIndex, chapterNumber - 1, -1, direction);
+      startPageTurn(bookIndex, chapterNumber - 1, -1, direction);
       return;
     }
     if (bookIndex > 0) {
       const previousBook = books[bookIndex - 1];
       const lastChapter = previousBook.chapters.at(-1);
       if (lastChapter) {
-        changePosition(bookIndex - 1, lastChapter.number, -1, direction);
+        startPageTurn(bookIndex - 1, lastChapter.number, -1, direction);
       }
     }
   };
@@ -453,6 +556,31 @@ export const HolyBible = () => {
     </div>
   ));
 
+  const renderPageFace = (
+    verses: BibleVerse[],
+    title: string,
+    pageNumber: number,
+  ) => (
+    <article className={`${PAGE_CLASSES} h-full bg-[#f7efd9]`} aria-hidden="true">
+      <h2 className="mb-3 h-8 text-center font-serif text-lg font-bold text-[#5b3c1f]">
+        {title}
+      </h2>
+      <div className="h-[calc(100%-4rem)] overflow-hidden">
+        {verses.map((verse) => (
+          <div key={`${verse.number}-${verse.text}`} className="mb-2 pr-7 text-[13px] leading-[1.65] text-[#3d3021] sm:text-sm">
+            <p className="m-0 text-justify">
+              {!verse.continuation && <sup className="mr-1 font-serif text-[10px] font-bold text-amber-800/70">{verse.number}</sup>}
+              {verse.text}
+            </p>
+          </div>
+        ))}
+      </div>
+      <span className="absolute bottom-2 left-1/2 -translate-x-1/2 font-serif text-xs text-[#8f704a]/70">
+        {pageNumber}
+      </span>
+    </article>
+  );
+
   const measurementVerses = activeChapter?.verses ?? [];
 
   if (isLoading) {
@@ -503,7 +631,7 @@ export const HolyBible = () => {
           <select
             id="bible-book"
             value={bookIndex}
-            onChange={(event) => changePosition(Number(event.target.value), 1, 0, 1, false)}
+            onChange={(event) => changePosition(Number(event.target.value), 1, 0, false)}
             className="min-w-32 rounded-xl border border-white/15 bg-neutral-900 px-3 py-2 text-sm text-white outline-none focus:border-amber-300"
           >
             {books.map((book, index) => <option key={book.name} value={index}>{book.name}</option>)}
@@ -512,7 +640,7 @@ export const HolyBible = () => {
           <select
             id="bible-chapter"
             value={chapterNumber}
-            onChange={(event) => changePosition(bookIndex, Number(event.target.value), 0, 1, false)}
+            onChange={(event) => changePosition(bookIndex, Number(event.target.value), 0, false)}
             className="rounded-xl border border-white/15 bg-neutral-900 px-3 py-2 text-sm text-white outline-none focus:border-amber-300"
           >
             {activeBook.chapters.map((chapter) => (
@@ -573,23 +701,8 @@ export const HolyBible = () => {
             ))}
           </div>
 
-          <AnimatePresence mode="wait" initial={false} custom={turnDirection}>
-            {pageVerses.length > 0 ? (
-              <motion.div
-                key={`${bookIndex}-${chapterNumber}-${pageIndex}-${flipKey}`}
-                variants={pageFlipVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ duration: 0.62, ease: [0.42, 0, 0.2, 1] }}
-                className="absolute inset-0 grid h-full grid-cols-1 overflow-hidden bg-[#f7efd9] shadow-[inset_0_0_30px_rgba(90,60,30,0.12)] md:grid-cols-2"
-                style={{
-                  transformOrigin: turnDirection > 0 ? 'left center' : 'right center',
-                  transformStyle: 'preserve-3d',
-                  backfaceVisibility: 'hidden',
-                  boxShadow: '0 12px 30px rgba(48, 30, 12, 0.24)',
-                }}
-              >
+          {pageVerses.length > 0 ? (
+            <div className="absolute inset-0 grid h-full grid-cols-1 overflow-hidden bg-[#f7efd9] shadow-[inset_0_0_30px_rgba(90,60,30,0.12)] md:grid-cols-2">
                 <article className={`${PAGE_CLASSES} md:border-r`} style={{ height: '100%' }}>
                   <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-5 bg-gradient-to-l from-[#725637]/10 to-transparent md:block" />
                   <h2 className="mb-3 h-8 text-center font-serif text-lg font-bold text-[#5b3c1f]">
@@ -613,14 +726,59 @@ export const HolyBible = () => {
                     </span>
                   </article>
                 )}
-              </motion.div>
-            ) : (
-              <div className="flex h-full items-center justify-center gap-2 text-sm text-[#725637]">
-                <LoaderCircle className="animate-spin" size={18} />
-                Preparando páginas...
+            </div>
+          ) : (
+            <div className="flex h-full items-center justify-center gap-2 text-sm text-[#725637]">
+              <LoaderCircle className="animate-spin" size={18} />
+              Preparando páginas...
+            </div>
+          )}
+
+          {pageTurn && (
+            <>
+              <div
+                ref={pageTurnShadowRef}
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-y-0 left-1/2 z-[5] hidden w-16 -translate-x-1/2 bg-gradient-to-r from-transparent via-[#321e0c]/30 to-transparent md:block"
+              />
+              <div
+                ref={pageTurnSheetRef}
+                aria-hidden="true"
+                className={`pointer-events-none absolute inset-y-0 z-10 w-full md:w-1/2 ${
+                  pageTurn.direction > 0 ? 'right-0' : 'left-0'
+                }`}
+                style={{
+                  transformOrigin: pageTurn.direction > 0 ? 'left center' : 'right center',
+                  transformStyle: 'preserve-3d',
+                  willChange: 'transform',
+                  filter: 'drop-shadow(0 8px 10px rgba(48, 30, 12, 0.26))',
+                }}
+              >
+                <div
+                  className="absolute inset-0 overflow-hidden rounded-[0.5rem] bg-[#f7efd9]"
+                  style={{ backfaceVisibility: 'hidden' }}
+                >
+                  {renderPageFace(pageTurn.frontVerses, pageTurn.frontTitle, pageTurn.frontPageNumber)}
+                  <div className={`pointer-events-none absolute inset-y-0 w-8 ${
+                    pageTurn.direction > 0
+                      ? 'left-0 bg-gradient-to-r from-[#725637]/20 via-[#725637]/5 to-transparent'
+                      : 'right-0 bg-gradient-to-l from-[#725637]/20 via-[#725637]/5 to-transparent'
+                  }`} />
+                </div>
+                <div
+                  className="absolute inset-0 overflow-hidden rounded-[0.5rem] bg-[#f7efd9]"
+                  style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
+                >
+                  {renderPageFace(pageTurn.backVerses, pageTurn.backTitle, pageTurn.backPageNumber)}
+                  <div className={`pointer-events-none absolute inset-y-0 w-8 ${
+                    pageTurn.direction > 0
+                      ? 'right-0 bg-gradient-to-l from-[#725637]/20 via-[#725637]/5 to-transparent'
+                      : 'left-0 bg-gradient-to-r from-[#725637]/20 via-[#725637]/5 to-transparent'
+                  }`} />
+                </div>
               </div>
-            )}
-          </AnimatePresence>
+            </>
+          )}
         </div>
       </section>
 
