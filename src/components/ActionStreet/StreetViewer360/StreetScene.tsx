@@ -15,6 +15,8 @@ interface Props {
   hotspots: Hotspot[];
   collectedIds: Set<string>;
   onHotspot: (hotspotId: string) => void;
+  initialImageId?: string;
+  onImageChange?: (imageId: string) => void;
 }
 
 const PIN_POSITIONS = [
@@ -125,8 +127,25 @@ function FallbackScene({ weather, notice }: { weather: City['weatherPreset']; no
   );
 }
 
-function MapillaryLayer({ spot, token, onStatus }: { spot: Spot; token: string; onStatus: (status: ViewerStatus) => void }) {
+function MapillaryLayer({
+  spot,
+  token,
+  initialImageId,
+  onStatus,
+  onImageChange,
+}: {
+  spot: Spot;
+  token: string;
+  initialImageId?: string;
+  onStatus: (status: ViewerStatus) => void;
+  onImageChange?: (imageId: string) => void;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const imageChangeRef = useRef(onImageChange);
+
+  useEffect(() => {
+    imageChangeRef.current = onImageChange;
+  }, [onImageChange]);
 
   useEffect(() => {
     let cancelled = false;
@@ -135,11 +154,14 @@ function MapillaryLayer({ spot, token, onStatus }: { spot: Spot; token: string; 
 
     (async () => {
       try {
-        const imageId = spot.imageId ?? (await findNearestImageId(token, spot.coordinates));
+        const imageId = spot.imageId ?? initialImageId ?? (await findNearestImageId(token, spot.coordinates));
         if (!imageId) throw new Error('Nenhuma imagem 360º encontrada perto deste ponto.');
         const { Viewer } = await import('mapillary-js');
         if (cancelled || !containerRef.current) return;
-        viewer = new Viewer({ accessToken: token, container: containerRef.current, imageId, component: { cover: false } });
+        const created = new Viewer({ accessToken: token, container: containerRef.current, imageId, component: { cover: false } });
+        created.on('image', (event) => imageChangeRef.current?.(event.image.id));
+        viewer = created;
+        imageChangeRef.current?.(imageId);
         onStatus('ready');
       } catch {
         if (!cancelled) onStatus('error');
@@ -150,7 +172,7 @@ function MapillaryLayer({ spot, token, onStatus }: { spot: Spot; token: string; 
       cancelled = true;
       viewer?.remove();
     };
-  }, [spot, token, onStatus]);
+  }, [spot, token, initialImageId, onStatus]);
 
   return <div ref={containerRef} className="absolute inset-0 bg-slate-950" />;
 }
@@ -190,7 +212,7 @@ function HotspotPin({ hotspot, position, collected, onClick }: { hotspot: Hotspo
   );
 }
 
-export default function StreetScene({ city, spot, hotspots, collectedIds, onHotspot }: Props) {
+export default function StreetScene({ city, spot, hotspots, collectedIds, onHotspot, initialImageId, onImageChange }: Props) {
   const token = getMapillaryToken();
   const [status, setStatus] = useState<ViewerStatus>(token ? 'loading' : 'error');
 
@@ -201,7 +223,7 @@ export default function StreetScene({ city, spot, hotspots, collectedIds, onHots
 
   return (
     <div className="absolute inset-0">
-      {token && <MapillaryLayer spot={spot} token={token} onStatus={setStatus} />}
+      {token && <MapillaryLayer spot={spot} token={token} initialImageId={initialImageId} onStatus={setStatus} onImageChange={onImageChange} />}
       {!usingMapillary && <FallbackScene weather={city.weatherPreset} notice={notice} />}
 
       {status === 'loading' && token && (

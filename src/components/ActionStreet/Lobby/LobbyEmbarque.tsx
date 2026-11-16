@@ -2,15 +2,23 @@ import { useState } from 'react';
 import { ArrowLeft, Backpack, BookOpen, Coins, Lock, MapPin, Plane, Sparkles } from 'lucide-react';
 import gsap from 'gsap';
 import actionStreetData from '../../../data/actionStreetData.json';
+import { journeyStore, type CameraSnapshot } from '../../../lib/actionStreet/journeyStore';
 import { persistenceManager } from '../../../lib/actionStreet/persistenceManager';
+import { getVisaStatus } from '../../../lib/actionStreet/visa';
 import { useActionStreet } from '../ActionStreetContext';
 import LobbyMap from '../Map3D/LobbyMap';
-import PassportModal, { type PassportTab } from '../Modals/PassportModal';
+import PassportModal, { type PassportHighlight, type PassportTab } from '../Modals/PassportModal';
+import VisaNotice from '../Modals/VisaNotice';
+import VisaRenewalQuiz from '../Modals/VisaRenewalQuiz';
 import { glass } from '../shared/glass';
+import StreakChip from '../shared/StreakChip';
+import ResumeBanner from './ResumeBanner';
 
 interface Props {
   onBoard: (cityId: string) => void;
   onClose: () => void;
+  initialCamera?: CameraSnapshot;
+  resume?: { cityName: string; onContinue: () => void; onDismiss: () => void };
 }
 
 const origin = {
@@ -18,16 +26,19 @@ const origin = {
   coordinates: actionStreetData.originHub.coordinates as [number, number],
 };
 
-export default function LobbyEmbarque({ onBoard, onClose }: Props) {
+export default function LobbyEmbarque({ onBoard, onClose, initialCamera, resume }: Props) {
   const { state, updateState, allCities } = useActionStreet();
   const [selectedId, setSelectedId] = useState(() => (state.unlockedCities.includes(state.currentCity) ? state.currentCity : 'ny'));
   const [confirmUnlock, setConfirmUnlock] = useState(false);
   const [passportTab, setPassportTab] = useState<PassportTab | null>(null);
+  const [passportHighlight, setPassportHighlight] = useState<PassportHighlight | undefined>();
+  const [renewingCityId, setRenewingCityId] = useState<string | null>(null);
 
   const selected = allCities.find((city) => city.id === selectedId) ?? allCities[0];
   const isUnlocked = state.unlockedCities.includes(selected.id);
   const missing = Math.max(0, selected.unlockCost - state.balance);
   const completed = state.completedMissions.includes(selected.mission.id);
+  const visa = getVisaStatus(state, selected.id);
 
   const select = (cityId: string) => {
     setSelectedId(cityId);
@@ -46,7 +57,15 @@ export default function LobbyEmbarque({ onBoard, onClose }: Props) {
 
   return (
     <div className="absolute inset-0 text-white">
-      <LobbyMap cities={allCities} unlocked={state.unlockedCities} selectedId={selected.id} origin={origin} onSelect={select} />
+      <LobbyMap
+        cities={allCities}
+        unlocked={state.unlockedCities}
+        selectedId={selected.id}
+        origin={origin}
+        onSelect={select}
+        initialCamera={initialCamera}
+        onCameraChange={(camera) => journeyStore.patch({ lobbyCamera: camera })}
+      />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-slate-950/80 to-transparent" />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-72 bg-gradient-to-t from-slate-950/85 to-transparent" />
 
@@ -64,12 +83,13 @@ export default function LobbyEmbarque({ onBoard, onClose }: Props) {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className={`${glass.chip} flex items-center gap-2 px-4 py-2`} aria-label={`Saldo: ${state.balance} Action Dollars`}>
             <Coins className="h-4 w-4 text-amber-300" />
             <span className="text-sm font-black tabular-nums">{state.balance}</span>
-            <span className={glass.label}>Action Dollars</span>
+            <span className={`${glass.label} hidden sm:inline`}>Action Dollars</span>
           </div>
+          <StreakChip count={state.streak.count} />
           <button type="button" onClick={() => setPassportTab('stamps')} aria-label="Abrir passaporte" className={glass.iconButton}>
             <BookOpen className="h-5 w-5" />
           </button>
@@ -80,6 +100,8 @@ export default function LobbyEmbarque({ onBoard, onClose }: Props) {
       </header>
 
       <section className="absolute inset-x-0 bottom-0 z-10 flex flex-col gap-3 p-4 sm:p-6">
+        {resume && <ResumeBanner cityName={resume.cityName} onContinue={resume.onContinue} onDismiss={resume.onDismiss} />}
+
         <div className="flex flex-wrap gap-2" role="tablist" aria-label="Destinos">
           {allCities.map((city) => {
             const open = state.unlockedCities.includes(city.id);
@@ -124,6 +146,11 @@ export default function LobbyEmbarque({ onBoard, onClose }: Props) {
                   <Sparkles className="h-3.5 w-3.5" /> Missão concluída · carimbo conquistado
                 </p>
               )}
+              {visa.expired && (
+                <div className="mt-3 max-w-xl">
+                  <VisaNotice stateName={selected.stateName} days={visa.daysSince} onRenew={() => setRenewingCityId(selected.id)} />
+                </div>
+              )}
             </div>
 
             <div className="flex flex-col gap-2 md:min-w-64">
@@ -163,7 +190,29 @@ export default function LobbyEmbarque({ onBoard, onClose }: Props) {
         </p>
       </section>
 
-      {passportTab && <PassportModal initialTab={passportTab} onClose={() => setPassportTab(null)} />}
+      {passportTab && (
+        <PassportModal
+          initialTab={passportTab}
+          highlight={passportHighlight}
+          onClose={() => {
+            setPassportTab(null);
+            setPassportHighlight(undefined);
+          }}
+        />
+      )}
+      {renewingCityId && (
+        <div className="absolute inset-0 z-50">
+          <VisaRenewalQuiz
+            cityId={renewingCityId}
+            onClose={() => setRenewingCityId(null)}
+            onRenewed={(stampId) => {
+              setRenewingCityId(null);
+              setPassportHighlight({ stampId, kind: 'renew' });
+              setPassportTab('stamps');
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }

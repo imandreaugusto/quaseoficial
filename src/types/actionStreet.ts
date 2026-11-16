@@ -1,3 +1,14 @@
+export interface StreakState {
+  count: number;
+  best: number;
+  lastDay: string | null;
+}
+
+export interface VisaRecord {
+  lastVisitedAt: number;
+  validAt: number;
+}
+
 export interface ActionStreetState {
   currentCity: string;
   balance: number;
@@ -5,6 +16,8 @@ export interface ActionStreetState {
   souvenirs: Souvenir[];
   stamps: Stamp[];
   completedMissions: string[];
+  streak: StreakState;
+  visas: Record<string, VisaRecord>;
 }
 
 export interface Souvenir {

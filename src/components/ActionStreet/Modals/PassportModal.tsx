@@ -2,30 +2,42 @@ import { useEffect, useRef, useState } from 'react';
 import { BookOpen, Backpack, Lock, X } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import gsap from 'gsap';
+import { getVisaStatus } from '../../../lib/actionStreet/visa';
 import { useActionStreet } from '../ActionStreetContext';
-import { getSouvenirIcon } from '../shared/souvenirIcons';
 import { glass } from '../shared/glass';
+import StampBadge from '../shared/StampBadge';
+import StreakChip from '../shared/StreakChip';
+import { getSouvenirIcon } from '../shared/souvenirIcons';
+import VisaNotice from './VisaNotice';
+import VisaRenewalQuiz from './VisaRenewalQuiz';
 
 export type PassportTab = 'stamps' | 'backpack';
+export interface PassportHighlight {
+  stampId: string;
+  kind: 'earn' | 'renew';
+}
 
 interface Props {
   initialTab: PassportTab;
-  highlightStampId?: string;
+  highlight?: PassportHighlight;
   onClose: () => void;
 }
 
-export default function PassportModal({ initialTab, highlightStampId, onClose }: Props) {
+export default function PassportModal({ initialTab, highlight: initialHighlight, onClose }: Props) {
   const { state, allCities } = useActionStreet();
   const [tab, setTab] = useState<PassportTab>(initialTab);
+  const [highlight, setHighlight] = useState<PassportHighlight | undefined>(initialHighlight);
+  const [renewingCityId, setRenewingCityId] = useState<string | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (renewingCityId) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onClose]);
+  }, [onClose, renewingCityId]);
 
   useEffect(() => {
     const card = cardRef.current;
@@ -37,27 +49,40 @@ export default function PassportModal({ initialTab, highlightStampId, onClose }:
   }, []);
 
   useEffect(() => {
-    if (!highlightStampId || tab !== 'stamps') return;
+    if (!highlight || tab !== 'stamps') return;
     const card = cardRef.current;
-    const stamp = card?.querySelector<HTMLElement>(`[data-stamp-id="${highlightStampId}"]`);
+    const stamp = card?.querySelector<HTMLElement>(`[data-stamp-id="${highlight.stampId}"]`);
     if (!card || !stamp) return;
 
     const timeline = gsap.timeline({ delay: 0.55 });
-    timeline
-      .fromTo(stamp, { scale: 3.4, rotation: -32, opacity: 0 }, { scale: 1, rotation: -8, opacity: 1, duration: 0.32, ease: 'power4.in' })
-      .add(() => {
-        confetti({ particleCount: 140, spread: 80, origin: { y: 0.6 }, zIndex: 10000 });
-      })
-      .fromTo(card, { x: -7 }, { x: 0, duration: 0.45, ease: 'elastic.out(1, 0.25)' }, '<')
-      .fromTo(stamp, { filter: 'brightness(2.2)' }, { filter: 'brightness(1)', duration: 0.5 }, '<');
+    if (highlight.kind === 'earn') {
+      timeline
+        .fromTo(stamp, { scale: 3.4, rotation: -32, opacity: 0 }, { scale: 1, rotation: -8, opacity: 1, duration: 0.32, ease: 'power4.in' })
+        .add(() => {
+          confetti({ particleCount: 140, spread: 80, origin: { y: 0.6 }, zIndex: 10000 });
+        })
+        .fromTo(card, { x: -7 }, { x: 0, duration: 0.45, ease: 'elastic.out(1, 0.25)' }, '<')
+        .fromTo(stamp, { filter: 'brightness(2.2)' }, { filter: 'brightness(1)', duration: 0.5 }, '<');
+    } else {
+      timeline
+        .fromTo(stamp, { filter: 'saturate(0.4) brightness(0.8)', opacity: 0.6 }, { filter: 'saturate(1) brightness(1.6)', opacity: 1, duration: 0.35, ease: 'power2.out' })
+        .fromTo(stamp, { scale: 1.3, rotation: -14 }, { scale: 1, rotation: -8, duration: 0.45, ease: 'elastic.out(1, 0.45)' }, '<')
+        .add(() => {
+          confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 }, zIndex: 10000, colors: ['#fbbf24', '#34d399', '#60a5fa'] });
+        })
+        .to(stamp, { filter: 'brightness(1)', duration: 0.5 });
+    }
 
     return () => {
       timeline.kill();
       gsap.set(stamp, { clearProps: 'all' });
     };
-  }, [highlightStampId, tab]);
+  }, [highlight, tab]);
 
   const earnedByCity = new Map(state.stamps.map((stamp) => [stamp.cityId, stamp]));
+  const expiredCities = allCities
+    .map((city) => ({ city, visa: getVisaStatus(state, city.id) }))
+    .filter(({ visa }) => visa.hasStamp && visa.expired);
 
   return (
     <div className={`absolute inset-0 z-50 flex items-center justify-center p-4 ${glass.backdrop}`} onClick={onClose}>
@@ -67,11 +92,11 @@ export default function PassportModal({ initialTab, highlightStampId, onClose }:
         aria-modal="true"
         aria-label="Passaporte digital"
         onClick={(event) => event.stopPropagation()}
-        className={`relative w-full max-w-xl overflow-hidden p-6 text-white ${glass.panelOverImagery}`}
+        className={`relative max-h-[92dvh] w-full max-w-xl overflow-y-auto p-6 text-white ${glass.panelOverImagery}`}
       >
         <div className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full bg-violet-500/25 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-24 -left-16 h-56 w-56 rounded-full bg-blue-500/20 blur-3xl" />
-        <div className="relative mb-5 flex items-center justify-between">
+        <div className="relative mb-4 flex items-center justify-between">
           <div>
             <p className={glass.label}>Action Street</p>
             <h2 className="text-xl font-black">Passaporte Digital</h2>
@@ -80,6 +105,8 @@ export default function PassportModal({ initialTab, highlightStampId, onClose }:
             <X className="h-5 w-5" />
           </button>
         </div>
+
+        <StreakChip count={state.streak.count} className="relative mb-4" />
 
         <div className={`relative mb-5 grid grid-cols-2 gap-1 p-1 ${glass.chip}`} role="tablist">
           {([
@@ -103,34 +130,38 @@ export default function PassportModal({ initialTab, highlightStampId, onClose }:
         </div>
 
         {tab === 'stamps' ? (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            {allCities.map((city) => {
-              const earned = earnedByCity.get(city.id);
-              return earned ? (
-                <div key={city.id} className="flex justify-center">
-                  <div
-                    data-stamp-id={earned.id}
-                    className="flex h-28 w-28 -rotate-[8deg] flex-col items-center justify-center rounded-full border-4 border-double p-2 text-center"
-                    style={{ borderColor: earned.color, color: earned.color, opacity: earned.id === highlightStampId ? 0 : 1 }}
-                  >
-                    <span className="text-[11px] font-black uppercase leading-tight tracking-wider">{earned.title}</span>
-                    <span className="mt-1 text-[10px] font-semibold opacity-80">{earned.subtitle}</span>
+          <div className="relative">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              {allCities.map((city) => {
+                const earned = earnedByCity.get(city.id);
+                const expired = getVisaStatus(state, city.id).expired;
+                return earned ? (
+                  <div key={city.id} className="flex justify-center">
+                    <StampBadge stamp={earned} expired={expired} hidden={highlight?.kind === 'earn' && earned.id === highlight.stampId} />
                   </div>
-                </div>
-              ) : (
-                <div key={city.id} className="flex justify-center">
-                  <div className="flex h-28 w-28 flex-col items-center justify-center gap-1 rounded-full border-2 border-dashed border-white/20 text-center text-white/40">
-                    <Lock className="h-4 w-4" />
-                    <span className="text-[10px] font-semibold uppercase">{city.stamp.subtitle}</span>
+                ) : (
+                  <div key={city.id} className="flex justify-center">
+                    <div className="flex h-28 w-28 flex-col items-center justify-center gap-1 rounded-full border-2 border-dashed border-white/20 text-center text-white/40">
+                      <Lock className="h-4 w-4" />
+                      <span className="text-[10px] font-semibold uppercase">{city.stamp.subtitle}</span>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
+
+            {expiredCities.length > 0 && (
+              <div className="mt-5 space-y-3">
+                {expiredCities.map(({ city, visa }) => (
+                  <VisaNotice key={city.id} stateName={city.stateName} days={visa.daysSince} onRenew={() => setRenewingCityId(city.id)} />
+                ))}
+              </div>
+            )}
           </div>
         ) : state.souvenirs.length === 0 ? (
-          <p className="py-8 text-center text-sm text-white/60">Sua mochila está vazia. Toque nos pinos da rua para coletar souvenirs.</p>
+          <p className="relative py-8 text-center text-sm text-white/60">Sua mochila está vazia. Toque nos pinos da rua para coletar souvenirs.</p>
         ) : (
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <ul className="relative grid grid-cols-2 gap-3 sm:grid-cols-3">
             {state.souvenirs.map((souvenir) => {
               const Icon = getSouvenirIcon(souvenir.icon);
               return (
@@ -144,6 +175,18 @@ export default function PassportModal({ initialTab, highlightStampId, onClose }:
           </ul>
         )}
       </div>
+
+      {renewingCityId && (
+        <VisaRenewalQuiz
+          cityId={renewingCityId}
+          onClose={() => setRenewingCityId(null)}
+          onRenewed={(stampId) => {
+            setRenewingCityId(null);
+            setTab('stamps');
+            setHighlight({ stampId, kind: 'renew' });
+          }}
+        />
+      )}
     </div>
   );
 }

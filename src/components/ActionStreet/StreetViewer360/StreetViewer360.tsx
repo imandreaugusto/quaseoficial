@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, MessagesSquare } from 'lucide-react';
 import gsap from 'gsap';
+import { journeyStore } from '../../../lib/actionStreet/journeyStore';
+import { persistenceManager } from '../../../lib/actionStreet/persistenceManager';
+import { getVisaStatus } from '../../../lib/actionStreet/visa';
 import { useActionStreet } from '../ActionStreetContext';
 import PassportModal, { type PassportTab } from '../Modals/PassportModal';
 import { glass } from '../shared/glass';
@@ -11,22 +14,29 @@ import MiniMap3D from './MiniMap3D';
 import MissionPanel from './MissionPanel';
 import StreetScene from './StreetScene';
 
+export interface StreetResume {
+  spotId?: string;
+  imageId?: string;
+  openMission?: boolean;
+}
+
 interface Props {
   cityId: string;
   onBack: () => void;
+  resume?: StreetResume;
 }
 
 interface PassportState {
   tab: PassportTab;
-  highlightStampId?: string;
+  highlight?: { stampId: string; kind: 'earn' | 'renew' };
 }
 
-export default function StreetViewer360({ cityId, onBack }: Props) {
-  const { state, getCityData } = useActionStreet();
+export default function StreetViewer360({ cityId, onBack, resume }: Props) {
+  const { state, updateState, getCityData } = useActionStreet();
   const city = getCityData(cityId);
-  const [spotId, setSpotId] = useState(() => city?.spots[0]?.id ?? '');
+  const [spotId, setSpotId] = useState(() => city?.spots.find((spot) => spot.id === resume?.spotId)?.id ?? city?.spots[0]?.id ?? '');
   const [hotspotId, setHotspotId] = useState<string | null>(null);
-  const [showMission, setShowMission] = useState(false);
+  const [showMission, setShowMission] = useState(() => resume?.openMission === true);
   const [passport, setPassport] = useState<PassportState | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<HTMLDivElement>(null);
@@ -39,6 +49,14 @@ export default function StreetViewer360({ cityId, onBack }: Props) {
     };
   }, []);
 
+  useEffect(() => {
+    updateState((previous) => persistenceManager.visitCity(previous, cityId));
+  }, [cityId, updateState]);
+
+  useEffect(() => {
+    if (spotId) journeyStore.patch({ view: 'street360', cityId, spotId, imageId: spotId === resume?.spotId ? resume.imageId : undefined });
+  }, [cityId, spotId, resume]);
+
   const collectedIds = useMemo(() => new Set(state.souvenirs.map((item) => item.id)), [state.souvenirs]);
 
   if (!city) return null;
@@ -46,6 +64,8 @@ export default function StreetViewer360({ cityId, onBack }: Props) {
   const hotspots = city.hotspots.filter((item) => item.spotId === spot.id);
   const guide = spot.guide ?? city.touristGuide;
   const missionDone = state.completedMissions.includes(city.mission.id);
+  const visaExpired = getVisaStatus(state, city.id).expired;
+  const anyVisaExpired = state.stamps.some((stamp) => getVisaStatus(state, stamp.cityId).expired);
 
   const travel = (nextSpotId: string) => {
     if (traveling.current || nextSpotId === spot.id) return;
@@ -69,7 +89,16 @@ export default function StreetViewer360({ cityId, onBack }: Props) {
   return (
     <div ref={rootRef} className="absolute inset-0 bg-slate-950 text-white">
       <div ref={sceneRef} className="absolute inset-0">
-        <StreetScene key={spot.id} city={city} spot={spot} hotspots={hotspots} collectedIds={collectedIds} onHotspot={setHotspotId} />
+        <StreetScene
+          key={spot.id}
+          city={city}
+          spot={spot}
+          hotspots={hotspots}
+          collectedIds={collectedIds}
+          onHotspot={setHotspotId}
+          initialImageId={spot.id === resume?.spotId ? resume.imageId : undefined}
+          onImageChange={(imageId) => journeyStore.patch({ imageId })}
+        />
       </div>
       <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-slate-950/70 to-transparent" />
 
@@ -77,6 +106,8 @@ export default function StreetViewer360({ cityId, onBack }: Props) {
         cityName={city.city}
         spotName={spot.name}
         balance={state.balance}
+        streak={state.streak.count}
+        visaAlert={anyVisaExpired}
         onBack={onBack}
         onPassport={() => setPassport({ tab: 'stamps' })}
         onBackpack={() => setPassport({ tab: 'backpack' })}
@@ -93,6 +124,7 @@ export default function StreetViewer360({ cityId, onBack }: Props) {
         <span className="min-w-0">
           <span className={`block ${glass.label}`}>{missionDone ? 'Missão concluída · praticar' : 'Missão disponível'}</span>
           <span className="block truncate text-sm font-black">{city.mission.title}</span>
+          {visaExpired && <span className="block text-[11px] font-bold text-amber-300">Visto expirado · bônus desligados</span>}
         </span>
       </button>
 
@@ -106,11 +138,11 @@ export default function StreetViewer360({ cityId, onBack }: Props) {
           onClose={() => setShowMission(false)}
           onOpenPassport={(stampId) => {
             setShowMission(false);
-            setPassport({ tab: 'stamps', highlightStampId: stampId });
+            setPassport({ tab: 'stamps', highlight: { stampId, kind: 'earn' } });
           }}
         />
       )}
-      {passport && <PassportModal initialTab={passport.tab} highlightStampId={passport.highlightStampId} onClose={() => setPassport(null)} />}
+      {passport && <PassportModal initialTab={passport.tab} highlight={passport.highlight} onClose={() => setPassport(null)} />}
     </div>
   );
 }

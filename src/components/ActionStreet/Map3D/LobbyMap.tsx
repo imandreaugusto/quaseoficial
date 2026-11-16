@@ -5,6 +5,7 @@ import gsap from 'gsap';
 import { bearing as turfBearing, greatCircle } from '@turf/turf';
 import type { City } from '../../../types/actionStreet';
 import { OPENFREEMAP_STYLES, canUseWebGL } from '../../../lib/actionStreet/maplibreConfig';
+import type { CameraSnapshot } from '../../../lib/actionStreet/journeyStore';
 
 interface Props {
   cities: City[];
@@ -12,6 +13,8 @@ interface Props {
   selectedId: string;
   origin: { name: string; coordinates: [number, number] };
   onSelect: (cityId: string) => void;
+  initialCamera?: CameraSnapshot;
+  onCameraChange?: (camera: CameraSnapshot) => void;
 }
 
 const PIN_SVG =
@@ -78,13 +81,15 @@ function fanOutOffsets(cities: City[]): Record<string, [number, number]> {
   return offsets;
 }
 
-export default function LobbyMap({ cities, unlocked, selectedId, origin, onSelect }: Props) {
+export default function LobbyMap({ cities, unlocked, selectedId, origin, onSelect, initialCamera, onCameraChange }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const pinsRef = useRef<Map<string, PinParts>>(new Map());
   const planeRef = useRef<HTMLDivElement | null>(null);
   const planeTween = useRef<gsap.core.Tween | null>(null);
   const onSelectRef = useRef(onSelect);
+  const initialCameraRef = useRef(initialCamera);
+  const cameraChangeRef = useRef(onCameraChange);
   const [mapReady, setMapReady] = useState(false);
   const [failed, setFailed] = useState(false);
 
@@ -120,11 +125,20 @@ export default function LobbyMap({ cities, unlocked, selectedId, origin, onSelec
     const bounds = new maplibregl.LngLatBounds(origin.coordinates, origin.coordinates);
     cities.forEach((city) => bounds.extend(city.camera.center));
     map.once('load', () => {
-      const narrow = window.innerWidth < 640;
-      map.fitBounds(bounds, {
-        padding: { top: narrow ? 210 : 120, bottom: narrow ? 360 : 300, left: narrow ? 30 : 70, right: narrow ? 30 : 70 },
-        maxZoom: 4.6,
-        duration: 0,
+      const start = initialCameraRef.current;
+      if (start) {
+        map.jumpTo({ center: start.center, zoom: start.zoom, pitch: start.pitch, bearing: start.bearing });
+      } else {
+        const narrow = window.innerWidth < 640;
+        map.fitBounds(bounds, {
+          padding: { top: narrow ? 210 : 120, bottom: narrow ? 360 : 300, left: narrow ? 30 : 70, right: narrow ? 30 : 70 },
+          maxZoom: 4.6,
+          duration: 0,
+        });
+      }
+      map.on('moveend', () => {
+        const center = map.getCenter();
+        cameraChangeRef.current?.({ center: [center.lng, center.lat], zoom: map.getZoom(), pitch: map.getPitch(), bearing: map.getBearing() });
       });
 
       map.addSource('arc', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });

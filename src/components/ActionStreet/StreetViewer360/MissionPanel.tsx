@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, Check, Coins, MessagesSquare, RotateCcw, Sparkles, Stamp as StampIcon, X } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { missionPayout } from '../../../lib/actionStreet/economy';
+import { journeyStore } from '../../../lib/actionStreet/journeyStore';
 import { missionEngine, type MissionState } from '../../../lib/actionStreet/missionEngine';
 import { persistenceManager } from '../../../lib/actionStreet/persistenceManager';
-import { rewards } from '../../../lib/actionStreet/rewards';
 import { routeAnimations } from '../../../lib/actionStreet/routeAnimations';
+import { getVisaStatus } from '../../../lib/actionStreet/visa';
 import { useActionStreet } from '../ActionStreetContext';
 import ClickableText from '../shared/ClickableText';
 import { glass } from '../shared/glass';
@@ -20,13 +22,31 @@ export default function MissionPanel({ cityId, onClose, onOpenPassport }: Props)
   const city = getCityData(cityId);
   const mission = city?.mission;
   const panelRef = useRef<HTMLDivElement>(null);
-  const [missionState, setMissionState] = useState<MissionState>(() => missionEngine.initMission());
+  const [missionState, setMissionState] = useState<MissionState>(() => {
+    const saved = journeyStore.load()?.mission;
+    if (mission && saved && saved.missionId === mission.id && saved.step > 0 && saved.step < mission.steps.length) {
+      return { currentStep: saved.step, completed: false, allCorrect: saved.allCorrect };
+    }
+    return missionEngine.initMission();
+  });
   const [selected, setSelected] = useState<number | null>(null);
   const [firstCompletion, setFirstCompletion] = useState(false);
+  const progressRef = useRef({ step: missionState.currentStep, allCorrect: missionState.allCorrect });
+  const finishedRef = useRef(false);
 
   useEffect(() => {
     if (panelRef.current) routeAnimations.modalOpen(panelRef.current);
   }, []);
+
+  // Auto-save do passo da missão: ao fechar (por qualquer caminho) o aluno volta exatamente de onde parou.
+  useEffect(() => {
+    const missionId = mission?.id;
+    if (!missionId) return;
+    journeyStore.patch({ mission: { missionId, ...progressRef.current, open: true } });
+    return () => {
+      if (!finishedRef.current) journeyStore.patch({ mission: { missionId, ...progressRef.current, open: false } });
+    };
+  }, [mission?.id]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -41,7 +61,8 @@ export default function MissionPanel({ cityId, onClose, onOpenPassport }: Props)
   const step = missionEngine.getCurrentStep(mission, missionState);
   const progress = missionEngine.getMissionProgress(mission, missionState);
   const done = missionEngine.isMissionComplete(missionState);
-  const reward = rewards.calculateMissionReward(mission.rewardDollars, missionState.allCorrect);
+  const visa = getVisaStatus(state, city.id);
+  const payout = missionPayout({ base: mission.rewardDollars, allCorrect: missionState.allCorrect, streakCount: state.streak.count, bonusesActive: !visa.expired });
   const stampId = city.stamp.id;
 
   const choose = (index: number) => {
@@ -54,15 +75,21 @@ export default function MissionPanel({ cityId, onClose, onOpenPassport }: Props)
     const advanced = missionEngine.advanceStep(mission, missionState);
     setMissionState(advanced);
     setSelected(null);
-    if (!advanced.completed) return;
+    progressRef.current = { step: advanced.currentStep, allCorrect: advanced.allCorrect };
+    if (!advanced.completed) {
+      journeyStore.patch({ mission: { missionId: mission.id, ...progressRef.current, open: true } });
+      return;
+    }
 
+    finishedRef.current = true;
+    journeyStore.clearMission();
     const isFirst = !state.completedMissions.includes(mission.id);
     setFirstCompletion(isFirst);
     if (!isFirst) return;
 
     updateState((previous) => {
       if (previous.completedMissions.includes(mission.id)) return previous;
-      let updated = persistenceManager.updateBalance(previous, reward.total);
+      let updated = persistenceManager.updateBalance(previous, payout.total);
       updated = persistenceManager.completeMission(updated, mission.id);
       return persistenceManager.addStamp(updated, { ...city.stamp, cityId: city.id, earnedAt: Date.now() });
     });
@@ -73,6 +100,9 @@ export default function MissionPanel({ cityId, onClose, onOpenPassport }: Props)
     setMissionState(missionEngine.initMission());
     setSelected(null);
     setFirstCompletion(false);
+    finishedRef.current = false;
+    progressRef.current = { step: 0, allCorrect: true };
+    journeyStore.patch({ mission: { missionId: mission.id, ...progressRef.current, open: true } });
   };
 
   return (
@@ -113,9 +143,14 @@ export default function MissionPanel({ cityId, onClose, onOpenPassport }: Props)
             {firstCompletion ? (
               <>
                 <p className="mt-2 inline-flex items-center gap-2 text-lg font-black text-amber-200">
-                  <Coins className="h-5 w-5" />+{reward.total} Action Dollars
+                  <Coins className="h-5 w-5" />+{payout.total} Action Dollars
                 </p>
-                {reward.bonus > 0 && <p className="mt-1 text-xs font-bold text-emerald-300">Inclui +{reward.bonus} de bônus por acertar tudo</p>}
+                <ul className="mt-1 space-y-0.5 text-xs font-bold text-white/70" aria-label="Detalhe da recompensa">
+                  <li>Missão: +{payout.base}</li>
+                  {payout.perfectBonus > 0 && <li className="text-emerald-300">Bônus por acertar tudo: +{payout.perfectBonus}</li>}
+                  {payout.streakBonus > 0 && <li className="text-orange-300">Ofensiva de viagem (x{payout.streakMultiplier}): +{payout.streakBonus}</li>}
+                  {!payout.bonusesActive && <li className="text-amber-300">Bônus desligados: seu visto de {city.stateName} estava expirado</li>}
+                </ul>
                 <button type="button" onClick={() => onOpenPassport(stampId)} className={`mt-5 w-full ${glass.primaryButton}`}>
                   <StampIcon className="h-5 w-5" />
                   Carimbar meu passaporte
