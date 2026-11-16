@@ -1,27 +1,12 @@
-import { useEffect, useState, ReactNode, createContext, useContext } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { ActionStreetState, City } from '../../types/actionStreet';
 import { persistenceManager } from '../../lib/actionStreet/persistenceManager';
 import actionStreetData from '../../data/actionStreetData.json';
+import { ActionStreetContext, type ActionStreetContextType } from './ActionStreetContext';
 import LobbyEmbarque from './Lobby/LobbyEmbarque';
 import StreetViewer360 from './StreetViewer360/StreetViewer360';
 import Map3DExplorer from './Map3D/Map3DExplorer';
-
-export interface ActionStreetContextType {
-  state: ActionStreetState;
-  updateState: (newState: ActionStreetState) => void;
-  getCityData: (cityId: string) => City | undefined;
-  allCities: City[];
-}
-
-export const ActionStreetContext = createContext<ActionStreetContextType | undefined>(undefined);
-
-export const useActionStreet = () => {
-  const context = useContext(ActionStreetContext);
-  if (!context) {
-    throw new Error('useActionStreet must be used within ActionStreetProvider');
-  }
-  return context;
-};
 
 interface Props {
   onClose?: () => void;
@@ -29,71 +14,60 @@ interface Props {
 
 type ViewType = 'lobby' | 'map3d' | 'street360';
 
+const cities = (actionStreetData as unknown as { states: City[] }).states;
+
 export default function ActionStreet({ onClose }: Props) {
   const [state, setState] = useState<ActionStreetState>(() => persistenceManager.loadState());
   const [view, setView] = useState<ViewType>('lobby');
   const [selectedCity, setSelectedCity] = useState<string>('ny');
 
-  const cities: City[] = (actionStreetData as any).states;
-
-  // Salvar estado quando mudar
   useEffect(() => {
     persistenceManager.saveState(state);
   }, [state]);
 
-  const handleSelectCity = (cityId: string) => {
-    setSelectedCity(cityId);
-    setView('map3d');
-  };
+  const updateState = useCallback(
+    (updater: (previous: ActionStreetState) => ActionStreetState) => setState(updater),
+    []
+  );
 
-  const handleMap3DComplete = () => {
-    setView('street360');
-  };
+  const contextValue = useMemo<ActionStreetContextType>(
+    () => ({
+      state,
+      updateState,
+      getCityData: (cityId: string) => cities.find((city) => city.id === cityId),
+      allCities: cities,
+    }),
+    [state, updateState]
+  );
 
-  const handleBack = () => {
-    setView('lobby');
-  };
-
-  const handleCloseModule = () => {
-    onClose?.();
-  };
-
-  const contextValue: ActionStreetContextType = {
-    state,
-    updateState: setState,
-    getCityData: (cityId: string) => cities.find(c => c.id === cityId),
-    allCities: cities,
-  };
-
-  return (
+  // Portal no body: os wrappers de página do App animam transform, o que prenderia o "fixed" ao wrapper.
+  return createPortal(
     <ActionStreetContext.Provider value={contextValue}>
-      <div className="w-full h-full bg-gradient-to-b from-slate-900 to-slate-800">
+      <div className="fixed inset-0 z-30 overflow-hidden bg-slate-950">
         {view === 'lobby' && (
           <LobbyEmbarque
-            state={state}
-            cities={cities}
-            onSelectCity={handleSelectCity}
-            onClose={handleCloseModule}
+            onBoard={(cityId) => {
+              setSelectedCity(cityId);
+              setView('map3d');
+            }}
+            onClose={() => onClose?.()}
           />
         )}
 
         {view === 'map3d' && (
           <Map3DExplorer
+            key={selectedCity}
             cityId={selectedCity}
-            onComplete={handleMap3DComplete}
-            onBack={handleBack}
+            onComplete={() => setView('street360')}
+            onBack={() => setView('lobby')}
           />
         )}
 
         {view === 'street360' && (
-          <StreetViewer360
-            cityId={selectedCity}
-            state={state}
-            updateState={setState}
-            onBack={handleBack}
-          />
+          <StreetViewer360 key={selectedCity} cityId={selectedCity} onBack={() => setView('lobby')} />
         )}
       </div>
-    </ActionStreetContext.Provider>
+    </ActionStreetContext.Provider>,
+    document.body
   );
 }

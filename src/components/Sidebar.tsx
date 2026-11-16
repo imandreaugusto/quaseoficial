@@ -245,7 +245,7 @@ const NavButton: React.FC<{
         </span>
       )}
       {item.badge && (
-        <span className="flex items-center justify-center px-2.5 py-0.5 ml-2 rounded-full bg-gradient-to-r from-orange-500 to-pink-500 text-[10px] font-extrabold text-white shadow-lg">
+        <span className="flex items-center justify-center px-2.5 py-0.5 ml-2 rounded-full border border-white/25 bg-gradient-to-r from-blue-500 to-violet-500 text-[10px] font-extrabold text-white shadow-lg shadow-violet-500/25">
           {item.badge}
         </span>
       )}

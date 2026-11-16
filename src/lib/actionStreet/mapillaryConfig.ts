@@ -1,76 +1,62 @@
-export const mapillaryConfig = {
-  // Token será carregado do .env - VITE_MAPILLARY_ACCESS_TOKEN
-  // Fallback em caso de token não disponível
+const GRAPH_URL = 'https://graph.mapillary.com/images';
 
-  getAccessToken(): string {
-    return import.meta.env.VITE_MAPILLARY_ACCESS_TOKEN || '';
-  },
+export const MAPILLARY_ATTRIBUTION = 'Imagery © Mapillary contributors, CC BY-SA 4.0';
 
-  // Coordenadas de imagens conhecidas do Mapillary (exemplos)
-  // Em produção, você buscaria essas IDs da API do Mapillary
-  fallbackImageIds: {
-    ny_times_square: 'SAMPLE_NY_TIMES_SQUARE_IMAGE_ID',
-    ny_central_park: 'SAMPLE_NY_CENTRAL_PARK_IMAGE_ID',
-    nj_hoboken: 'SAMPLE_NJ_HOBOKEN_IMAGE_ID',
-    tx_austin: 'SAMPLE_TX_AUSTIN_IMAGE_ID',
-    fl_miami: 'SAMPLE_FL_MIAMI_IMAGE_ID',
-  },
-
-  // UI customizado
-  uiConfig: {
-    components: {
-      attribution: true,
-      bearing: true,
-      cover: true,
-      direction: true,
-      fullscreen: false,
-      maplibre: false,
-      navigation: true,
-      pointer: true,
-      popup: false,
-      sequence: true,
-      spatial: false,
-      tag: true,
-      zoom: true,
-    },
-  },
-
-  // Fallback visual quando token não está disponível
-  fallbackUI: {
-    showMessage: true,
-    message: 'Street View indisponível no momento. Utilize o Mapa 3D para explorar.',
-    showMap: true,
-  },
-
-  // Configuração de camadas (tags / hotspots)
-  layerConfig: {
-    id: 'mapillary-spots',
-    type: 'circle',
-    source: 'mapillary-data',
-    paint: {
-      'circle-radius': 8,
-      'circle-color': '#FF6B6B',
-      'circle-stroke-width': 2,
-      'circle-stroke-color': '#fff',
-      'circle-opacity': 0.7,
-    },
-  },
-
-  // CSS obrigatório (deve ser importado globalmente)
-  requiredCSS: 'mapillary-js/dist/mapillary.css',
-
-  // Créditos - CC BY-SA 4.0
-  creditText: 'Imagery © Mapillary - CC BY-SA 4.0',
+export const getMapillaryToken = (): string => {
+  const token = (import.meta.env.VITE_MAPILLARY_ACCESS_TOKEN as string | undefined)?.trim() ?? '';
+  const isPlaceholder = !token || token.startsWith('your-') || token.includes('here');
+  return isPlaceholder ? '' : token;
 };
 
-export const isMapillaryAvailable = (): boolean => {
-  const token = mapillaryConfig.getAccessToken();
-  return token && token.length > 0 && !token.includes('VITE_');
-};
+export const isMapillaryAvailable = (): boolean => getMapillaryToken().length > 0;
 
-export const getMapillaryFallbackMessage = (): string => {
-  if (!isMapillaryAvailable()) {
-    return 'Para visualizar ruas 360° em tempo real, configure VITE_MAPILLARY_ACCESS_TOKEN no .env';
+interface GraphImage {
+  id: string;
+  computed_geometry?: { coordinates: [number, number] };
+  geometry?: { coordinates: [number, number] };
+}
+
+const distanceSquared = (a: [number, number], b: [number, number]) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2;
+
+async function queryImages(token: string, [lng, lat]: [number, number], radius: number, panoOnly: boolean) {
+  const params = new URLSearchParams({
+    access_token: token,
+    fields: 'id,computed_geometry,geometry',
+    bbox: [lng - radius, lat - radius, lng + radius, lat + radius].join(','),
+    limit: '25',
+  });
+  if (panoOnly) params.set('is_pano', 'true');
+
+  const response = await fetch(`${GRAPH_URL}?${params.toString()}`);
+  if (!response.ok) throw new Error(`Mapillary respondeu ${response.status}`);
+  const body = (await response.json()) as { data?: GraphImage[] };
+  return body.data ?? [];
+}
+
+// Busca a imagem 360° mais próxima do ponto, ampliando a área e aceitando imagens não-panorâmicas só se necessário.
+export async function findNearestImageId(token: string, center: [number, number]): Promise<string | null> {
+  const attempts: Array<[number, boolean]> = [
+    [0.0015, true],
+    [0.004, true],
+    [0.004, false],
+  ];
+
+  for (const [radius, panoOnly] of attempts) {
+    const images = await queryImages(token, center, radius, panoOnly);
+    if (images.length === 0) continue;
+
+    let best = images[0];
+    let bestDistance = Infinity;
+    for (const image of images) {
+      const position = image.computed_geometry?.coordinates ?? image.geometry?.coordinates;
+      if (!position) continue;
+      const distance = distanceSquared(position, center);
+      if (distance < bestDistance) {
+        best = image;
+        bestDistance = distance;
+      }
+    }
+    return best.id;
   }
-  return '';
-};
+  return null;
+}

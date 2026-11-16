@@ -1,6 +1,9 @@
-import { ChevronLeft } from 'lucide-react';
-import { useActionStreet } from '../ActionStreet';
-import Map3DViewer from './Map3DViewer';
+import { useRef, useState } from 'react';
+import { ArrowLeft, FastForward, Plane } from 'lucide-react';
+import gsap from 'gsap';
+import { useActionStreet } from '../ActionStreetContext';
+import { glass } from '../shared/glass';
+import Map3DViewer, { type DiveStage } from './Map3DViewer';
 
 interface Props {
   cityId: string;
@@ -11,22 +14,60 @@ interface Props {
 export default function Map3DExplorer({ cityId, onComplete, onBack }: Props) {
   const { getCityData } = useActionStreet();
   const city = getCityData(cityId);
+  const [stage, setStage] = useState<DiveStage>('loading');
+  const stageRef = useRef<HTMLDivElement>(null);
+  const leaving = useRef(false);
 
   if (!city) return null;
 
-  return (
-    <div className="relative w-full h-full bg-black overflow-hidden">
-      {/* Back button */}
-      <button
-        onClick={onBack}
-        className="absolute top-6 left-6 z-10 p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
-        aria-label="Go back"
-      >
-        <ChevronLeft className="w-6 h-6 text-white" />
-      </button>
+  const captions: Record<DiveStage, string> = {
+    loading: 'Preparando o voo...',
+    flying: `Sobrevoando os EUA rumo a ${city.city}`,
+    route: `Trajeto: ${city.route3D.name}`,
+    landing: 'Pousando na rua...',
+    failed: 'Não foi possível carregar o mapa 3D',
+  };
 
-      {/* 3D Map */}
-      <Map3DViewer city={city} onAnimationComplete={onComplete} />
+  const enterStreet = () => {
+    if (leaving.current) return;
+    leaving.current = true;
+    gsap.to(stageRef.current, { opacity: 0, scale: 1.08, duration: 0.8, ease: 'power2.inOut', onComplete });
+  };
+
+  return (
+    <div className="absolute inset-0 bg-slate-950 text-white">
+      <div ref={stageRef} className="absolute inset-0">
+        <Map3DViewer city={city} onStage={setStage} onDiveComplete={enterStreet} />
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-36 bg-gradient-to-b from-slate-950/70 to-transparent" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-slate-950/70 to-transparent" />
+      </div>
+
+      <header className="absolute inset-x-0 top-[4.25rem] z-10 flex items-center justify-between gap-3 px-4 sm:px-6">
+        <button type="button" onClick={onBack} aria-label="Voltar ao lobby" className={glass.iconButton}>
+          <ArrowLeft className="h-5 w-5" />
+        </button>
+        <button type="button" onClick={enterStreet} className={`${glass.chip} inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-white/85 transition hover:bg-white/20`}>
+          <FastForward className="h-4 w-4" />
+          Pular para a rua
+        </button>
+      </header>
+
+      <div className="absolute inset-x-0 bottom-6 z-10 flex justify-center px-4">
+        {stage === 'failed' ? (
+          <div className={`flex max-w-md flex-col items-center gap-3 p-5 text-center ${glass.panelOverImagery}`}>
+            <p className="font-bold">{captions.failed}</p>
+            <p className="text-sm text-white/70">Verifique sua conexão. Você ainda pode seguir direto para a rua.</p>
+            <button type="button" onClick={enterStreet} className={glass.primaryButton}>
+              Continuar para a rua
+            </button>
+          </div>
+        ) : (
+          <div className={`flex items-center gap-3 px-5 py-3 ${glass.panelOverImagery}`} role="status" aria-live="polite">
+            <Plane className="h-4 w-4 text-blue-300" />
+            <span className="text-sm font-bold">{captions[stage]}</span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,150 +1,44 @@
 import gsap from 'gsap';
 
 export const routeAnimations = {
-  // Transição suave do Lobby ao Map3D
-  transitionToMap3D(element: HTMLElement, onComplete?: () => void): gsap.core.Timeline {
-    const timeline = gsap.timeline({ onComplete });
-
-    timeline.to(element, {
-      opacity: 0,
-      scale: 0.95,
-      duration: 0.4,
-      ease: 'power2.inOut',
-    });
-
-    return timeline;
+  modalOpen(element: HTMLElement): gsap.core.Tween {
+    return gsap.fromTo(element, { opacity: 0, y: 24, scale: 0.94 }, { opacity: 1, y: 0, scale: 1, duration: 0.3, ease: 'back.out(1.4)' });
   },
 
-  // Transição do Map3D ao Street View 360°
-  transitionToStreetView(element: HTMLElement, onComplete?: () => void): gsap.core.Timeline {
-    const timeline = gsap.timeline({ onComplete });
-
-    timeline.to(element, {
-      opacity: 0,
-      scale: 1.05,
-      duration: 0.5,
-      ease: 'power2.inOut',
-    });
-
-    return timeline;
+  modalClose(element: HTMLElement, onComplete?: () => void): gsap.core.Tween {
+    return gsap.to(element, { opacity: 0, y: 16, scale: 0.96, duration: 0.2, ease: 'power2.in', onComplete });
   },
 
-  // Animação de carimbo batendo no Passaporte
-  stampAnimation(element: HTMLElement): gsap.core.Timeline {
-    const timeline = gsap.timeline();
-
-    timeline
-      .from(element, {
-        scale: 0,
-        rotation: -45,
-        opacity: 0,
-        duration: 0.3,
-        ease: 'back.out',
-      })
-      .to(
-        element,
-        {
-          scale: 1.1,
-          duration: 0.1,
-          ease: 'power2.out',
-        },
-        0.25
-      )
-      .to(
-        element,
-        {
-          scale: 1,
-          rotation: 0,
-          duration: 0.15,
-          ease: 'power2.out',
-        },
-        0.35
-      );
-
-    return timeline;
+  hotspotPulse(ring: HTMLElement): gsap.core.Tween {
+    return gsap.fromTo(ring, { scale: 1, opacity: 0.8 }, { scale: 2.1, opacity: 0, duration: 1.8, repeat: -1, ease: 'power1.out' });
   },
 
-  // Souvenir fluindo para mochila
-  souvenirFly(fromElement: HTMLElement, toElement: HTMLElement): gsap.core.Tween {
-    const fromRect = fromElement.getBoundingClientRect();
-    const toRect = toElement.getBoundingClientRect();
+  // O souvenir sai do card e voa até o botão da mochila, que "recebe" com um pulso.
+  flyToBackpack(from: HTMLElement, iconMarkup: string, onComplete?: () => void): void {
+    const target = document.querySelector<HTMLElement>('[data-backpack-button]');
+    if (!target) {
+      onComplete?.();
+      return;
+    }
 
-    const clone = fromElement.cloneNode(true) as HTMLElement;
-    clone.style.position = 'fixed';
-    clone.style.pointerEvents = 'none';
-    clone.style.zIndex = '9999';
-    document.body.appendChild(clone);
+    const start = from.getBoundingClientRect();
+    const end = target.getBoundingClientRect();
+    const token = document.createElement('div');
+    token.innerHTML = iconMarkup;
+    token.style.cssText = `position:fixed;z-index:10001;left:${start.left}px;top:${start.top}px;width:${start.width}px;height:${start.height}px;display:flex;align-items:center;justify-content:center;border-radius:9999px;color:#fff;background:rgba(59,130,246,0.55);border:1px solid rgba(255,255,255,0.45);backdrop-filter:blur(10px);pointer-events:none;`;
+    document.body.appendChild(token);
 
-    gsap.set(clone, {
-      left: fromRect.left,
-      top: fromRect.top,
-      width: fromRect.width,
-      height: fromRect.height,
-    });
-
-    return gsap.to(clone, {
-      left: toRect.left,
-      top: toRect.top,
-      width: toRect.width * 0.6,
-      height: toRect.height * 0.6,
-      opacity: 0.3,
+    gsap.to(token, {
+      x: end.left + end.width / 2 - (start.left + start.width / 2),
+      y: end.top + end.height / 2 - (start.top + start.height / 2),
+      scale: 0.4,
       duration: 0.8,
       ease: 'power2.inOut',
       onComplete: () => {
-        clone.remove();
+        token.remove();
+        gsap.fromTo(target, { scale: 1 }, { scale: 1.3, duration: 0.18, yoyo: true, repeat: 1, ease: 'power2.out' });
+        onComplete?.();
       },
     });
-  },
-
-  // Pulsação nos hotspots
-  hotspotPulse(element: HTMLElement): gsap.core.Timeline {
-    const timeline = gsap.timeline({ repeat: -1 });
-
-    timeline
-      .to(element, {
-        scale: 1.2,
-        duration: 0.6,
-        ease: 'power1.inOut',
-      })
-      .to(
-        element,
-        {
-          scale: 1,
-          duration: 0.6,
-          ease: 'power1.inOut',
-        }
-      );
-
-    return timeline;
-  },
-
-  // Abertura de modal com zoom
-  modalOpen(element: HTMLElement): gsap.core.Timeline {
-    const timeline = gsap.timeline();
-
-    timeline.from(element, {
-      opacity: 0,
-      scale: 0.8,
-      y: 20,
-      duration: 0.3,
-      ease: 'back.out',
-    });
-
-    return timeline;
-  },
-
-  // Fechamento de modal
-  modalClose(element: HTMLElement): gsap.core.Timeline {
-    const timeline = gsap.timeline();
-
-    timeline.to(element, {
-      opacity: 0,
-      scale: 0.8,
-      y: -20,
-      duration: 0.2,
-      ease: 'back.in',
-    });
-
-    return timeline;
   },
 };

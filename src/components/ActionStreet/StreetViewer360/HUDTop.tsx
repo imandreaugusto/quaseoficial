@@ -1,60 +1,41 @@
-import { ChevronLeft, DollarSign, Backpack, BookOpen } from 'lucide-react';
+import { ArrowLeft, Backpack, BookOpen, Coins } from 'lucide-react';
+import { glass } from '../shared/glass';
 
 interface Props {
   cityName: string;
+  spotName: string;
   balance: number;
   onBack: () => void;
   onPassport: () => void;
   onBackpack: () => void;
 }
 
-export default function HUDTop({
-  cityName,
-  balance,
-  onBack,
-  onPassport,
-  onBackpack,
-}: Props) {
+export default function HUDTop({ cityName, spotName, balance, onBack, onPassport, onBackpack }: Props) {
   return (
-    <div className="absolute top-0 left-0 right-0 z-20 bg-gradient-to-b from-black/80 via-black/40 to-transparent px-6 py-4">
-      <div className="flex items-center justify-between">
-        {/* Left: Back button + City name */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={onBack}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-            aria-label="Go back"
-          >
-            <ChevronLeft className="w-6 h-6 text-white" />
-          </button>
-          <h2 className="text-lg font-bold text-white">{cityName}</h2>
-        </div>
-
-        {/* Right: Balance + Buttons */}
-        <div className="flex items-center gap-4">
-          {/* Balance Display */}
-          <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-lg px-4 py-2">
-            <DollarSign className="w-4 h-4 text-green-400" />
-            <span className="text-white font-semibold">{balance}</span>
-          </div>
-
-          {/* Buttons */}
-          <button
-            onClick={onPassport}
-            className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
-            aria-label="Open passport"
-          >
-            <BookOpen className="w-5 h-5 text-white" />
-          </button>
-          <button
-            onClick={onBackpack}
-            className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
-            aria-label="Open backpack"
-          >
-            <Backpack className="w-5 h-5 text-white" />
-          </button>
+    <header className="absolute inset-x-0 top-[4.25rem] z-20 flex flex-wrap items-center justify-between gap-3 px-4 sm:px-6">
+      <div className={`flex items-center gap-3 py-2 pl-2 pr-5 ${glass.panelOverImagery} !rounded-full`}>
+        <button type="button" onClick={onBack} aria-label="Voltar ao lobby" className={glass.iconButton}>
+          <ArrowLeft className="h-5 w-5" />
+        </button>
+        <div className="min-w-0">
+          <p className={glass.label}>{cityName}</p>
+          <p className="truncate text-sm font-black leading-tight text-white">{spotName}</p>
         </div>
       </div>
-    </div>
+
+      <div className="flex items-center gap-2">
+        <div className={`${glass.panelOverImagery} !rounded-full flex items-center gap-2 px-4 py-2.5`} aria-label={`Saldo: ${balance} Action Dollars`}>
+          <Coins className="h-4 w-4 text-amber-300" />
+          <span className="text-sm font-black tabular-nums text-white">{balance}</span>
+          <span className={`${glass.label} hidden sm:inline`}>Action Dollars</span>
+        </div>
+        <button type="button" onClick={onPassport} aria-label="Abrir passaporte" className={glass.iconButton}>
+          <BookOpen className="h-5 w-5" />
+        </button>
+        <button type="button" data-backpack-button onClick={onBackpack} aria-label="Abrir mochila" className={glass.iconButton}>
+          <Backpack className="h-5 w-5" />
+        </button>
+      </div>
+    </header>
   );
 }

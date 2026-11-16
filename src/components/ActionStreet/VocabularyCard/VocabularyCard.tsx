@@ -1,158 +1,138 @@
-import { useEffect, useState } from 'react';
-import { Volume2, X } from 'lucide-react';
-import gsap from 'gsap';
-import type { ActionStreetState, Hotspot, Souvenir } from '../../types/actionStreet';
-import { routeAnimations } from '../../lib/actionStreet/routeAnimations';
-import { rewards } from '../../lib/actionStreet/rewards';
-import { persistenceManager } from '../../lib/actionStreet/persistenceManager';
+import { useEffect, useRef, useState } from 'react';
+import { Check, Coins, Gift, Volume2, X } from 'lucide-react';
+import { persistenceManager } from '../../../lib/actionStreet/persistenceManager';
+import { routeAnimations } from '../../../lib/actionStreet/routeAnimations';
+import { useActionStreet } from '../ActionStreetContext';
+import ClickableText from '../shared/ClickableText';
+import { glass } from '../shared/glass';
+import { getSouvenirIcon } from '../shared/souvenirIcons';
 
 interface Props {
-  hotspotId: string;
   cityId: string;
-  state: ActionStreetState;
-  updateState: (newState: ActionStreetState) => void;
+  hotspotId: string;
   onClose: () => void;
 }
 
-export default function VocabularyCard({
-  hotspotId,
-  cityId,
-  state,
-  updateState,
-  onClose,
-}: Props) {
-  const [cardRef, setCardRef] = useState<HTMLDivElement | null>(null);
-  const [isCollected, setIsCollected] = useState(false);
+export const souvenirId = (cityId: string, hotspotId: string) => `${cityId}:${hotspotId}`;
 
-  // Mock hotspot data - em produção, viria do actionStreetData
-  const mockHotspot: Hotspot = {
-    id: hotspotId,
-    word: 'Fire Hydrant',
-    translation: 'Hidrante de incêndio',
-    phonetic: '/ˈfaɪər ˌhaɪdrənt/',
-    example: 'You cannot park your car in front of a red fire hydrant in New York.',
-    rewardDollars: 30,
-    souvenirIcon: 'Flame',
-  };
+function speak(text: string) {
+  if (!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = 'en-US';
+  utterance.rate = 0.85;
+  window.speechSynthesis.speak(utterance);
+}
+
+export default function VocabularyCard({ cityId, hotspotId, onClose }: Props) {
+  const { state, updateState, getCityData } = useActionStreet();
+  const city = getCityData(cityId);
+  const hotspot = city?.hotspots.find((item) => item.id === hotspotId);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const iconRef = useRef<HTMLSpanElement>(null);
+  const [collecting, setCollecting] = useState(false);
+
+  const alreadyCollected = state.souvenirs.some((item) => item.id === souvenirId(cityId, hotspotId));
 
   useEffect(() => {
-    if (cardRef) {
-      routeAnimations.modalOpen(cardRef);
-    }
-  }, [cardRef]);
+    if (cardRef.current) routeAnimations.modalOpen(cardRef.current);
+  }, []);
 
-  const handlePlayAudio = () => {
-    // Web Speech API - usar speechSynthesis do navegador
-    if ('speechSynthesis' in window) {
-      const utterance = new SpeechSynthesisUtterance(mockHotspot.word);
-      utterance.lang = 'en-US';
-      utterance.rate = 0.8;
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(utterance);
-    }
-  };
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.speechSynthesis?.cancel();
+    };
+  }, [onClose]);
 
-  const handleCollect = () => {
-    if (isCollected) return;
+  if (!city || !hotspot) return null;
+  const SouvenirIcon = getSouvenirIcon(hotspot.souvenirIcon);
 
-    // Atualizar estado
-    const newSouvenir: Souvenir = {
-      id: `${cityId}-${hotspotId}`,
-      icon: mockHotspot.souvenirIcon,
-      label: mockHotspot.word,
-      fromCity: cityId,
-      collectedAt: Date.now(),
+  const collect = () => {
+    if (alreadyCollected || collecting) return;
+    setCollecting(true);
+    const id = souvenirId(cityId, hotspot.id);
+
+    const award = () => {
+      updateState((previous) => {
+        if (previous.souvenirs.some((item) => item.id === id)) return previous;
+        const withItem = persistenceManager.addSouvenir(previous, {
+          id,
+          icon: hotspot.souvenirIcon,
+          label: hotspot.word,
+          fromCity: city.stateName,
+          collectedAt: Date.now(),
+        });
+        return persistenceManager.updateBalance(withItem, hotspot.rewardDollars);
+      });
+      onClose();
     };
 
-    const rewardAmount = rewards.calculateHotspotReward(mockHotspot.rewardDollars);
-    let updatedState = persistenceManager.addSouvenir(state, newSouvenir);
-    updatedState = persistenceManager.updateBalance(updatedState, rewardAmount);
-
-    updateState(updatedState);
-    setIsCollected(true);
-
-    // Animar fechamento
-    setTimeout(() => {
-      if (cardRef) {
-        routeAnimations.modalClose(cardRef, onClose);
-      }
-    }, 1000);
+    if (iconRef.current) {
+      routeAnimations.flyToBackpack(iconRef.current, iconRef.current.innerHTML, award);
+    } else {
+      award();
+    }
   };
 
   return (
-    <div
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 flex items-center justify-center p-4"
-      onClick={onClose}
-    >
+    <div className={`absolute inset-0 z-40 flex items-center justify-center p-4 ${glass.backdrop}`} onClick={onClose}>
       <div
-        ref={setCardRef}
-        onClick={(e) => e.stopPropagation()}
-        className="bg-gradient-to-br from-slate-800/95 to-slate-900/95 backdrop-blur-md border border-white/20 rounded-2xl p-8 max-w-md w-full shadow-2xl"
+        ref={cardRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Vocabulário: ${hotspot.word}`}
+        onClick={(event) => event.stopPropagation()}
+        className={`relative w-full max-w-md overflow-hidden p-6 text-white ${glass.panelOverImagery}`}
       >
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-lg transition-colors"
-          aria-label="Close"
-        >
-          <X className="w-5 h-5 text-white/60" />
+        <div className="pointer-events-none absolute -right-16 -top-20 h-52 w-52 rounded-full bg-violet-500/25 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-20 -left-12 h-48 w-48 rounded-full bg-blue-500/20 blur-3xl" />
+
+        <button type="button" onClick={onClose} aria-label="Fechar" className={`absolute right-4 top-4 ${glass.iconButton}`}>
+          <X className="h-4 w-4" />
         </button>
 
-        {/* Main content */}
-        <div className="text-center">
-          {/* Word + Icon */}
-          <div className="mb-6">
-            <div className="text-5xl mb-3">🏷️</div>
-            <h2 className="text-3xl font-bold text-white mb-2">{mockHotspot.word}</h2>
-            <p className="text-sm text-white/60 font-mono">{mockHotspot.phonetic}</p>
+        <div className="relative flex items-center gap-4">
+          <span ref={iconRef} className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-white/25 bg-blue-500/30 text-white">
+            <SouvenirIcon className="h-7 w-7" />
+          </span>
+          <div className="min-w-0 pr-10">
+            <p className={glass.label}>Vocabulário da rua</p>
+            <h2 className="text-2xl font-black leading-tight">{hotspot.word}</h2>
+            <p className="font-mono text-sm text-blue-200">{hotspot.phonetic}</p>
           </div>
+        </div>
 
-          {/* Translation */}
-          <div className="mb-6 p-4 bg-white/10 rounded-lg border border-white/20">
-            <p className="text-xs text-white/60 uppercase tracking-widest mb-2">Tradução</p>
-            <p className="text-lg font-semibold text-white">{mockHotspot.translation}</p>
-          </div>
+        <div className={`relative mt-5 ${glass.chip} !rounded-2xl px-4 py-3`}>
+          <p className={glass.label}>Tradução</p>
+          <p className="mt-1 text-lg font-bold">{hotspot.translation}</p>
+        </div>
 
-          {/* Audio button */}
-          <button
-            onClick={handlePlayAudio}
-            className="w-full mb-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all flex items-center justify-center gap-2 hover:scale-105 active:scale-95"
-          >
-            <Volume2 className="w-5 h-5" />
-            Pronúncia
+        <div className={`relative mt-3 ${glass.chip} !rounded-2xl px-4 py-3`}>
+          <p className={glass.label}>Exemplo</p>
+          <ClickableText text={hotspot.example} className="mt-1 text-sm italic leading-relaxed text-white/90" />
+        </div>
+
+        <div className="relative mt-5 grid grid-cols-2 gap-3">
+          <button type="button" onClick={() => speak(`${hotspot.word}. ${hotspot.example}`)} disabled={!('speechSynthesis' in window)} className={glass.secondaryButton}>
+            <Volume2 className="h-5 w-5" />
+            Ouvir
           </button>
-
-          {/* Example */}
-          <div className="mb-6 p-4 bg-white/5 rounded-lg border border-white/10">
-            <p className="text-xs text-white/60 uppercase tracking-widest mb-2">Exemplo</p>
-            <p className="text-sm text-white italic">{mockHotspot.example}</p>
-          </div>
-
-          {/* Reward badge */}
-          <div className="mb-6 p-3 bg-green-500/20 rounded-lg border border-green-500/50">
-            <p className="text-xs text-green-300 uppercase tracking-widest mb-1">Recompensa</p>
-            <p className="text-2xl font-bold text-green-300">+{mockHotspot.rewardDollars} 💰</p>
-          </div>
-
-          {/* Collect button */}
-          <button
-            onClick={handleCollect}
-            disabled={isCollected}
-            className={`w-full py-3 font-semibold rounded-lg transition-all flex items-center justify-center gap-2 ${
-              isCollected
-                ? 'bg-white/10 text-white/60 cursor-not-allowed'
-                : 'bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white hover:scale-105 active:scale-95'
-            }`}
-          >
-            {isCollected ? (
-              <>✓ Coletado!</>
-            ) : (
-              <>
-                🎁 Coletar Souvenir
-              </>
-            )}
+          <button type="button" onClick={collect} disabled={alreadyCollected || collecting} className={glass.primaryButton}>
+            {alreadyCollected ? <Check className="h-5 w-5" /> : <Gift className="h-5 w-5" />}
+            {alreadyCollected ? 'Coletado' : 'Coletar'}
           </button>
         </div>
+
+        {!alreadyCollected && (
+          <p className="relative mt-3 flex items-center justify-center gap-1.5 text-xs font-bold text-amber-200">
+            <Coins className="h-3.5 w-3.5" />+{hotspot.rewardDollars} Action Dollars ao coletar
+          </p>
+        )}
       </div>
     </div>
   );

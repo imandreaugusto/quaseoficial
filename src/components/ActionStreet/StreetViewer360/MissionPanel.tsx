@@ -1,218 +1,181 @@
-import { useEffect, useState } from 'react';
-import { X, Send } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { ArrowRight, Check, Coins, MessagesSquare, RotateCcw, Sparkles, Stamp as StampIcon, X } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import type { ActionStreetState, Mission } from '../../types/actionStreet';
-import { missionEngine, type MissionState } from '../../lib/actionStreet/missionEngine';
-import { routeAnimations } from '../../lib/actionStreet/routeAnimations';
-import { rewards } from '../../lib/actionStreet/rewards';
-import { persistenceManager } from '../../lib/actionStreet/persistenceManager';
+import { missionEngine, type MissionState } from '../../../lib/actionStreet/missionEngine';
+import { persistenceManager } from '../../../lib/actionStreet/persistenceManager';
+import { rewards } from '../../../lib/actionStreet/rewards';
+import { routeAnimations } from '../../../lib/actionStreet/routeAnimations';
+import { useActionStreet } from '../ActionStreetContext';
+import ClickableText from '../shared/ClickableText';
+import { glass } from '../shared/glass';
 
 interface Props {
-  mission: Mission;
-  state: ActionStreetState;
-  updateState: (newState: ActionStreetState) => void;
-  onClose: () => void;
   cityId: string;
+  onClose: () => void;
+  onOpenPassport: (stampId: string) => void;
 }
 
-export default function MissionPanel({
-  mission,
-  state,
-  updateState,
-  onClose,
-  cityId,
-}: Props) {
-  const [missionState, setMissionState] = useState<MissionState>(() =>
-    missionEngine.initMission()
-  );
-  const [selectedOption, setSelectedOption] = useState<number | null>(null);
-  const [showFeedback, setShowFeedback] = useState(false);
-  const [panelRef, setPanelRef] = useState<HTMLDivElement | null>(null);
-
-  const currentStep = missionEngine.getCurrentStep(mission, missionState);
-  const progress = missionEngine.getMissionProgress(mission, missionState);
+export default function MissionPanel({ cityId, onClose, onOpenPassport }: Props) {
+  const { state, updateState, getCityData } = useActionStreet();
+  const city = getCityData(cityId);
+  const mission = city?.mission;
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [missionState, setMissionState] = useState<MissionState>(() => missionEngine.initMission());
+  const [selected, setSelected] = useState<number | null>(null);
+  const [firstCompletion, setFirstCompletion] = useState(false);
 
   useEffect(() => {
-    if (panelRef) {
-      routeAnimations.modalOpen(panelRef);
-    }
-  }, [panelRef]);
+    if (panelRef.current) routeAnimations.modalOpen(panelRef.current);
+  }, []);
 
-  const handleSelectOption = (optionIndex: number) => {
-    if (selectedOption !== null) return;
-
-    const option = currentStep?.options[optionIndex];
-    if (!option) return;
-
-    setSelectedOption(optionIndex);
-    setShowFeedback(true);
-
-    // Avaliar opção
-    let newMissionState = missionEngine.evaluateOption(option.isCorrect, missionState);
-
-    // Avançar para próximo passo
-    setTimeout(() => {
-      newMissionState = missionEngine.advanceStep(mission, newMissionState);
-      setMissionState(newMissionState);
-      setSelectedOption(null);
-      setShowFeedback(false);
-
-      // Verificar conclusão
-      if (missionEngine.isMissionComplete(newMissionState)) {
-        handleMissionComplete(newMissionState);
-      }
-    }, 2000);
-  };
-
-  const handleMissionComplete = (finalState: MissionState) => {
-    // Calcular recompensas
-    const rewardInfo = rewards.calculateMissionReward(
-      mission.rewardDollars,
-      finalState.allCorrect
-    );
-
-    // Atualizar estado
-    let newState = persistenceManager.updateBalance(state, rewardInfo.total);
-    newState = persistenceManager.completeMission(newState, mission.id);
-
-    // Adicionar stamp
-    const stamp = {
-      id: `stamp-${cityId}-${Date.now()}`,
-      title: `Missão: ${mission.title}`,
-      subtitle: cityId.toUpperCase(),
-      color: '#F59E0B',
-      cityId,
-      earnedAt: Date.now(),
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
     };
-    newState = persistenceManager.addStamp(newState, stamp);
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
 
-    updateState(newState);
+  if (!city || !mission) return null;
 
-    // Efeitos
-    confetti({
-      particleCount: 100,
-      spread: 70,
-      origin: { y: 0.5 },
-    });
+  const step = missionEngine.getCurrentStep(mission, missionState);
+  const progress = missionEngine.getMissionProgress(mission, missionState);
+  const done = missionEngine.isMissionComplete(missionState);
+  const reward = rewards.calculateMissionReward(mission.rewardDollars, missionState.allCorrect);
+  const stampId = city.stamp.id;
 
-    // Animar fechamento com delay
-    setTimeout(() => {
-      if (panelRef) {
-        routeAnimations.modalClose(panelRef, onClose);
-      }
-    }, 1500);
+  const choose = (index: number) => {
+    if (selected !== null || !step) return;
+    setSelected(index);
+    setMissionState((previous) => missionEngine.evaluateOption(step.options[index].isCorrect, previous));
   };
 
-  if (!currentStep && !missionEngine.isMissionComplete(missionState)) {
-    return null;
-  }
+  const next = () => {
+    const advanced = missionEngine.advanceStep(mission, missionState);
+    setMissionState(advanced);
+    setSelected(null);
+    if (!advanced.completed) return;
+
+    const isFirst = !state.completedMissions.includes(mission.id);
+    setFirstCompletion(isFirst);
+    if (!isFirst) return;
+
+    updateState((previous) => {
+      if (previous.completedMissions.includes(mission.id)) return previous;
+      let updated = persistenceManager.updateBalance(previous, reward.total);
+      updated = persistenceManager.completeMission(updated, mission.id);
+      return persistenceManager.addStamp(updated, { ...city.stamp, cityId: city.id, earnedAt: Date.now() });
+    });
+    confetti({ particleCount: 110, spread: 75, origin: { y: 0.55 }, zIndex: 10000 });
+  };
+
+  const restart = () => {
+    setMissionState(missionEngine.initMission());
+    setSelected(null);
+    setFirstCompletion(false);
+  };
 
   return (
-    <div
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 flex items-center justify-center p-4"
-      onClick={onClose}
-    >
+    <div className={`absolute inset-0 z-40 flex items-center justify-center p-4 ${glass.backdrop}`} onClick={onClose}>
       <div
-        ref={setPanelRef}
-        onClick={(e) => e.stopPropagation()}
-        className="bg-gradient-to-br from-slate-800/95 to-slate-900/95 backdrop-blur-md border border-white/20 rounded-2xl max-w-md w-full shadow-2xl overflow-hidden"
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Missão: ${mission.title}`}
+        onClick={(event) => event.stopPropagation()}
+        className={`relative w-full max-w-lg overflow-hidden p-6 text-white ${glass.panelOverImagery}`}
       >
-        {/* Header */}
-        <div className="bg-gradient-to-r from-purple-600/20 to-pink-600/20 border-b border-white/10 px-6 py-4 flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-white">{mission.title}</h2>
-            <p className="text-sm text-white/60 mt-1">{mission.npcRole}</p>
+        <div className="pointer-events-none absolute -right-16 -top-20 h-52 w-52 rounded-full bg-violet-500/25 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-20 -left-12 h-48 w-48 rounded-full bg-blue-500/20 blur-3xl" />
+
+        <div className="relative flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className={glass.label}>Missão · {mission.npcRole}</p>
+            <h2 className="text-xl font-black leading-tight">{mission.title}</h2>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-          >
-            <X className="w-5 h-5 text-white" />
+          <button type="button" onClick={onClose} aria-label="Fechar missão" className={glass.iconButton}>
+            <X className="h-4 w-4" />
           </button>
         </div>
 
-        {/* Progress bar */}
-        <div className="px-6 pt-4 pb-2">
-          <div className="flex items-center justify-between text-xs text-white/60 mb-2">
-            <span>Progresso</span>
-            <span>
-              {progress.current}/{progress.total}
-            </span>
-          </div>
-          <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-orange-500 to-pink-500 transition-all duration-300"
-              style={{ width: `${progress.percentage}%` }}
-            />
+        <div className="relative mt-4" aria-label={`Progresso ${progress.current} de ${progress.total}`}>
+          <div className="h-2 overflow-hidden rounded-full border border-white/15 bg-white/10">
+            <div className="h-full rounded-full bg-gradient-to-r from-blue-500 to-violet-500 transition-[width] duration-500" style={{ width: `${done ? 100 : ((progress.current - 1) / progress.total) * 100}%` }} />
           </div>
         </div>
 
-        {/* Mission complete state */}
-        {missionEngine.isMissionComplete(missionState) ? (
-          <div className="px-6 py-8 text-center">
-            <div className="text-6xl mb-4">🎉</div>
-            <h3 className="text-2xl font-bold text-white mb-2">Missão Completa!</h3>
-            <p className="text-white/70 mb-6">Você conquistou essa missão com sucesso!</p>
-            <div className="bg-green-500/20 border border-green-500/50 rounded-lg p-4 mb-6">
-              <p className="text-sm text-green-300 mb-2">Recompensa Total:</p>
-              <p className="text-3xl font-bold text-green-300">
-                +{rewards.calculateMissionReward(mission.rewardDollars, missionState.allCorrect).total}
-                💰
-              </p>
+        {done ? (
+          <div className="relative mt-6 text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-emerald-300/20 text-emerald-200">
+              <Sparkles className="h-7 w-7" />
             </div>
-            {missionState.allCorrect && (
-              <div className="text-yellow-300 text-sm font-semibold mb-4">
-                ⭐ Perfeição! Bonus +25%
-              </div>
+            <h3 className="mt-3 text-2xl font-black">Missão completa!</h3>
+            {firstCompletion ? (
+              <>
+                <p className="mt-2 inline-flex items-center gap-2 text-lg font-black text-amber-200">
+                  <Coins className="h-5 w-5" />+{reward.total} Action Dollars
+                </p>
+                {reward.bonus > 0 && <p className="mt-1 text-xs font-bold text-emerald-300">Inclui +{reward.bonus} de bônus por acertar tudo</p>}
+                <button type="button" onClick={() => onOpenPassport(stampId)} className={`mt-5 w-full ${glass.primaryButton}`}>
+                  <StampIcon className="h-5 w-5" />
+                  Carimbar meu passaporte
+                </button>
+              </>
+            ) : (
+              <p className="mt-2 text-sm text-white/70">Você já tinha concluído esta missão, então a recompensa não se repete. Continue praticando!</p>
             )}
+            <button type="button" onClick={restart} className={`mt-3 w-full ${glass.secondaryButton}`}>
+              <RotateCcw className="h-4 w-4" />
+              Praticar de novo
+            </button>
           </div>
         ) : (
-          <>
-            {/* Chat content */}
-            <div className="px-6 py-6 min-h-40">
-              {/* NPC message */}
-              <div className="mb-6 p-4 bg-white/10 border border-white/20 rounded-lg">
-                <p className="text-sm font-semibold text-white/60 mb-2">
-                  {mission.npcRole}:
+          step && (
+            <div className="relative mt-5">
+              {progress.current === 1 && <p className="mb-3 text-sm text-white/70">{mission.description}</p>}
+
+              <div className={`${glass.chip} !rounded-2xl px-4 py-3`}>
+                <p className={`${glass.label} flex items-center gap-1.5`}>
+                  <MessagesSquare className="h-3.5 w-3.5" /> {mission.npcRole}
                 </p>
-                <p className="text-white text-base leading-relaxed">
-                  {currentStep?.npcLine}
-                </p>
+                <ClickableText text={step.npcLine} className="mt-1 text-base leading-relaxed" />
               </div>
 
-              {/* Options */}
-              <div className="space-y-3">
-                {currentStep?.options.map((option, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => handleSelectOption(idx)}
-                    disabled={selectedOption !== null}
-                    className={`w-full text-left p-3 rounded-lg transition-all border ${
-                      selectedOption === idx
-                        ? option.isCorrect
-                          ? 'bg-green-500/30 border-green-500/70'
-                          : 'bg-red-500/30 border-red-500/70'
-                        : 'bg-white/10 border-white/20 hover:bg-white/20 hover:border-white/40'
-                    } ${selectedOption !== null && selectedOption !== idx ? 'opacity-50' : ''}`}
-                  >
-                    <p className="text-white text-sm leading-relaxed">{option.text}</p>
+              <ul className="mt-4 space-y-2">
+                {step.options.map((option, index) => {
+                  const isSelected = selected === index;
+                  const revealed = selected !== null;
+                  const tone = !revealed
+                    ? 'border-white/20 bg-white/10 hover:border-blue-300/60 hover:bg-white/15'
+                    : isSelected
+                      ? option.isCorrect
+                        ? 'border-emerald-300/70 bg-emerald-400/20'
+                        : 'border-rose-300/70 bg-rose-400/20'
+                      : option.isCorrect
+                        ? 'border-emerald-300/40 bg-emerald-400/10'
+                        : 'border-white/10 bg-white/5 opacity-60';
+                  return (
+                    <li key={option.text}>
+                      <button type="button" disabled={revealed} onClick={() => choose(index)} className={`flex w-full items-start gap-3 rounded-2xl border px-4 py-3 text-left text-sm backdrop-blur-xl transition ${tone}`}>
+                        <span className="flex-1 leading-relaxed">{option.text}</span>
+                        {revealed && option.isCorrect && <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+
+              {selected !== null && (
+                <div className="mt-4" role="status">
+                  <p className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm leading-relaxed text-white/90 backdrop-blur-xl">{step.options[selected].feedback}</p>
+                  <button type="button" onClick={next} className={`mt-3 w-full ${glass.primaryButton}`}>
+                    {progress.current === progress.total ? 'Concluir missão' : 'Continuar'}
+                    <ArrowRight className="h-5 w-5" />
                   </button>
-                ))}
-              </div>
-
-              {/* Feedback */}
-              {showFeedback && selectedOption !== null && (
-                <div className="mt-4 p-3 rounded-lg bg-white/10 border border-white/20">
-                  <p className="text-xs text-white/60 uppercase tracking-widest mb-2">
-                    Feedback:
-                  </p>
-                  <p className="text-sm text-white">
-                    {currentStep?.options[selectedOption].feedback}
-                  </p>
                 </div>
               )}
             </div>
-          </>
+          )
         )}
       </div>
     </div>

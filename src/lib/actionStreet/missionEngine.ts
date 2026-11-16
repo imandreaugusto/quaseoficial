@@ -1,4 +1,4 @@
-import type { Mission, MissionStep } from '../types/actionStreet';
+import type { Mission, MissionStep } from '../../types/actionStreet';
 
 export interface MissionState {
   currentStep: number;

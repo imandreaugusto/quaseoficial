@@ -5,7 +5,10 @@
   "initialBalance": 150,
   "originHub": {
     "name": "São Paulo, Brasil",
-    "coordinates": [-46.6333, -23.5505]
+    "coordinates": [
+      -46.6333,
+      -23.5505
+    ]
   },
   "states": [
     {
@@ -17,7 +20,10 @@
       "unlockCost": 0,
       "weatherPreset": "rainy",
       "camera": {
-        "center": [-73.9855, 40.758],
+        "center": [
+          -73.9855,
+          40.758
+        ],
         "zoom": 16.5,
         "pitch": 65,
         "bearing": -28
@@ -25,10 +31,22 @@
       "route3D": {
         "name": "Times Square to Central Park Walk",
         "waypoints": [
-          [-73.9855, 40.758],
-          [-73.9814, 40.7636],
-          [-73.9776, 40.7688],
-          [-73.973, 40.7749]
+          [
+            -73.9855,
+            40.758
+          ],
+          [
+            -73.9814,
+            40.7636
+          ],
+          [
+            -73.9776,
+            40.7688
+          ],
+          [
+            -73.973,
+            40.7749
+          ]
         ]
       },
       "stamp": {
@@ -44,6 +62,7 @@
       "hotspots": [
         {
           "id": "ny-hs-1",
+          "spotId": "times-square",
           "word": "Fire Hydrant",
           "translation": "Hidrante de incêndio",
           "phonetic": "/ˈfaɪər ˌhaɪdrənt/",
@@ -53,6 +72,7 @@
         },
         {
           "id": "ny-hs-2",
+          "spotId": "times-square",
           "word": "Subway Entrance",
           "translation": "Entrada do metrô",
           "phonetic": "/ˈsʌbweɪ ˈɛntrəns/",
@@ -62,6 +82,7 @@
         },
         {
           "id": "ny-hs-3",
+          "spotId": "central-park",
           "word": "Hot Dog Cart",
           "translation": "Carrinho de cachorro-quente",
           "phonetic": "/hɑːt dɔːɡ kɑːrt/",
@@ -108,7 +129,29 @@
             ]
           }
         ]
-      }
+      },
+      "spots": [
+        {
+          "id": "times-square",
+          "name": "Times Square",
+          "coordinates": [
+            -73.9855,
+            40.758
+          ]
+        },
+        {
+          "id": "central-park",
+          "name": "Central Park",
+          "coordinates": [
+            -73.973,
+            40.7749
+          ],
+          "guide": {
+            "title": "Central Park",
+            "text": "Central Park is a huge green oasis in the middle of Manhattan. Locals jog, ride bikes and have picnics here, while tourists enjoy boat rides on the lake and long walks along the Mall."
+          }
+        }
+      ]
     },
     {
       "id": "nj",
@@ -119,7 +162,10 @@
       "unlockCost": 200,
       "weatherPreset": "golden_hour",
       "camera": {
-        "center": [-74.0279, 40.7359],
+        "center": [
+          -74.0279,
+          40.7359
+        ],
         "zoom": 16,
         "pitch": 60,
         "bearing": 45
@@ -127,9 +173,18 @@
       "route3D": {
         "name": "Hoboken Terminal to Waterfront View",
         "waypoints": [
-          [-74.0279, 40.7359],
-          [-74.0258, 40.7395],
-          [-74.0245, 40.7432]
+          [
+            -74.0279,
+            40.7359
+          ],
+          [
+            -74.0258,
+            40.7395
+          ],
+          [
+            -74.0245,
+            40.7432
+          ]
         ]
       },
       "stamp": {
@@ -145,6 +200,7 @@
       "hotspots": [
         {
           "id": "nj-hs-1",
+          "spotId": "hoboken-terminal",
           "word": "Commuter Train",
           "translation": "Trem intermunicipal",
           "phonetic": "/kəˈmjuːtər treɪn/",
@@ -154,6 +210,7 @@
         },
         {
           "id": "nj-hs-2",
+          "spotId": "hoboken-terminal",
           "word": "Turnpike Exit",
           "translation": "Saída da rodovia pedagiada",
           "phonetic": "/ˈtɜːrnpaɪk ˈɛksɪt/",
@@ -163,6 +220,7 @@
         },
         {
           "id": "nj-hs-3",
+          "spotId": "hoboken-waterfront",
           "word": "Classic Diner",
           "translation": "Lanchonete tradicional americana",
           "phonetic": "/ˈklæsɪk ˈdaɪnər/",
@@ -194,7 +252,29 @@
             ]
           }
         ]
-      }
+      },
+      "spots": [
+        {
+          "id": "hoboken-terminal",
+          "name": "Hoboken Terminal",
+          "coordinates": [
+            -74.0279,
+            40.7359
+          ]
+        },
+        {
+          "id": "hoboken-waterfront",
+          "name": "Hoboken Waterfront",
+          "coordinates": [
+            -74.0245,
+            40.7432
+          ],
+          "guide": {
+            "title": "Hoboken Waterfront Walk",
+            "text": "The waterfront walkway runs along the Hudson River. Joggers, dog walkers and families come here for the skyline views, especially at sunset."
+          }
+        }
+      ]
     },
     {
       "id": "tx",
@@ -205,7 +285,10 @@
       "unlockCost": 350,
       "weatherPreset": "clear_day",
       "camera": {
-        "center": [-97.7431, 30.2672],
+        "center": [
+          -97.7431,
+          30.2672
+        ],
         "zoom": 16.2,
         "pitch": 62,
         "bearing": -15
@@ -213,9 +296,18 @@
       "route3D": {
         "name": "Silicon Hills Tech Corridor",
         "waypoints": [
-          [-97.7431, 30.2672],
-          [-97.7405, 30.2725],
-          [-97.738, 30.278]
+          [
+            -97.7431,
+            30.2672
+          ],
+          [
+            -97.7405,
+            30.2725
+          ],
+          [
+            -97.738,
+            30.278
+          ]
         ]
       },
       "stamp": {
@@ -231,6 +323,7 @@
       "hotspots": [
         {
           "id": "tx-hs-1",
+          "spotId": "downtown-austin",
           "word": "Launch Pad",
           "translation": "Plataforma de lançamento",
           "phonetic": "/lɔːntʃ pæd/",
@@ -240,6 +333,7 @@
         },
         {
           "id": "tx-hs-2",
+          "spotId": "downtown-austin",
           "word": "Smoked Brisket",
           "translation": "Peito bovino defumado",
           "phonetic": "/smoʊkt ˈbrɪskɪt/",
@@ -249,6 +343,7 @@
         },
         {
           "id": "tx-hs-3",
+          "spotId": "silicon-hills",
           "word": "Tech Campus",
           "translation": "Complexo empresarial de tecnologia",
           "phonetic": "/tɛk ˈkæmpəs/",
@@ -280,7 +375,29 @@
             ]
           }
         ]
-      }
+      },
+      "spots": [
+        {
+          "id": "downtown-austin",
+          "name": "Downtown Austin",
+          "coordinates": [
+            -97.7431,
+            30.2672
+          ]
+        },
+        {
+          "id": "silicon-hills",
+          "name": "Silicon Hills",
+          "coordinates": [
+            -97.738,
+            30.278
+          ],
+          "guide": {
+            "title": "Silicon Hills Corridor",
+            "text": "North of downtown, the Silicon Hills corridor is full of startups, coworking spaces and coffee shops where founders meet investors every day."
+          }
+        }
+      ]
     },
     {
       "id": "fl",
@@ -291,7 +408,10 @@
       "unlockCost": 500,
       "weatherPreset": "clear_day",
       "camera": {
-        "center": [-80.1301, 25.7907],
+        "center": [
+          -80.1301,
+          25.7907
+        ],
         "zoom": 16,
         "pitch": 58,
         "bearing": 20
@@ -299,9 +419,18 @@
       "route3D": {
         "name": "Miami Beach Ocean Drive",
         "waypoints": [
-          [-80.1301, 25.7907],
-          [-80.1285, 25.7945],
-          [-80.1270, 25.7985]
+          [
+            -80.1301,
+            25.7907
+          ],
+          [
+            -80.1285,
+            25.7945
+          ],
+          [
+            -80.127,
+            25.7985
+          ]
         ]
       },
       "stamp": {
@@ -317,6 +446,7 @@
       "hotspots": [
         {
           "id": "fl-hs-1",
+          "spotId": "ocean-drive",
           "word": "Lifeguard Tower",
           "translation": "Torre do salva-vidas",
           "phonetic": "/ˈlaɪfɡɑːrd ˈtaʊər/",
@@ -326,6 +456,7 @@
         },
         {
           "id": "fl-hs-2",
+          "spotId": "ocean-drive",
           "word": "Tropical Smoothie",
           "translation": "Vitamina tropical",
           "phonetic": "/ˈtrɒpɪkəl ˈsmuːðiː/",
@@ -335,6 +466,7 @@
         },
         {
           "id": "fl-hs-3",
+          "spotId": "mid-beach",
           "word": "Art Deco Building",
           "translation": "Edifício estilo Art Déco",
           "phonetic": "/ɑːrt ˈdeɪkoʊ ˈbɪldɪŋ/",
@@ -366,7 +498,29 @@
             ]
           }
         ]
-      }
+      },
+      "spots": [
+        {
+          "id": "ocean-drive",
+          "name": "Ocean Drive",
+          "coordinates": [
+            -80.1301,
+            25.7907
+          ]
+        },
+        {
+          "id": "mid-beach",
+          "name": "Mid-Beach Boardwalk",
+          "coordinates": [
+            -80.127,
+            25.7985
+          ],
+          "guide": {
+            "title": "Mid-Beach Boardwalk",
+            "text": "The boardwalk is a quiet path above the sand. People walk, run and watch the sunrise here before the beach fills up."
+          }
+        }
+      ]
     }
   ]
 }

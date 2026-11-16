@@ -1,174 +1,116 @@
-import { useEffect, useState } from 'react';
-import { ChevronLeft, MapPin, Backpack, BookOpen, Menu } from 'lucide-react';
-import type { ActionStreetState } from '../../types/actionStreet';
-import { useActionStreet } from '../ActionStreet';
-import HUDTop from './HUDTop';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Check, MessagesSquare } from 'lucide-react';
+import gsap from 'gsap';
+import { useActionStreet } from '../ActionStreetContext';
+import PassportModal, { type PassportTab } from '../Modals/PassportModal';
+import { glass } from '../shared/glass';
+import VocabularyCard from '../VocabularyCard/VocabularyCard';
 import HUDBottom from './HUDBottom';
-import VocabularyCardComponent from '../VocabularyCard/VocabularyCard';
+import HUDTop from './HUDTop';
+import MiniMap3D from './MiniMap3D';
 import MissionPanel from './MissionPanel';
+import StreetScene from './StreetScene';
 
 interface Props {
   cityId: string;
-  state: ActionStreetState;
-  updateState: (newState: ActionStreetState) => void;
   onBack: () => void;
 }
 
-export default function StreetViewer360({ cityId, state, updateState, onBack }: Props) {
-  const { getCityData } = useActionStreet();
-  const [showMission, setShowMission] = useState(false);
-  const [showBackpack, setShowBackpack] = useState(false);
-  const [showBookOpen, setShowBookOpen] = useState(false);
-  const [selectedHotspot, setSelectedHotspot] = useState<string | null>(null);
+interface PassportState {
+  tab: PassportTab;
+  highlightStampId?: string;
+}
 
+export default function StreetViewer360({ cityId, onBack }: Props) {
+  const { state, getCityData } = useActionStreet();
   const city = getCityData(cityId);
+  const [spotId, setSpotId] = useState(() => city?.spots[0]?.id ?? '');
+  const [hotspotId, setHotspotId] = useState<string | null>(null);
+  const [showMission, setShowMission] = useState(false);
+  const [passport, setPassport] = useState<PassportState | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const sceneRef = useRef<HTMLDivElement>(null);
+  const traveling = useRef(false);
+
+  useEffect(() => {
+    const tween = gsap.fromTo(rootRef.current, { opacity: 0, scale: 1.06 }, { opacity: 1, scale: 1, duration: 0.9, ease: 'power2.out', clearProps: 'transform' });
+    return () => {
+      tween.kill();
+    };
+  }, []);
+
+  const collectedIds = useMemo(() => new Set(state.souvenirs.map((item) => item.id)), [state.souvenirs]);
 
   if (!city) return null;
+  const spot = city.spots.find((item) => item.id === spotId) ?? city.spots[0];
+  const hotspots = city.hotspots.filter((item) => item.spotId === spot.id);
+  const guide = spot.guide ?? city.touristGuide;
+  const missionDone = state.completedMissions.includes(city.mission.id);
+
+  const travel = (nextSpotId: string) => {
+    if (traveling.current || nextSpotId === spot.id) return;
+    traveling.current = true;
+    gsap.to(sceneRef.current, {
+      opacity: 0,
+      duration: 0.4,
+      onComplete: () => {
+        setSpotId(nextSpotId);
+        gsap.to(sceneRef.current, {
+          opacity: 1,
+          duration: 0.7,
+          onComplete: () => {
+            traveling.current = false;
+          },
+        });
+      },
+    });
+  };
 
   return (
-    <div className="relative w-full h-full bg-black overflow-hidden">
-      {/* 360° Viewer Placeholder */}
-      <div className="absolute inset-0 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
-        <div className="text-center text-white/60">
-          <div className="text-6xl mb-4">360°</div>
-          <p>{city.city} Street View (Mapillary)</p>
-        </div>
+    <div ref={rootRef} className="absolute inset-0 bg-slate-950 text-white">
+      <div ref={sceneRef} className="absolute inset-0">
+        <StreetScene key={spot.id} city={city} spot={spot} hotspots={hotspots} collectedIds={collectedIds} onHotspot={setHotspotId} />
       </div>
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-slate-950/70 to-transparent" />
 
-      {/* HUD - Top Bar */}
       <HUDTop
         cityName={city.city}
+        spotName={spot.name}
         balance={state.balance}
         onBack={onBack}
-        onPassport={() => setShowBookOpen(true)}
-        onBackpack={() => setShowBackpack(true)}
+        onPassport={() => setPassport({ tab: 'stamps' })}
+        onBackpack={() => setPassport({ tab: 'backpack' })}
       />
 
-      {/* HUD - Tourist Guide (Bottom - Recolhível) */}
-      <HUDBottom
-        title={city.touristGuide.title}
-        text={city.touristGuide.text}
-      />
-
-      {/* Hotspots Overlay - Buttons */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="relative w-full h-full">
-          {city.hotspots.map((hotspot, idx) => (
-            <button
-              key={hotspot.id}
-              onClick={() => setSelectedHotspot(hotspot.id)}
-              className={`absolute pointer-events-auto w-12 h-12 rounded-full bg-orange-500/80 hover:bg-orange-500 border-2 border-white shadow-lg transition-all transform hover:scale-110 active:scale-95 flex items-center justify-center text-white font-bold ${
-                idx === 0 ? 'top-1/4 left-1/3' : idx === 1 ? 'top-1/3 right-1/4' : 'bottom-1/3 right-1/3'
-              }`}
-              aria-label={hotspot.word}
-            >
-              {idx + 1}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Mission Button - Corner */}
       <button
+        type="button"
         onClick={() => setShowMission(true)}
-        className="absolute bottom-8 right-8 z-20 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold rounded-lg shadow-lg transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
+        className={`absolute left-4 top-[8.25rem] z-20 flex max-w-[min(20rem,calc(100vw-2rem))] items-center gap-3 px-4 py-3 text-left transition hover:bg-white/10 sm:left-6 ${glass.panelOverImagery} !rounded-2xl`}
       >
-        <Menu className="w-5 h-5" />
-        Missão
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-violet-500/40">
+          {missionDone ? <Check className="h-4 w-4" /> : <MessagesSquare className="h-4 w-4" />}
+        </span>
+        <span className="min-w-0">
+          <span className={`block ${glass.label}`}>{missionDone ? 'Missão concluída · praticar' : 'Missão disponível'}</span>
+          <span className="block truncate text-sm font-black">{city.mission.title}</span>
+        </span>
       </button>
 
-      {/* Vocabulary Card Modal */}
-      {selectedHotspot && (
-        <VocabularyCardComponent
-          hotspotId={selectedHotspot}
-          cityId={cityId}
-          state={state}
-          updateState={updateState}
-          onClose={() => setSelectedHotspot(null)}
-        />
-      )}
+      <HUDBottom key={spot.id} title={guide.title} text={guide.text} />
+      <MiniMap3D city={city} currentSpotId={spot.id} onTravel={travel} />
 
-      {/* Mission Panel */}
+      {hotspotId && <VocabularyCard cityId={city.id} hotspotId={hotspotId} onClose={() => setHotspotId(null)} />}
       {showMission && (
         <MissionPanel
-          mission={city.mission}
-          state={state}
-          updateState={updateState}
+          cityId={city.id}
           onClose={() => setShowMission(false)}
-          cityId={cityId}
+          onOpenPassport={(stampId) => {
+            setShowMission(false);
+            setPassport({ tab: 'stamps', highlightStampId: stampId });
+          }}
         />
       )}
-
-      {/* Backpack Modal Placeholder */}
-      {showBackpack && (
-        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900/95 backdrop-blur-md border border-white/20 rounded-xl p-6 max-w-md w-full">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                <Backpack className="w-6 h-6" />
-                Mochila
-              </h2>
-              <button
-                onClick={() => setShowBackpack(false)}
-                className="p-1 hover:bg-white/10 rounded transition-colors"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="text-white/60">
-              {state.souvenirs.length === 0 ? (
-                <p>Colete souvenirs dos hotspots!</p>
-              ) : (
-                <div className="grid grid-cols-2 gap-2">
-                  {state.souvenirs.map(souvenir => (
-                    <div key={souvenir.id} className="bg-white/10 p-2 rounded text-center text-sm">
-                      {souvenir.label}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* BookOpen Modal Placeholder */}
-      {showBookOpen && (
-        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900/95 backdrop-blur-md border border-white/20 rounded-xl p-6 max-w-md w-full">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                <BookOpen className="w-6 h-6" />
-                Passaporte Digital
-              </h2>
-              <button
-                onClick={() => setShowBookOpen(false)}
-                className="p-1 hover:bg-white/10 rounded transition-colors"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="text-white/60">
-              <p className="mb-4">Carimbos Conquistados:</p>
-              <div className="grid grid-cols-2 gap-3">
-                {state.stamps.length === 0 ? (
-                  <p className="text-sm">Complete missões para ganhar carimbos!</p>
-                ) : (
-                  state.stamps.map(stamp => (
-                    <div
-                      key={stamp.id}
-                      className="p-3 rounded text-center text-white text-sm font-semibold border-2"
-                      style={{ borderColor: stamp.color, backgroundColor: `${stamp.color}20` }}
-                    >
-                      {stamp.title}
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {passport && <PassportModal initialTab={passport.tab} highlightStampId={passport.highlightStampId} onClose={() => setPassport(null)} />}
     </div>
   );
 }
