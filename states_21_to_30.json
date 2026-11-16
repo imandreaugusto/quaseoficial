@@ -1,0 +1,824 @@
+{
+  "states": [
+    {
+      "id": "nc",
+      "stateName": "North Carolina",
+      "city": "Charlotte",
+      "unlockedByDefault": false,
+      "unlockCost": 6650,
+      "weatherPreset": "clear_day",
+      "camera": {
+        "center": [-80.8431, 35.2271],
+        "zoom": 16.0,
+        "pitch": 60,
+        "bearing": 15
+      },
+      "route3D": {
+        "name": "Uptown Charlotte & Tryon Street",
+        "waypoints": [
+          [-80.8465, 35.2238],
+          [-80.8431, 35.2271],
+          [-80.8398, 35.2305]
+        ]
+      },
+      "stamp": {
+        "id": "stamp-nc",
+        "code": "CLT - NC",
+        "title": "THE TAR HEEL STATE",
+        "color": "#0284C7"
+      },
+      "touristGuide": {
+        "title": "Uptown Charlotte & The Queen City",
+        "text": "Named after Queen Charlotte, this bustling financial hub blends glass skyscrapers with leafy greenways. Just outside the city, North Carolina stretches from the misty Blue Ridge Mountains to the sandy Outer Banks."
+      },
+      "hotspots": [
+        {
+          "id": "nc-1",
+          "word": "Uptown",
+          "translation": "centro financeiro (termo usado em Charlotte em vez de downtown)",
+          "phonetic": "/ˈʌp.taʊn/",
+          "example": "In Charlotte, locals call the city center Uptown rather than downtown.",
+          "rewardDollars": 125
+        },
+        {
+          "id": "nc-2",
+          "word": "pulled pork",
+          "translation": "carne de porco desfiada e defumada",
+          "phonetic": "/pʊld pɔːrk/",
+          "example": "North Carolina is famous for pulled pork with tangy vinegar sauce.",
+          "rewardDollars": 125
+        },
+        {
+          "id": "nc-3",
+          "word": "First in Flight",
+          "translation": "lema das placas de carro da Carolina do Norte",
+          "phonetic": "/fɜːrst ɪn flaɪt/",
+          "example": "The Wright brothers' first powered flight took place in North Carolina.",
+          "rewardDollars": 130
+        }
+      ],
+      "mission": {
+        "id": "m-nc",
+        "title": "Choose a Carolina Barbecue Sauce",
+        "description": "Você está em uma churrascaria da Carolina do Norte escolhendo o molho do pulled pork.",
+        "rewardDollars": 600,
+        "npcRole": "Especialista em churrasco",
+        "steps": [
+          {
+            "npcLine": "Would you like Eastern vinegar sauce or Lexington-style tomato sauce with your pulled pork?",
+            "options": [
+              {
+                "text": "Let's go with the vinegar sauce. Could I get coleslaw on the side?",
+                "isCorrect": true,
+                "feedback": "Excelente! 'On the side' é a expressão natural para pedir acompanhamentos separados."
+              },
+              {
+                "text": "Put the acid sauce and cabbage salad separated in the plate.",
+                "isCorrect": false,
+                "feedback": "A salada de repolho é 'coleslaw', e para pedir algo separado do prato diga 'on the side'."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "va",
+      "stateName": "Virginia",
+      "city": "Richmond",
+      "unlockedByDefault": false,
+      "unlockCost": 7200,
+      "weatherPreset": "golden_hour",
+      "camera": {
+        "center": [-77.4360, 37.5407],
+        "zoom": 16.0,
+        "pitch": 60,
+        "bearing": -20
+      },
+      "route3D": {
+        "name": "Carytown & Monument Avenue Walk",
+        "waypoints": [
+          [-77.4842, 37.5548],
+          [-77.4785, 37.5535],
+          [-77.4720, 37.5521]
+        ]
+      },
+      "stamp": {
+        "id": "stamp-va",
+        "code": "RIC - VA",
+        "title": "OLD DOMINION",
+        "color": "#1E3A8A"
+      },
+      "touristGuide": {
+        "title": "Historic Richmond & The James River",
+        "text": "Set along the James River, Richmond is rich in American history, brick-lined neighborhoods, and independent shops. Carytown is a favorite local district for browsing and dining."
+      },
+      "hotspots": [
+        {
+          "id": "va-1",
+          "word": "Commonwealth",
+          "translation": "comunidade; designação oficial usada por Virginia",
+          "phonetic": "/ˈkɑː.mən.welθ/",
+          "example": "Virginia is officially known as a Commonwealth.",
+          "rewardDollars": 130
+        },
+        {
+          "id": "va-2",
+          "word": "townhouse",
+          "translation": "casa geminada de vários andares",
+          "phonetic": "/ˈtaʊn.haʊs/",
+          "example": "Historic red-brick townhouses line the streets of Richmond's Fan District.",
+          "rewardDollars": 130
+        },
+        {
+          "id": "va-3",
+          "word": "toll road",
+          "translation": "estrada com pedágio",
+          "phonetic": "/ˈtoʊl roʊd/",
+          "example": "Check whether your rental car includes an E-ZPass for the toll road.",
+          "rewardDollars": 135
+        }
+      ],
+      "mission": {
+        "id": "m-va",
+        "title": "Ask About a Toll Pass",
+        "description": "Você está alugando um carro em Richmond e quer entender a cobrança do passe de pedágio.",
+        "rewardDollars": 620,
+        "npcRole": "Agente de locadora",
+        "steps": [
+          {
+            "npcLine": "If you're taking I-95 North, you'll reach express toll lanes. Would you like to add our toll pass?",
+            "options": [
+              {
+                "text": "How much is the daily fee, and does the pass cover the express lanes?",
+                "isCorrect": true,
+                "feedback": "Boa! Perguntar pela 'daily fee' e o que ela cobre ajuda a evitar cobranças inesperadas."
+              },
+              {
+                "text": "How much money to pay the road taxes every day?",
+                "isCorrect": false,
+                "feedback": "Pedágio é 'toll'. Para perguntar o preço, use 'How much is the daily fee?'"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "oh",
+      "stateName": "Ohio",
+      "city": "Cleveland",
+      "unlockedByDefault": false,
+      "unlockCost": 7800,
+      "weatherPreset": "rainy",
+      "camera": {
+        "center": [-81.6944, 41.4993],
+        "zoom": 16.0,
+        "pitch": 60,
+        "bearing": 30
+      },
+      "route3D": {
+        "name": "East 4th Street & Lake Erie Shore",
+        "waypoints": [
+          [-81.6902, 41.4991],
+          [-81.6935, 41.5035],
+          [-81.6954, 41.5085]
+        ]
+      },
+      "stamp": {
+        "id": "stamp-oh",
+        "code": "CLE - OH",
+        "title": "THE BUCKEYE STATE",
+        "color": "#991B1B"
+      },
+      "touristGuide": {
+        "title": "Cleveland & The Rock and Roll Hall of Fame",
+        "text": "On the southern shore of Lake Erie, Cleveland is home to the Rock & Roll Hall of Fame, lively theater districts, and passionate sports fans."
+      },
+      "hotspots": [
+        {
+          "id": "oh-1",
+          "word": "lakefront",
+          "translation": "orla do lago",
+          "phonetic": "/ˈleɪk.frʌnt/",
+          "example": "Breezes off Lake Erie keep the Cleveland lakefront cool in late spring.",
+          "rewardDollars": 135
+        },
+        {
+          "id": "oh-2",
+          "word": "Buckeye",
+          "translation": "apelido de um morador de Ohio; também nome de um doce local",
+          "phonetic": "/ˈbʌk.aɪ/",
+          "example": "We brought homemade Buckeye candies to the game.",
+          "rewardDollars": 135
+        },
+        {
+          "id": "oh-3",
+          "word": "tailgate",
+          "translation": "confraternização no estacionamento antes de um jogo",
+          "phonetic": "/ˈteɪl.ɡeɪt/",
+          "example": "Fans grilled burgers in the parking lot during a tailgate before kickoff.",
+          "rewardDollars": 140
+        }
+      ],
+      "mission": {
+        "id": "m-oh",
+        "title": "Get Tickets to the Rock Hall",
+        "description": "Você chegou à bilheteria do Rock & Roll Hall of Fame e quer comprar ingressos.",
+        "rewardDollars": 640,
+        "npcRole": "Atendente do museu",
+        "steps": [
+          {
+            "npcLine": "General admission gets you into all six floors. How many tickets do you need?",
+            "options": [
+              {
+                "text": "Two adult tickets, please. Is photography allowed inside?",
+                "isCorrect": true,
+                "feedback": "Perfeito! 'Ticket' significa ingresso, e 'Is photography allowed?' pergunta naturalmente sobre fotos."
+              },
+              {
+                "text": "I want two entrances for adults. Can I take pictures with my telephone?",
+                "isCorrect": false,
+                "feedback": "Ingresso é 'ticket' ou 'admission'; 'entrance' é a entrada física. Para celular, prefira 'phone'."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "md",
+      "stateName": "Maryland",
+      "city": "Baltimore",
+      "unlockedByDefault": false,
+      "unlockCost": 8400,
+      "weatherPreset": "golden_hour",
+      "camera": {
+        "center": [-76.6122, 39.2858],
+        "zoom": 16.2,
+        "pitch": 60,
+        "bearing": -10
+      },
+      "route3D": {
+        "name": "Baltimore Inner Harbor Promenade",
+        "waypoints": [
+          [-76.6145, 39.2865],
+          [-76.6105, 39.2855],
+          [-76.6055, 39.2848]
+        ]
+      },
+      "stamp": {
+        "id": "stamp-md",
+        "code": "BWI - MD",
+        "title": "THE OLD LINE STATE",
+        "color": "#B45309"
+      },
+      "touristGuide": {
+        "title": "Baltimore's Historic Inner Harbor",
+        "text": "Baltimore's Inner Harbor combines waterfront walks, historic ships, and museums. Local menus feature Chesapeake Bay seafood, especially blue crab and crab cakes."
+      },
+      "hotspots": [
+        {
+          "id": "md-1",
+          "word": "blue crab",
+          "translation": "caranguejo-azul da baía de Chesapeake",
+          "phonetic": "/ˈbluː kræb/",
+          "example": "The blue crab is closely associated with the Chesapeake Bay.",
+          "rewardDollars": 140
+        },
+        {
+          "id": "md-2",
+          "word": "Old Bay",
+          "translation": "mistura de temperos muito usada em frutos do mar na região",
+          "phonetic": "/ˌoʊld ˈbeɪ/",
+          "example": "They sprinkled Old Bay over the steamed crabs.",
+          "rewardDollars": 140
+        },
+        {
+          "id": "md-3",
+          "word": "water taxi",
+          "translation": "barco usado como transporte entre pontos da orla",
+          "phonetic": "/ˈwɔːtər ˌtæksi/",
+          "example": "We took the water taxi across the harbor after visiting the museum.",
+          "rewardDollars": 145
+        }
+      ],
+      "mission": {
+        "id": "m-md",
+        "title": "Order a Crab Cake",
+        "description": "Em um restaurante da orla de Baltimore, pergunte como o crab cake é preparado.",
+        "rewardDollars": 660,
+        "npcRole": "Garçom de restaurante",
+        "steps": [
+          {
+            "npcLine": "Our crab cakes are made with jumbo lump crab and served with Old Bay fries.",
+            "options": [
+              {
+                "text": "That sounds great. Is the crab cake broiled or fried?",
+                "isCorrect": true,
+                "feedback": "Muito bem! 'Is it broiled or fried?' pergunta se o prato é grelhado no forno ou frito."
+              },
+              {
+                "text": "How you cook this crab cake?",
+                "isCorrect": false,
+                "feedback": "Para perguntar o método de preparo, diga 'How is it cooked?' ou 'Is it broiled or fried?'"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ak",
+      "stateName": "Alaska",
+      "city": "Anchorage",
+      "unlockedByDefault": false,
+      "unlockCost": 9000,
+      "weatherPreset": "clear_day",
+      "camera": {
+        "center": [-149.9003, 61.2181],
+        "zoom": 16.0,
+        "pitch": 60,
+        "bearing": 0
+      },
+      "route3D": {
+        "name": "Downtown Anchorage to the Coastal Trail",
+        "waypoints": [
+          [-149.9003, 61.2181],
+          [-149.8964, 61.2167],
+          [-149.8890, 61.2135]
+        ]
+      },
+      "stamp": {
+        "id": "stamp-ak",
+        "code": "ANC - AK",
+        "title": "THE LAST FRONTIER",
+        "color": "#367C8B"
+      },
+      "touristGuide": {
+        "title": "Anchorage Coastal Trail",
+        "text": "Anchorage pairs a lively downtown with mountain views and access to the Tony Knowles Coastal Trail. On clear days, the path offers broad views of Cook Inlet and the surrounding landscape."
+      },
+      "hotspots": [
+        {
+          "id": "ak-1",
+          "word": "midnight sun",
+          "translation": "sol da meia-noite, fenômeno de dias muito longos no verão",
+          "phonetic": "/ˈmɪdˌnaɪt sʌn/",
+          "example": "The midnight sun gives Anchorage long summer evenings.",
+          "rewardDollars": 145
+        },
+        {
+          "id": "ak-2",
+          "word": "glacier",
+          "translation": "geleira",
+          "phonetic": "/ˈɡleɪʃər/",
+          "example": "We booked a boat tour to see a glacier in the bay.",
+          "rewardDollars": 145
+        },
+        {
+          "id": "ak-3",
+          "word": "bear country",
+          "translation": "região onde vivem ursos selvagens",
+          "phonetic": "/ˈbɛr ˌkʌntri/",
+          "example": "This trail is bear country, so follow the posted safety guidance.",
+          "rewardDollars": 150
+        }
+      ],
+      "mission": {
+        "id": "m-ak",
+        "title": "Ask About the Coastal Trail",
+        "description": "Você quer caminhar pela trilha costeira e confirmar onde ela começa e quanto tempo leva.",
+        "rewardDollars": 680,
+        "npcRole": "Atendente do centro de visitantes",
+        "steps": [
+          {
+            "npcLine": "The Coastal Trail is a great walk this afternoon. Are you heading out now?",
+            "options": [
+              {
+                "text": "Yes. Where is the nearest trail entrance, and how long is the walk to the viewpoint?",
+                "isCorrect": true,
+                "feedback": "Ótimo! Você perguntou onde fica a entrada e quanto tempo leva até o mirante, duas informações úteis para planejar a caminhada."
+              },
+              {
+                "text": "Yes, where the trail starts and how many time to the view?",
+                "isCorrect": false,
+                "feedback": "Use 'Where does the trail start?' e 'How long does it take to get to the viewpoint?'"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "nm",
+      "stateName": "New Mexico",
+      "city": "Santa Fe",
+      "unlockedByDefault": false,
+      "unlockCost": 9600,
+      "weatherPreset": "golden_hour",
+      "camera": {
+        "center": [-105.9378, 35.6870],
+        "zoom": 16.0,
+        "pitch": 60,
+        "bearing": 0
+      },
+      "route3D": {
+        "name": "Santa Fe Plaza and Canyon Road",
+        "waypoints": [
+          [-105.9378, 35.6870],
+          [-105.9342, 35.6850],
+          [-105.9298, 35.6825]
+        ]
+      },
+      "stamp": {
+        "id": "stamp-nm",
+        "code": "SAF - NM",
+        "title": "THE LAND OF ENCHANTMENT",
+        "color": "#C45B32"
+      },
+      "touristGuide": {
+        "title": "Santa Fe Plaza",
+        "text": "Santa Fe's central plaza is surrounded by adobe architecture, galleries, and shops. The city's food reflects a blend of Native American, Hispanic, and Southwestern traditions."
+      },
+      "hotspots": [
+        {
+          "id": "nm-1",
+          "word": "adobe",
+          "translation": "adobe, material de construção de terra e palha",
+          "phonetic": "/əˈdoʊbi/",
+          "example": "The adobe buildings give the plaza its distinctive warm colors.",
+          "rewardDollars": 150
+        },
+        {
+          "id": "nm-2",
+          "word": "red or green",
+          "translation": "pergunta tradicional sobre o tipo de chile desejado",
+          "phonetic": "/ˌrɛd ɔːr ˈɡriːn/",
+          "example": "When you order enchiladas in New Mexico, the server may ask, 'Red or green?'",
+          "rewardDollars": 150
+        },
+        {
+          "id": "nm-3",
+          "word": "Christmas",
+          "translation": "pedido com chile vermelho e verde juntos",
+          "phonetic": "/ˈkrɪsməs/",
+          "example": "I'll have my breakfast burrito Christmas, with both red and green chile.",
+          "rewardDollars": 155
+        }
+      ],
+      "mission": {
+        "id": "m-nm",
+        "title": "Choose Your Chile",
+        "description": "Em um restaurante de Santa Fe, o atendente pergunta se você prefere chile vermelho, verde ou os dois.",
+        "rewardDollars": 700,
+        "npcRole": "Atendente de restaurante",
+        "steps": [
+          {
+            "npcLine": "Would you like red or green chile with your enchiladas?",
+            "options": [
+              {
+                "text": "Christmas, please. I'd like both red and green chile.",
+                "isCorrect": true,
+                "feedback": "Perfeito! Em New Mexico, pedir 'Christmas' significa escolher os dois tipos de chile."
+              },
+              {
+                "text": "I want the Christmas sauce because today is December.",
+                "isCorrect": false,
+                "feedback": "Aqui 'Christmas' não indica a data: é o pedido de chile vermelho e verde juntos."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sc",
+      "stateName": "South Carolina",
+      "city": "Charleston",
+      "unlockedByDefault": false,
+      "unlockCost": 10200,
+      "weatherPreset": "clear_day",
+      "camera": {
+        "center": [-79.9311, 32.7765],
+        "zoom": 16.0,
+        "pitch": 60,
+        "bearing": 0
+      },
+      "route3D": {
+        "name": "Charleston Market to the Waterfront",
+        "waypoints": [
+          [-79.9311, 32.7765],
+          [-79.9292, 32.7791],
+          [-79.9247, 32.7766]
+        ]
+      },
+      "stamp": {
+        "id": "stamp-sc",
+        "code": "CHS - SC",
+        "title": "THE PALMETTO STATE",
+        "color": "#2E715C"
+      },
+      "touristGuide": {
+        "title": "Charleston Historic District",
+        "text": "Charleston's historic district is known for pastel houses, shaded streets, and a working waterfront. The city's Lowcountry cuisine often features seafood, rice, and local ingredients."
+      },
+      "hotspots": [
+        {
+          "id": "sc-1",
+          "word": "Lowcountry",
+          "translation": "região costeira baixa do sudeste da Carolina do Sul e da Geórgia",
+          "phonetic": "/ˈloʊˌkʌntri/",
+          "example": "Lowcountry cooking often includes seafood and locally grown rice.",
+          "rewardDollars": 155
+        },
+        {
+          "id": "sc-2",
+          "word": "shrimp and grits",
+          "translation": "camarão servido com creme de milho",
+          "phonetic": "/ˌʃrɪmp ən ˈɡrɪts/",
+          "example": "The cafe serves shrimp and grits with a savory sauce.",
+          "rewardDollars": 155
+        },
+        {
+          "id": "sc-3",
+          "word": "sweetgrass basket",
+          "translation": "cesta artesanal feita de capim-doce",
+          "phonetic": "/ˈswiːtˌɡræs ˌbæskɪt/",
+          "example": "We watched a local artist weave a sweetgrass basket at the market.",
+          "rewardDollars": 160
+        }
+      ],
+      "mission": {
+        "id": "m-sc",
+        "title": "Find a Harbor Tour",
+        "description": "Você está perto do porto de Charleston e quer saber se ainda há vagas para um passeio de barco.",
+        "rewardDollars": 720,
+        "npcRole": "Agente de passeios",
+        "steps": [
+          {
+            "npcLine": "The harbor tour leaves in about twenty minutes. How many people are in your group?",
+            "options": [
+              {
+                "text": "There are two of us. Do you still have seats available?",
+                "isCorrect": true,
+                "feedback": "Muito bem! 'There are two of us' informa o tamanho do grupo, e 'seats available' pergunta se há lugares disponíveis."
+              },
+              {
+                "text": "We are in two. Has places in the boat?",
+                "isCorrect": false,
+                "feedback": "Para dizer que são duas pessoas, use 'There are two of us'. Pergunte 'Do you have seats available?'"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "mo",
+      "stateName": "Missouri",
+      "city": "St. Louis",
+      "unlockedByDefault": false,
+      "unlockCost": 10800,
+      "weatherPreset": "night",
+      "camera": {
+        "center": [-90.1846, 38.6247],
+        "zoom": 16.0,
+        "pitch": 60,
+        "bearing": 0
+      },
+      "route3D": {
+        "name": "Gateway Arch and the Riverfront",
+        "waypoints": [
+          [-90.1846, 38.6247],
+          [-90.1873, 38.6270],
+          [-90.1916, 38.6277]
+        ]
+      },
+      "stamp": {
+        "id": "stamp-mo",
+        "code": "STL - MO",
+        "title": "THE SHOW-ME STATE",
+        "color": "#66834A"
+      },
+      "touristGuide": {
+        "title": "Gateway Arch National Park",
+        "text": "The stainless-steel Gateway Arch rises above the Mississippi River and the St. Louis riverfront. The nearby museum explores the region's role in westward expansion."
+      },
+      "hotspots": [
+        {
+          "id": "mo-1",
+          "word": "toasted ravioli",
+          "translation": "ravioli empanado e frito, especialidade de St. Louis",
+          "phonetic": "/ˈtoʊstɪd ˌræviˈoʊli/",
+          "example": "We shared toasted ravioli as an appetizer before the game.",
+          "rewardDollars": 160
+        },
+        {
+          "id": "mo-2",
+          "word": "the Lou",
+          "translation": "apelido informal de St. Louis",
+          "phonetic": "/ðə ˈluː/",
+          "example": "My cousin grew up in the Lou and still cheers for the home team.",
+          "rewardDollars": 160
+        },
+        {
+          "id": "mo-3",
+          "word": "MetroLink",
+          "translation": "sistema de trem leve da região de St. Louis",
+          "phonetic": "/ˈmɛtroʊˌlɪŋk/",
+          "example": "You can take MetroLink from downtown to the airport.",
+          "rewardDollars": 165
+        }
+      ],
+      "mission": {
+        "id": "m-mo",
+        "title": "Take MetroLink to the Airport",
+        "description": "Você quer chegar ao aeroporto usando o trem leve e precisa confirmar a direção.",
+        "rewardDollars": 740,
+        "npcRole": "Passageiro local",
+        "steps": [
+          {
+            "npcLine": "Are you heading to the airport on MetroLink?",
+            "options": [
+              {
+                "text": "Yes. Is this the train going toward Lambert Airport?",
+                "isCorrect": true,
+                "feedback": "Boa! 'Is this the train going toward...?' confirma se o trem segue na direção desejada."
+              },
+              {
+                "text": "Yes. This train goes for the airport?",
+                "isCorrect": false,
+                "feedback": "Use a estrutura de pergunta 'Does this train go to the airport?' ou 'Is this the train going toward...?'"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ky",
+      "stateName": "Kentucky",
+      "city": "Louisville",
+      "unlockedByDefault": false,
+      "unlockCost": 11400,
+      "weatherPreset": "golden_hour",
+      "camera": {
+        "center": [-85.7585, 38.2527],
+        "zoom": 16.0,
+        "pitch": 60,
+        "bearing": 0
+      },
+      "route3D": {
+        "name": "Museum Row and Whiskey Row",
+        "waypoints": [
+          [-85.7585, 38.2527],
+          [-85.7548, 38.2561],
+          [-85.7502, 38.2570]
+        ]
+      },
+      "stamp": {
+        "id": "stamp-ky",
+        "code": "SDF - KY",
+        "title": "THE BLUEGRASS STATE",
+        "color": "#426B56"
+      },
+      "touristGuide": {
+        "title": "Louisville's Whiskey Row",
+        "text": "Louisville's historic Whiskey Row is lined with restored buildings that recall the city's bourbon trade. The city is also famous for the Kentucky Derby and its signature Hot Brown sandwich."
+      },
+      "hotspots": [
+        {
+          "id": "ky-1",
+          "word": "bourbon trail",
+          "translation": "roteiro de destilarias de bourbon no Kentucky",
+          "phonetic": "/ˈbɜːrbən treɪl/",
+          "example": "We planned a day trip to visit two stops on the Bourbon Trail.",
+          "rewardDollars": 165
+        },
+        {
+          "id": "ky-2",
+          "word": "Derby",
+          "translation": "a corrida Kentucky Derby, realizada em Louisville",
+          "phonetic": "/ˈdɜːrbi/",
+          "example": "The city gets especially busy during Derby week.",
+          "rewardDollars": 165
+        },
+        {
+          "id": "ky-3",
+          "word": "Hot Brown",
+          "translation": "sanduíche quente aberto com peru, molho e queijo",
+          "phonetic": "/ˌhɑːt ˈbraʊn/",
+          "example": "I ordered a Hot Brown, a Louisville specialty with turkey and cheese sauce.",
+          "rewardDollars": 170
+        }
+      ],
+      "mission": {
+        "id": "m-ky",
+        "title": "Order a Louisville Hot Brown",
+        "description": "Você está em um restaurante de Louisville e quer saber se o Hot Brown serve uma ou duas pessoas.",
+        "rewardDollars": 760,
+        "npcRole": "Garçom de restaurante",
+        "steps": [
+          {
+            "npcLine": "Our Hot Brown is an open-faced turkey sandwich with Mornay sauce. Would you like one?",
+            "options": [
+              {
+                "text": "That sounds good. Is one serving large enough to share?",
+                "isCorrect": true,
+                "feedback": "Excelente! 'Large enough to share' pergunta se a porção é grande o bastante para dividir."
+              },
+              {
+                "text": "One is enough big for divide?",
+                "isCorrect": false,
+                "feedback": "Use 'Is one serving large enough to share?' para perguntar naturalmente se dá para dividir."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "wi",
+      "stateName": "Wisconsin",
+      "city": "Milwaukee",
+      "unlockedByDefault": false,
+      "unlockCost": 12000,
+      "weatherPreset": "clear_day",
+      "camera": {
+        "center": [-87.9065, 43.0389],
+        "zoom": 16.0,
+        "pitch": 60,
+        "bearing": 0
+      },
+      "route3D": {
+        "name": "Milwaukee RiverWalk and Public Market",
+        "waypoints": [
+          [-87.9065, 43.0389],
+          [-87.9042, 43.0348],
+          [-87.9000, 43.0319]
+        ]
+      },
+      "stamp": {
+        "id": "stamp-wi",
+        "code": "MKE - WI",
+        "title": "THE BADGER STATE",
+        "color": "#B58B3B"
+      },
+      "touristGuide": {
+        "title": "Milwaukee RiverWalk",
+        "text": "Milwaukee's RiverWalk connects downtown neighborhoods with public art, restaurants, and views of the river. The city is known for its brewing history, neighborhood festivals, and Friday fish fries."
+      },
+      "hotspots": [
+        {
+          "id": "wi-1",
+          "word": "cheese curds",
+          "translation": "pedaços jovens de queijo, muitas vezes empanados e fritos",
+          "phonetic": "/ˈtʃiːz kɜːrdz/",
+          "example": "We ordered fried cheese curds to share at the brewery.",
+          "rewardDollars": 170
+        },
+        {
+          "id": "wi-2",
+          "word": "Friday fish fry",
+          "translation": "jantar tradicional de peixe servido às sextas-feiras",
+          "phonetic": "/ˈfraɪdeɪ ˈfɪʃ fraɪ/",
+          "example": "The neighborhood tavern is packed for its Friday fish fry.",
+          "rewardDollars": 170
+        },
+        {
+          "id": "wi-3",
+          "word": "brewery tour",
+          "translation": "visita guiada a uma cervejaria",
+          "phonetic": "/ˈbruːəri tʊr/",
+          "example": "We booked a brewery tour to learn about Milwaukee's brewing history.",
+          "rewardDollars": 175
+        }
+      ],
+      "mission": {
+        "id": "m-wi",
+        "title": "Find a Friday Fish Fry",
+        "description": "Você quer experimentar o jantar tradicional de peixe e pergunta se precisa reservar.",
+        "rewardDollars": 780,
+        "npcRole": "Morador de Milwaukee",
+        "steps": [
+          {
+            "npcLine": "The Friday fish fry is popular here. Are you planning to stop by tonight?",
+            "options": [
+              {
+                "text": "Yes. Do we need a reservation, or can we just walk in?",
+                "isCorrect": true,
+                "feedback": "Muito bem! 'Can we just walk in?' pergunta se vocês podem chegar sem reserva."
+              },
+              {
+                "text": "Yes. We need make a reserve or enter walking?",
+                "isCorrect": false,
+                "feedback": "Reserva é 'reservation'. Para perguntar se pode chegar sem marcar, diga 'Can we just walk in?'"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

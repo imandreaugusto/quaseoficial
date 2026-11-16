@@ -5,9 +5,9 @@ import gsap from 'gsap';
 import { getVisaStatus } from '../../../lib/actionStreet/visa';
 import { useActionStreet } from '../ActionStreetContext';
 import { glass } from '../shared/glass';
+import DiscoveryAtlas from './DiscoveryAtlas';
 import StampBadge from '../shared/StampBadge';
 import StreakChip from '../shared/StreakChip';
-import { getSouvenirIcon } from '../shared/souvenirIcons';
 import VisaNotice from './VisaNotice';
 import VisaRenewalQuiz from './VisaRenewalQuiz';
 
@@ -21,9 +21,10 @@ interface Props {
   initialTab: PassportTab;
   highlight?: PassportHighlight;
   onClose: () => void;
+  onExploreSpot: (cityId: string, spotId: string) => void;
 }
 
-export default function PassportModal({ initialTab, highlight: initialHighlight, onClose }: Props) {
+export default function PassportModal({ initialTab, highlight: initialHighlight, onClose, onExploreSpot }: Props) {
   const { state, allCities } = useActionStreet();
   const [tab, setTab] = useState<PassportTab>(initialTab);
   const [highlight, setHighlight] = useState<PassportHighlight | undefined>(initialHighlight);
@@ -92,7 +93,7 @@ export default function PassportModal({ initialTab, highlight: initialHighlight,
         aria-modal="true"
         aria-label="Passaporte digital"
         onClick={(event) => event.stopPropagation()}
-        className={`relative max-h-[92dvh] w-full max-w-xl overflow-y-auto p-6 text-white ${glass.panelOverImagery}`}
+        className={`relative max-h-[92dvh] w-full max-w-3xl overflow-y-auto p-6 text-white ${glass.panelOverImagery}`}
       >
         <div className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full bg-violet-500/25 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-24 -left-16 h-56 w-56 rounded-full bg-blue-500/20 blur-3xl" />
@@ -111,7 +112,7 @@ export default function PassportModal({ initialTab, highlight: initialHighlight,
         <div className={`relative mb-5 grid grid-cols-2 gap-1 p-1 ${glass.chip}`} role="tablist">
           {([
             ['stamps', 'Carimbos', BookOpen],
-            ['backpack', 'Mochila', Backpack],
+            ['backpack', 'Coleção', Backpack],
           ] as const).map(([id, label, Icon]) => (
             <button
               key={id}
@@ -158,21 +159,8 @@ export default function PassportModal({ initialTab, highlight: initialHighlight,
               </div>
             )}
           </div>
-        ) : state.souvenirs.length === 0 ? (
-          <p className="relative py-8 text-center text-sm text-white/60">Sua mochila está vazia. Toque nos pinos da rua para coletar souvenirs.</p>
         ) : (
-          <ul className="relative grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {state.souvenirs.map((souvenir) => {
-              const Icon = getSouvenirIcon(souvenir.icon);
-              return (
-                <li key={souvenir.id} className="flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-white/5 p-3 text-center">
-                  <Icon className="h-7 w-7 text-orange-300" />
-                  <span className="text-sm font-semibold">{souvenir.label}</span>
-                  <span className="text-[11px] uppercase text-white/50">{souvenir.fromCity}</span>
-                </li>
-              );
-            })}
-          </ul>
+          <DiscoveryAtlas onExploreSpot={onExploreSpot} />
         )}
       </div>
 

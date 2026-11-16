@@ -13,11 +13,21 @@ export interface ActionStreetState {
   currentCity: string;
   balance: number;
   unlockedCities: string[];
+  discoveredSpots: string[];
   souvenirs: Souvenir[];
   stamps: Stamp[];
   completedMissions: string[];
   streak: StreakState;
   visas: Record<string, VisaRecord>;
+}
+
+export type SpeechRate = 1 | 0.7;
+
+export interface ActionStreetResponseEvaluation {
+  isValid: boolean;
+  relevance: number;
+  clarity: number;
+  feedback: string;
 }
 
 export interface Souvenir {
@@ -54,7 +64,7 @@ export interface City {
   region: string;
   unlockedByDefault: boolean;
   unlockCost: number;
-  weatherPreset: 'rainy' | 'golden_hour' | 'clear_day' | 'cloudy' | 'snowy';
+  weatherPreset: 'rainy' | 'golden_hour' | 'clear_day' | 'night' | 'cloudy' | 'snowy';
   camera: { center: [number, number]; zoom: number; pitch: number; bearing: number };
   route3D: { name: string; waypoints: [number, number][] };
   spots: Spot[];

@@ -1,6 +1,8 @@
-import { ArrowLeft, Backpack, BookOpen, Coins } from 'lucide-react';
+import { ArrowLeft, Backpack, BookOpen, Camera, Coins } from 'lucide-react';
 import { glass } from '../shared/glass';
 import StreakChip from '../shared/StreakChip';
+import AmbientSoundToggle from '../AmbientSoundToggle';
+import type { City } from '../../../types/actionStreet';
 
 interface Props {
   cityName: string;
@@ -8,12 +10,14 @@ interface Props {
   balance: number;
   streak: number;
   visaAlert: boolean;
+  weatherPreset: City['weatherPreset'];
   onBack: () => void;
+  onOpenCamera: () => void;
   onPassport: () => void;
   onBackpack: () => void;
 }
 
-export default function HUDTop({ cityName, spotName, balance, streak, visaAlert, onBack, onPassport, onBackpack }: Props) {
+export default function HUDTop({ cityName, spotName, balance, streak, visaAlert, weatherPreset, onBack, onOpenCamera, onPassport, onBackpack }: Props) {
   return (
     <header className="absolute inset-x-0 top-[4.25rem] z-20 flex flex-wrap items-center justify-between gap-3 px-4 sm:px-6">
       <div className={`flex items-center gap-3 py-2 pl-2 pr-5 ${glass.panelOverImagery} !rounded-full`}>
@@ -33,11 +37,15 @@ export default function HUDTop({ cityName, spotName, balance, streak, visaAlert,
           <span className="text-sm font-black tabular-nums text-white">{balance}</span>
           <span className={`${glass.label} hidden sm:inline`}>Action Dollars</span>
         </div>
+        <button type="button" onClick={onOpenCamera} aria-label="Abrir câmera Polaroid e álbum" className={glass.iconButton}>
+          <Camera className="h-5 w-5" />
+        </button>
+        <AmbientSoundToggle weather={weatherPreset} />
         <button type="button" onClick={onPassport} aria-label={visaAlert ? 'Abrir passaporte (visto expirado)' : 'Abrir passaporte'} className={`relative ${glass.iconButton}`}>
           <BookOpen className="h-5 w-5" />
           {visaAlert && <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-slate-950 bg-amber-400" />}
         </button>
-        <button type="button" data-backpack-button onClick={onBackpack} aria-label="Abrir mochila" className={glass.iconButton}>
+        <button type="button" data-backpack-button onClick={onBackpack} aria-label="Abrir coleção e descobertas" className={glass.iconButton}>
           <Backpack className="h-5 w-5" />
         </button>
       </div>

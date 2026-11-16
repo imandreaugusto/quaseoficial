@@ -5,6 +5,7 @@ import { routeAnimations } from '../../../lib/actionStreet/routeAnimations';
 import { useActionStreet } from '../ActionStreetContext';
 import ClickableText from '../shared/ClickableText';
 import { glass } from '../shared/glass';
+import SpeechRateControl from '../shared/SpeechRateControl';
 import { getSouvenirIcon } from '../shared/souvenirIcons';
 
 interface Props {
@@ -15,17 +16,17 @@ interface Props {
 
 export const souvenirId = (cityId: string, hotspotId: string) => `${cityId}:${hotspotId}`;
 
-function speak(text: string) {
+function speak(text: string, rate: number) {
   if (!('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = 'en-US';
-  utterance.rate = 0.85;
+  utterance.rate = rate;
   window.speechSynthesis.speak(utterance);
 }
 
 export default function VocabularyCard({ cityId, hotspotId, onClose }: Props) {
-  const { state, updateState, getCityData } = useActionStreet();
+  const { state, updateState, getCityData, speechRate, setSpeechRate } = useActionStreet();
   const city = getCityData(cityId);
   const hotspot = city?.hotspots.find((item) => item.id === hotspotId);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -114,18 +115,21 @@ export default function VocabularyCard({ cityId, hotspotId, onClose }: Props) {
 
         <div className={`relative mt-3 ${glass.chip} !rounded-2xl px-4 py-3`}>
           <p className={glass.label}>Exemplo</p>
-          <ClickableText text={hotspot.example} className="mt-1 text-sm italic leading-relaxed text-white/90" />
+          <ClickableText text={hotspot.example} speechRate={speechRate} className="mt-1 text-sm italic leading-relaxed text-white/90" />
         </div>
 
         <div className="relative mt-5 grid grid-cols-2 gap-3">
-          <button type="button" onClick={() => speak(`${hotspot.word}. ${hotspot.example}`)} disabled={!('speechSynthesis' in window)} className={glass.secondaryButton}>
-            <Volume2 className="h-5 w-5" />
-            Ouvir
+          <button type="button" onClick={() => speak(`${hotspot.word}. ${hotspot.example}`, speechRate)} disabled={!('speechSynthesis' in window)} className={glass.secondaryButton}>
+            <Volume2 className="h-5 w-5" /> Ouvir
           </button>
           <button type="button" onClick={collect} disabled={alreadyCollected || collecting} className={glass.primaryButton}>
             {alreadyCollected ? <Check className="h-5 w-5" /> : <Gift className="h-5 w-5" />}
             {alreadyCollected ? 'Coletado' : 'Coletar'}
           </button>
+        </div>
+        <div className="relative mt-3 flex items-center justify-between gap-3">
+          <span className={glass.label}>Velocidade da pronúncia</span>
+          <SpeechRateControl rate={speechRate} onChange={setSpeechRate} />
         </div>
 
         {!alreadyCollected && (

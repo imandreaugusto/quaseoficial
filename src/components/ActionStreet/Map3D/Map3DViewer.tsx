@@ -18,6 +18,7 @@ const SKY: Record<City['weatherPreset'], Record<string, string>> = {
   rainy: { 'sky-color': '#1e293b', 'horizon-color': '#64748b', 'fog-color': '#94a3b8' },
   golden_hour: { 'sky-color': '#7c3aed', 'horizon-color': '#fb923c', 'fog-color': '#fcd34d' },
   clear_day: { 'sky-color': '#38bdf8', 'horizon-color': '#e0f2fe', 'fog-color': '#ffffff' },
+  night: { 'sky-color': '#020617', 'horizon-color': '#312e81', 'fog-color': '#1e1b4b' },
   cloudy: { 'sky-color': '#64748b', 'horizon-color': '#cbd5e1', 'fog-color': '#e2e8f0' },
   snowy: { 'sky-color': '#94a3b8', 'horizon-color': '#f1f5f9', 'fog-color': '#ffffff' },
 };

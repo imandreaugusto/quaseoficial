@@ -29,6 +29,7 @@ const SKIES: Record<City['weatherPreset'], string> = {
   rainy: 'linear-gradient(to bottom, #0b1020 0%, #1b2540 55%, #2d3856 100%)',
   golden_hour: 'linear-gradient(to bottom, #1e1b4b 0%, #7c3aed 45%, #fb923c 100%)',
   clear_day: 'linear-gradient(to bottom, #0ea5e9 0%, #38bdf8 55%, #bae6fd 100%)',
+  night: 'linear-gradient(to bottom, #020617 0%, #111827 55%, #312e81 100%)',
   cloudy: 'linear-gradient(to bottom, #334155 0%, #64748b 60%, #94a3b8 100%)',
   snowy: 'linear-gradient(to bottom, #64748b 0%, #94a3b8 60%, #e2e8f0 100%)',
 };

@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { lookupDictionary, sanitizeWord, translateText } from '../../../lib/translator';
+import type { SpeechRate } from '../../../types/actionStreet';
 
 interface Popup {
   word: string;
@@ -15,6 +16,7 @@ interface Popup {
 interface Props {
   text: string;
   className?: string;
+  speechRate?: SpeechRate;
 }
 
 const POPUP_WIDTH = 280;
@@ -26,7 +28,7 @@ function getPopupPosition(rect: DOMRect) {
   return { left, top };
 }
 
-export default function ClickableText({ text, className }: Props) {
+export default function ClickableText({ text, className, speechRate = 1 }: Props) {
   const [popup, setPopup] = useState<Popup | null>(null);
   const requestId = useRef(0);
 
@@ -42,6 +44,7 @@ export default function ClickableText({ text, className }: Props) {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(wordToTranslate);
       utterance.lang = 'en-US';
+      utterance.rate = speechRate;
       window.speechSynthesis.speak(utterance);
     }
 

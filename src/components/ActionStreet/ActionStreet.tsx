@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { ActionStreetState, City } from '../../types/actionStreet';
+import type { ActionStreetState, SpeechRate } from '../../types/actionStreet';
 import { journeyStore } from '../../lib/actionStreet/journeyStore';
 import { persistenceManager } from '../../lib/actionStreet/persistenceManager';
-import actionStreetData from '../../data/actionStreetData.json';
+import { actionStreetCities } from '../../data/actionStreetCities';
 import { ActionStreetContext, type ActionStreetContextType } from './ActionStreetContext';
 import LobbyEmbarque from './Lobby/LobbyEmbarque';
 import StreetViewer360, { type StreetResume } from './StreetViewer360/StreetViewer360';
@@ -15,10 +15,11 @@ interface Props {
 
 type ViewType = 'lobby' | 'map3d' | 'street360';
 
-const cities = (actionStreetData as unknown as { states: City[] }).states;
+const cities = actionStreetCities;
 
 export default function ActionStreet({ onClose }: Props) {
   const [state, setState] = useState<ActionStreetState>(() => persistenceManager.loadState());
+  const [speechRate, setSpeechRate] = useState<SpeechRate>(1);
   const [savedJourney] = useState(() => journeyStore.load());
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [view, setView] = useState<ViewType>('lobby');
@@ -44,8 +45,10 @@ export default function ActionStreet({ onClose }: Props) {
       updateState,
       getCityData: (cityId: string) => cities.find((city) => city.id === cityId),
       allCities: cities,
+      speechRate,
+      setSpeechRate,
     }),
-    [state, updateState]
+    [state, updateState, speechRate]
   );
 
   const resumableCity =
@@ -71,14 +74,19 @@ export default function ActionStreet({ onClose }: Props) {
     journeyStore.patch({ view: 'lobby' });
   };
 
+  const exploreSpot = (cityId: string, spotId: string) => {
+    setStreetResume({ spotId });
+    goTo('street360', cityId);
+  };
+
   // Portal no body: os wrappers de página do App animam transform, o que prenderia o "fixed" ao wrapper.
   return createPortal(
     <ActionStreetContext.Provider value={contextValue}>
       <div className="fixed inset-0 z-30 overflow-hidden bg-slate-950">
         {view === 'lobby' && (
           <LobbyEmbarque
-            onBoard={(cityId) => {
-              setStreetResume(null);
+            onBoard={(cityId, spotId) => {
+              setStreetResume(spotId ? { spotId } : null);
               goTo('map3d', cityId);
             }}
             onClose={() => onClose?.()}
@@ -92,7 +100,13 @@ export default function ActionStreet({ onClose }: Props) {
         )}
 
         {view === 'street360' && (
-          <StreetViewer360 key={selectedCity} cityId={selectedCity} resume={streetResume ?? undefined} onBack={() => goTo('lobby')} />
+          <StreetViewer360
+            key={selectedCity}
+            cityId={selectedCity}
+            resume={streetResume ?? undefined}
+            onBack={() => goTo('lobby')}
+            onExploreSpot={exploreSpot}
+          />
         )}
       </div>
     </ActionStreetContext.Provider>,

@@ -5,6 +5,7 @@ import { persistenceManager } from '../../../lib/actionStreet/persistenceManager
 import { QUIZ_PASS_SCORE, buildRenewalQuiz } from '../../../lib/actionStreet/visa';
 import { useActionStreet } from '../ActionStreetContext';
 import { glass } from '../shared/glass';
+import SpeechRateControl from '../shared/SpeechRateControl';
 
 interface Props {
   cityId: string;
@@ -12,17 +13,17 @@ interface Props {
   onRenewed: (stampId: string) => void;
 }
 
-function speak(text: string) {
+function speak(text: string, rate: number) {
   if (!('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = 'en-US';
-  utterance.rate = 0.85;
+  utterance.rate = rate;
   window.speechSynthesis.speak(utterance);
 }
 
 export default function VisaRenewalQuiz({ cityId, onClose, onRenewed }: Props) {
-  const { state, updateState, getCityData, allCities } = useActionStreet();
+  const { state, updateState, getCityData, allCities, speechRate, setSpeechRate } = useActionStreet();
   const city = getCityData(cityId);
   const [attempt, setAttempt] = useState(0);
   const [index, setIndex] = useState(0);
@@ -114,9 +115,12 @@ export default function VisaRenewalQuiz({ cityId, onClose, onRenewed }: Props) {
                 <p className="text-lg font-black">{question.word}</p>
                 <p className="font-mono text-xs text-blue-200">{question.phonetic}</p>
               </div>
-              <button type="button" onClick={() => speak(question.word)} aria-label={`Ouvir ${question.word}`} className={glass.iconButton}>
-                <Volume2 className="h-4 w-4" />
-              </button>
+              <div className="flex flex-col items-end gap-2">
+                <button type="button" onClick={() => speak(question.word, speechRate)} aria-label={`Ouvir ${question.word}`} className={glass.iconButton}>
+                  <Volume2 className="h-4 w-4" />
+                </button>
+                <SpeechRateControl rate={speechRate} onChange={setSpeechRate} />
+              </div>
             </div>
 
             <ul className="mt-3 space-y-2">

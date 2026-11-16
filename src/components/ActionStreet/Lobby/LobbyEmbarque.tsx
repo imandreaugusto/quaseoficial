@@ -15,7 +15,7 @@ import StreakChip from '../shared/StreakChip';
 import ResumeBanner from './ResumeBanner';
 
 interface Props {
-  onBoard: (cityId: string) => void;
+  onBoard: (cityId: string, spotId?: string) => void;
   onClose: () => void;
   initialCamera?: CameraSnapshot;
   resume?: { cityName: string; onContinue: () => void; onDismiss: () => void };
@@ -93,7 +93,7 @@ export default function LobbyEmbarque({ onBoard, onClose, initialCamera, resume 
           <button type="button" onClick={() => setPassportTab('stamps')} aria-label="Abrir passaporte" className={glass.iconButton}>
             <BookOpen className="h-5 w-5" />
           </button>
-          <button type="button" onClick={() => setPassportTab('backpack')} aria-label="Abrir mochila" className={glass.iconButton}>
+          <button type="button" onClick={() => setPassportTab('backpack')} aria-label="Abrir coleção e descobertas" className={glass.iconButton}>
             <Backpack className="h-5 w-5" />
           </button>
         </div>
@@ -102,7 +102,7 @@ export default function LobbyEmbarque({ onBoard, onClose, initialCamera, resume 
       <section className="absolute inset-x-0 bottom-0 z-10 flex flex-col gap-3 p-4 sm:p-6">
         {resume && <ResumeBanner cityName={resume.cityName} onContinue={resume.onContinue} onDismiss={resume.onDismiss} />}
 
-        <div className="flex flex-wrap gap-2" role="tablist" aria-label="Destinos">
+        <div className="flex max-w-full flex-nowrap gap-2 overflow-x-auto pb-2" role="tablist" aria-label="Destinos">
           {allCities.map((city) => {
             const open = state.unlockedCities.includes(city.id);
             return (
@@ -112,7 +112,7 @@ export default function LobbyEmbarque({ onBoard, onClose, initialCamera, resume 
                 role="tab"
                 aria-selected={city.id === selected.id}
                 onClick={() => select(city.id)}
-                className={`inline-flex items-center gap-2 px-4 py-2 text-xs font-bold transition ${glass.chip} ${
+                className={`inline-flex shrink-0 items-center gap-2 px-4 py-2 text-xs font-bold transition ${glass.chip} ${
                   city.id === selected.id ? glass.chipActive : 'text-white/75 hover:bg-white/15 hover:text-white'
                 }`}
               >
@@ -197,6 +197,11 @@ export default function LobbyEmbarque({ onBoard, onClose, initialCamera, resume 
           onClose={() => {
             setPassportTab(null);
             setPassportHighlight(undefined);
+          }}
+          onExploreSpot={(cityId, spotId) => {
+            setPassportTab(null);
+            setPassportHighlight(undefined);
+            onBoard(cityId, spotId);
           }}
         />
       )}

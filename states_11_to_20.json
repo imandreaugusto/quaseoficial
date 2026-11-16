@@ -1,0 +1,824 @@
+{
+  "states": [
+    {
+      "id": "co",
+      "stateName": "Colorado",
+      "city": "Denver",
+      "unlockedByDefault": false,
+      "unlockCost": 2300,
+      "weatherPreset": "golden_hour",
+      "camera": {
+        "center": [-104.9996, 39.7527],
+        "zoom": 16.0,
+        "pitch": 60,
+        "bearing": 0
+      },
+      "route3D": {
+        "name": "Union Station to Civic Center",
+        "waypoints": [
+          [-104.9996, 39.7527],
+          [-104.9985, 39.7493],
+          [-104.9877, 39.7422]
+        ]
+      },
+      "stamp": {
+        "id": "stamp-co",
+        "code": "AEROPORTO - CO",
+        "title": "THE CENTENNIAL STATE",
+        "color": "#2F6B9A"
+      },
+      "touristGuide": {
+        "title": "Denver Union Station",
+        "text": "Denver Union Station is a lively downtown landmark with a restored historic facade, local shops, and easy connections across the city. On a clear day, look west for the Rocky Mountains."
+      },
+      "hotspots": [
+        {
+          "id": "co-1",
+          "word": "light rail",
+          "translation": "trem leve urbano",
+          "phonetic": "/ˈlaɪt reɪl/",
+          "example": "We took the light rail from Union Station to the airport.",
+          "rewardDollars": 80
+        },
+        {
+          "id": "co-2",
+          "word": "green chile",
+          "translation": "molho de pimenta verde",
+          "phonetic": "/ˌɡriːn ˈtʃaɪli/",
+          "example": "Could I get my breakfast burrito smothered in green chile?",
+          "rewardDollars": 80
+        },
+        {
+          "id": "co-3",
+          "word": "trailhead",
+          "translation": "início de uma trilha",
+          "phonetic": "/ˈtreɪlˌhɛd/",
+          "example": "Let's meet at the trailhead before the morning hike.",
+          "rewardDollars": 85
+        }
+      ],
+      "mission": {
+        "id": "m-co",
+        "title": "Find the Airport Train",
+        "description": "Você está na Union Station e precisa confirmar de onde sai o trem para o aeroporto.",
+        "rewardDollars": 380,
+        "npcRole": "Funcionário da estação",
+        "steps": [
+          {
+            "npcLine": "Are you looking for the train to Denver International Airport?",
+            "options": [
+              {
+                "text": "Yes, please. Which platform does the A Line leave from?",
+                "isCorrect": true,
+                "feedback": "Boa! 'Which platform...?' pergunta em qual plataforma embarcar; o A Line conecta Denver ao aeroporto."
+              },
+              {
+                "text": "Yes, where is the train for go airport?",
+                "isCorrect": false,
+                "feedback": "A ideia foi entendida, mas em inglês dizemos 'the train to the airport'. Para perguntar a plataforma, use 'Which platform...?'"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "la",
+      "stateName": "Louisiana",
+      "city": "New Orleans",
+      "unlockedByDefault": false,
+      "unlockCost": 2600,
+      "weatherPreset": "rainy",
+      "camera": {
+        "center": [-90.0631, 29.9574],
+        "zoom": 16.0,
+        "pitch": 60,
+        "bearing": 0
+      },
+      "route3D": {
+        "name": "French Quarter Streetcar Stroll",
+        "waypoints": [
+          [-90.0631, 29.9574],
+          [-90.0647, 29.9535],
+          [-90.0569, 29.9602]
+        ]
+      },
+      "stamp": {
+        "id": "stamp-la",
+        "code": "AEROPORTO - LA",
+        "title": "THE PELICAN STATE",
+        "color": "#8A4F8D"
+      },
+      "touristGuide": {
+        "title": "French Quarter",
+        "text": "The French Quarter is known for its iron balconies, Creole architecture, and lively music. The historic neighborhood is best explored on foot, with a streetcar ride nearby offering another classic way to see New Orleans."
+      },
+      "hotspots": [
+        {
+          "id": "la-1",
+          "word": "streetcar",
+          "translation": "bonde",
+          "phonetic": "/ˈstriːtˌkɑːr/",
+          "example": "We caught the St. Charles streetcar for a ride through the Garden District.",
+          "rewardDollars": 85
+        },
+        {
+          "id": "la-2",
+          "word": "beignet",
+          "translation": "doce frito coberto com açúcar",
+          "phonetic": "/bɛnˈjeɪ/",
+          "example": "Let's share a plate of beignets with our coffee.",
+          "rewardDollars": 85
+        },
+        {
+          "id": "la-3",
+          "word": "second line",
+          "translation": "desfile musical tradicional de Nova Orleans",
+          "phonetic": "/ˈsɛkənd ˌlaɪn/",
+          "example": "The brass band led a joyful second line through the neighborhood.",
+          "rewardDollars": 90
+        }
+      ],
+      "mission": {
+        "id": "m-la",
+        "title": "Catch the Garden District Streetcar",
+        "description": "Você quer confirmar se está no ponto certo para pegar o bonde até o Garden District.",
+        "rewardDollars": 400,
+        "npcRole": "Morador local",
+        "steps": [
+          {
+            "npcLine": "Are you waiting for the streetcar to the Garden District?",
+            "options": [
+              {
+                "text": "Yes. Is this the stop for the St. Charles line?",
+                "isCorrect": true,
+                "feedback": "Muito bem! 'Is this the stop for...?' é uma forma natural de confirmar se você está no ponto certo."
+              },
+              {
+                "text": "Yes. This place is where the streetcar goes?",
+                "isCorrect": false,
+                "feedback": "A frase soa pouco natural. Para confirmar um ponto, pergunte 'Is this the stop for...?' e nomeie a linha."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "az",
+      "stateName": "Arizona",
+      "city": "Phoenix",
+      "unlockedByDefault": false,
+      "unlockCost": 2900,
+      "weatherPreset": "clear_day",
+      "camera": {
+        "center": [-112.0738, 33.4584],
+        "zoom": 16.0,
+        "pitch": 60,
+        "bearing": 0
+      },
+      "route3D": {
+        "name": "Roosevelt Row to Heritage Square",
+        "waypoints": [
+          [-112.0738, 33.4584],
+          [-112.0730, 33.4550],
+          [-112.0668, 33.4522]
+        ]
+      },
+      "stamp": {
+        "id": "stamp-az",
+        "code": "AEROPORTO - AZ",
+        "title": "THE GRAND CANYON STATE",
+        "color": "#C45B35"
+      },
+      "touristGuide": {
+        "title": "Roosevelt Row",
+        "text": "Roosevelt Row is a walkable arts district in downtown Phoenix, filled with murals, galleries, and independent businesses. The desert light is bright, so visitors often plan outdoor walks for the cooler morning or evening."
+      },
+      "hotspots": [
+        {
+          "id": "az-1",
+          "word": "monsoon",
+          "translation": "período de chuvas intensas de verão",
+          "phonetic": "/mɑːnˈsuːn/",
+          "example": "Monsoon storms can bring sudden rain and dust to the Valley.",
+          "rewardDollars": 90
+        },
+        {
+          "id": "az-2",
+          "word": "saguaro",
+          "translation": "saguaro, cacto típico do deserto de Sonora",
+          "phonetic": "/səˈwɑːroʊ/",
+          "example": "We spotted a tall saguaro beside the desert trail.",
+          "rewardDollars": 90
+        },
+        {
+          "id": "az-3",
+          "word": "heat advisory",
+          "translation": "alerta de calor intenso",
+          "phonetic": "/ˈhiːt ədˌvaɪzəri/",
+          "example": "The heat advisory recommends drinking water and limiting midday outdoor activity.",
+          "rewardDollars": 95
+        }
+      ],
+      "mission": {
+        "id": "m-az",
+        "title": "Plan a Desert Garden Visit",
+        "description": "Está muito quente em Phoenix; peça uma orientação segura para visitar o jardim botânico.",
+        "rewardDollars": 420,
+        "npcRole": "Atendente de informações",
+        "steps": [
+          {
+            "npcLine": "The Desert Botanical Garden is open today. Do you need directions?",
+            "options": [
+              {
+                "text": "Yes, please. What's the best way to get there, and is there a shaded place to wait?",
+                "isCorrect": true,
+                "feedback": "Ótimo! Você pediu direções e perguntou por sombra. Em Phoenix, planejar pausas e se proteger do calor é importante."
+              },
+              {
+                "text": "Yes, I want go there in the hot now.",
+                "isCorrect": false,
+                "feedback": "Use 'I want to go' ou, com mais naturalidade, peça orientação: 'What's the best way to get there?' Evite sair no calor sem planejamento."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ga",
+      "stateName": "Georgia",
+      "city": "Atlanta",
+      "unlockedByDefault": false,
+      "unlockCost": 3200,
+      "weatherPreset": "golden_hour",
+      "camera": {
+        "center": [-84.3936, 33.7603],
+        "zoom": 16.0,
+        "pitch": 60,
+        "bearing": 0
+      },
+      "route3D": {
+        "name": "Centennial Park to Peachtree Street",
+        "waypoints": [
+          [-84.3936, 33.7603],
+          [-84.3886, 33.7578],
+          [-84.3868, 33.7537]
+        ]
+      },
+      "stamp": {
+        "id": "stamp-ga",
+        "code": "AEROPORTO - GA",
+        "title": "THE PEACH STATE",
+        "color": "#D98959"
+      },
+      "touristGuide": {
+        "title": "Centennial Olympic Park",
+        "text": "Built for the 1996 Olympic Games, Centennial Olympic Park sits in the heart of downtown Atlanta. Museums, the Georgia Aquarium, and major venues are all within an easy walk of the park."
+      },
+      "hotspots": [
+        {
+          "id": "ga-1",
+          "word": "MARTA",
+          "translation": "sistema de transporte público de Atlanta",
+          "phonetic": "/ˈmɑːrtə/",
+          "example": "We took MARTA from the airport to downtown Atlanta.",
+          "rewardDollars": 95
+        },
+        {
+          "id": "ga-2",
+          "word": "peach cobbler",
+          "translation": "sobremesa assada de pêssego com cobertura",
+          "phonetic": "/ˈpiːtʃ ˌkɑːblər/",
+          "example": "The restaurant serves warm peach cobbler with vanilla ice cream.",
+          "rewardDollars": 95
+        },
+        {
+          "id": "ga-3",
+          "word": "Piedmont Park",
+          "translation": "parque urbano conhecido de Atlanta",
+          "phonetic": "/ˈpiːdmɑːnt pɑːrk/",
+          "example": "We rented bikes and rode through Piedmont Park on Saturday.",
+          "rewardDollars": 100
+        }
+      ],
+      "mission": {
+        "id": "m-ga",
+        "title": "Take MARTA to Midtown",
+        "description": "Você está no centro e quer chegar a Midtown usando o transporte público de Atlanta.",
+        "rewardDollars": 440,
+        "npcRole": "Passageiro de MARTA",
+        "steps": [
+          {
+            "npcLine": "Are you trying to get to Midtown from here?",
+            "options": [
+              {
+                "text": "Yes. Which train should I take, and where do I transfer?",
+                "isCorrect": true,
+                "feedback": "Excelente! Você perguntou qual trem pegar e onde fazer a baldeação. 'Transfer' é uma palavra comum em instruções de transporte."
+              },
+              {
+                "text": "Yes, what train I take for go Midtown?",
+                "isCorrect": false,
+                "feedback": "Em perguntas, use 'Which train should I take?' e diga 'to Midtown', não 'for go Midtown'."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "tn",
+      "stateName": "Tennessee",
+      "city": "Nashville",
+      "unlockedByDefault": false,
+      "unlockCost": 3500,
+      "weatherPreset": "night",
+      "camera": {
+        "center": [-86.7816, 36.1612],
+        "zoom": 16.0,
+        "pitch": 60,
+        "bearing": 0
+      },
+      "route3D": {
+        "name": "Lower Broadway Music Walk",
+        "waypoints": [
+          [-86.7816, 36.1612],
+          [-86.7785, 36.1595],
+          [-86.7780, 36.1640]
+        ]
+      },
+      "stamp": {
+        "id": "stamp-tn",
+        "code": "AEROPORTO - TN",
+        "title": "THE VOLUNTEER STATE",
+        "color": "#8C3D46"
+      },
+      "touristGuide": {
+        "title": "Lower Broadway",
+        "text": "Lower Broadway is one of Nashville's best-known music districts, with live bands playing in venues throughout the day and night. Visitors can also explore the Ryman Auditorium, a historic stage closely tied to the city's music story."
+      },
+      "hotspots": [
+        {
+          "id": "tn-1",
+          "word": "hot chicken",
+          "translation": "frango frito apimentado ao estilo de Nashville",
+          "phonetic": "/ˌhɑːt ˈtʃɪkɪn/",
+          "example": "Could I get the hot chicken with the spice on the side?",
+          "rewardDollars": 100
+        },
+        {
+          "id": "tn-2",
+          "word": "honky-tonk",
+          "translation": "bar com música country ao vivo",
+          "phonetic": "/ˈhɑːŋki ˌtɑːŋk/",
+          "example": "We heard a country band playing at a honky-tonk on Broadway.",
+          "rewardDollars": 100
+        },
+        {
+          "id": "tn-3",
+          "word": "songwriter round",
+          "translation": "apresentação em que compositores se revezam contando e cantando suas músicas",
+          "phonetic": "/ˈsɔːŋˌraɪtər raʊnd/",
+          "example": "At the songwriter round, each musician shared the story behind a song.",
+          "rewardDollars": 105
+        }
+      ],
+      "mission": {
+        "id": "m-tn",
+        "title": "Order Nashville Hot Chicken",
+        "description": "Em uma lanchonete local, pergunte sobre o nível de pimenta antes de fazer seu pedido.",
+        "rewardDollars": 460,
+        "npcRole": "Atendente de restaurante",
+        "steps": [
+          {
+            "npcLine": "How hot would you like your chicken: mild, medium, or hot?",
+            "options": [
+              {
+                "text": "Medium, please. Could I get the sauce on the side?",
+                "isCorrect": true,
+                "feedback": "Boa escolha! 'Could I get...?' é um pedido educado, e 'on the side' significa servido à parte."
+              },
+              {
+                "text": "I want medium hot, put sauce separate.",
+                "isCorrect": false,
+                "feedback": "Para soar mais natural, peça 'Medium, please' e diga 'Could I get the sauce on the side?'"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "pa",
+      "stateName": "Pennsylvania",
+      "city": "Philadelphia",
+      "unlockedByDefault": false,
+      "unlockCost": 3800,
+      "weatherPreset": "rainy",
+      "camera": {
+        "center": [-75.1503, 39.9509],
+        "zoom": 16.0,
+        "pitch": 60,
+        "bearing": 0
+      },
+      "route3D": {
+        "name": "Reading Terminal to Independence Mall",
+        "waypoints": [
+          [-75.1503, 39.9509],
+          [-75.1525, 39.9524],
+          [-75.1503, 39.9496]
+        ]
+      },
+      "stamp": {
+        "id": "stamp-pa",
+        "code": "AEROPORTO - PA",
+        "title": "THE KEYSTONE STATE",
+        "color": "#426B56"
+      },
+      "touristGuide": {
+        "title": "Reading Terminal Market",
+        "text": "Reading Terminal Market has served Philadelphia since the nineteenth century. Its busy aisles bring together local produce, baked goods, and neighborhood favorites, including the city's famous sandwiches."
+      },
+      "hotspots": [
+        {
+          "id": "pa-1",
+          "word": "hoagie",
+          "translation": "sanduíche comprido típico da região",
+          "phonetic": "/ˈhoʊɡi/",
+          "example": "I'll have an Italian hoagie with everything on it.",
+          "rewardDollars": 105
+        },
+        {
+          "id": "pa-2",
+          "word": "SEPTA",
+          "translation": "sistema de transporte público da região da Filadélfia",
+          "phonetic": "/ˈsɛptə/",
+          "example": "We used SEPTA to get from Center City to the museum.",
+          "rewardDollars": 105
+        },
+        {
+          "id": "pa-3",
+          "word": "soft pretzel",
+          "translation": "pretzel macio, vendido como lanche",
+          "phonetic": "/ˌsɔːft ˈprɛtsəl/",
+          "example": "I grabbed a warm soft pretzel from a street cart.",
+          "rewardDollars": 110
+        }
+      ],
+      "mission": {
+        "id": "m-pa",
+        "title": "Order a Local Sandwich",
+        "description": "Você está em uma lanchonete da Filadélfia e quer pedir um hoagie com uma pequena alteração.",
+        "rewardDollars": 480,
+        "npcRole": "Atendente de deli",
+        "steps": [
+          {
+            "npcLine": "What can I get for you?",
+            "options": [
+              {
+                "text": "I'll have an Italian hoagie, please, with no onions.",
+                "isCorrect": true,
+                "feedback": "Perfeito! 'I'll have...' é uma forma natural de pedir, e 'with no onions' deixa clara a alteração."
+              },
+              {
+                "text": "Give me one hoagie Italian and remove the onions.",
+                "isCorrect": false,
+                "feedback": "A frase pode soar direta demais. Use 'I'll have...' para pedir e 'with no onions' para indicar a preferência."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "or",
+      "stateName": "Oregon",
+      "city": "Portland",
+      "unlockedByDefault": false,
+      "unlockCost": 4100,
+      "weatherPreset": "rainy",
+      "camera": {
+        "center": [-122.6794, 45.5189],
+        "zoom": 16.0,
+        "pitch": 60,
+        "bearing": 0
+      },
+      "route3D": {
+        "name": "Pioneer Square to the Waterfront",
+        "waypoints": [
+          [-122.6794, 45.5189],
+          [-122.6765, 45.5220],
+          [-122.6690, 45.5230]
+        ]
+      },
+      "stamp": {
+        "id": "stamp-or",
+        "code": "AEROPORTO - OR",
+        "title": "THE BEAVER STATE",
+        "color": "#3C6B4E"
+      },
+      "touristGuide": {
+        "title": "Pioneer Courthouse Square",
+        "text": "Known as Portland's living room, Pioneer Courthouse Square is a popular gathering place in the city center. From here, visitors can explore downtown shops, ride the MAX light rail, or walk toward the Willamette River."
+      },
+      "hotspots": [
+        {
+          "id": "or-1",
+          "word": "food cart pod",
+          "translation": "conjunto de barracas de comida reunidas em um espaço",
+          "phonetic": "/ˈfuːd kɑːrt pɑːd/",
+          "example": "Let's meet at the food cart pod and choose lunch there.",
+          "rewardDollars": 110
+        },
+        {
+          "id": "or-2",
+          "word": "rain shell",
+          "translation": "jaqueta leve impermeável",
+          "phonetic": "/ˈreɪn ʃɛl/",
+          "example": "I keep a rain shell in my backpack for walks around Portland.",
+          "rewardDollars": 110
+        },
+        {
+          "id": "or-3",
+          "word": "MAX line",
+          "translation": "linha do trem leve de Portland",
+          "phonetic": "/ˈmæks laɪn/",
+          "example": "The MAX line is a convenient way to cross downtown.",
+          "rewardDollars": 115
+        }
+      ],
+      "mission": {
+        "id": "m-or",
+        "title": "Choose Lunch at a Food Cart Pod",
+        "description": "Você chegou a um espaço com várias barracas e quer descobrir quais opções vegetarianas estão disponíveis.",
+        "rewardDollars": 500,
+        "npcRole": "Vendedor de food cart",
+        "steps": [
+          {
+            "npcLine": "Hi! What are you in the mood for today?",
+            "options": [
+              {
+                "text": "I'm looking for something vegetarian. What do you recommend?",
+                "isCorrect": true,
+                "feedback": "Muito bem! 'I'm looking for...' explica o que você procura, e 'What do you recommend?' pede uma sugestão com educação."
+              },
+              {
+                "text": "I want eat without meat. What you have?",
+                "isCorrect": false,
+                "feedback": "Diga 'I want to eat...' ou, de forma mais natural, 'I'm looking for something vegetarian.' Em perguntas, use 'What do you have?'"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ut",
+      "stateName": "Utah",
+      "city": "Salt Lake City",
+      "unlockedByDefault": false,
+      "unlockCost": 4400,
+      "weatherPreset": "clear_day",
+      "camera": {
+        "center": [-111.8910, 40.7714],
+        "zoom": 16.0,
+        "pitch": 60,
+        "bearing": 0
+      },
+      "route3D": {
+        "name": "Temple Square to City Creek",
+        "waypoints": [
+          [-111.8910, 40.7714],
+          [-111.8910, 40.7694],
+          [-111.8890, 40.7680]
+        ]
+      },
+      "stamp": {
+        "id": "stamp-ut",
+        "code": "AEROPORTO - UT",
+        "title": "THE BEEHIVE STATE",
+        "color": "#B98B3D"
+      },
+      "touristGuide": {
+        "title": "Temple Square",
+        "text": "Temple Square is a historic and cultural landmark in downtown Salt Lake City. Nearby streets offer museums, gardens, and shops, while the Wasatch Mountains rise to the east of the city."
+      },
+      "hotspots": [
+        {
+          "id": "ut-1",
+          "word": "Wasatch",
+          "translation": "cordilheira que acompanha o leste de Salt Lake City",
+          "phonetic": "/ˈwɑːsætʃ/",
+          "example": "The Wasatch Mountains are visible from many parts of the city.",
+          "rewardDollars": 115
+        },
+        {
+          "id": "ut-2",
+          "word": "powder day",
+          "translation": "dia de esqui com neve fresca e fofa",
+          "phonetic": "/ˈpaʊdər deɪ/",
+          "example": "The fresh snowfall made it a perfect powder day in the mountains.",
+          "rewardDollars": 115
+        },
+        {
+          "id": "ut-3",
+          "word": "trailhead",
+          "translation": "início de uma trilha",
+          "phonetic": "/ˈtreɪlˌhɛd/",
+          "example": "The shuttle drops hikers off near the trailhead.",
+          "rewardDollars": 120
+        }
+      ],
+      "mission": {
+        "id": "m-ut",
+        "title": "Ask About a Mountain Shuttle",
+        "description": "Você quer fazer uma trilha perto de Salt Lake City e precisa confirmar o ponto de embarque do transporte.",
+        "rewardDollars": 520,
+        "npcRole": "Atendente do centro de visitantes",
+        "steps": [
+          {
+            "npcLine": "Are you planning to hike in the Wasatch this morning?",
+            "options": [
+              {
+                "text": "Yes. Where can I catch the shuttle to the trailhead?",
+                "isCorrect": true,
+                "feedback": "Ótimo! 'Where can I catch the shuttle...?' pergunta naturalmente onde embarcar no transporte."
+              },
+              {
+                "text": "Yes, where I take the shuttle for start the trail?",
+                "isCorrect": false,
+                "feedback": "Use a estrutura 'Where can I catch...?' e diga 'to the trailhead' para indicar o destino."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "mi",
+      "stateName": "Michigan",
+      "city": "Detroit",
+      "unlockedByDefault": false,
+      "unlockCost": 4700,
+      "weatherPreset": "golden_hour",
+      "camera": {
+        "center": [-83.0466, 42.3316],
+        "zoom": 16.0,
+        "pitch": 60,
+        "bearing": 0
+      },
+      "route3D": {
+        "name": "Campus Martius to the Guardian Building",
+        "waypoints": [
+          [-83.0466, 42.3316],
+          [-83.0476, 42.3298],
+          [-83.0490, 42.3301]
+        ]
+      },
+      "stamp": {
+        "id": "stamp-mi",
+        "code": "AEROPORTO - MI",
+        "title": "THE GREAT LAKES STATE",
+        "color": "#397A8C"
+      },
+      "touristGuide": {
+        "title": "Campus Martius Park",
+        "text": "Campus Martius Park is a lively public square in the center of downtown Detroit. It is surrounded by historic buildings, restaurants, and places to relax, and it hosts events throughout the year."
+      },
+      "hotspots": [
+        {
+          "id": "mi-1",
+          "word": "Coney dog",
+          "translation": "cachorro-quente coberto com chili, cebola e mostarda",
+          "phonetic": "/ˈkoʊni dɔːɡ/",
+          "example": "A classic Detroit Coney dog comes topped with chili, onions, and mustard.",
+          "rewardDollars": 120
+        },
+        {
+          "id": "mi-2",
+          "word": "the Lodge",
+          "translation": "apelido da via M-10 em Detroit",
+          "phonetic": "/ðə ˈlɑːdʒ/",
+          "example": "Traffic on the Lodge can be busy during the evening commute.",
+          "rewardDollars": 120
+        },
+        {
+          "id": "mi-3",
+          "word": "Motown",
+          "translation": "movimento musical e gravadora surgidos em Detroit",
+          "phonetic": "/ˈmoʊtaʊn/",
+          "example": "The Motown Museum tells the story of Detroit's influential music scene.",
+          "rewardDollars": 125
+        }
+      ],
+      "mission": {
+        "id": "m-mi",
+        "title": "Order a Detroit Coney Dog",
+        "description": "Em uma lanchonete de Detroit, peça um Coney dog e pergunte se pode retirar um ingrediente.",
+        "rewardDollars": 540,
+        "npcRole": "Atendente de lanchonete",
+        "steps": [
+          {
+            "npcLine": "Would you like everything on your Coney dog?",
+            "options": [
+              {
+                "text": "Yes, please, but could I have it without onions?",
+                "isCorrect": true,
+                "feedback": "Muito bem! 'Could I have it without...?' é uma forma educada e clara de pedir para retirar um ingrediente."
+              },
+              {
+                "text": "Yes, but take out from it the onions.",
+                "isCorrect": false,
+                "feedback": "Para pedir a retirada de um ingrediente, diga 'without onions' ou 'Could you leave off the onions?'"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "mn",
+      "stateName": "Minnesota",
+      "city": "Minneapolis",
+      "unlockedByDefault": false,
+      "unlockCost": 5000,
+      "weatherPreset": "clear_day",
+      "camera": {
+        "center": [-93.2569, 44.9781],
+        "zoom": 16.0,
+        "pitch": 60,
+        "bearing": 0
+      },
+      "route3D": {
+        "name": "Mill City Museum to the Stone Arch Bridge",
+        "waypoints": [
+          [-93.2569, 44.9781],
+          [-93.2530, 44.9767],
+          [-93.2516, 44.9817]
+        ]
+      },
+      "stamp": {
+        "id": "stamp-mn",
+        "code": "AEROPORTO - MN",
+        "title": "THE NORTH STAR STATE",
+        "color": "#4D7099"
+      },
+      "touristGuide": {
+        "title": "Mill City and the Riverfront",
+        "text": "The Mississippi Riverfront in Minneapolis combines the city's milling history with scenic paths and views of the Stone Arch Bridge. In winter, enclosed downtown skyways give pedestrians a warm route between many buildings."
+      },
+      "hotspots": [
+        {
+          "id": "mn-1",
+          "word": "skyway",
+          "translation": "passarela fechada que conecta prédios no centro",
+          "phonetic": "/ˈskaɪˌweɪ/",
+          "example": "We used the skyway to walk between downtown buildings on a cold day.",
+          "rewardDollars": 125
+        },
+        {
+          "id": "mn-2",
+          "word": "lake cabin",
+          "translation": "cabana de temporada junto a um lago",
+          "phonetic": "/ˈleɪk ˌkæbɪn/",
+          "example": "Her family spends a week at their lake cabin every summer.",
+          "rewardDollars": 125
+        },
+        {
+          "id": "mn-3",
+          "word": "Minnesota goodbye",
+          "translation": "despedida demorada, com várias conversas antes de ir embora",
+          "phonetic": "/ˌmɪnɪˈsoʊtə ɡʊdˌbaɪ/",
+          "example": "We had a Minnesota goodbye that lasted almost half an hour.",
+          "rewardDollars": 130
+        }
+      ],
+      "mission": {
+        "id": "m-mn",
+        "title": "Find a Warm Route Downtown",
+        "description": "Em um dia muito frio, pergunte como chegar a outro prédio usando as passarelas internas do centro.",
+        "rewardDollars": 560,
+        "npcRole": "Morador de Minneapolis",
+        "steps": [
+          {
+            "npcLine": "Are you trying to get across downtown without going outside?",
+            "options": [
+              {
+                "text": "Yes. Can I use the skyway to get to that building?",
+                "isCorrect": true,
+                "feedback": "Perfeito! Em Minneapolis, 'the skyway' é uma rede de passarelas internas que conecta muitos prédios do centro."
+              },
+              {
+                "text": "Yes, I can go by the sky road inside?",
+                "isCorrect": false,
+                "feedback": "O termo usado é 'skyway'. Pergunte 'Can I use the skyway to get to...?' para confirmar o trajeto."
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

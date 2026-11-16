@@ -4,26 +4,30 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { ChevronDown, Map as MapIcon, MapPin } from 'lucide-react';
 import type { City } from '../../../types/actionStreet';
 import { OPENFREEMAP_STYLES, canUseWebGL } from '../../../lib/actionStreet/maplibreConfig';
+import { spotDiscoveryId } from '../../../lib/actionStreet/discovery';
 import { glass } from '../shared/glass';
 
 interface Props {
   city: City;
   currentSpotId: string;
+  discoveredSpotIds: Set<string>;
   onTravel: (spotId: string) => void;
 }
 
-export default function MiniMap3D({ city, currentSpotId, onTravel }: Props) {
+export default function MiniMap3D({ city, currentSpotId, discoveredSpotIds, onTravel }: Props) {
   const [expanded, setExpanded] = useState(() => window.innerWidth >= 768);
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<Map<string, HTMLButtonElement>>(new Map());
   const travelRef = useRef(onTravel);
   const currentRef = useRef(currentSpotId);
+  const discoveredRef = useRef(discoveredSpotIds);
 
   useEffect(() => {
     travelRef.current = onTravel;
     currentRef.current = currentSpotId;
-  }, [onTravel, currentSpotId]);
+    discoveredRef.current = discoveredSpotIds;
+  }, [onTravel, currentSpotId, discoveredSpotIds]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -59,9 +63,11 @@ export default function MiniMap3D({ city, currentSpotId, onTravel }: Props) {
     const markers = city.spots.map((spot) => {
       const button = document.createElement('button');
       button.type = 'button';
-      button.title = spot.name;
-      button.setAttribute('aria-label', `Ir para ${spot.name}`);
+      const discovered = discoveredRef.current.has(spotDiscoveryId(city.id, spot.id));
+      button.title = `${spot.name}${discovered ? ' · descoberto' : ' · novo local'}`;
+      button.setAttribute('aria-label', `${discovered ? 'Visitar' : 'Explorar'} ${spot.name}`);
       button.style.cssText = 'width:22px;height:22px;border-radius:9999px;border:2px solid #fff;cursor:pointer;backdrop-filter:blur(6px);transition:transform .2s;';
+      button.style.borderStyle = discovered ? 'solid' : 'dashed';
       button.addEventListener('click', () => {
         if (spot.id !== currentRef.current) travelRef.current(spot.id);
       });
@@ -80,13 +86,15 @@ export default function MiniMap3D({ city, currentSpotId, onTravel }: Props) {
   useEffect(() => {
     markersRef.current.forEach((button, spotId) => {
       const active = spotId === currentSpotId;
-      button.style.background = active ? '#8b5cf6' : 'rgba(59,130,246,0.7)';
+      const discovered = discoveredSpotIds.has(spotDiscoveryId(city.id, spotId));
+      button.style.background = active ? '#8b5cf6' : discovered ? 'rgba(16,185,129,0.8)' : 'rgba(59,130,246,0.35)';
+      button.style.borderStyle = discovered ? 'solid' : 'dashed';
       button.style.transform = active ? 'scale(1.35)' : 'scale(1)';
-      button.style.boxShadow = active ? '0 0 16px rgba(139,92,246,0.9)' : '0 2px 8px rgba(0,0,0,0.4)';
+      button.style.boxShadow = active ? '0 0 16px rgba(139,92,246,0.9)' : discovered ? '0 0 10px rgba(16,185,129,0.5)' : '0 2px 8px rgba(0,0,0,0.4)';
     });
     const spot = city.spots.find((item) => item.id === currentSpotId);
     if (spot) mapRef.current?.flyTo({ center: spot.coordinates, zoom: 15.8, pitch: 62, duration: 1800, essential: true });
-  }, [currentSpotId, city, expanded]);
+  }, [currentSpotId, city, expanded, discoveredSpotIds]);
 
   return (
     <aside className={`absolute bottom-[5.25rem] right-4 z-20 w-[min(17rem,calc(100vw-2rem))] overflow-hidden text-white sm:bottom-6 sm:right-6 ${glass.panelOverImagery}`}>
@@ -115,7 +123,7 @@ export default function MiniMap3D({ city, currentSpotId, onTravel }: Props) {
                     type="button"
                     aria-current={active ? 'location' : undefined}
                     onClick={() => !active && onTravel(spot.id)}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold transition ${glass.chip} ${active ? glass.chipActive : 'text-white/75 hover:bg-white/15'}`}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold transition ${glass.chip} ${active ? glass.chipActive : discoveredSpotIds.has(spotDiscoveryId(city.id, spot.id)) ? 'text-emerald-100 hover:bg-white/15' : 'text-white/75 hover:bg-white/15'}`}
                   >
                     <MapPin className="h-3 w-3" />
                     {spot.name}

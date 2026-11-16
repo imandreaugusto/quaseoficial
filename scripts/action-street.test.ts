@@ -1,14 +1,16 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import actionStreetData from '../src/data/actionStreetData.json';
+import { actionStreetCities } from '../src/data/actionStreetCities';
 import { missionPayout } from '../src/lib/actionStreet/economy';
+import { getDiscoveredSpotIds } from '../src/lib/actionStreet/discovery';
 import { parseJourney } from '../src/lib/actionStreet/journeyStore';
-import { sanitizeState } from '../src/lib/actionStreet/persistenceManager';
+import { persistenceManager, sanitizeState } from '../src/lib/actionStreet/persistenceManager';
+import { buildActionStreetResponseEvaluation } from '../src/lib/actionStreet/responseEvaluation';
 import { dayKey, emptyStreak, registerVisit, streakMultiplier } from '../src/lib/actionStreet/streak';
 import { VISA_VALIDITY_MS, buildRenewalQuiz, getVisaStatus, recordVisit, renewVisa } from '../src/lib/actionStreet/visa';
-import type { ActionStreetState, City } from '../src/types/actionStreet';
+import type { ActionStreetState } from '../src/types/actionStreet';
 
-const cities = (actionStreetData as unknown as { states: City[] }).states;
+const cities = actionStreetCities;
 const ny = cities[0];
 const HOUR = 60 * 60 * 1000;
 
@@ -111,6 +113,37 @@ test('corrupted saved state falls back to safe defaults', () => {
   assert.ok(state.unlockedCities.includes('ny'));
 });
 
+test('spot discoveries are idempotent and existing souvenirs count as discoveries', () => {
+  const initial = baseState();
+  const discovered = persistenceManager.discoverSpot(initial, 'ny', 'times-square');
+  assert.deepEqual(discovered.discoveredSpots, ['ny:times-square']);
+  assert.equal(persistenceManager.discoverSpot(discovered, 'ny', 'times-square'), discovered);
+
+  const legacyState = baseState({
+    souvenirs: [{ id: 'ny:ny-hs-1', icon: 'Flame', label: 'Fire Hydrant', fromCity: 'New York', collectedAt: 1 }],
+  });
+  const discoveredIds = getDiscoveredSpotIds(cities, legacyState.discoveredSpots, legacyState.souvenirs);
+  assert.ok(discoveredIds.has('ny:times-square'));
+});
+
+test('discovery state migrates safely from older and malformed saves', () => {
+  const migrated = sanitizeState({ discoveredSpots: ['ny:times-square', 'ny:times-square', 12] as unknown as string[] });
+  assert.deepEqual(migrated.discoveredSpots, ['ny:times-square']);
+  assert.deepEqual(sanitizeState({}).discoveredSpots, []);
+});
+
+test('Jev response evaluation accepts clear relevant paraphrases and guides unclear answers', () => {
+  const accepted = buildActionStreetResponseEvaluation(0.82, 0.74);
+  assert.equal(accepted.isValid, true);
+  assert.match(accepted.feedback, /Boa resposta/);
+
+  const unclear = buildActionStreetResponseEvaluation(0.9, 0.59);
+  assert.equal(unclear.isValid, false);
+  assert.match(unclear.feedback, /ajuste a frase/);
+
+  assert.throws(() => buildActionStreetResponseEvaluation(Number.NaN, 0.8), /invalid relevance confidence/);
+});
+
 test('renewal quiz asks 3 valid questions and prefers words the student learned', () => {
   const learned = new Set(['ny:ny-hs-3']);
   const quiz = buildRenewalQuiz(ny, cities, learned, seededRandom(7));
@@ -162,4 +195,23 @@ test('journey parsing rejects garbage and keeps only valid camera data', () => {
 
   const badCamera = parseJourney(JSON.stringify({ view: 'lobby', cityId: 'ny', lobbyCamera: { center: ['x'], zoom: 1 } }));
   assert.equal(badCamera?.lobbyCamera, undefined);
+});
+
+test('all three state packages are adapted for the Action Street experience', () => {
+  assert.equal(cities.length, 30);
+  assert.equal(new Set(cities.map((city) => city.id)).size, 30);
+  assert.deepEqual(cities.slice(0, 4).map((city) => city.id), ['ny', 'nj', 'tx', 'fl']);
+  assert.deepEqual(cities.slice(-10).map((city) => city.id), ['nc', 'va', 'oh', 'md', 'ak', 'nm', 'sc', 'mo', 'ky', 'wi']);
+
+  for (const [index, city] of cities.entries()) {
+    assert.ok(city.spots.length > 0, `${city.id} should expose explorable spots`);
+    if (index >= 4) assert.equal(city.spots.length, 3, `${city.id} should expose three explorable spots`);
+    assert.equal(city.hotspots.length, 3, `${city.id} should expose three vocabulary rewards`);
+    for (const hotspot of city.hotspots) {
+      assert.ok(city.spots.some((spot) => spot.id === hotspot.spotId), `${city.id}/${hotspot.id} should point to a spot`);
+      assert.ok(hotspot.souvenirIcon);
+    }
+    assert.ok(city.stamp.subtitle);
+    assert.ok(city.mission.steps.length > 0);
+  }
 });

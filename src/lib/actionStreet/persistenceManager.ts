@@ -2,6 +2,7 @@ import type { ActionStreetState, Souvenir, Stamp, StreakState, VisaRecord } from
 import actionStreetData from '../../data/actionStreetData.json';
 import { emptyStreak, registerVisit } from './streak';
 import { recordVisit, renewVisa } from './visa';
+import { spotDiscoveryId } from './discovery';
 
 const STORAGE_KEY = 'ACTION_STREET_STATE';
 
@@ -9,6 +10,7 @@ export const defaultState: ActionStreetState = {
   currentCity: 'ny',
   balance: actionStreetData.initialBalance,
   unlockedCities: ['ny'],
+  discoveredSpots: [],
   souvenirs: [],
   stamps: [],
   completedMissions: [],
@@ -17,6 +19,7 @@ export const defaultState: ActionStreetState = {
 };
 
 const asArray = <T>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);
+const asStringArray = (value: unknown): string[] => Array.from(new Set(asArray<unknown>(value).filter((item): item is string => typeof item === 'string')));
 const isCount = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value) && value >= 0;
 
 function sanitizeStreak(raw: unknown): StreakState {
@@ -50,6 +53,7 @@ export function sanitizeState(raw: Partial<ActionStreetState>, now = Date.now())
     currentCity: typeof raw.currentCity === 'string' ? raw.currentCity : defaultState.currentCity,
     balance: typeof raw.balance === 'number' && Number.isFinite(raw.balance) ? Math.max(0, raw.balance) : defaultState.balance,
     unlockedCities: Array.from(new Set(['ny', ...asArray<string>(raw.unlockedCities)])),
+    discoveredSpots: asStringArray(raw.discoveredSpots),
     souvenirs: asArray<Souvenir>(raw.souvenirs),
     stamps,
     completedMissions: asArray<string>(raw.completedMissions),
@@ -83,6 +87,12 @@ export const persistenceManager = {
   addSouvenir(state: ActionStreetState, souvenir: Souvenir): ActionStreetState {
     if (state.souvenirs.some((item) => item.id === souvenir.id)) return state;
     return { ...state, souvenirs: [...state.souvenirs, souvenir] };
+  },
+
+  discoverSpot(state: ActionStreetState, cityId: string, spotId: string): ActionStreetState {
+    const id = spotDiscoveryId(cityId, spotId);
+    if (state.discoveredSpots.includes(id)) return state;
+    return { ...state, discoveredSpots: [...state.discoveredSpots, id] };
   },
 
   addStamp(state: ActionStreetState, stamp: Stamp): ActionStreetState {

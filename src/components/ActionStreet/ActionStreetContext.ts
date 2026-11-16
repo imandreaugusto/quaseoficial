@@ -1,11 +1,13 @@
 import { createContext, useContext } from 'react';
-import type { ActionStreetState, City } from '../../types/actionStreet';
+import type { ActionStreetState, City, SpeechRate } from '../../types/actionStreet';
 
 export interface ActionStreetContextType {
   state: ActionStreetState;
   updateState: (updater: (previous: ActionStreetState) => ActionStreetState) => void;
   getCityData: (cityId: string) => City | undefined;
   allCities: City[];
+  speechRate: SpeechRate;
+  setSpeechRate: (rate: SpeechRate) => void;
 }
 
 export const ActionStreetContext = createContext<ActionStreetContextType | undefined>(undefined);
