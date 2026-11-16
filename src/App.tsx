@@ -24,6 +24,7 @@ const AdminSettings = lazy(() => import('./components/AdminSettings').then(({ Ad
 const AdminFeedbackPanel = lazy(() => import('./components/AdminFeedbackPanel').then(({ AdminFeedbackPanel }) => ({ default: AdminFeedbackPanel })));
 const StudentFeedback = lazy(() => import('./components/StudentFeedback').then(({ StudentFeedback }) => ({ default: StudentFeedback })));
 const PixPaymentScreen = lazy(() => import('./components/PixPaymentScreen').then(({ PixPaymentScreen }) => ({ default: PixPaymentScreen })));
+const ActionStreet = lazy(() => import('./components/ActionStreet/ActionStreet').then(mod => ({ default: mod.default })));
 import { DEFAULT_YOUTUBE_LIBRARY, type YouTubeLibraryItem } from './youtubeLibrary';
 import { StoryRecordingBar } from './components/StoryRecordingBar';
 import { StudentFeedbackNotifications } from './components/StudentFeedbackNotifications';
@@ -1791,6 +1792,10 @@ export default function App() {
                       accentColor={settings.accentColor} 
                       onShowFloatingCamera={setIsStoryCamActive}
                     />
+                  )}
+
+                  {currentApp === 'actionstreet' && (
+                    <ActionStreet onClose={() => setCurrentApp('home')} />
                   )}
 
                   {currentApp === 'brazilianfriends' && (

@@ -2,21 +2,21 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, Variants } from 'motion/react';
 import gsap from 'gsap';
 import { playHoverSound, playMenuSelectSound } from '../lib/menuSounds';
-import { 
-  Menu, 
-  X, 
-  Home, 
-  LayoutDashboard, 
-  GraduationCap, 
-  Video, 
-  BookOpen, 
+import {
+  Menu,
+  X,
+  Home,
+  LayoutDashboard,
+  GraduationCap,
+  Video,
+  BookOpen,
   VenetianMask,
-  Presentation, 
-  Settings as SettingsIcon, 
-  Sparkles, 
-  HelpCircle, 
-  Languages, 
-  Mic, 
+  Presentation,
+  Settings as SettingsIcon,
+  Sparkles,
+  HelpCircle,
+  Languages,
+  Mic,
   LogOut,
   Users,
   Radio,
@@ -31,6 +31,7 @@ import {
   Download,
   Share,
   Plus,
+  MapPin,
 } from 'lucide-react';
 import { UserProfile, GlobalAppConfig } from '../types';
 import { ensureAppAfter } from '../lib/appMenuOrder';
@@ -81,6 +82,7 @@ interface SidebarProps {
 
 const ALL_STUDENT_ITEMS = [
   { id: 'home', label: 'Home', icon: Home },
+  { id: 'actionstreet', label: 'Action Street', icon: MapPin, badge: 'Novo' },
   { id: 'brazilianfriends', label: 'Brazilian Friends', icon: Users },
   { id: 'brazilianspace', label: 'Brazilian Space', icon: PlanetOrbitIcon },
   { id: 'stories', label: 'Brazilian Post', icon: Instagram },
@@ -104,6 +106,7 @@ type NavItem = {
   id: string;
   label: string;
   icon: React.ComponentType<{ size?: number; style?: React.CSSProperties; className?: string }>;
+  badge?: string;
 };
 
 interface BeforeInstallPromptEvent extends Event {
@@ -241,6 +244,11 @@ const NavButton: React.FC<{
           {notificationCount > 99 ? '99+' : notificationCount}
         </span>
       )}
+      {item.badge && (
+        <span className="flex items-center justify-center px-2.5 py-0.5 ml-2 rounded-full bg-gradient-to-r from-orange-500 to-pink-500 text-[10px] font-extrabold text-white shadow-lg">
+          {item.badge}
+        </span>
+      )}
     </button>
   );
 };
@@ -248,6 +256,7 @@ const NavButton: React.FC<{
 const ALL_ADMIN_ITEMS = [
   { id: 'home', label: 'Home', icon: Home },
   { id: 'work', label: 'Work', icon: LayoutGrid },
+  { id: 'actionstreet', label: 'Action Street', icon: MapPin, badge: 'Novo' },
   { id: 'brazilianfriends', label: 'Brazilian Friends', icon: Users },
   { id: 'brazilianspace', label: 'Brazilian Space', icon: PlanetOrbitIcon },
   { id: 'stories', label: 'Brazilian Post', icon: Instagram },
@@ -294,9 +303,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [showInstallHelp, setShowInstallHelp] = useState(false);
   const [installError, setInstallError] = useState('');
   const [appConfig, setAppConfig] = useState<GlobalAppConfig>({
-    studentAppOrder: ['home', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'readclub', 'holybible', 'brazilianhq', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'studytime', 'feedback', 'settings'],
-    adminAppOrder: ['home', 'work', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'holybible', 'brazilianhq', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'studytime', 'settings'],
+    studentAppOrder: ['home', 'actionstreet', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'readclub', 'holybible', 'brazilianhq', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'studytime', 'feedback', 'settings'],
+    adminAppOrder: ['home', 'work', 'actionstreet', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'holybible', 'brazilianhq', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'studytime', 'settings'],
     studentGlobalEnabled: {
+      actionstreet: true,
       brazilianfriends: true,
       brazilianspace: true,
       settings: true,
@@ -370,13 +380,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
       const normalizedStudentBibleOrder = ensureAppAfter(studentAppOrder, 'holybible', 'readclub');
       const normalizedAdminBibleOrder = ensureAppAfter(adminAppOrder, 'holybible', 'readclub');
       if (!adminAppOrder.includes('feedback')) adminAppOrder.push('feedback');
-      const normalizedStudentOrder = ensureAppAfter(normalizedStudentBibleOrder, 'brazilianhq', 'holybible');
-      const normalizedAdminOrder = ensureAppAfter(normalizedAdminBibleOrder, 'brazilianhq', 'holybible');
+      const normalizedStudentOrder = ensureAppAfter(
+        ensureAppAfter(normalizedStudentBibleOrder, 'brazilianhq', 'holybible'),
+        'actionstreet',
+        'home'
+      );
+      const normalizedAdminOrder = ensureAppAfter(
+        ensureAppAfter(normalizedAdminBibleOrder, 'brazilianhq', 'holybible'),
+        'actionstreet',
+        'work'
+      );
       const normalized: GlobalAppConfig = {
         ...parsed,
         studentAppOrder: normalizedStudentOrder,
         adminAppOrder: normalizedAdminOrder,
         studentGlobalEnabled: {
+          actionstreet: true,
           brazilianfriends: true,
           brazilianspace: true,
           braziliangames: true,

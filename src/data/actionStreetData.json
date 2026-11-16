@@ -1,0 +1,372 @@
+{
+  "platform": "Brazilian in Action",
+  "module": "Action Street",
+  "currencyName": "Action Dollars",
+  "initialBalance": 150,
+  "originHub": {
+    "name": "São Paulo, Brasil",
+    "coordinates": [-46.6333, -23.5505]
+  },
+  "states": [
+    {
+      "id": "ny",
+      "stateName": "New York",
+      "city": "New York City",
+      "region": "Northeast",
+      "unlockedByDefault": true,
+      "unlockCost": 0,
+      "weatherPreset": "rainy",
+      "camera": {
+        "center": [-73.9855, 40.758],
+        "zoom": 16.5,
+        "pitch": 65,
+        "bearing": -28
+      },
+      "route3D": {
+        "name": "Times Square to Central Park Walk",
+        "waypoints": [
+          [-73.9855, 40.758],
+          [-73.9814, 40.7636],
+          [-73.9776, 40.7688],
+          [-73.973, 40.7749]
+        ]
+      },
+      "stamp": {
+        "id": "stamp-nyc",
+        "title": "THE BIG APPLE",
+        "subtitle": "New York, NY",
+        "color": "#F59E0B"
+      },
+      "touristGuide": {
+        "title": "Times Square & Broadway",
+        "text": "Times Square is the bustling commercial intersection in Midtown Manhattan. Famous for its massive digital billboards and Broadway theaters, millions of tourists walk through these bright streets every year. The energy here is electric, with street performers, iconic shops, and restaurants from around the world."
+      },
+      "hotspots": [
+        {
+          "id": "ny-hs-1",
+          "word": "Fire Hydrant",
+          "translation": "Hidrante de incêndio",
+          "phonetic": "/ˈfaɪər ˌhaɪdrənt/",
+          "example": "You cannot park your car in front of a red fire hydrant in New York.",
+          "rewardDollars": 30,
+          "souvenirIcon": "Flame"
+        },
+        {
+          "id": "ny-hs-2",
+          "word": "Subway Entrance",
+          "translation": "Entrada do metrô",
+          "phonetic": "/ˈsʌbweɪ ˈɛntrəns/",
+          "example": "Take the stairs down at the subway entrance to catch the Uptown train.",
+          "rewardDollars": 30,
+          "souvenirIcon": "TrainFront"
+        },
+        {
+          "id": "ny-hs-3",
+          "word": "Hot Dog Cart",
+          "translation": "Carrinho de cachorro-quente",
+          "phonetic": "/hɑːt dɔːɡ kɑːrt/",
+          "example": "Let's grab a quick snack at that street hot dog cart near the corner.",
+          "rewardDollars": 40,
+          "souvenirIcon": "Utensils"
+        }
+      ],
+      "mission": {
+        "id": "ny-mission-1",
+        "title": "Rainy Day Coffee Run",
+        "description": "Está chovendo em Manhattan. Entre na cafeteria da esquina e faça seu pedido em inglês.",
+        "rewardDollars": 100,
+        "npcRole": "Barista",
+        "steps": [
+          {
+            "npcLine": "Hi there! Welcome to Midtown Coffee. What can I get started for you today?",
+            "options": [
+              {
+                "text": "I'd like a medium iced latte with oat milk, to go, please.",
+                "isCorrect": true,
+                "feedback": "Perfeito! 'To go' é a expressão natural nos EUA para pedir para viagem."
+              },
+              {
+                "text": "I want one coffee medium for travel now.",
+                "isCorrect": false,
+                "feedback": "Quase! Nos EUA, evite 'I want' (soa ríspido) e use 'to go' em vez de 'for travel'."
+              }
+            ]
+          },
+          {
+            "npcLine": "Sure thing! Would you like any pastries or a bagel with that?",
+            "options": [
+              {
+                "text": "No, thanks. That'll be all.",
+                "isCorrect": true,
+                "feedback": "Excelente! 'That'll be all' encerra o pedido com naturalidade."
+              },
+              {
+                "text": "No, I finished my food.",
+                "isCorrect": false,
+                "feedback": "Essa frase significa que você já terminou de comer, não de pedir."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "nj",
+      "stateName": "New Jersey",
+      "city": "Hoboken / Newark",
+      "region": "Northeast",
+      "unlockedByDefault": false,
+      "unlockCost": 200,
+      "weatherPreset": "golden_hour",
+      "camera": {
+        "center": [-74.0279, 40.7359],
+        "zoom": 16,
+        "pitch": 60,
+        "bearing": 45
+      },
+      "route3D": {
+        "name": "Hoboken Terminal to Waterfront View",
+        "waypoints": [
+          [-74.0279, 40.7359],
+          [-74.0258, 40.7395],
+          [-74.0245, 40.7432]
+        ]
+      },
+      "stamp": {
+        "id": "stamp-nj",
+        "title": "GARDEN STATE",
+        "subtitle": "Hoboken, NJ",
+        "color": "#10B981"
+      },
+      "touristGuide": {
+        "title": "Hoboken Waterfront & PATH Station",
+        "text": "Located right across the Hudson River from Manhattan, Hoboken offers stunning skyline views and easy commuter train access for thousands of daily workers. The waterfront has been recently revitalized with parks, restaurants, and entertainment venues."
+      },
+      "hotspots": [
+        {
+          "id": "nj-hs-1",
+          "word": "Commuter Train",
+          "translation": "Trem intermunicipal",
+          "phonetic": "/kəˈmjuːtər treɪn/",
+          "example": "Many people living in New Jersey take the commuter train to work in New York.",
+          "rewardDollars": 35,
+          "souvenirIcon": "Train"
+        },
+        {
+          "id": "nj-hs-2",
+          "word": "Turnpike Exit",
+          "translation": "Saída da rodovia pedagiada",
+          "phonetic": "/ˈtɜːrnpaɪk ˈɛksɪt/",
+          "example": "Take Exit 14 on the New Jersey Turnpike to reach Newark Airport.",
+          "rewardDollars": 35,
+          "souvenirIcon": "Signpost"
+        },
+        {
+          "id": "nj-hs-3",
+          "word": "Classic Diner",
+          "translation": "Lanchonete tradicional americana",
+          "phonetic": "/ˈklæsɪk ˈdaɪnər/",
+          "example": "New Jersey is famous for having a classic diner on almost every highway.",
+          "rewardDollars": 40,
+          "souvenirIcon": "Coffee"
+        }
+      ],
+      "mission": {
+        "id": "nj-mission-1",
+        "title": "Breakfast at a Jersey Diner",
+        "description": "Você entrou em um Diner clássico em Hoboken. Escolha seu café da manhã americano.",
+        "rewardDollars": 120,
+        "npcRole": "Waitress",
+        "steps": [
+          {
+            "npcLine": "Morning, hon! Here's your menu. How would you like your eggs cooked?",
+            "options": [
+              {
+                "text": "Scrambled eggs with a side of hash browns, please.",
+                "isCorrect": true,
+                "feedback": "Mandou bem! 'Scrambled eggs' (ovos mexidos) e 'hash browns' (batata ralada frita) são clássicos."
+              },
+              {
+                "text": "I want mixed eggs with fried potato.",
+                "isCorrect": false,
+                "feedback": "Nos EUA o termo correto para ovos mexidos é 'scrambled eggs'."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "tx",
+      "stateName": "Texas",
+      "city": "Austin / Starbase",
+      "region": "South",
+      "unlockedByDefault": false,
+      "unlockCost": 350,
+      "weatherPreset": "clear_day",
+      "camera": {
+        "center": [-97.7431, 30.2672],
+        "zoom": 16.2,
+        "pitch": 62,
+        "bearing": -15
+      },
+      "route3D": {
+        "name": "Silicon Hills Tech Corridor",
+        "waypoints": [
+          [-97.7431, 30.2672],
+          [-97.7405, 30.2725],
+          [-97.738, 30.278]
+        ]
+      },
+      "stamp": {
+        "id": "stamp-tx",
+        "title": "LONE STAR STATE",
+        "subtitle": "Austin, TX",
+        "color": "#EF4444"
+      },
+      "touristGuide": {
+        "title": "Austin Tech Hub & Space Innovation",
+        "text": "Austin has transformed into a major technology and aerospace hub, attracting engineers, entrepreneurs, and startups from around the globe. The city's motto 'Keep Austin Weird' reflects its creative, innovative spirit."
+      },
+      "hotspots": [
+        {
+          "id": "tx-hs-1",
+          "word": "Launch Pad",
+          "translation": "Plataforma de lançamento",
+          "phonetic": "/lɔːntʃ pæd/",
+          "example": "Engineers checked the rocket boosters on the launch pad before liftoff.",
+          "rewardDollars": 45,
+          "souvenirIcon": "Rocket"
+        },
+        {
+          "id": "tx-hs-2",
+          "word": "Smoked Brisket",
+          "translation": "Peito bovino defumado",
+          "phonetic": "/smoʊkt ˈbrɪskɪt/",
+          "example": "Texas barbecue is world-famous for its slow-smoked beef brisket.",
+          "rewardDollars": 40,
+          "souvenirIcon": "Beef"
+        },
+        {
+          "id": "tx-hs-3",
+          "word": "Tech Campus",
+          "translation": "Complexo empresarial de tecnologia",
+          "phonetic": "/tɛk ˈkæmpəs/",
+          "example": "The new electric vehicle factory is located on a massive tech campus.",
+          "rewardDollars": 45,
+          "souvenirIcon": "Cpu"
+        }
+      ],
+      "mission": {
+        "id": "tx-mission-1",
+        "title": "Tech Networking in Austin",
+        "description": "Você está em um evento de tecnologia em Austin. Apresente sua área de atuação com confiança.",
+        "rewardDollars": 150,
+        "npcRole": "Tech Founder",
+        "steps": [
+          {
+            "npcLine": "Hey! Great conference today. What brings you out to Austin?",
+            "options": [
+              {
+                "text": "I'm here to connect with tech leaders and explore new software projects.",
+                "isCorrect": true,
+                "feedback": "Excelente! Profissional, direto e muito natural em eventos nos EUA."
+              },
+              {
+                "text": "I came here because I like Elon Musk.",
+                "isCorrect": false,
+                "feedback": "Embora seja verdade para muitos fãs, em um networking profissional vale focar nos seus objetivos!"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "fl",
+      "stateName": "Florida",
+      "city": "Miami Beach",
+      "region": "Southeast",
+      "unlockedByDefault": false,
+      "unlockCost": 500,
+      "weatherPreset": "clear_day",
+      "camera": {
+        "center": [-80.1301, 25.7907],
+        "zoom": 16,
+        "pitch": 58,
+        "bearing": 20
+      },
+      "route3D": {
+        "name": "Miami Beach Ocean Drive",
+        "waypoints": [
+          [-80.1301, 25.7907],
+          [-80.1285, 25.7945],
+          [-80.1270, 25.7985]
+        ]
+      },
+      "stamp": {
+        "id": "stamp-fl",
+        "title": "SUNSHINE STATE",
+        "subtitle": "Miami, FL",
+        "color": "#06B6D4"
+      },
+      "touristGuide": {
+        "title": "Miami Beach & Ocean Drive",
+        "text": "Miami Beach is known for its white sand beaches, Art Deco architecture, and vibrant nightlife. Ocean Drive features iconic pastel-colored buildings, trendy restaurants, and a diverse multicultural atmosphere."
+      },
+      "hotspots": [
+        {
+          "id": "fl-hs-1",
+          "word": "Lifeguard Tower",
+          "translation": "Torre do salva-vidas",
+          "phonetic": "/ˈlaɪfɡɑːrd ˈtaʊər/",
+          "example": "The colorful lifeguard towers are iconic symbols of Miami Beach.",
+          "rewardDollars": 40,
+          "souvenirIcon": "AlertCircle"
+        },
+        {
+          "id": "fl-hs-2",
+          "word": "Tropical Smoothie",
+          "translation": "Vitamina tropical",
+          "phonetic": "/ˈtrɒpɪkəl ˈsmuːðiː/",
+          "example": "After the beach, we grabbed a tropical smoothie to cool off.",
+          "rewardDollars": 35,
+          "souvenirIcon": "Wine"
+        },
+        {
+          "id": "fl-hs-3",
+          "word": "Art Deco Building",
+          "translation": "Edifício estilo Art Déco",
+          "phonetic": "/ɑːrt ˈdeɪkoʊ ˈbɪldɪŋ/",
+          "example": "Miami Beach features hundreds of restored Art Deco buildings from the 1920s and 30s.",
+          "rewardDollars": 50,
+          "souvenirIcon": "Building"
+        }
+      ],
+      "mission": {
+        "id": "fl-mission-1",
+        "title": "Beach Day Shopping",
+        "description": "Você está em uma loja de souvenirs em Miami Beach. Converse com o vendedor.",
+        "rewardDollars": 130,
+        "npcRole": "Shop Owner",
+        "steps": [
+          {
+            "npcLine": "Welcome to Miami Beachside Souvenirs! Looking for anything special today?",
+            "options": [
+              {
+                "text": "Yes, I'm looking for an authentic Miami Beach souvenir to remember this trip.",
+                "isCorrect": true,
+                "feedback": "Perfeito! Educado e específico. 'Authentic' e 'souvenir' são as palavras certas."
+              },
+              {
+                "text": "I want a thing to remember this place.",
+                "isCorrect": false,
+                "feedback": "Mais natural seria: 'I'm looking for a souvenir' ou 'a memento of Miami Beach'."
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
