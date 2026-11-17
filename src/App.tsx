@@ -1440,7 +1440,11 @@ export default function App() {
           settings.uiDensity === 'compact' ? 'compact' : settings.uiDensity === 'spacious' ? 'spacious' : ''
         } scale-${settings.uiScale}`}
       >
-        <BackgroundSlideshow settings={settings} paused={bgPaused} />
+        <BackgroundSlideshow
+          settings={settings}
+          paused={bgPaused || currentApp === 'actionstreet'}
+          hidden={currentApp === 'actionstreet'}
+        />
 
         {/* Global Navigation Header with RBAC filtering (Floating islands when logged in) */}
         <Sidebar
@@ -1833,7 +1837,7 @@ export default function App() {
             </AnimatePresence>
           )}
         </main>
-        {currentUser && isSubscriptionActive && (
+        {currentUser && isSubscriptionActive && currentApp !== 'actionstreet' && (
           <SiteLegalFooter />
         )}
 

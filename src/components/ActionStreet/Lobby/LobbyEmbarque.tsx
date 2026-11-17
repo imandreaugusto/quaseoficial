@@ -196,14 +196,6 @@ export default function LobbyEmbarque({ onBoard, onWalk, onClose, initialCamera,
           </div>
         </article>
 
-        <p className="text-right text-[10px] text-white/55">
-          Mapa ©{' '}
-          <a href="https://openfreemap.org" target="_blank" rel="noreferrer" className="underline hover:text-white">OpenFreeMap</a>{' '}
-          ©{' '}
-          <a href="https://www.openmaptiles.org/" target="_blank" rel="noreferrer" className="underline hover:text-white">OpenMapTiles</a>{' '}
-          · dados ©{' '}
-          <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer" className="underline hover:text-white">OpenStreetMap</a>
-        </p>
       </section>
 
       {passportTab && (

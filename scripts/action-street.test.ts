@@ -20,6 +20,7 @@ import {
   getCurrentCoordinates,
   hasSeenFirstMissionIntro,
   markFirstMissionIntroSeen,
+  shouldShowFirstMissionIntro,
 } from '../src/lib/actionStreet/firstMissionIntro';
 import type { ActionStreetState } from '../src/types/actionStreet';
 
@@ -295,11 +296,13 @@ test('street image lookup expands the search and chooses the nearest real image'
   globalThis.fetch = async (input) => {
     const url = new URL(String(input));
     requests.push(url);
-    const radius = Number(url.searchParams.get('bbox')?.split(',')[2]) - (-73.9857);
-    const images = radius >= 0.015
+    const radius = url.searchParams.has('bbox')
+      ? Number(url.searchParams.get('bbox')?.split(',')[2]) - (-73.9857)
+      : 0;
+    const images = radius > 0.003
       ? [
-          { id: 'farther-image', computed_geometry: { coordinates: [-73.98, 40.75] }, thumb_1024_url: 'https://images.example/farther.jpg' },
-          { id: 'nearest-image', computed_geometry: { coordinates: [-73.985, 40.7485] }, thumb_2048_url: 'https://images.example/nearest.jpg' },
+          { id: 'farther-image', is_pano: true, width: 2048, height: 1024, computed_geometry: { coordinates: [-73.98, 40.75] }, thumb_1024_url: 'https://images.example/farther.jpg' },
+          { id: 'nearest-image', is_pano: true, width: 4096, height: 2048, computed_geometry: { coordinates: [-73.985, 40.7485] }, thumb_2048_url: 'https://images.example/nearest.jpg' },
         ]
       : [];
     return new Response(JSON.stringify({ data: images }), { status: 200 });
@@ -310,10 +313,80 @@ test('street image lookup expands the search and chooses the nearest real image'
       id: 'nearest-image',
       coordinates: [-73.985, 40.7485],
       thumbnailUrl: 'https://images.example/nearest.jpg',
+      isPano: true,
+      width: 4096,
+      height: 2048,
     });
-    assert.equal(requests.length, 5);
-    assert.equal(requests[4].searchParams.get('is_pano'), 'true');
-    assert.match(requests[4].searchParams.get('fields') ?? '', /thumb_2048_url/);
+    assert.equal(requests.length, 3);
+    assert.equal(requests[2].searchParams.get('is_pano'), 'true');
+    assert.equal(requests[0].searchParams.get('radius'), '50');
+    assert.equal(requests[0].searchParams.get('limit'), '100');
+    assert.match(requests[2].searchParams.get('fields') ?? '', /is_pano,width,height,.*thumb_2048_url/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('street image lookup prefers a farther panorama over a nearby flat photo', async () => {
+  const originalFetch = globalThis.fetch;
+  const requests: URL[] = [];
+  globalThis.fetch = async (input) => {
+    const url = new URL(String(input));
+    requests.push(url);
+    const radius = url.searchParams.has('bbox')
+      ? Number(url.searchParams.get('bbox')?.split(',')[2]) - (-73.9857)
+      : 0;
+    const images = !url.searchParams.has('bbox')
+      ? [{ id: 'nearby-photo', is_pano: false, width: 1600, height: 1200, computed_geometry: { coordinates: [-73.9857, 40.7484] } }]
+      : url.searchParams.get('is_pano') === 'true'
+        ? radius > 0.003
+        ? [{ id: 'farther-panorama', is_pano: true, width: 4096, height: 2048, computed_geometry: { coordinates: [-73.98, 40.75] } }]
+        : []
+        : [];
+    return new Response(JSON.stringify({ data: images }), { status: 200 });
+  };
+
+  try {
+    assert.deepEqual(await findNearestImage('token', [-73.9857, 40.7484], [0.0015, 0.004]), {
+      id: 'farther-panorama',
+      coordinates: [-73.98, 40.75],
+      thumbnailUrl: null,
+      isPano: true,
+      width: 4096,
+      height: 2048,
+    });
+    assert.equal(requests.length, 3);
+    assert.equal(requests[0].searchParams.get('radius'), '50');
+    assert.ok(requests.slice(1).every((url) => url.searchParams.get('is_pano') === 'true'));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('street image lookup falls back to a real flat photo only after panorama searches', async () => {
+  const originalFetch = globalThis.fetch;
+  const requests: URL[] = [];
+  globalThis.fetch = async (input) => {
+    const url = new URL(String(input));
+    requests.push(url);
+    const isRadiusSearch = url.searchParams.has('lat');
+    const images = isRadiusSearch
+      ? [{ id: 'flat-photo', is_pano: false, width: 1600, height: 1200, computed_geometry: { coordinates: [-73.9857, 40.7484] } }]
+      : [];
+    return new Response(JSON.stringify({ data: images }), { status: 200 });
+  };
+
+  try {
+    assert.deepEqual(await findNearestImage('token', [-73.9857, 40.7484], [0.0015, 0.004]), {
+      id: 'flat-photo',
+      coordinates: [-73.9857, 40.7484],
+      thumbnailUrl: null,
+      isPano: false,
+      width: 1600,
+      height: 1200,
+    });
+    assert.equal(requests.length, 3);
+    assert.ok(requests.slice(1).every((url) => url.searchParams.get('is_pano') === 'true'));
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -328,12 +401,12 @@ test('street image lookup honors a caller-provided search radius limit', async (
   };
 
   try {
-    assert.equal(await findNearestImage('token', [-73.9857, 40.7484], [0.004, 0.015]), null);
+    assert.equal(await findNearestImage('token', [-73.9857, 40.7484], [0.002, 0.004]), null);
     const panoRadii = requests
       .filter((url) => url.searchParams.get('is_pano') === 'true')
       .map((url) => Number(url.searchParams.get('bbox')?.split(',')[2]) - (-73.9857));
-    assert.deepEqual(panoRadii.map((radius) => Number(radius.toFixed(3))), [0.004, 0.015]);
-    assert.equal(requests.length, 4);
+    assert.deepEqual(panoRadii.map((radius) => Number(radius.toFixed(3))), [0.002, 0.004]);
+    assert.equal(requests.length, 5);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -349,7 +422,23 @@ test('street image lookup returns null only after checking the expanded area', a
 
   try {
     assert.equal(await findNearestImage('token', [-73.9857, 40.7484]), null);
-    assert.equal(fetchCalls, 10);
+    assert.equal(fetchCalls, 5);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('street image lookup rejects a bbox radius outside Mapillary limits before requesting data', async () => {
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = async () => {
+    fetchCalls += 1;
+    return new Response(JSON.stringify({ data: [] }), { status: 200 });
+  };
+
+  try {
+    await assert.rejects(findNearestImage('token', [-73.9857, 40.7484], [0.004, 0.015]), /no máximo 0.004 grau/);
+    assert.equal(fetchCalls, 0);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -362,6 +451,9 @@ test('street image lookup by id returns the same image thumbnail and location', 
     requestUrl = new URL(String(input));
     return new Response(JSON.stringify({
       id: 'current-image',
+      is_pano: true,
+      width: 2048,
+      height: 1024,
       computed_geometry: { coordinates: [-73.985, 40.7485] },
       thumb_2048_url: 'https://images.example/current.jpg',
     }), { status: 200 });
@@ -372,6 +464,9 @@ test('street image lookup by id returns the same image thumbnail and location', 
       id: 'current-image',
       coordinates: [-73.985, 40.7485],
       thumbnailUrl: 'https://images.example/current.jpg',
+      isPano: true,
+      width: 2048,
+      height: 1024,
     });
     assert.equal(requestUrl?.pathname, '/current-image');
     assert.equal(requestUrl?.searchParams.get('access_token'), 'token');
@@ -399,8 +494,12 @@ test('first-mission intro completion is stored per user without putting profile 
     assert.notEqual(aliceKey, bobKey);
     assert.equal(aliceKey.includes('@'), false);
     assert.equal(hasSeenFirstMissionIntro('auth-user-1'), false);
+    assert.equal(shouldShowFirstMissionIntro('auth-user-1', 'ny'), true);
+    assert.equal(shouldShowFirstMissionIntro('auth-user-1', 'boston'), false);
+    assert.equal(shouldShowFirstMissionIntro(null, 'ny'), false);
     markFirstMissionIntroSeen('auth-user-1');
     assert.equal(hasSeenFirstMissionIntro('auth-user-1'), true);
+    assert.equal(shouldShowFirstMissionIntro('auth-user-1', 'ny'), false);
     assert.equal(hasSeenFirstMissionIntro('auth-user-2'), false);
   } finally {
     Object.defineProperty(globalThis, 'window', {

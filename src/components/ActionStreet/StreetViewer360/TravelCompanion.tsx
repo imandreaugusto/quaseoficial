@@ -44,7 +44,7 @@ interface Props {
 export default function TravelCompanion({ cityId, spotId, paused, onStartChallenge }: Props) {
   const { state, updateState, activity, reportActivity, soundEnabled, setSoundEnabled } = useActionStreet();
   const [line, setLine] = useState<CompanionLine>(() => lines.welcome[0]);
-  const [isOpen, setIsOpen] = useState(() => window.innerWidth >= 768);
+  const [isOpen, setIsOpen] = useState(false);
   const [dialogue, setDialogue] = useState<LocalDialogue | null>(null);
   const [dialogueResult, setDialogueResult] = useState<{ character: string; feedback: string } | null>(null);
   const [dialogueError, setDialogueError] = useState('');
@@ -214,6 +214,17 @@ export default function TravelCompanion({ cityId, spotId, paused, onStartChallen
         </div>
       </header>
 
+      <div className="grid grid-cols-2 gap-2 px-3 pb-3">
+        <button type="button" onClick={openDialogue} disabled={!availableDialogue} className={`${glass.secondaryButton} !min-h-10 !px-2 !py-2 !text-xs disabled:cursor-not-allowed disabled:opacity-45`}>
+          <MessageCircle className="h-4 w-4" />
+          {availableDialogue ? 'Talk to local' : 'No new chat'}
+        </button>
+        <button type="button" onClick={onStartChallenge} disabled={tickets.available === 0} className={`${glass.primaryButton} !min-h-10 !px-2 !py-2 !text-xs disabled:cursor-not-allowed disabled:opacity-45`}>
+          <Ticket className="h-4 w-4" />
+          Challenge · {tickets.available}/3
+        </button>
+      </div>
+
       {isOpen && (
         <div className="max-h-[min(48dvh,25rem)] space-y-3 overflow-y-auto border-t border-white/10 px-4 pb-4 pt-3">
           <div className={`rounded-2xl px-3 py-2.5 ${glass.chip}`}>
@@ -230,16 +241,6 @@ export default function TravelCompanion({ cityId, spotId, paused, onStartChallen
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <button type="button" onClick={openDialogue} disabled={!availableDialogue} className={`${glass.secondaryButton} !min-h-10 !px-2 !py-2 !text-xs disabled:cursor-not-allowed disabled:opacity-45`}>
-              <MessageCircle className="h-4 w-4" />
-              {availableDialogue ? 'Talk to local' : 'No new chat'}
-            </button>
-            <button type="button" onClick={onStartChallenge} disabled={tickets.available === 0} className={`${glass.primaryButton} !min-h-10 !px-2 !py-2 !text-xs disabled:cursor-not-allowed disabled:opacity-45`}>
-              <Ticket className="h-4 w-4" />
-              Challenge · {tickets.available}/3
-            </button>
-          </div>
           <p className="text-center text-[10px] text-white/45">Optional challenge tickets refill one every 6 hours.</p>
 
           {dialogue && (

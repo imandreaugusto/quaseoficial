@@ -4,7 +4,6 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { ChevronDown, Map as MapIcon, MapPin } from 'lucide-react';
 import type { City } from '../../../types/actionStreet';
 import { OPENFREEMAP_STYLES, canUseWebGL } from '../../../lib/actionStreet/maplibreConfig';
-import { MAPILLARY_ATTRIBUTION } from '../../../lib/actionStreet/mapillaryConfig';
 import { spotDiscoveryId } from '../../../lib/actionStreet/discovery';
 import { glass } from '../shared/glass';
 
@@ -18,7 +17,7 @@ interface Props {
 }
 
 export default function MiniMap3D({ city, currentSpotId, discoveredSpotIds, unlockedRoutes, imagePreviewUrl, onTravel }: Props) {
-  const [expanded, setExpanded] = useState(() => window.innerWidth >= 768);
+  const [expanded, setExpanded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<Map<string, HTMLButtonElement>>(new Map());
@@ -48,7 +47,7 @@ export default function MiniMap3D({ city, currentSpotId, discoveredSpotIds, unlo
         pitch: 58,
         bearing: city.camera.bearing,
         interactive: false,
-        attributionControl: { compact: true },
+        attributionControl: false,
       });
     } catch {
       return;
@@ -117,31 +116,30 @@ export default function MiniMap3D({ city, currentSpotId, discoveredSpotIds, unlo
         <ChevronDown className={`h-4 w-4 text-white/60 transition-transform ${expanded ? '' : '-rotate-180'}`} />
       </button>
 
-      {expanded && (
-        <div className="border-t border-white/10">
-          {canUseWebGL() && <div ref={containerRef} className="h-40 w-full" />}
-          <div className="flex items-center gap-2.5 border-t border-white/10 p-2.5">
-            {imagePreviewUrl ? (
-              <img
-                src={imagePreviewUrl}
-                alt={`Imagem real da rua perto de ${currentSpotName}`}
-                className="h-12 w-16 shrink-0 rounded-lg border border-white/15 object-cover"
-              />
-            ) : (
-              <div className="flex h-12 w-16 shrink-0 items-center justify-center rounded-lg border border-white/15 bg-slate-950/40 text-[9px] text-white/55">
-                Mapillary
-              </div>
-            )}
-            <div className="min-w-0">
-              <p className="text-[9px] font-bold uppercase tracking-wider text-blue-200">
-                {imagePreviewUrl ? 'Foto real · Mapillary' : 'Buscando foto Mapillary'}
-              </p>
-              <p className="truncate text-[11px] font-bold text-white/90">
-                {currentSpotName}
-              </p>
-              {imagePreviewUrl && <p className="truncate text-[9px] text-white/55">{MAPILLARY_ATTRIBUTION}</p>}
-            </div>
+      {expanded && canUseWebGL() && <div ref={containerRef} className="h-40 w-full" />}
+      <div className="flex items-center gap-2.5 border-t border-white/10 p-2.5">
+        {imagePreviewUrl ? (
+          <img
+            src={imagePreviewUrl}
+            alt={`Imagem real da rua perto de ${currentSpotName}`}
+            className="h-12 w-16 shrink-0 rounded-lg border border-white/15 object-cover"
+          />
+        ) : (
+          <div className="flex h-12 w-16 shrink-0 items-center justify-center rounded-lg border border-white/15 bg-slate-950/40 text-[9px] text-white/55">
+            Foto de rua
           </div>
+        )}
+        <div className="min-w-0">
+          <p className="text-[9px] font-bold uppercase tracking-wider text-blue-200">
+            {imagePreviewUrl ? 'Foto real · Mapillary' : 'Buscando foto de rua'}
+          </p>
+          <p className="truncate text-[11px] font-bold text-white/90">
+            {currentSpotName}
+          </p>
+        </div>
+      </div>
+      {expanded && (
+        <div>
           <ul className="flex flex-wrap gap-1.5 p-3">
             {availableSpots.map((spot) => {
               const active = spot.id === currentSpotId;

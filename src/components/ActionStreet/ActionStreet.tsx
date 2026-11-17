@@ -5,7 +5,7 @@ import type { UserProfile } from '../../types';
 import { journeyStore } from '../../lib/actionStreet/journeyStore';
 import { persistenceManager } from '../../lib/actionStreet/persistenceManager';
 import { actionStreetCities } from '../../data/actionStreetCities';
-import { hasSeenFirstMissionIntro, markFirstMissionIntroSeen } from '../../lib/actionStreet/firstMissionIntro';
+import { markFirstMissionIntroSeen, shouldShowFirstMissionIntro } from '../../lib/actionStreet/firstMissionIntro';
 import { hasLegacySaveToImport, importLegacySave, recordLegacySaveDecision } from '../../lib/actionStreet/legacySave';
 import { refreshChallengeTickets } from '../../lib/actionStreet/progression';
 import { ActionStreetContext, type ActionStreetActivity, type ActionStreetActivityKind, type ActionStreetContextType } from './ActionStreetContext';
@@ -13,6 +13,7 @@ import LobbyEmbarque from './Lobby/LobbyEmbarque';
 import StreetViewer360, { type StreetResume } from './StreetViewer360/StreetViewer360';
 import Map3DExplorer from './Map3D/Map3DExplorer';
 import FirstMissionIntro from './FirstMissionIntro';
+import ActionStreetInfo from './ActionStreetInfo';
 import { glass } from './shared/glass';
 
 interface Props {
@@ -115,6 +116,11 @@ export default function ActionStreet({ onClose, currentUser }: Props) {
 
   const continueJourney = () => {
     if (!savedJourney || !resumableCity) return;
+    const userId = profile?.userId;
+    if (shouldShowFirstMissionIntro(userId, savedJourney.cityId) && userId) {
+      setFirstMissionIntro({ userId, cityId: 'ny' });
+      return;
+    }
     setStreetResume({ spotId: savedJourney.spotId, imageId: savedJourney.imageId, openMission: savedJourney.mission?.open === true });
     setBannerDismissed(true);
     goTo('street360', resumableCity.id);
@@ -154,11 +160,7 @@ export default function ActionStreet({ onClose, currentUser }: Props) {
 
   const requestBoarding = (cityId: string, spotId?: string) => {
     const userId = profile?.userId;
-    const isFirstMission = cityId === 'ny'
-      && !spotId
-      && Boolean(userId)
-      && !hasSeenFirstMissionIntro(userId);
-    if (isFirstMission && userId) {
+    if (shouldShowFirstMissionIntro(userId, cityId) && userId) {
       setFirstMissionIntro({ userId, cityId });
       return;
     }
@@ -174,6 +176,7 @@ export default function ActionStreet({ onClose, currentUser }: Props) {
   return createPortal(
     <ActionStreetContext.Provider value={contextValue}>
       <div className="fixed inset-0 z-30 overflow-hidden bg-slate-950">
+        <ActionStreetInfo />
         {view === 'lobby' && showLegacyImport && profile && (
           <div className={`absolute inset-0 z-[80] flex items-center justify-center p-4 ${glass.backdrop}`}>
             <section role="dialog" aria-modal="true" aria-labelledby="legacy-save-title" className={`w-full max-w-lg p-6 text-white ${glass.panelOverImagery}`}>
@@ -194,6 +197,10 @@ export default function ActionStreet({ onClose, currentUser }: Props) {
           <LobbyEmbarque
             onBoard={requestBoarding}
             onWalk={(cityId) => {
+              if (shouldShowFirstMissionIntro(profile?.userId, cityId)) {
+                requestBoarding(cityId);
+                return;
+              }
               setStreetResume(null);
               goTo('street360', cityId);
             }}
@@ -227,10 +234,6 @@ export default function ActionStreet({ onClose, currentUser }: Props) {
           <FirstMissionIntro
             profile={profile}
             destination={cities.find((city) => city.id === firstMissionIntro.cityId) ?? cities[0]}
-            onSkip={() => {
-              markFirstMissionIntroSeen(firstMissionIntro.userId);
-              boardCity(firstMissionIntro.cityId, undefined, true);
-            }}
             onStart={() => {
               markFirstMissionIntroSeen(firstMissionIntro.userId);
               boardCity(firstMissionIntro.cityId, undefined, true);

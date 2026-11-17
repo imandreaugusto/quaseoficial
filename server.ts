@@ -438,7 +438,7 @@ async function startServer() {
     ].join(' ');
     res.setHeader(
       'Permissions-Policy',
-      `camera=(self ${practiceMediaOrigins}), microphone=(self ${practiceMediaOrigins}), geolocation=()`
+      `camera=(self ${practiceMediaOrigins}), microphone=(self ${practiceMediaOrigins}), geolocation=(self)`
     );
     next();
   });

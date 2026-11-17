@@ -25,7 +25,7 @@ export const NEW_YORK_AIRPORT: IntroAirport = {
   coordinates: [-73.7781, 40.6413],
 };
 
-export const FIRST_MISSION_MAPILLARY_RADII = [0.004, 0.015];
+export const FIRST_MISSION_MAPILLARY_RADII = [0.0015, 0.004];
 
 export const firstMissionIntroStorageKey = (userId: string) =>
   `action_street_first_mission_intro_v1_${encodeURIComponent(userId)}`;
@@ -38,6 +38,11 @@ export function hasSeenFirstMissionIntro(userId: string): boolean {
     console.warn('Não foi possível consultar a introdução do Action Street salva neste navegador.', error);
     return false;
   }
+}
+
+export function shouldShowFirstMissionIntro(userId: string | null | undefined, cityId: string): boolean {
+  if (cityId !== 'ny' || !userId) return false;
+  return !hasSeenFirstMissionIntro(userId);
 }
 
 export function markFirstMissionIntroSeen(userId: string): void {

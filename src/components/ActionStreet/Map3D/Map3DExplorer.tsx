@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { ArrowLeft, FastForward, Plane } from 'lucide-react';
+import { ArrowLeft, Plane, RotateCcw } from 'lucide-react';
 import gsap from 'gsap';
 import { useActionStreet } from '../ActionStreetContext';
 import { glass } from '../shared/glass';
@@ -15,6 +15,7 @@ export default function Map3DExplorer({ cityId, onComplete, onBack }: Props) {
   const { getCityData } = useActionStreet();
   const city = getCityData(cityId);
   const [stage, setStage] = useState<DiveStage>('loading');
+  const [attempt, setAttempt] = useState(0);
   const stageRef = useRef<HTMLDivElement>(null);
   const leaving = useRef(false);
 
@@ -37,7 +38,7 @@ export default function Map3DExplorer({ cityId, onComplete, onBack }: Props) {
   return (
     <div className="absolute inset-0 bg-slate-950 text-white">
       <div ref={stageRef} className="absolute inset-0">
-        <Map3DViewer city={city} onStage={setStage} onDiveComplete={enterStreet} />
+        <Map3DViewer key={attempt} city={city} onStage={setStage} onDiveComplete={enterStreet} />
         <div className="pointer-events-none absolute inset-x-0 top-0 h-36 bg-gradient-to-b from-slate-950/70 to-transparent" />
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-slate-950/70 to-transparent" />
       </div>
@@ -46,19 +47,20 @@ export default function Map3DExplorer({ cityId, onComplete, onBack }: Props) {
         <button type="button" onClick={onBack} aria-label="Voltar ao lobby" className={glass.iconButton}>
           <ArrowLeft className="h-5 w-5" />
         </button>
-        <button type="button" onClick={enterStreet} className={`${glass.chip} inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-white/85 transition hover:bg-white/20`}>
-          <FastForward className="h-4 w-4" />
-          Pular para a rua
-        </button>
       </header>
 
       <div className="absolute inset-x-0 bottom-6 z-10 flex justify-center px-4">
         {stage === 'failed' ? (
           <div className={`flex max-w-md flex-col items-center gap-3 p-5 text-center ${glass.panelOverImagery}`}>
             <p className="font-bold">{captions.failed}</p>
-            <p className="text-sm text-white/70">Verifique sua conexão. Você ainda pode seguir direto para a rua.</p>
-            <button type="button" onClick={enterStreet} className={glass.primaryButton}>
-              Continuar para a rua
+            <p className="text-sm text-white/70">Verifique sua conexão e tente novamente. A chegada à rua só acontece depois desta etapa.</p>
+            <button type="button" onClick={() => {
+              leaving.current = false;
+              setStage('loading');
+              setAttempt((current) => current + 1);
+            }} className={glass.primaryButton}>
+              <RotateCcw className="h-4 w-4" />
+              Tentar novamente
             </button>
           </div>
         ) : (

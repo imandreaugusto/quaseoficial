@@ -7,6 +7,7 @@ import { BACKGROUND_SLIDES } from '../data';
 interface BackgroundSlideshowProps {
   settings: AppSettings;
   paused: boolean;
+  hidden?: boolean;
 }
 
 const getLandmarkImageUrl = (slide: (typeof BACKGROUND_SLIDES)[number]) =>
@@ -25,14 +26,14 @@ const shuffleSlideIndexes = (count: number, avoidFirst?: number) => {
   return indexes;
 };
 
-export function BackgroundSlideshow({ settings, paused }: BackgroundSlideshowProps) {
+export function BackgroundSlideshow({ settings, paused, hidden = false }: BackgroundSlideshowProps) {
   const [sequence, setSequence] = useState(() => shuffleSlideIndexes(BACKGROUND_SLIDES.length));
   const [currentPosition, setCurrentPosition] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(() => sequence[0] ?? 0);
   const [incomingIndex, setIncomingIndex] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!settings.bgEnabled || paused) return;
+    if (hidden || !settings.bgEnabled || paused) return;
     if (incomingIndex !== null || sequence.length < 2) return;
 
     let active = true;
@@ -78,7 +79,7 @@ export function BackgroundSlideshow({ settings, paused }: BackgroundSlideshowPro
       active = false;
       window.clearTimeout(slideTimer);
     };
-  }, [currentIndex, currentPosition, incomingIndex, paused, sequence, settings.bgEnabled, settings.bgInterval]);
+  }, [currentIndex, currentPosition, hidden, incomingIndex, paused, sequence, settings.bgEnabled, settings.bgInterval]);
 
   useEffect(() => {
     if (incomingIndex === null) return;
@@ -91,7 +92,7 @@ export function BackgroundSlideshow({ settings, paused }: BackgroundSlideshowPro
     return () => window.clearTimeout(transitionTimer);
   }, [incomingIndex]);
 
-  if (!settings.bgEnabled || BACKGROUND_SLIDES.length === 0) return null;
+  if (hidden || !settings.bgEnabled || BACKGROUND_SLIDES.length === 0) return null;
 
   const brightness =
     settings.bgBright === 'darker'

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, MapPin, Plane, Sparkles } from 'lucide-react';
+import { ArrowRight, Download, MapPin, Plane, Share2, Sparkles } from 'lucide-react';
 import gsap from 'gsap';
 import type { City } from '../../types/actionStreet';
 import {
@@ -11,6 +11,7 @@ import {
   type IntroAirport,
 } from '../../lib/actionStreet/firstMissionIntro';
 import { findNearestImage, getMapillaryToken, MAPILLARY_ATTRIBUTION, type MapillaryStreetImage } from '../../lib/actionStreet/mapillaryConfig';
+import { createTravelPassArtwork, downloadTravelPassArtwork } from '../../lib/actionStreet/travelPassShare';
 import type { ActionStreetProfile } from './ActionStreetContext';
 import { glass } from './shared/glass';
 
@@ -19,7 +20,6 @@ type Phase = 'cover' | 'details' | 'location' | 'origin' | 'new-york';
 interface Props {
   profile: ActionStreetProfile;
   destination: City;
-  onSkip: () => void;
   onStart: () => void;
 }
 
@@ -82,15 +82,23 @@ function AirportSceneCard({ scene, heading, onImageError }: { scene: AirportScen
   );
 }
 
-export default function FirstMissionIntro({ profile, destination, onSkip, onStart }: Props) {
+export default function FirstMissionIntro({ profile, destination, onStart }: Props) {
   const [phase, setPhase] = useState<Phase>('cover');
   const [busy, setBusy] = useState(false);
   const [originScene, setOriginScene] = useState<AirportScene | null>(null);
   const [newYorkScene, setNewYorkScene] = useState<AirportScene | null>(null);
   const [notice, setNotice] = useState('');
+  const [travelPassFile, setTravelPassFile] = useState<File | null>(null);
+  const [travelPassError, setTravelPassError] = useState('');
+  const [shareMessage, setShareMessage] = useState('');
+  const [shareBusy, setShareBusy] = useState(false);
   const passRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const flipTweenRef = useRef<gsap.core.Tween | null>(null);
+  const openFirstName = profile.firstName || 'Viajante';
+  const displayName = [profile.firstName, profile.lastName].filter(Boolean).join(' ') || 'Viajante';
+  const profileOrigin = [profile.city, profile.country].filter(Boolean).join(', ') || 'Origem a definir';
+  const destinationLabel = `${destination.city}, USA`;
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -118,16 +126,26 @@ export default function FirstMissionIntro({ profile, destination, onSkip, onStar
   }, []);
 
   useEffect(() => {
-    dialogRef.current?.querySelector<HTMLElement>('[data-intro-focus]')?.focus();
+    dialogRef.current?.querySelector<HTMLElement>('[data-intro-focus]:not([disabled])')?.focus();
   }, [phase]);
 
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !busy) onSkip();
+    if (phase !== 'details') return;
+    let active = true;
+    setTravelPassFile(null);
+    setTravelPassError('');
+    void createTravelPassArtwork({ displayName, origin: profileOrigin, destination: destinationLabel })
+      .then((file) => {
+        if (active) setTravelPassFile(file);
+      })
+      .catch((error: unknown) => {
+        console.error('Não foi possível preparar a imagem compartilhável do Travel Pass.', error);
+        if (active) setTravelPassError('Não foi possível preparar a imagem do Travel Pass neste navegador.');
+      });
+    return () => {
+      active = false;
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [busy, onSkip]);
+  }, [phase, displayName, profileOrigin, destinationLabel]);
 
   const openPass = () => {
     if (phase !== 'cover' || flipTweenRef.current?.isActive()) return;
@@ -200,13 +218,24 @@ export default function FirstMissionIntro({ profile, destination, onSkip, onStar
   };
 
   const useProfileCity = async () => {
+    if (!profile.city.trim()) {
+      setNotice('Não há uma cidade cadastrada no perfil. Autorize a localização ou escolha o aeroporto de referência.');
+      setPhase('location');
+      return;
+    }
     setBusy(true);
     setNotice('');
     try {
-      setOriginScene(await loadProfileAirport('Origem baseada na cidade cadastrada no perfil.'));
+      const scene = await loadProfileAirport('Origem baseada na cidade cadastrada no perfil.');
+      if (!scene.airport) {
+        setNotice('Não encontramos um aeroporto para a cidade do perfil. Você pode tentar a localização atual ou usar o aeroporto de referência.');
+        setPhase('location');
+        return;
+      }
+      setOriginScene(scene);
+      setPhase('origin');
     } finally {
       setBusy(false);
-      setPhase('origin');
     }
   };
 
@@ -217,18 +246,84 @@ export default function FirstMissionIntro({ profile, destination, onSkip, onStar
       const coordinates = await getCurrentCoordinates();
       const airport = await findNearestAirport(coordinates);
       if (!airport) {
-        setNotice('Não encontramos um aeroporto próximo da localização autorizada. Vamos usar a cidade do seu perfil.');
-        setOriginScene(await loadProfileAirport('Origem baseada na cidade cadastrada no perfil.'));
+        setNotice('Não encontramos um aeroporto próximo da localização autorizada. Exibiremos um aeroporto de referência sem apresentá-lo como sua origem local.');
+        setOriginScene(await loadAirportScene(NEW_YORK_AIRPORT, 'Aeroporto de referência em Nova York; a origem local não pôde ser identificada.'));
       } else {
         setOriginScene(await loadAirportScene(airport, 'Aeroporto mais próximo da localização que você autorizou.'));
       }
     } catch (error) {
       const reason = error instanceof Error ? error.message : 'A localização não foi disponibilizada.';
-      setNotice(`${reason} Vamos usar a cidade cadastrada no perfil.`);
-      setOriginScene(await loadProfileAirport('Localização atual indisponível; usando a cidade do perfil.'));
+      setNotice(`${reason} Exibiremos um aeroporto de referência em Nova York; ele não representa sua origem local.`);
+      setOriginScene(await loadAirportScene(NEW_YORK_AIRPORT, 'Aeroporto de referência em Nova York; a localização não foi disponibilizada.'));
     } finally {
       setBusy(false);
       setPhase('origin');
+    }
+  };
+
+  const useReferenceAirport = async () => {
+    setBusy(true);
+    setNotice('');
+    try {
+      setOriginScene(await loadAirportScene(NEW_YORK_AIRPORT, 'Aeroporto de referência em Nova York; a origem local não foi identificada.'));
+    } finally {
+      setBusy(false);
+      setPhase('origin');
+    }
+  };
+
+  const prepareJourney = () => {
+    setNotice('');
+    if (profile.city.trim()) {
+      void useProfileCity();
+      return;
+    }
+    setNotice('Sua cidade ainda não está no perfil. Autorize a localização ou escolha um aeroporto de referência.');
+    setPhase('location');
+  };
+
+  const shareTravelPass = async () => {
+    if (!travelPassFile) return;
+    setShareBusy(true);
+    setTravelPassError('');
+    setShareMessage('');
+    try {
+      if (
+        typeof navigator.share === 'function'
+        && typeof navigator.canShare === 'function'
+        && navigator.canShare({ files: [travelPassFile] })
+      ) {
+        await navigator.share({
+          files: [travelPassFile],
+          title: 'Meu Action Street Travel Pass',
+          text: `Minha primeira viagem no Action Street: ${displayName} · ${destinationLabel}`,
+        });
+        setShareMessage('Compartilhamento concluído. Você escolhe onde publicar; nada foi postado automaticamente.');
+      } else {
+        downloadTravelPassArtwork(travelPassFile);
+        setShareMessage('A imagem foi baixada. Abra o Instagram ou outra rede e escolha o arquivo para compartilhar.');
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        setShareMessage('Compartilhamento cancelado.');
+      } else {
+        console.error('Não foi possível compartilhar o Travel Pass.', error);
+        setTravelPassError('Não foi possível abrir o compartilhamento. Tente baixar a imagem.');
+      }
+    } finally {
+      setShareBusy(false);
+    }
+  };
+
+  const downloadTravelPass = () => {
+    if (!travelPassFile) return;
+    try {
+      downloadTravelPassArtwork(travelPassFile);
+      setShareMessage('Imagem baixada. Você pode selecioná-la ao publicar no Instagram.');
+      setTravelPassError('');
+    } catch (error) {
+      console.error('Não foi possível baixar o Travel Pass.', error);
+      setTravelPassError('Não foi possível baixar a imagem do Travel Pass.');
     }
   };
 
@@ -242,10 +337,6 @@ export default function FirstMissionIntro({ profile, destination, onSkip, onStar
       setPhase('new-york');
     }
   };
-
-  const openFirstName = profile.firstName || 'Viajante';
-  const displayName = [profile.firstName, profile.lastName].filter(Boolean).join(' ') || 'Viajante';
-  const profileOrigin = [profile.city, profile.country].filter(Boolean).join(', ') || 'Origem a definir';
 
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/75 p-3 backdrop-blur-md sm:p-6">
@@ -283,9 +374,6 @@ export default function FirstMissionIntro({ profile, destination, onSkip, onStar
               {phase === 'cover' || phase === 'details' ? `Bem-vindo, ${openFirstName}!` : 'Sua viagem começa agora'}
             </h2>
           </div>
-          <button type="button" onClick={onSkip} className={`${glass.chip} shrink-0 px-3 py-2 text-xs font-bold text-white/80`} disabled={busy}>
-            Pular introdução
-          </button>
         </div>
 
         {(phase === 'cover' || phase === 'details') && (
@@ -297,9 +385,12 @@ export default function FirstMissionIntro({ profile, destination, onSkip, onStar
             >
               <div className="absolute inset-0 flex flex-col justify-between rounded-3xl p-5 sm:p-7" style={{ backfaceVisibility: 'hidden' }}>
                 <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-[0.28em] text-sky-200">Action Street</p>
-                    <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.18em] text-amber-200">Travel Pass · edição de aventura</p>
+                  <div className="flex items-center gap-3">
+                    <img src="/brazilian-in-action-icon.svg" alt="Brazilian in Action" className="h-10 w-10" />
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-[0.28em] text-sky-200">Action Street</p>
+                      <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.18em] text-amber-200">Travel Pass · edição de aventura</p>
+                    </div>
                   </div>
                   <Sparkles className="h-6 w-6 text-amber-200" />
                 </div>
@@ -321,7 +412,10 @@ export default function FirstMissionIntro({ profile, destination, onSkip, onStar
                 aria-hidden={phase !== 'details'}
               >
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-xs font-black uppercase tracking-[0.24em] text-sky-200">Action Street Travel Pass</p>
+                  <div className="flex items-center gap-3">
+                    <img src="/brazilian-in-action-icon.svg" alt="" className="h-9 w-9" />
+                    <p className="text-xs font-black uppercase tracking-[0.24em] text-sky-200">Action Street Travel Pass</p>
+                  </div>
                   <span className="rounded-full border border-amber-100/40 bg-amber-200/10 px-3 py-1 text-[9px] font-black uppercase tracking-wider text-amber-100">
                     Fictício · não oficial
                   </span>
@@ -349,8 +443,19 @@ export default function FirstMissionIntro({ profile, destination, onSkip, onStar
         {phase === 'details' && (
           <div className="relative mt-5 flex flex-col gap-3">
             <p className="text-sm text-white/75">Prepare-se para sair da sua cidade, conhecer um aeroporto de Nova York e chegar à sua primeira missão.</p>
-            <button type="button" onClick={() => setPhase('location')} data-intro-focus className={glass.primaryButton}>
-              Preparar minha viagem <ArrowRight className="h-4 w-4" />
+            <p className="text-xs text-white/55">Vamos tentar usar a cidade do seu perfil para localizar o aeroporto; a localização do dispositivo só será consultada se você autorizar.</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <button type="button" onClick={() => void shareTravelPass()} disabled={!travelPassFile || shareBusy} className={`${glass.secondaryButton} disabled:cursor-wait disabled:opacity-50`}>
+                <Share2 className="h-4 w-4" /> {shareBusy ? 'Preparando…' : 'Compartilhar Travel Pass'}
+              </button>
+              <button type="button" onClick={downloadTravelPass} disabled={!travelPassFile} className={`${glass.secondaryButton} disabled:cursor-wait disabled:opacity-50`}>
+                <Download className="h-4 w-4" /> Baixar imagem
+              </button>
+            </div>
+            {travelPassError && <p className="text-xs text-rose-200" role="alert">{travelPassError}</p>}
+            {shareMessage && <p className="text-xs text-sky-100" role="status">{shareMessage}</p>}
+            <button type="button" onClick={prepareJourney} disabled={busy} data-intro-focus className={glass.primaryButton}>
+              {busy ? 'Procurando o aeroporto…' : 'Preparar minha viagem'} <ArrowRight className="h-4 w-4" />
             </button>
           </div>
         )}
@@ -364,10 +469,13 @@ export default function FirstMissionIntro({ profile, destination, onSkip, onStar
               <button type="button" onClick={() => void useCurrentLocation()} disabled={busy} data-intro-focus className={glass.primaryButton}>
                 <MapPin className="h-4 w-4" /> Usar localização atual
               </button>
-              <button type="button" onClick={() => void useProfileCity()} disabled={busy} className={glass.secondaryButton}>
-                Usar cidade do meu perfil
+              <button type="button" onClick={() => void useProfileCity()} disabled={busy || !profile.city.trim()} className={`${glass.secondaryButton} disabled:cursor-not-allowed disabled:opacity-45`}>
+                {profile.city.trim() ? 'Usar cidade do meu perfil' : 'Cidade não cadastrada no perfil'}
               </button>
             </div>
+            <button type="button" onClick={() => void useReferenceAirport()} disabled={busy} className={`${glass.chip} w-full px-4 py-2.5 text-xs font-bold text-white/75 transition hover:bg-white/10 disabled:opacity-45`}>
+              Continuar com aeroporto de referência em Nova York
+            </button>
             {busy && <p className="text-sm text-sky-100" role="status" aria-live="polite">Procurando o aeroporto mais próximo…</p>}
             {notice && <p className="text-xs text-white/70" role="status" aria-live="polite">{notice}</p>}
             <p className="text-[10px] leading-relaxed text-white/45">A localização da cidade é consultada no OpenStreetMap; imagens, quando disponíveis, vêm do Mapillary.</p>
@@ -389,7 +497,6 @@ export default function FirstMissionIntro({ profile, destination, onSkip, onStar
               <button type="button" onClick={() => void boardForNewYork()} disabled={busy} data-intro-focus className={glass.primaryButton}>
                 {busy ? 'Procurando imagem de Nova York…' : 'Embarcar para Nova York'} <ArrowRight className="h-4 w-4" />
               </button>
-              <button type="button" onClick={onSkip} disabled={busy} className={glass.secondaryButton}>Pular para a missão</button>
             </div>
             {notice && <p className="text-xs text-white/70" role="status" aria-live="polite">{notice}</p>}
           </div>

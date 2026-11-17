@@ -9,7 +9,7 @@ interface Props {
 }
 
 export default function HUDBottom({ title, text }: Props) {
-  const [expanded, setExpanded] = useState(() => window.innerWidth >= 768);
+  const [expanded, setExpanded] = useState(false);
 
   return (
     <section className={`absolute bottom-4 left-4 z-[25] w-[min(28rem,calc(100vw-2rem))] overflow-hidden text-white sm:bottom-6 sm:left-6 ${glass.panelOverImagery}`}>

@@ -55,7 +55,7 @@ export default function Map3DViewer({ city, onStage, onDiveComplete }: Props) {
         pitch: 0,
         bearing: 0,
         interactive: false,
-        attributionControl: { compact: true },
+        attributionControl: false,
         canvasContextAttributes: { antialias: true },
       });
     } catch {
