@@ -8,6 +8,8 @@ import { persistenceManager, sanitizeState } from '../src/lib/actionStreet/persi
 import { buildActionStreetResponseEvaluation } from '../src/lib/actionStreet/responseEvaluation';
 import { dayKey, emptyStreak, registerVisit, streakMultiplier } from '../src/lib/actionStreet/streak';
 import { VISA_VALIDITY_MS, buildRenewalQuiz, getVisaStatus, recordVisit, renewVisa } from '../src/lib/actionStreet/visa';
+import { findNearestImage, getMapillaryImageById } from '../src/lib/actionStreet/mapillaryConfig';
+import { getActionStreetReminderSlot } from '../src/lib/actionStreet/reminderSchedule';
 import type { ActionStreetState } from '../src/types/actionStreet';
 
 const cities = actionStreetCities;
@@ -172,6 +174,89 @@ test('mission payout adds bonuses together and drops them when the visa is expir
   assert.equal(expired.bonusesActive, false);
 
   assert.equal(missionPayout({ base: 100, allCorrect: false, streakCount: 1, bonusesActive: true }).total, 100);
+});
+
+test('street image lookup expands the search and chooses the nearest real image', async () => {
+  const originalFetch = globalThis.fetch;
+  const requests: URL[] = [];
+  globalThis.fetch = async (input) => {
+    const url = new URL(String(input));
+    requests.push(url);
+    const radius = Number(url.searchParams.get('bbox')?.split(',')[2]) - (-73.9857);
+    const images = radius >= 0.015
+      ? [
+          { id: 'farther-image', computed_geometry: { coordinates: [-73.98, 40.75] }, thumb_1024_url: 'https://images.example/farther.jpg' },
+          { id: 'nearest-image', computed_geometry: { coordinates: [-73.985, 40.7485] }, thumb_2048_url: 'https://images.example/nearest.jpg' },
+        ]
+      : [];
+    return new Response(JSON.stringify({ data: images }), { status: 200 });
+  };
+
+  try {
+    assert.deepEqual(await findNearestImage('token', [-73.9857, 40.7484]), {
+      id: 'nearest-image',
+      coordinates: [-73.985, 40.7485],
+      thumbnailUrl: 'https://images.example/nearest.jpg',
+    });
+    assert.equal(requests.length, 5);
+    assert.equal(requests[4].searchParams.get('is_pano'), 'true');
+    assert.match(requests[4].searchParams.get('fields') ?? '', /thumb_2048_url/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('street image lookup returns null only after checking the expanded area', async () => {
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  globalThis.fetch = async () => {
+    fetchCalls += 1;
+    return new Response(JSON.stringify({ data: [] }), { status: 200 });
+  };
+
+  try {
+    assert.equal(await findNearestImage('token', [-73.9857, 40.7484]), null);
+    assert.equal(fetchCalls, 10);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('street image lookup by id returns the same image thumbnail and location', async () => {
+  const originalFetch = globalThis.fetch;
+  let requestUrl: URL | null = null;
+  globalThis.fetch = async (input) => {
+    requestUrl = new URL(String(input));
+    return new Response(JSON.stringify({
+      id: 'current-image',
+      computed_geometry: { coordinates: [-73.985, 40.7485] },
+      thumb_2048_url: 'https://images.example/current.jpg',
+    }), { status: 200 });
+  };
+
+  try {
+    assert.deepEqual(await getMapillaryImageById('token', 'current-image'), {
+      id: 'current-image',
+      coordinates: [-73.985, 40.7485],
+      thumbnailUrl: 'https://images.example/current.jpg',
+    });
+    assert.equal(requestUrl?.pathname, '/current-image');
+    assert.equal(requestUrl?.searchParams.get('access_token'), 'token');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('Action Street reminder slots follow the subscriber local timezone', () => {
+  assert.equal(getActionStreetReminderSlot(new Date('2026-11-17T09:05:00Z'), 'America/Sao_Paulo'), '2026-11-17-06');
+  assert.equal(getActionStreetReminderSlot(new Date('2026-11-17T15:10:00Z'), 'America/Sao_Paulo'), '2026-11-17-12');
+  assert.equal(getActionStreetReminderSlot(new Date('2026-11-17T23:10:00Z'), 'America/Sao_Paulo'), '2026-11-17-20');
+  assert.equal(getActionStreetReminderSlot(new Date('2026-11-17T11:05:00Z'), 'America/New_York'), '2026-11-17-06');
+});
+
+test('Action Street reminder slots ignore other hours and the rest of each hour', () => {
+  assert.equal(getActionStreetReminderSlot(new Date('2026-11-17T10:05:00Z'), 'America/Sao_Paulo'), null);
+  assert.equal(getActionStreetReminderSlot(new Date('2026-11-17T09:16:00Z'), 'America/Sao_Paulo'), null);
 });
 
 test('journey parsing rejects garbage and keeps only valid camera data', () => {

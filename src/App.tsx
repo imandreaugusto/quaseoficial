@@ -154,10 +154,13 @@ const normalizeStudentPreferences = (value: unknown): StudentPreferences => {
   };
 };
 
-const getRequestedStartupApp = () =>
-  new URLSearchParams(window.location.search).get('open') === 'space'
-    ? 'brazilianspace'
-    : new URLSearchParams(window.location.search).get('open') === 'friends' ? 'friends' : 'home';
+const getRequestedStartupApp = () => {
+  const requestedApp = new URLSearchParams(window.location.search).get('open');
+  if (requestedApp === 'space') return 'brazilianspace';
+  if (requestedApp === 'friends') return 'friends';
+  if (requestedApp === 'actionstreet') return 'actionstreet';
+  return 'home';
+};
 
 type ReadClubProgress = {
   sessions: ReadSession[];

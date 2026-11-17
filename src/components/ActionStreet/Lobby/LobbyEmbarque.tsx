@@ -13,9 +13,11 @@ import VisaRenewalQuiz from '../Modals/VisaRenewalQuiz';
 import { glass } from '../shared/glass';
 import StreakChip from '../shared/StreakChip';
 import ResumeBanner from './ResumeBanner';
+import ActionStreetPushReminders from '../ActionStreetPushReminders';
 
 interface Props {
   onBoard: (cityId: string, spotId?: string) => void;
+  onWalk: (cityId: string) => void;
   onClose: () => void;
   initialCamera?: CameraSnapshot;
   resume?: { cityName: string; onContinue: () => void; onDismiss: () => void };
@@ -26,7 +28,7 @@ const origin = {
   coordinates: actionStreetData.originHub.coordinates as [number, number],
 };
 
-export default function LobbyEmbarque({ onBoard, onClose, initialCamera, resume }: Props) {
+export default function LobbyEmbarque({ onBoard, onWalk, onClose, initialCamera, resume }: Props) {
   const { state, updateState, allCities } = useActionStreet();
   const [selectedId, setSelectedId] = useState(() => (state.unlockedCities.includes(state.currentCity) ? state.currentCity : 'ny'));
   const [confirmUnlock, setConfirmUnlock] = useState(false);
@@ -155,10 +157,16 @@ export default function LobbyEmbarque({ onBoard, onClose, initialCamera, resume 
 
             <div className="flex flex-col gap-2 md:min-w-64">
               {isUnlocked ? (
-                <button type="button" onClick={() => onBoard(selected.id)} className={glass.primaryButton}>
-                  <Plane className="h-5 w-5" />
-                  Embarcar para {selected.stateName}
-                </button>
+                <>
+                  <button type="button" onClick={() => onBoard(selected.id)} className={glass.primaryButton}>
+                    <Plane className="h-5 w-5" />
+                    Embarcar para {selected.stateName}
+                  </button>
+                  <button type="button" onClick={() => onWalk(selected.id)} className={glass.secondaryButton}>
+                    <MapPin className="h-5 w-5" />
+                    Walk the Streets
+                  </button>
+                </>
               ) : (
                 <>
                   <button type="button" onClick={unlock} disabled={missing > 0} className={glass.primaryButton}>
@@ -176,6 +184,7 @@ export default function LobbyEmbarque({ onBoard, onClose, initialCamera, resume 
                   )}
                 </>
               )}
+              <ActionStreetPushReminders />
             </div>
           </div>
         </article>

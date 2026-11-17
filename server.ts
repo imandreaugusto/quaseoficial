@@ -9,6 +9,7 @@ import { GoogleGenAI, Type } from '@google/genai';
 import { randomUUID, timingSafeEqual } from 'node:crypto';
 import dotenv from 'dotenv';
 import { classifyStudentFeedback, evaluateActionStreetResponse, validatePortuguesePhrase, validateSpaceContribution } from './src/lib/jevValidator';
+import { getActionStreetReminderSlot } from './src/lib/actionStreet/reminderSchedule';
 import { actionStreetCities } from './src/data/actionStreetCities';
 import {
   ABACATEPAY_WEBHOOK_PUBLIC_KEY,
@@ -454,7 +455,8 @@ async function startServer() {
       '/api/auth/google/redeem-coupon',
       '/api/payments/create-pix',
       '/api/webhook/payment',
-      '/api/cron/daily-student-reminders'
+      '/api/cron/daily-student-reminders',
+      '/api/cron/action-street-push-reminders'
     ].includes(route)) return true;
     return request.method === 'GET' && route.startsWith('/api/payments/status/');
   };
@@ -2336,6 +2338,139 @@ async function startServer() {
     }
   });
 
+  app.post('/api/cron/action-street-push-reminders', async (req, res) => {
+    try {
+      const configuredSecret = process.env.DAILY_REMINDER_CRON_SECRET || '';
+      const suppliedSecret = req.header('Authorization')?.replace(/^Bearer\s+/i, '') || '';
+      const expected = Buffer.from(configuredSecret);
+      const supplied = Buffer.from(suppliedSecret);
+      if (!configuredSecret || expected.length !== supplied.length || !timingSafeEqual(expected, supplied)) {
+        return res.status(401).json({ error: 'Acesso não autorizado.' });
+      }
+      if (!webPushConfigured) {
+        return res.status(503).json({ error: 'As notificações push ainda não estão configuradas no servidor.' });
+      }
+
+      type ReminderSubscription = {
+        endpoint: string;
+        user_id: string;
+        subscription: webPush.PushSubscription;
+        timezone: string;
+        last_sent_slot: string | null;
+      };
+      const subscriptions: ReminderSubscription[] = [];
+      for (let offset = 0; ; offset += 500) {
+        const response = await supabaseServiceRequest(
+          'action_street_push_subscriptions?select=endpoint,user_id,subscription,timezone,last_sent_slot&order=endpoint.asc',
+          { headers: { Range: `${offset}-${offset + 499}` } }
+        );
+        if (!response.ok) {
+          console.error('Action Street push subscription lookup failed:', response.status, await response.text());
+          return res.status(502).json({ error: 'Não foi possível carregar as inscrições de lembretes.' });
+        }
+        const page = await response.json() as ReminderSubscription[];
+        subscriptions.push(...page);
+        if (page.length < 500) break;
+      }
+
+      const now = new Date();
+      const processSubscription = async (item: ReminderSubscription) => {
+        let slot: string | null;
+        try {
+          slot = getActionStreetReminderSlot(now, item.timezone);
+        } catch (error) {
+          console.error('Invalid timezone in Action Street push subscription:', {
+            timezone: item.timezone,
+            error
+          });
+          return 'failed' as const;
+        }
+        if (!slot || item.last_sent_slot === slot) return 'skipped' as const;
+
+        const claimQuery = new URLSearchParams({
+          endpoint: `eq.${item.endpoint}`,
+          user_id: `eq.${item.user_id}`,
+          or: `(last_sent_slot.is.null,last_sent_slot.neq.${slot})`,
+          select: 'endpoint'
+        });
+        const claimResponse = await supabaseServiceRequest(
+          `action_street_push_subscriptions?${claimQuery.toString()}`,
+          {
+            method: 'PATCH',
+            headers: { Prefer: 'return=representation' },
+            body: JSON.stringify({ last_sent_slot: slot, updated_at: now.toISOString() })
+          }
+        );
+        if (!claimResponse.ok) {
+          console.error('Action Street push reminder claim failed:', claimResponse.status, await claimResponse.text());
+          return 'failed' as const;
+        }
+        const claimed = await claimResponse.json() as { endpoint: string }[];
+        if (claimed.length === 0) return 'skipped' as const;
+
+        try {
+          await webPush.sendNotification(item.subscription, JSON.stringify({
+            title: 'Action Street',
+            body: 'Sua próxima caminhada no Action Street está esperando. Vamos explorar uma nova rua?',
+            url: '/?open=actionstreet',
+            tag: `action-street-reminder-${slot}`
+          }), { TTL: 3600, urgency: 'high' });
+          return 'sent' as const;
+        } catch (error) {
+          console.error('Action Street push reminder delivery failed:', error);
+
+          if (error instanceof webPush.WebPushError && [404, 410].includes(error.statusCode)) {
+            const deleteQuery = new URLSearchParams({
+              endpoint: `eq.${item.endpoint}`,
+              user_id: `eq.${item.user_id}`
+            });
+            const deleteResponse = await supabaseServiceRequest(
+              `action_street_push_subscriptions?${deleteQuery.toString()}`,
+              { method: 'DELETE' }
+            );
+            if (!deleteResponse.ok) {
+              console.error('Expired Action Street push subscription cleanup failed:', deleteResponse.status, await deleteResponse.text());
+            }
+          } else {
+            const restoreQuery = new URLSearchParams({
+              endpoint: `eq.${item.endpoint}`,
+              user_id: `eq.${item.user_id}`,
+              last_sent_slot: `eq.${slot}`
+            });
+            const restoreResponse = await supabaseServiceRequest(
+              `action_street_push_subscriptions?${restoreQuery.toString()}`,
+              {
+                method: 'PATCH',
+                headers: { Prefer: 'return=minimal' },
+                body: JSON.stringify({ last_sent_slot: item.last_sent_slot, updated_at: now.toISOString() })
+              }
+            );
+            if (!restoreResponse.ok) {
+              console.error('Failed Action Street push claim rollback:', restoreResponse.status, await restoreResponse.text());
+            }
+          }
+          return 'failed' as const;
+        }
+      };
+
+      let sentCount = 0;
+      let failedCount = 0;
+      for (let offset = 0; offset < subscriptions.length; offset += 25) {
+        const outcomes = await Promise.all(subscriptions.slice(offset, offset + 25).map(processSubscription));
+        sentCount += outcomes.filter((outcome) => outcome === 'sent').length;
+        failedCount += outcomes.filter((outcome) => outcome === 'failed').length;
+      }
+
+      if (failedCount > 0 && sentCount === 0) {
+        return res.status(502).json({ error: 'Nenhum lembrete foi enviado.', sentCount, failedCount });
+      }
+      return res.json({ ok: true, checkedCount: subscriptions.length, sentCount, failedCount });
+    } catch (error) {
+      console.error('Action Street push reminders failed:', error);
+      return res.status(500).json({ error: 'Falha ao enviar os lembretes do Action Street.' });
+    }
+  });
+
   app.post('/api/friends/profile', async (req, res) => {
     try {
       const authUser = await getSupabaseUserFromRequest(req);
@@ -2421,6 +2556,103 @@ async function startServer() {
     } catch (error: any) {
       console.error('Brazilian Friends profiles endpoint failed:', error.message);
       return res.status(500).json({ error: 'Falha ao carregar os perfis do chat.' });
+    }
+  });
+
+  app.post('/api/action-street/push-subscriptions', async (req, res) => {
+    try {
+      const authUser = await getSupabaseUserFromRequest(req);
+      if (!authUser?.id || !authUser.email_confirmed_at) {
+        return res.status(401).json({ error: 'Entre em uma conta verificada para ativar os lembretes.' });
+      }
+      if (!webPushConfigured) {
+        return res.status(503).json({ error: 'As notificações push ainda não estão configuradas no servidor.' });
+      }
+      if (isRateLimited(`action-street-push-subscription:${authUser.id}`, 10, 60_000)) {
+        return res.status(429).json({ error: 'Muitas alterações de notificações. Aguarde um momento.' });
+      }
+
+      const endpoint = typeof req.body?.endpoint === 'string' ? req.body.endpoint.trim() : '';
+      const p256dh = typeof req.body?.keys?.p256dh === 'string' ? req.body.keys.p256dh : '';
+      const auth = typeof req.body?.keys?.auth === 'string' ? req.body.keys.auth : '';
+      const timezone = typeof req.body?.timezone === 'string' ? req.body.timezone.trim() : '';
+      let isSecureEndpoint = false;
+      try {
+        isSecureEndpoint = new URL(endpoint).protocol === 'https:';
+        new Intl.DateTimeFormat('en', { timeZone: timezone });
+      } catch {
+        isSecureEndpoint = false;
+      }
+      if (
+        !isSecureEndpoint ||
+        endpoint.length > 2048 ||
+        !p256dh ||
+        p256dh.length > 256 ||
+        !auth ||
+        auth.length > 256 ||
+        !timezone ||
+        timezone.length > 100
+      ) {
+        return res.status(400).json({ error: 'Inscrição de notificações ou fuso horário inválido.' });
+      }
+
+      const subscription: webPush.PushSubscription = {
+        endpoint,
+        expirationTime: typeof req.body?.expirationTime === 'number' ? req.body.expirationTime : null,
+        keys: { p256dh, auth }
+      };
+      const query = new URLSearchParams({ on_conflict: 'endpoint' });
+      const response = await supabaseServiceRequest(`action_street_push_subscriptions?${query.toString()}`, {
+        method: 'POST',
+        headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify({
+          user_id: authUser.id,
+          endpoint,
+          subscription,
+          timezone,
+          updated_at: new Date().toISOString()
+        })
+      });
+      if (!response.ok) {
+        console.error('Action Street push subscription save failed:', response.status, await response.text());
+        return res.status(502).json({ error: 'Não foi possível ativar os lembretes.' });
+      }
+      return res.json({ ok: true });
+    } catch (error: any) {
+      console.error('Action Street push subscription save failed:', error?.message || error);
+      return res.status(500).json({ error: 'Falha ao ativar os lembretes.' });
+    }
+  });
+
+  app.delete('/api/action-street/push-subscriptions', async (req, res) => {
+    try {
+      const authUser = await getSupabaseUserFromRequest(req);
+      if (!authUser?.id || !authUser.email_confirmed_at) {
+        return res.status(401).json({ error: 'Entre em uma conta verificada para desativar os lembretes.' });
+      }
+      if (isRateLimited(`action-street-push-subscription:${authUser.id}`, 10, 60_000)) {
+        return res.status(429).json({ error: 'Muitas alterações de notificações. Aguarde um momento.' });
+      }
+
+      const endpoint = typeof req.body?.endpoint === 'string' ? req.body.endpoint.trim() : '';
+      if (!endpoint || endpoint.length > 2048) {
+        return res.status(400).json({ error: 'Inscrição de notificações inválida.' });
+      }
+      const query = new URLSearchParams({
+        user_id: `eq.${authUser.id}`,
+        endpoint: `eq.${endpoint}`
+      });
+      const response = await supabaseServiceRequest(`action_street_push_subscriptions?${query.toString()}`, {
+        method: 'DELETE'
+      });
+      if (!response.ok) {
+        console.error('Action Street push subscription deletion failed:', response.status, await response.text());
+        return res.status(502).json({ error: 'Não foi possível desativar os lembretes.' });
+      }
+      return res.json({ ok: true });
+    } catch (error: any) {
+      console.error('Action Street push subscription deletion failed:', error?.message || error);
+      return res.status(500).json({ error: 'Falha ao desativar os lembretes.' });
     }
   });
 

@@ -4,6 +4,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { ChevronDown, Map as MapIcon, MapPin } from 'lucide-react';
 import type { City } from '../../../types/actionStreet';
 import { OPENFREEMAP_STYLES, canUseWebGL } from '../../../lib/actionStreet/maplibreConfig';
+import { MAPILLARY_ATTRIBUTION } from '../../../lib/actionStreet/mapillaryConfig';
 import { spotDiscoveryId } from '../../../lib/actionStreet/discovery';
 import { glass } from '../shared/glass';
 
@@ -11,10 +12,11 @@ interface Props {
   city: City;
   currentSpotId: string;
   discoveredSpotIds: Set<string>;
+  imagePreviewUrl: string | null;
   onTravel: (spotId: string) => void;
 }
 
-export default function MiniMap3D({ city, currentSpotId, discoveredSpotIds, onTravel }: Props) {
+export default function MiniMap3D({ city, currentSpotId, discoveredSpotIds, imagePreviewUrl, onTravel }: Props) {
   const [expanded, setExpanded] = useState(() => window.innerWidth >= 768);
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -96,6 +98,8 @@ export default function MiniMap3D({ city, currentSpotId, discoveredSpotIds, onTr
     if (spot) mapRef.current?.flyTo({ center: spot.coordinates, zoom: 15.8, pitch: 62, duration: 1800, essential: true });
   }, [currentSpotId, city, expanded, discoveredSpotIds]);
 
+  const currentSpotName = city.spots.find((spot) => spot.id === currentSpotId)?.name ?? city.city;
+
   return (
     <aside className={`absolute bottom-[5.25rem] right-4 z-20 w-[min(17rem,calc(100vw-2rem))] overflow-hidden text-white sm:bottom-6 sm:right-6 ${glass.panelOverImagery}`}>
       <button
@@ -114,6 +118,28 @@ export default function MiniMap3D({ city, currentSpotId, discoveredSpotIds, onTr
       {expanded && (
         <div className="border-t border-white/10">
           {canUseWebGL() && <div ref={containerRef} className="h-40 w-full" />}
+          <div className="flex items-center gap-2.5 border-t border-white/10 p-2.5">
+            {imagePreviewUrl ? (
+              <img
+                src={imagePreviewUrl}
+                alt={`Imagem real da rua perto de ${currentSpotName}`}
+                className="h-12 w-16 shrink-0 rounded-lg border border-white/15 object-cover"
+              />
+            ) : (
+              <div className="flex h-12 w-16 shrink-0 items-center justify-center rounded-lg border border-white/15 bg-slate-950/40 text-[9px] text-white/55">
+                Mapillary
+              </div>
+            )}
+            <div className="min-w-0">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-blue-200">
+                {imagePreviewUrl ? 'Foto real · Mapillary' : 'Buscando foto Mapillary'}
+              </p>
+              <p className="truncate text-[11px] font-bold text-white/90">
+                {currentSpotName}
+              </p>
+              {imagePreviewUrl && <p className="truncate text-[9px] text-white/55">{MAPILLARY_ATTRIBUTION}</p>}
+            </div>
+          </div>
           <ul className="flex flex-wrap gap-1.5 p-3">
             {city.spots.map((spot) => {
               const active = spot.id === currentSpotId;

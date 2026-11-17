@@ -42,6 +42,7 @@ export default function StreetViewer360({ cityId, onBack, onExploreSpot, resume 
   const [showMission, setShowMission] = useState(() => resume?.openMission === true);
   const [showCamera, setShowCamera] = useState(false);
   const [passport, setPassport] = useState<PassportState | null>(null);
+  const [streetPreviewUrl, setStreetPreviewUrl] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<HTMLDivElement>(null);
   const traveling = useRef(false);
@@ -64,6 +65,10 @@ export default function StreetViewer360({ cityId, onBack, onExploreSpot, resume 
   }, [cityId, spotId, updateState]);
 
   useEffect(() => {
+    setStreetPreviewUrl(null);
+  }, [spotId]);
+
+  useEffect(() => {
     if (spotId) journeyStore.patch({ view: 'street360', cityId, spotId, imageId: spotId === resume?.spotId ? resume.imageId : undefined });
   }, [cityId, spotId, resume]);
 
@@ -84,6 +89,7 @@ export default function StreetViewer360({ cityId, onBack, onExploreSpot, resume 
   const travel = (nextSpotId: string) => {
     if (traveling.current || nextSpotId === spot.id) return;
     traveling.current = true;
+    setStreetPreviewUrl(null);
     gsap.to(sceneRef.current, {
       opacity: 0,
       duration: 0.4,
@@ -120,7 +126,10 @@ export default function StreetViewer360({ cityId, onBack, onExploreSpot, resume 
           collectedIds={collectedIds}
           onHotspot={setHotspotId}
           initialImageId={spot.id === resume?.spotId ? resume.imageId : undefined}
-          onImageChange={(imageId) => journeyStore.patch({ imageId })}
+          onImageChange={(imageId, previewUrl) => {
+            journeyStore.patch({ imageId });
+            setStreetPreviewUrl(previewUrl);
+          }}
         />
       </div>
       <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-slate-950/70 to-transparent" />
@@ -147,14 +156,20 @@ export default function StreetViewer360({ cityId, onBack, onExploreSpot, resume 
           {missionDone ? <Check className="h-4 w-4" /> : <MessagesSquare className="h-4 w-4" />}
         </span>
         <span className="min-w-0">
-          <span className={`block ${glass.label}`}>{missionDone ? 'Missão concluída · praticar' : 'Missão disponível'}</span>
+          <span className={`block ${glass.label}`}>{missionDone ? 'Missão opcional · praticar' : 'Missão opcional · disponível'}</span>
           <span className="block truncate text-sm font-black">{city.mission.title}</span>
           {visaExpired && <span className="block text-[11px] font-bold text-amber-300">Visto expirado · bônus desligados</span>}
         </span>
       </button>
 
       <HUDBottom key={spot.id} title={guide.title} text={guide.text} />
-      <MiniMap3D city={city} currentSpotId={spot.id} discoveredSpotIds={discoveredSpotIds} onTravel={travel} />
+      <MiniMap3D
+        city={city}
+        currentSpotId={spot.id}
+        discoveredSpotIds={discoveredSpotIds}
+        imagePreviewUrl={streetPreviewUrl}
+        onTravel={travel}
+      />
 
       {hotspotId && <VocabularyCard cityId={city.id} hotspotId={hotspotId} onClose={() => setHotspotId(null)} />}
       {showCamera && <PolaroidCamera cityId={city.id} cityName={city.city} spotName={spot.name} onClose={() => setShowCamera(false)} />}

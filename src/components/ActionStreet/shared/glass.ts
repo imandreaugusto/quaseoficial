@@ -12,5 +12,5 @@ export const glass = {
   secondaryButton:
     'inline-flex items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-5 py-3 font-bold text-white/90 backdrop-blur-xl transition hover:bg-white/20 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300/70',
   label: 'text-[10px] font-bold uppercase tracking-wider text-white/60',
-  backdrop: 'bg-slate-950/50 backdrop-blur-md',
+  backdrop: 'bg-slate-950/20 backdrop-blur-[1px]',
 } as const;

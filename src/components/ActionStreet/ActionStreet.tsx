@@ -89,6 +89,10 @@ export default function ActionStreet({ onClose }: Props) {
               setStreetResume(spotId ? { spotId } : null);
               goTo('map3d', cityId);
             }}
+            onWalk={(cityId) => {
+              setStreetResume(null);
+              goTo('street360', cityId);
+            }}
             onClose={() => onClose?.()}
             initialCamera={savedJourney?.lobbyCamera}
             resume={resumableCity ? { cityName: resumableCity.city, onContinue: continueJourney, onDismiss: dismissJourney } : undefined}
