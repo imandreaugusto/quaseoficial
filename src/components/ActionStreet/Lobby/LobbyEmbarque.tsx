@@ -21,6 +21,7 @@ interface Props {
   onClose: () => void;
   initialCamera?: CameraSnapshot;
   resume?: { cityName: string; onContinue: () => void; onDismiss: () => void };
+  legacyImportNotice?: string;
 }
 
 const origin = {
@@ -28,8 +29,8 @@ const origin = {
   coordinates: actionStreetData.originHub.coordinates as [number, number],
 };
 
-export default function LobbyEmbarque({ onBoard, onWalk, onClose, initialCamera, resume }: Props) {
-  const { state, updateState, allCities } = useActionStreet();
+export default function LobbyEmbarque({ onBoard, onWalk, onClose, initialCamera, resume, legacyImportNotice }: Props) {
+  const { state, updateState, allCities, profile } = useActionStreet();
   const [selectedId, setSelectedId] = useState(() => (state.unlockedCities.includes(state.currentCity) ? state.currentCity : 'ny'));
   const [confirmUnlock, setConfirmUnlock] = useState(false);
   const [passportTab, setPassportTab] = useState<PassportTab | null>(null);
@@ -66,7 +67,7 @@ export default function LobbyEmbarque({ onBoard, onWalk, onClose, initialCamera,
         origin={origin}
         onSelect={select}
         initialCamera={initialCamera}
-        onCameraChange={(camera) => journeyStore.patch({ lobbyCamera: camera })}
+        onCameraChange={(camera) => journeyStore.patch({ lobbyCamera: camera }, profile?.userId)}
       />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-slate-950/80 to-transparent" />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-72 bg-gradient-to-t from-slate-950/85 to-transparent" />
@@ -100,6 +101,12 @@ export default function LobbyEmbarque({ onBoard, onWalk, onClose, initialCamera,
           </button>
         </div>
       </header>
+
+      {legacyImportNotice && (
+        <p role="status" aria-live="polite" className={`absolute left-4 right-4 top-[8.25rem] z-10 mx-auto max-w-xl p-3 text-xs text-sky-50 sm:left-1/2 sm:right-auto sm:w-[min(34rem,calc(100vw-2rem))] sm:-translate-x-1/2 ${glass.panelOverImagery}`}>
+          {legacyImportNotice}
+        </p>
+      )}
 
       <section className="absolute inset-x-0 bottom-0 z-10 flex flex-col gap-3 p-4 sm:p-6">
         {resume && <ResumeBanner cityName={resume.cityName} onContinue={resume.onContinue} onDismiss={resume.onDismiss} />}

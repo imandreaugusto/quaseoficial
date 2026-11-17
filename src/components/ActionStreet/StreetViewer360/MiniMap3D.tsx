@@ -12,11 +12,12 @@ interface Props {
   city: City;
   currentSpotId: string;
   discoveredSpotIds: Set<string>;
+  unlockedRoutes: string[];
   imagePreviewUrl: string | null;
   onTravel: (spotId: string) => void;
 }
 
-export default function MiniMap3D({ city, currentSpotId, discoveredSpotIds, imagePreviewUrl, onTravel }: Props) {
+export default function MiniMap3D({ city, currentSpotId, discoveredSpotIds, unlockedRoutes, imagePreviewUrl, onTravel }: Props) {
   const [expanded, setExpanded] = useState(() => window.innerWidth >= 768);
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -24,6 +25,7 @@ export default function MiniMap3D({ city, currentSpotId, discoveredSpotIds, imag
   const travelRef = useRef(onTravel);
   const currentRef = useRef(currentSpotId);
   const discoveredRef = useRef(discoveredSpotIds);
+  const availableSpots = city.spots.filter((spot) => !spot.requiresRoute || unlockedRoutes.includes(spot.requiresRoute));
 
   useEffect(() => {
     travelRef.current = onTravel;
@@ -62,7 +64,7 @@ export default function MiniMap3D({ city, currentSpotId, discoveredSpotIds, imag
       map.addLayer({ id: 'mini-route-line', type: 'line', source: 'mini-route', paint: { 'line-color': '#bfdbfe', 'line-width': 3 } });
     });
 
-    const markers = city.spots.map((spot) => {
+    const markers = availableSpots.map((spot) => {
       const button = document.createElement('button');
       button.type = 'button';
       const discovered = discoveredRef.current.has(spotDiscoveryId(city.id, spot.id));
@@ -83,7 +85,7 @@ export default function MiniMap3D({ city, currentSpotId, discoveredSpotIds, imag
       map.remove();
       mapRef.current = null;
     };
-  }, [expanded, city]);
+  }, [expanded, city, unlockedRoutes]);
 
   useEffect(() => {
     markersRef.current.forEach((button, spotId) => {
@@ -96,7 +98,7 @@ export default function MiniMap3D({ city, currentSpotId, discoveredSpotIds, imag
     });
     const spot = city.spots.find((item) => item.id === currentSpotId);
     if (spot) mapRef.current?.flyTo({ center: spot.coordinates, zoom: 15.8, pitch: 62, duration: 1800, essential: true });
-  }, [currentSpotId, city, expanded, discoveredSpotIds]);
+  }, [currentSpotId, city, expanded, discoveredSpotIds, unlockedRoutes]);
 
   const currentSpotName = city.spots.find((spot) => spot.id === currentSpotId)?.name ?? city.city;
 
@@ -141,7 +143,7 @@ export default function MiniMap3D({ city, currentSpotId, discoveredSpotIds, imag
             </div>
           </div>
           <ul className="flex flex-wrap gap-1.5 p-3">
-            {city.spots.map((spot) => {
+            {availableSpots.map((spot) => {
               const active = spot.id === currentSpotId;
               return (
                 <li key={spot.id}>

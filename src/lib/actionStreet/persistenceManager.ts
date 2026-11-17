@@ -5,6 +5,9 @@ import { recordVisit, renewVisa } from './visa';
 import { spotDiscoveryId } from './discovery';
 
 const STORAGE_KEY = 'ACTION_STREET_STATE';
+const ACCOUNT_STORAGE_PREFIX = `${STORAGE_KEY}_V2_`;
+const TICKET_CAP = 3;
+const MAX_JOURNAL_ENTRIES = 300;
 
 export const defaultState: ActionStreetState = {
   currentCity: 'ny',
@@ -16,11 +19,69 @@ export const defaultState: ActionStreetState = {
   completedMissions: [],
   streak: emptyStreak(),
   visas: {},
+  xp: 0,
+  reputation: {},
+  inventory: [],
+  learnedPhrases: [],
+  unlockedRoutes: [],
+  dialogueChoices: {},
+  tickets: { available: TICKET_CAP, lastRefillAt: Date.now() },
+  journal: [],
 };
 
 const asArray = <T>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);
 const asStringArray = (value: unknown): string[] => Array.from(new Set(asArray<unknown>(value).filter((item): item is string => typeof item === 'string')));
 const isCount = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value) && value >= 0;
+const boundedInteger = (value: unknown, min: number, max: number, fallback: number) =>
+  typeof value === 'number' && Number.isFinite(value) ? Math.min(max, Math.max(min, Math.floor(value))) : fallback;
+
+function accountStorageKey(userId: string): string {
+  return `${ACCOUNT_STORAGE_PREFIX}${encodeURIComponent(userId)}`;
+}
+
+function sanitizeStringRecord(raw: unknown): Record<string, string> {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  return Object.fromEntries(
+    Object.entries(raw as Record<string, unknown>)
+      .filter((entry): entry is [string, string] => typeof entry[1] === 'string')
+      .slice(0, MAX_JOURNAL_ENTRIES)
+  );
+}
+
+function sanitizeReputation(raw: unknown): Record<string, number> {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  return Object.fromEntries(
+    Object.entries(raw as Record<string, unknown>)
+      .filter((entry): entry is [string, number] => typeof entry[1] === 'number' && Number.isFinite(entry[1]))
+      .map(([cityId, reputation]) => [cityId, Math.min(10, Math.max(-10, Math.floor(reputation)))])
+      .slice(0, 100)
+  );
+}
+
+function sanitizeJournal(raw: unknown) {
+  return asArray<unknown>(raw)
+    .flatMap((value) => {
+      if (!value || typeof value !== 'object') return [];
+      const event = value as Record<string, unknown>;
+      if (
+        typeof event.id !== 'string'
+        || typeof event.cityId !== 'string'
+        || typeof event.timestamp !== 'number'
+        || !Number.isFinite(event.timestamp)
+        || typeof event.label !== 'string'
+        || !['arrival', 'collectible', 'phrase', 'dialogue', 'challenge', 'mission'].includes(String(event.type))
+      ) return [];
+      return [{
+        id: event.id.slice(0, 120),
+        cityId: event.cityId.slice(0, 80),
+        type: event.type as ActionStreetState['journal'][number]['type'],
+        timestamp: event.timestamp,
+        label: event.label.slice(0, 160),
+        ...(typeof event.detail === 'string' ? { detail: event.detail.slice(0, 240) } : {}),
+      }];
+    })
+    .slice(-MAX_JOURNAL_ENTRIES);
+}
 
 function sanitizeStreak(raw: unknown): StreakState {
   const streak = raw as Partial<StreakState> | undefined;
@@ -49,6 +110,7 @@ function sanitizeVisas(raw: unknown, stamps: Stamp[], now: number): Record<strin
 
 export function sanitizeState(raw: Partial<ActionStreetState>, now = Date.now()): ActionStreetState {
   const stamps = asArray<Stamp>(raw.stamps);
+  const rawTickets = raw.tickets as Partial<ActionStreetState['tickets']> | undefined;
   return {
     currentCity: typeof raw.currentCity === 'string' ? raw.currentCity : defaultState.currentCity,
     balance: typeof raw.balance === 'number' && Number.isFinite(raw.balance) ? Math.max(0, raw.balance) : defaultState.balance,
@@ -59,24 +121,67 @@ export function sanitizeState(raw: Partial<ActionStreetState>, now = Date.now())
     completedMissions: asArray<string>(raw.completedMissions),
     streak: sanitizeStreak(raw.streak),
     visas: sanitizeVisas(raw.visas, stamps, now),
+    xp: boundedInteger(raw.xp, 0, Number.MAX_SAFE_INTEGER, 0),
+    reputation: sanitizeReputation(raw.reputation),
+    inventory: asStringArray(raw.inventory).slice(0, 200),
+    learnedPhrases: asStringArray(raw.learnedPhrases).slice(0, 500),
+    unlockedRoutes: asStringArray(raw.unlockedRoutes).slice(0, 300),
+    dialogueChoices: sanitizeStringRecord(raw.dialogueChoices),
+    tickets: {
+      available: boundedInteger(rawTickets?.available, 0, TICKET_CAP, TICKET_CAP),
+      lastRefillAt: isCount(rawTickets?.lastRefillAt) ? rawTickets.lastRefillAt : now,
+    },
+    journal: sanitizeJournal(raw.journal),
   };
 }
 
 export const persistenceManager = {
-  loadState(): ActionStreetState {
+  loadState(userId?: string): ActionStreetState {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      return stored ? sanitizeState(JSON.parse(stored)) : { ...defaultState, streak: emptyStreak(), visas: {} };
+      const stored = localStorage.getItem(userId ? accountStorageKey(userId) : STORAGE_KEY);
+      return stored ? sanitizeState(JSON.parse(stored)) : sanitizeState(defaultState);
     } catch {
-      return { ...defaultState, streak: emptyStreak(), visas: {} };
+      return sanitizeState(defaultState);
     }
   },
 
-  saveState(state: ActionStreetState): void {
+  saveState(state: ActionStreetState, userId?: string): void {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      localStorage.setItem(userId ? accountStorageKey(userId) : STORAGE_KEY, JSON.stringify(state));
     } catch {
       // storage cheio/indisponível: o progresso da sessão continua em memória
+    }
+  },
+
+  hasAccountState(userId: string): boolean {
+    try {
+      return localStorage.getItem(accountStorageKey(userId)) !== null;
+    } catch (error) {
+      console.warn('Não foi possível verificar o progresso local desta conta do Action Street.', error);
+      return false;
+    }
+  },
+
+  hasLegacyState(): boolean {
+    try {
+      return localStorage.getItem(STORAGE_KEY) !== null;
+    } catch (error) {
+      console.warn('Não foi possível verificar um save antigo do Action Street.', error);
+      return false;
+    }
+  },
+
+  importLegacyState(userId: string): ActionStreetState | null {
+    try {
+      if (localStorage.getItem(accountStorageKey(userId)) !== null) return null;
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (!stored) return null;
+      const imported = sanitizeState(JSON.parse(stored));
+      localStorage.setItem(accountStorageKey(userId), JSON.stringify(imported));
+      return imported;
+    } catch (error) {
+      console.warn('Não foi possível importar o save antigo do Action Street.', error);
+      return null;
     }
   },
 

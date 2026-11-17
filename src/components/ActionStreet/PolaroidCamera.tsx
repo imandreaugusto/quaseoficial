@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Camera, Download, Image, Loader2, Share2, X } from 'lucide-react';
 import { createPostcardArtwork, loadPostcardPhotos, savePostcardPhoto, type PostcardPhoto } from '../../lib/actionStreet/photoAlbum';
+import { useActionStreet } from './ActionStreetContext';
 import { glass } from './shared/glass';
 
 type Tab = 'camera' | 'album';
@@ -30,6 +31,7 @@ function fileSlug(value: string) {
 }
 
 export default function PolaroidCamera({ cityId, cityName, spotName, onClose }: Props) {
+  const { reportActivity } = useActionStreet();
   const [tab, setTab] = useState<Tab>('camera');
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraStarting, setCameraStarting] = useState(false);
@@ -167,6 +169,7 @@ export default function PolaroidCamera({ cityId, cityName, spotName, onClose }: 
       });
       const photo: PostcardPhoto = { id: photoId(), cityId, cityName, spotName, createdAt: Date.now(), image };
       await savePostcardPhoto(photo);
+      reportActivity('photo', cityId);
       setPhotos((previous) => [photo, ...previous]);
       setSelectedPhoto(photo);
       setDevelopingPhotoId(photo.id);

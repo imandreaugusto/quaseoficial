@@ -1,0 +1,57 @@
+{
+  "welcome": [
+    { "en": "Ready to explore? Keep your eyes open!", "pt": "Pronto para explorar? Fique de olho na rua!" },
+    { "en": "Every corner has a new story.", "pt": "Cada esquina guarda uma história nova." },
+    { "en": "Let's make this trip yours.", "pt": "Vamos deixar essa viagem com a sua cara." },
+    { "en": "Take your time. The city is yours to explore.", "pt": "Sem pressa. A cidade é sua para explorar." }
+  ],
+  "idle": [
+    { "en": "Psst... what can you spot around you?", "pt": "Psiu... o que você consegue encontrar por aí?" },
+    { "en": "Look around when you're ready. There may be a new word nearby.", "pt": "Quando quiser, dê uma olhada. Pode haver uma palavra nova por perto." },
+    { "en": "The street is full of little details. Want to explore one?", "pt": "A rua está cheia de detalhes. Que tal explorar um?" },
+    { "en": "No rush, traveler. Your next discovery is waiting.", "pt": "Sem pressa, viajante. Sua próxima descoberta espera por você." }
+  ],
+  "collectible": [
+    { "en": "Great find! That's one more word for your travel story.", "pt": "Boa descoberta! Mais uma palavra para sua história de viagem." },
+    { "en": "Sharp eyes! You found a new street souvenir.", "pt": "Olhos atentos! Você encontrou um novo souvenir da rua." },
+    { "en": "Nice! Keep that new expression in your backpack.", "pt": "Muito bem! Guarde essa nova expressão na mochila." },
+    { "en": "A little discovery can take you a long way.", "pt": "Uma pequena descoberta pode levar você longe." }
+  ],
+  "correct": [
+    { "en": "Nice one! Keep going!", "pt": "Boa! Continue assim!" },
+    { "en": "You're on fire! Sounds like a local.", "pt": "Você está voando! Já está falando como alguém daqui." },
+    { "en": "Unbelievable! Are you sure you're not from New York?", "pt": "Inacreditável! Tem certeza de que não nasceu em Nova York?" }
+  ],
+  "wrong": [
+    { "en": "Close! Every try teaches you something.", "pt": "Quase! Cada tentativa ensina alguma coisa." },
+    { "en": "No worries. Let's try a different phrase.", "pt": "Tudo bem. Vamos tentar outra frase." },
+    { "en": "Good try! Listen for the key word and try again.", "pt": "Boa tentativa! Preste atenção na palavra-chave e tente outra vez." }
+  ],
+  "quick": [
+    { "en": "Whoa, eagle eyes! You spotted that fast!", "pt": "Uau, olhos de águia! Você percebeu rapidinho!" },
+    { "en": "Sharp eyes! You found that in no time.", "pt": "Olhos atentos! Você encontrou isso num instante." }
+  ],
+  "quickAnswer": [
+    { "en": "Quick thinking! Nice one — keep going!", "pt": "Resposta rápida! Boa — continue assim!" },
+    { "en": "Fast and natural. Sounds like a local!", "pt": "Rápido e natural. Parece alguém daqui!" }
+  ],
+  "travel": [
+    { "en": "New corner, new story. What catches your eye?", "pt": "Nova esquina, nova história. O que chamou sua atenção?" },
+    { "en": "You're getting to know the neighborhood one step at a time.", "pt": "Você está conhecendo o bairro, um passo de cada vez." },
+    { "en": "Look around and tap a street word when you're curious.", "pt": "Olhe ao redor e toque em uma palavra da rua quando tiver curiosidade." }
+  ],
+  "dialogue": [
+    { "en": "That choice opened a new conversation. Your reputation is growing.", "pt": "Sua escolha abriu uma nova conversa. Sua reputação está crescendo." },
+    { "en": "Nice way to connect with someone in the neighborhood.", "pt": "Boa maneira de criar conexão com alguém do bairro." },
+    { "en": "Your words can open doors. Keep them handy in your passport.", "pt": "Suas palavras podem abrir caminhos. Guarde-as no passaporte." }
+  ],
+  "challenge": [
+    { "en": "Quick ears and sharp eyes. You did it!", "pt": "Ouvidos atentos e olhos afiados. Você conseguiu!" },
+    { "en": "Challenge complete! Take a breath before the next one.", "pt": "Desafio concluído! Respire antes do próximo." },
+    { "en": "Great focus. The city is full of clues.", "pt": "Boa concentração. A cidade está cheia de pistas." }
+  ],
+  "photo": [
+    { "en": "A little souvenir from the street. Nice shot!", "pt": "Uma lembrança da rua. Belo clique!" },
+    { "en": "Captured! Your travel story just got a new page.", "pt": "Foto feita! Sua história de viagem ganhou mais uma página." }
+  ]
+}

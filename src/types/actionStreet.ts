@@ -19,15 +19,38 @@ export interface ActionStreetState {
   completedMissions: string[];
   streak: StreakState;
   visas: Record<string, VisaRecord>;
+  xp: number;
+  reputation: Record<string, number>;
+  inventory: string[];
+  learnedPhrases: string[];
+  unlockedRoutes: string[];
+  dialogueChoices: Record<string, string>;
+  tickets: ChallengeTickets;
+  journal: TravelJournalEntry[];
 }
 
 export type SpeechRate = 1 | 0.7;
 
-export interface ActionStreetResponseEvaluation {
-  isValid: boolean;
-  relevance: number;
-  clarity: number;
-  feedback: string;
+export interface ChallengeTickets {
+  available: number;
+  lastRefillAt: number;
+}
+
+export type TravelJournalEventType =
+  | 'arrival'
+  | 'collectible'
+  | 'phrase'
+  | 'dialogue'
+  | 'challenge'
+  | 'mission';
+
+export interface TravelJournalEntry {
+  id: string;
+  cityId: string;
+  type: TravelJournalEventType;
+  timestamp: number;
+  label: string;
+  detail?: string;
 }
 
 export interface Souvenir {
@@ -54,6 +77,8 @@ export interface Spot {
   name: string;
   coordinates: [number, number];
   imageId?: string;
+  requiresRoute?: string;
+  nightTone?: boolean;
   guide?: { title: string; text: string };
 }
 
@@ -83,6 +108,7 @@ export interface Hotspot {
   example: string;
   rewardDollars: number;
   souvenirIcon: string;
+  inventoryItemId?: string;
 }
 
 export interface Mission {

@@ -60,8 +60,11 @@ export async function getMapillaryImageById(token: string, imageId: string): Pro
 }
 
 // Busca a imagem 360° mais próxima do ponto, ampliando a área e aceitando imagens não-panorâmicas só se necessário.
-export async function findNearestImage(token: string, center: [number, number]): Promise<MapillaryStreetImage | null> {
-  const searchRadii = [0.0015, 0.004, 0.015, 0.05, 0.1];
+export async function findNearestImage(
+  token: string,
+  center: [number, number],
+  searchRadii = [0.0015, 0.004, 0.015, 0.05, 0.1]
+): Promise<MapillaryStreetImage | null> {
 
   for (const radius of searchRadii) {
     for (const panoOnly of [true, false]) {

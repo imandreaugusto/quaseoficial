@@ -73,12 +73,13 @@
         {
           "id": "ny-hs-2",
           "spotId": "times-square",
-          "word": "Subway Entrance",
-          "translation": "Entrada do metrô",
-          "phonetic": "/ˈsʌbweɪ ˈɛntrəns/",
-          "example": "Take the stairs down at the subway entrance to catch the Uptown train.",
+          "word": "Subway Map",
+          "translation": "Mapa do metrô",
+          "phonetic": "/ˈsʌbweɪ mæp/",
+          "example": "Here is a subway map to help you find the Uptown train.",
           "rewardDollars": 30,
-          "souvenirIcon": "TrainFront"
+          "souvenirIcon": "TrainFront",
+          "inventoryItemId": "subway-map"
         },
         {
           "id": "ny-hs-3",
@@ -149,6 +150,20 @@
           "guide": {
             "title": "Central Park",
             "text": "Central Park is a huge green oasis in the middle of Manhattan. Locals jog, ride bikes and have picnics here, while tourists enjoy boat rides on the lake and long walks along the Mall."
+          }
+        },
+        {
+          "id": "central-park-after-dark",
+          "name": "Central Park at Dusk",
+          "coordinates": [
+            -73.973,
+            40.7749
+          ],
+          "requiresRoute": "central-park-after-dark",
+          "nightTone": true,
+          "guide": {
+            "title": "Central Park at Dusk",
+            "text": "As the sun sets, the paths grow quieter and the city lights begin to glow beyond the trees. This is a color-treated travel scene, not a live night photograph."
           }
         }
       ]

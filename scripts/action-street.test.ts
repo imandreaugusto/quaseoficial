@@ -1,15 +1,26 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { actionStreetCities } from '../src/data/actionStreetCities';
+import { applyChallengeResult, CHALLENGE_REWARD_DOLLARS, CHALLENGE_REWARD_XP, chooseLocalChallenge } from '../src/lib/actionStreet/challengeEngine';
+import { applyDialogueChoice, getAvailableDialogueChoices, getDialogueForSpot } from '../src/lib/actionStreet/dialogueEngine';
 import { missionPayout } from '../src/lib/actionStreet/economy';
 import { getDiscoveredSpotIds } from '../src/lib/actionStreet/discovery';
-import { parseJourney } from '../src/lib/actionStreet/journeyStore';
+import { journeyStore, parseJourney } from '../src/lib/actionStreet/journeyStore';
 import { persistenceManager, sanitizeState } from '../src/lib/actionStreet/persistenceManager';
-import { buildActionStreetResponseEvaluation } from '../src/lib/actionStreet/responseEvaluation';
+import { getTouristLevelProgress, refreshChallengeTickets, spendChallengeTicket } from '../src/lib/actionStreet/progression';
 import { dayKey, emptyStreak, registerVisit, streakMultiplier } from '../src/lib/actionStreet/streak';
 import { VISA_VALIDITY_MS, buildRenewalQuiz, getVisaStatus, recordVisit, renewVisa } from '../src/lib/actionStreet/visa';
 import { findNearestImage, getMapillaryImageById } from '../src/lib/actionStreet/mapillaryConfig';
 import { getActionStreetReminderSlot } from '../src/lib/actionStreet/reminderSchedule';
+import { hasLegacySaveToImport, importLegacySave, recordLegacySaveDecision } from '../src/lib/actionStreet/legacySave';
+import {
+  findNearestAirport,
+  findProfileCityAirport,
+  firstMissionIntroStorageKey,
+  getCurrentCoordinates,
+  hasSeenFirstMissionIntro,
+  markFirstMissionIntroSeen,
+} from '../src/lib/actionStreet/firstMissionIntro';
 import type { ActionStreetState } from '../src/types/actionStreet';
 
 const cities = actionStreetCities;
@@ -33,6 +44,25 @@ function seededRandom(seed: number) {
     value = (value * 1664525 + 1013904223) % 4294967296;
     return value / 4294967296;
   };
+}
+
+function withFakeLocalStorage<T>(run: (storage: Map<string, string>) => T): T {
+  const originalDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  const storage = new Map<string, string>();
+  Object.defineProperty(globalThis, 'localStorage', {
+    configurable: true,
+    value: {
+      getItem: (key: string) => storage.get(key) ?? null,
+      setItem: (key: string, value: string) => storage.set(key, value),
+      removeItem: (key: string) => storage.delete(key),
+    },
+  });
+  try {
+    return run(storage);
+  } finally {
+    if (originalDescriptor) Object.defineProperty(globalThis, 'localStorage', originalDescriptor);
+    else Reflect.deleteProperty(globalThis, 'localStorage');
+  }
 }
 
 test('streak starts at 1, ignores repeats on the same day and grows on consecutive days', () => {
@@ -134,18 +164,6 @@ test('discovery state migrates safely from older and malformed saves', () => {
   assert.deepEqual(sanitizeState({}).discoveredSpots, []);
 });
 
-test('Jev response evaluation accepts clear relevant paraphrases and guides unclear answers', () => {
-  const accepted = buildActionStreetResponseEvaluation(0.82, 0.74);
-  assert.equal(accepted.isValid, true);
-  assert.match(accepted.feedback, /Boa resposta/);
-
-  const unclear = buildActionStreetResponseEvaluation(0.9, 0.59);
-  assert.equal(unclear.isValid, false);
-  assert.match(unclear.feedback, /ajuste a frase/);
-
-  assert.throws(() => buildActionStreetResponseEvaluation(Number.NaN, 0.8), /invalid relevance confidence/);
-});
-
 test('renewal quiz asks 3 valid questions and prefers words the student learned', () => {
   const learned = new Set(['ny:ny-hs-3']);
   const quiz = buildRenewalQuiz(ny, cities, learned, seededRandom(7));
@@ -176,6 +194,101 @@ test('mission payout adds bonuses together and drops them when the visa is expir
   assert.equal(missionPayout({ base: 100, allCorrect: false, streakCount: 1, bonusesActive: true }).total, 100);
 });
 
+test('challenge tickets refill one at a time every six hours and cannot be overspent', () => {
+  const firstSpend = spendChallengeTicket(baseState({ tickets: { available: 3, lastRefillAt: 100 } }), 100);
+  assert.equal(firstSpend?.tickets.available, 2);
+  assert.equal(refreshChallengeTickets(firstSpend!.tickets, 100 + 6 * HOUR - 1).available, 2);
+  assert.deepEqual(refreshChallengeTickets(firstSpend!.tickets, 100 + 6 * HOUR), {
+    available: 3,
+    lastRefillAt: 100 + 6 * HOUR,
+  });
+  assert.equal(
+    spendChallengeTicket(baseState({ tickets: { available: 0, lastRefillAt: 100 + 6 * HOUR } }), 100 + 6 * HOUR),
+    null
+  );
+});
+
+test('local street dialogues apply costs, inventory, phrases, routes, reputation and journal entries', () => {
+  const musician = getDialogueForSpot(baseState({ balance: 20 }), 'ny', 'times-square');
+  assert.ok(musician);
+  const tipChoice = getAvailableDialogueChoices(musician, baseState({ balance: 20 })).find((choice) => choice.id === 'compliment-and-tip');
+  assert.ok(tipChoice);
+  const tipped = applyDialogueChoice(baseState({ balance: 20 }), musician, tipChoice);
+  assert.equal(tipped.balance, 10);
+  assert.equal(tipped.xp, 25);
+  assert.equal(tipped.reputation.ny, 2);
+  assert.ok(tipped.learnedPhrases.includes('keep-the-change'));
+  assert.ok(tipped.unlockedRoutes.includes('central-park-after-dark'));
+  assert.ok(tipped.journal.some((entry) => entry.type === 'phrase'));
+  assert.ok(tipped.journal.some((entry) => entry.type === 'dialogue'));
+  assert.throws(() => applyDialogueChoice(tipped, musician, tipChoice), /já foi concluída/);
+
+  const parkDialogue = getDialogueForSpot(
+    baseState({ inventory: ['subway-map'] }),
+    'ny',
+    'central-park'
+  );
+  assert.ok(parkDialogue);
+  const shareMap = getAvailableDialogueChoices(parkDialogue, baseState({ inventory: ['subway-map'] }))
+    .find((choice) => choice.id === 'share-subway-map');
+  assert.ok(shareMap);
+  const shared = applyDialogueChoice(baseState({ inventory: ['subway-map'] }), parkDialogue, shareMap);
+  assert.ok(!shared.inventory.includes('subway-map'));
+  assert.ok(shared.inventory.includes('broadway-ticket'));
+});
+
+test('street challenges reward correct answers, keep retries free and advance traveler levels locally', () => {
+  const challenge = chooseLocalChallenge();
+  const correct = challenge.options.find((option) => option.correct)!;
+  const initial = baseState({ balance: 50 });
+  const rewarded = applyChallengeResult(initial, 'ny', challenge, correct, 1_000);
+  assert.equal(rewarded.balance, 50 + CHALLENGE_REWARD_DOLLARS);
+  assert.equal(rewarded.xp, CHALLENGE_REWARD_XP);
+  assert.equal(rewarded.reputation.ny, 1);
+  assert.equal(rewarded.journal[0].detail, `${challenge.id}:success`);
+
+  const timeout = applyChallengeResult(initial, 'ny', challenge, null, 2_000);
+  assert.equal(timeout.balance, initial.balance);
+  assert.equal(timeout.xp, 0);
+  assert.equal(timeout.journal[0].detail, `${challenge.id}:timeout`);
+
+  assert.equal(getTouristLevelProgress(100).current.level, 2);
+  assert.equal(getTouristLevelProgress(200).progress, 0.5);
+});
+
+test('Action Street saves and journeys stay isolated per account in this browser', () => {
+  withFakeLocalStorage(() => {
+    persistenceManager.saveState(baseState({ balance: 91 }), 'account-one');
+    persistenceManager.saveState(baseState({ balance: 37 }), 'account-two');
+    journeyStore.patch({ view: 'street360', cityId: 'ny', spotId: 'times-square' }, 'account-one');
+    journeyStore.patch({ view: 'street360', cityId: 'ny', spotId: 'central-park' }, 'account-two');
+
+    assert.equal(persistenceManager.loadState('account-one').balance, 91);
+    assert.equal(persistenceManager.loadState('account-two').balance, 37);
+    assert.equal(journeyStore.load('account-one')?.spotId, 'times-square');
+    assert.equal(journeyStore.load('account-two')?.spotId, 'central-park');
+    assert.equal(persistenceManager.hasLegacyState(), false);
+  });
+});
+
+test('legacy save import copies state and journey without deleting their original keys', () => {
+  withFakeLocalStorage((storage) => {
+    const oldState = { balance: 73, stamps: [], completedMissions: [], unlockedCities: ['ny'] };
+    const oldJourney = JSON.stringify({ view: 'street360', cityId: 'ny', spotId: 'central-park', savedAt: 12 });
+    storage.set('ACTION_STREET_STATE', JSON.stringify(oldState));
+    storage.set('ACTION_STREET_JOURNEY', oldJourney);
+
+    assert.equal(hasLegacySaveToImport('new-account'), true);
+    const imported = importLegacySave('new-account');
+    assert.equal(imported.state?.balance, 73);
+    assert.equal(imported.journey?.spotId, 'central-park');
+    assert.ok(storage.has('ACTION_STREET_STATE'));
+    assert.equal(storage.get('ACTION_STREET_JOURNEY'), oldJourney);
+    recordLegacySaveDecision('new-account', 'imported');
+    assert.equal(hasLegacySaveToImport('new-account'), false);
+  });
+});
+
 test('street image lookup expands the search and chooses the nearest real image', async () => {
   const originalFetch = globalThis.fetch;
   const requests: URL[] = [];
@@ -201,6 +314,26 @@ test('street image lookup expands the search and chooses the nearest real image'
     assert.equal(requests.length, 5);
     assert.equal(requests[4].searchParams.get('is_pano'), 'true');
     assert.match(requests[4].searchParams.get('fields') ?? '', /thumb_2048_url/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('street image lookup honors a caller-provided search radius limit', async () => {
+  const originalFetch = globalThis.fetch;
+  const requests: URL[] = [];
+  globalThis.fetch = async (input) => {
+    requests.push(new URL(String(input)));
+    return new Response(JSON.stringify({ data: [] }), { status: 200 });
+  };
+
+  try {
+    assert.equal(await findNearestImage('token', [-73.9857, 40.7484], [0.004, 0.015]), null);
+    const panoRadii = requests
+      .filter((url) => url.searchParams.get('is_pano') === 'true')
+      .map((url) => Number(url.searchParams.get('bbox')?.split(',')[2]) - (-73.9857));
+    assert.deepEqual(panoRadii.map((radius) => Number(radius.toFixed(3))), [0.004, 0.015]);
+    assert.equal(requests.length, 4);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -244,6 +377,116 @@ test('street image lookup by id returns the same image thumbnail and location', 
     assert.equal(requestUrl?.searchParams.get('access_token'), 'token');
   } finally {
     globalThis.fetch = originalFetch;
+  }
+});
+
+test('first-mission intro completion is stored per user without putting profile data in the key', () => {
+  const stored = new Map<string, string>();
+  const previousWindow = globalThis.window;
+  Object.defineProperty(globalThis, 'window', {
+    configurable: true,
+    value: {
+      localStorage: {
+        getItem: (key: string) => stored.get(key) ?? null,
+        setItem: (key: string, value: string) => stored.set(key, value),
+      },
+    },
+  });
+
+  try {
+    const aliceKey = firstMissionIntroStorageKey('auth-user-1');
+    const bobKey = firstMissionIntroStorageKey('auth-user-2');
+    assert.notEqual(aliceKey, bobKey);
+    assert.equal(aliceKey.includes('@'), false);
+    assert.equal(hasSeenFirstMissionIntro('auth-user-1'), false);
+    markFirstMissionIntroSeen('auth-user-1');
+    assert.equal(hasSeenFirstMissionIntro('auth-user-1'), true);
+    assert.equal(hasSeenFirstMissionIntro('auth-user-2'), false);
+  } finally {
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: previousWindow,
+    });
+  }
+});
+
+test('nearest airport lookup chooses the closest named OpenStreetMap airport', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    elements: [
+      { center: { lat: 10.1, lon: 10.1 }, tags: { name: 'Airport Far', iata: 'FAR' } },
+      { lat: 10.01, lon: 10.01, tags: { name: 'Airport Near', iata: 'NEA' } },
+    ],
+  }), { status: 200 });
+
+  try {
+    assert.deepEqual(await findNearestAirport([10, 10]), {
+      name: 'Airport Near',
+      coordinates: [10.01, 10.01],
+      iataCode: 'NEA',
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('profile-city airport lookup geocodes only the supplied city and country', async () => {
+  const originalFetch = globalThis.fetch;
+  const requests: URL[] = [];
+  globalThis.fetch = async (input) => {
+    const url = new URL(String(input));
+    requests.push(url);
+    if (url.hostname === 'nominatim.openstreetmap.org') {
+      return new Response(JSON.stringify([{ lat: '-8.05', lon: '-34.9' }]), { status: 200 });
+    }
+    return new Response(JSON.stringify({
+      elements: [{ lat: -8.13, lon: -34.92, tags: { name: 'Aeroporto do Recife', iata: 'REC' } }],
+    }), { status: 200 });
+  };
+
+  try {
+    assert.deepEqual(await findProfileCityAirport({ city: 'Recife', country: 'Brasil' }), {
+      name: 'Aeroporto do Recife',
+      coordinates: [-34.92, -8.13],
+      iataCode: 'REC',
+    });
+    assert.equal(requests.length, 2);
+    assert.equal(requests[0].searchParams.get('q'), 'Recife, Brasil');
+    assert.equal(requests[1].hostname, 'overpass-api.de');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('device location is read only after the caller requests it and permission errors are surfaced', async () => {
+  const originalDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  Object.defineProperty(globalThis, 'navigator', {
+    configurable: true,
+    value: {
+      geolocation: {
+        getCurrentPosition: (success: (position: GeolocationPosition) => void) => {
+          success({ coords: { longitude: -46.6, latitude: -23.5 } } as GeolocationPosition);
+        },
+      },
+    },
+  });
+
+  try {
+    assert.deepEqual(await getCurrentCoordinates(), [-46.6, -23.5]);
+    Object.defineProperty(globalThis, 'navigator', {
+      configurable: true,
+      value: {
+        geolocation: {
+          getCurrentPosition: (_success: unknown, error: (reason: GeolocationPositionError) => void) => {
+            error({ message: 'Permissão negada' } as GeolocationPositionError);
+          },
+        },
+      },
+    });
+    await assert.rejects(getCurrentCoordinates(), /Permissão negada/);
+  } finally {
+    if (originalDescriptor) Object.defineProperty(globalThis, 'navigator', originalDescriptor);
+    else Reflect.deleteProperty(globalThis, 'navigator');
   }
 });
 

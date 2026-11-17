@@ -8,7 +8,7 @@ import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type } from '@google/genai';
 import { randomUUID, timingSafeEqual } from 'node:crypto';
 import dotenv from 'dotenv';
-import { classifyStudentFeedback, evaluateActionStreetResponse, validatePortuguesePhrase, validateSpaceContribution } from './src/lib/jevValidator';
+import { classifyStudentFeedback, validatePortuguesePhrase, validateSpaceContribution } from './src/lib/jevValidator';
 import { getActionStreetReminderSlot } from './src/lib/actionStreet/reminderSchedule';
 import { actionStreetCities } from './src/data/actionStreetCities';
 import {
@@ -857,40 +857,6 @@ async function startServer() {
       const missingKey = error?.message?.includes('TYPESAFE_API_KEY');
       return res.status(missingKey ? 503 : 502).json({
         error: 'Não foi possível compartilhar sua publicação agora. Tente novamente.'
-      });
-    }
-  });
-
-  app.post('/api/action-street/evaluate-response', async (req, res) => {
-    res.setHeader('Cache-Control', 'no-store');
-    const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
-    if (isRateLimited(`action-street-jev:${clientIp}`, 20, 10 * 60_000)) {
-      return res.status(429).json({ error: 'Muitas tentativas em sequência. Aguarde alguns minutos e tente novamente.' });
-    }
-
-    const missionId = typeof req.body?.missionId === 'string' ? req.body.missionId : '';
-    const stepIndex = typeof req.body?.stepIndex === 'number' && Number.isInteger(req.body.stepIndex) ? req.body.stepIndex : -1;
-    const response = typeof req.body?.response === 'string' ? req.body.response.trim() : '';
-    const city = actionStreetCities.find((item) => item.mission.id === missionId);
-    const step = city && stepIndex >= 0 ? city.mission.steps[stepIndex] : undefined;
-    if (!step || response.length < 2 || response.length > 500) {
-      return res.status(400).json({ error: 'Confira o contexto e responda com uma frase de até 500 caracteres.' });
-    }
-
-    try {
-      const evaluation = await evaluateActionStreetResponse({
-        npcLine: step.npcLine,
-        expectedResponses: step.options.filter((option) => option.isCorrect).map((option) => option.text),
-        response
-      });
-      return res.json(evaluation);
-    } catch (error) {
-      console.error('Action Street free response evaluation failed:', error instanceof Error ? error.name : 'Unknown error');
-      const missingKey = error instanceof Error && error.message.includes('TYPESAFE_API_KEY');
-      return res.status(missingKey ? 503 : 502).json({
-        error: missingKey
-          ? 'A avaliação do Jev não está configurada no servidor. Você ainda pode responder escolhendo uma sugestão.'
-          : 'Não foi possível avaliar sua resposta agora. Tente novamente ou escolha uma sugestão.'
       });
     }
   });

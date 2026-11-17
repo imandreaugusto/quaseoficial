@@ -1,0 +1,104 @@
+[
+  {
+    "id": "ny-times-square-musician",
+    "cityId": "ny",
+    "spotId": "times-square",
+    "character": "Street musician",
+    "line": "Hey, traveler! Glad you stopped to listen. What do you think of the song?",
+    "choices": [
+      {
+        "id": "compliment-and-tip",
+        "text": "Your music is amazing. Keep the change!",
+        "costDollars": 10,
+        "feedback": "The musician smiles and points you toward a quieter path in Central Park.",
+        "reputationChange": 2,
+        "xp": 25,
+        "learnPhrase": "keep-the-change",
+        "unlockRoute": "central-park-after-dark",
+        "journalLabel": "You complimented the musician and left a tip."
+      },
+      {
+        "id": "compliment",
+        "text": "That song is beautiful. Thank you!",
+        "feedback": "The musician thanks you and teaches you a friendly way to praise a performance.",
+        "reputationChange": 1,
+        "xp": 10,
+        "learnPhrase": "sounds-great",
+        "journalLabel": "You thanked a street musician."
+      },
+      {
+        "id": "polite-goodbye",
+        "text": "I have to go, but I enjoyed the music. Take care!",
+        "feedback": "The musician waves goodbye. You can come back another time.",
+        "reputationChange": 0,
+        "xp": 2,
+        "journalLabel": "You said goodbye to the musician."
+      }
+    ]
+  },
+  {
+    "id": "ny-central-park-tourist",
+    "cityId": "ny",
+    "spotId": "central-park",
+    "character": "Lost tourist",
+    "line": "Excuse me! I'm trying to find the subway. Could you help me?",
+    "choices": [
+      {
+        "id": "share-subway-map",
+        "text": "Here, take my subway map. It will help you find the station.",
+        "requiresItem": "subway-map",
+        "consumeItem": "subway-map",
+        "giveItem": "broadway-ticket",
+        "feedback": "The tourist thanks you and gives you a theater ticket they no longer need.",
+        "reputationChange": 2,
+        "xp": 30,
+        "learnPhrase": "you-bet",
+        "journalLabel": "You shared your subway map with a traveler."
+      },
+      {
+        "id": "give-directions",
+        "text": "Walk toward the park exit and follow the signs to the subway.",
+        "feedback": "The tourist thanks you for the directions.",
+        "reputationChange": 1,
+        "xp": 12,
+        "learnPhrase": "follow-the-signs",
+        "journalLabel": "You gave a traveler directions."
+      },
+      {
+        "id": "friendly-decline",
+        "text": "I'm not sure, but I hope you find it!",
+        "feedback": "The tourist smiles and asks another passerby.",
+        "reputationChange": 0,
+        "xp": 2,
+        "journalLabel": "You wished a traveler good luck."
+      }
+    ]
+  },
+  {
+    "id": "ny-dusk-jazz-musician",
+    "cityId": "ny",
+    "spotId": "central-park-after-dark",
+    "requiresRoute": "central-park-after-dark",
+    "character": "Jazz musician",
+    "line": "Evening! The city sounds different at dusk, doesn't it?",
+    "choices": [
+      {
+        "id": "ask-for-song",
+        "text": "It does. Would you play one more song?",
+        "feedback": "The musician plays a short tune and teaches you a warm way to ask for more.",
+        "reputationChange": 1,
+        "xp": 20,
+        "learnPhrase": "one-more-song",
+        "journalLabel": "You listened to a jazz musician at dusk."
+      },
+      {
+        "id": "thank-musician",
+        "text": "It does. Thanks for sharing the music!",
+        "feedback": "The musician nods and wishes you a safe walk.",
+        "reputationChange": 1,
+        "xp": 8,
+        "journalLabel": "You thanked the jazz musician."
+      }
+    ]
+  }
+]

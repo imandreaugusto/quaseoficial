@@ -1798,7 +1798,19 @@ export default function App() {
                   )}
 
                   {currentApp === 'actionstreet' && (
-                    <ActionStreet onClose={() => setCurrentApp('home')} />
+                    <ActionStreet
+                      key={currentUser?.auth_user_id ?? currentUser?.id ?? 'guest'}
+                      currentUser={currentUser ? {
+                        id: currentUser.id,
+                        auth_user_id: currentUser.auth_user_id,
+                        full_name: currentUser.full_name,
+                        first_name: currentUser.first_name,
+                        last_name: currentUser.last_name,
+                        profile_city: currentUser.profile_city,
+                        profile_country: currentUser.profile_country,
+                      } : null}
+                      onClose={() => setCurrentApp('home')}
+                    />
                   )}
 
                   {currentApp === 'brazilianfriends' && (

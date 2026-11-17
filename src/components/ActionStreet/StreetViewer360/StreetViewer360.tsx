@@ -5,6 +5,8 @@ import { journeyStore } from '../../../lib/actionStreet/journeyStore';
 import { persistenceManager } from '../../../lib/actionStreet/persistenceManager';
 import { getDiscoveredSpotIds } from '../../../lib/actionStreet/discovery';
 import { getVisaStatus } from '../../../lib/actionStreet/visa';
+import { chooseLocalChallenge, type LocalChallenge } from '../../../lib/actionStreet/challengeEngine';
+import { appendJournalEntry, createJournalEntry, spendChallengeTicket } from '../../../lib/actionStreet/progression';
 import { useActionStreet } from '../ActionStreetContext';
 import PassportModal, { type PassportTab } from '../Modals/PassportModal';
 import { glass } from '../shared/glass';
@@ -14,7 +16,9 @@ import HUDBottom from './HUDBottom';
 import HUDTop from './HUDTop';
 import MiniMap3D from './MiniMap3D';
 import MissionPanel from './MissionPanel';
+import StreetChallengeModal from './StreetChallengeModal';
 import StreetScene from './StreetScene';
+import TravelCompanion from './TravelCompanion';
 
 export interface StreetResume {
   spotId?: string;
@@ -35,17 +39,24 @@ interface PassportState {
 }
 
 export default function StreetViewer360({ cityId, onBack, onExploreSpot, resume }: Props) {
-  const { state, updateState, getCityData, allCities } = useActionStreet();
+  const { state, updateState, getCityData, allCities, profile, reportActivity } = useActionStreet();
   const city = getCityData(cityId);
-  const [spotId, setSpotId] = useState(() => city?.spots.find((spot) => spot.id === resume?.spotId)?.id ?? city?.spots[0]?.id ?? '');
+  const [spotId, setSpotId] = useState(() =>
+    city?.spots.find((spot) => spot.id === resume?.spotId && (!spot.requiresRoute || state.unlockedRoutes.includes(spot.requiresRoute)))?.id
+    ?? city?.spots.find((spot) => !spot.requiresRoute || state.unlockedRoutes.includes(spot.requiresRoute))?.id
+    ?? city?.spots[0]?.id
+    ?? ''
+  );
   const [hotspotId, setHotspotId] = useState<string | null>(null);
   const [showMission, setShowMission] = useState(() => resume?.openMission === true);
   const [showCamera, setShowCamera] = useState(false);
   const [passport, setPassport] = useState<PassportState | null>(null);
+  const [challenge, setChallenge] = useState<LocalChallenge | null>(null);
   const [streetPreviewUrl, setStreetPreviewUrl] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<HTMLDivElement>(null);
   const traveling = useRef(false);
+  const arrivalRecorded = useRef<string | null>(null);
 
   useEffect(() => {
     const tween = gsap.fromTo(rootRef.current, { opacity: 0, scale: 1.06 }, { opacity: 1, scale: 1, duration: 0.9, ease: 'power2.out', clearProps: 'transform' });
@@ -55,8 +66,13 @@ export default function StreetViewer360({ cityId, onBack, onExploreSpot, resume 
   }, []);
 
   useEffect(() => {
-    updateState((previous) => persistenceManager.visitCity(previous, cityId));
-  }, [cityId, updateState]);
+    if (!city || arrivalRecorded.current === cityId) return;
+    arrivalRecorded.current = cityId;
+    updateState((previous) => appendJournalEntry(
+      persistenceManager.visitCity(previous, cityId),
+      createJournalEntry(cityId, 'arrival', `Arrived in ${city.city}.`)
+    ));
+  }, [cityId, city, updateState]);
 
   useEffect(() => {
     if (spotId) {
@@ -65,12 +81,8 @@ export default function StreetViewer360({ cityId, onBack, onExploreSpot, resume 
   }, [cityId, spotId, updateState]);
 
   useEffect(() => {
-    setStreetPreviewUrl(null);
-  }, [spotId]);
-
-  useEffect(() => {
-    if (spotId) journeyStore.patch({ view: 'street360', cityId, spotId, imageId: spotId === resume?.spotId ? resume.imageId : undefined });
-  }, [cityId, spotId, resume]);
+    if (spotId) journeyStore.patch({ view: 'street360', cityId, spotId, imageId: spotId === resume?.spotId ? resume.imageId : undefined }, profile?.userId);
+  }, [cityId, spotId, resume, profile?.userId]);
 
   const collectedIds = useMemo(() => new Set(state.souvenirs.map((item) => item.id)), [state.souvenirs]);
   const discoveredSpotIds = useMemo(
@@ -88,13 +100,19 @@ export default function StreetViewer360({ cityId, onBack, onExploreSpot, resume 
 
   const travel = (nextSpotId: string) => {
     if (traveling.current || nextSpotId === spot.id) return;
+    const destination = city.spots.find((item) => item.id === nextSpotId);
+    if (!destination || (destination.requiresRoute && !state.unlockedRoutes.includes(destination.requiresRoute))) return;
     traveling.current = true;
-    setStreetPreviewUrl(null);
     gsap.to(sceneRef.current, {
       opacity: 0,
       duration: 0.4,
       onComplete: () => {
         setSpotId(nextSpotId);
+        updateState((previous) => appendJournalEntry(
+          previous,
+          createJournalEntry(cityId, 'arrival', `Visited ${destination.name}.`)
+        ));
+        reportActivity('travel', cityId, nextSpotId);
         gsap.to(sceneRef.current, {
           opacity: 1,
           duration: 0.7,
@@ -115,11 +133,18 @@ export default function StreetViewer360({ cityId, onBack, onExploreSpot, resume 
     onExploreSpot(targetCityId, targetSpotId);
   };
 
+  const startChallenge = () => {
+    const updated = spendChallengeTicket(state);
+    if (!updated) return;
+    updateState(() => updated);
+    const previousChallengeId = [...state.journal].reverse().find((entry) => entry.type === 'challenge')?.detail?.split(':')[0];
+    setChallenge(chooseLocalChallenge(previousChallengeId));
+  };
+
   return (
     <div ref={rootRef} className="absolute inset-0 bg-slate-950 text-white">
       <div ref={sceneRef} className="absolute inset-0">
         <StreetScene
-          key={spot.id}
           city={city}
           spot={spot}
           hotspots={hotspots}
@@ -127,8 +152,8 @@ export default function StreetViewer360({ cityId, onBack, onExploreSpot, resume 
           onHotspot={setHotspotId}
           initialImageId={spot.id === resume?.spotId ? resume.imageId : undefined}
           onImageChange={(imageId, previewUrl) => {
-            journeyStore.patch({ imageId });
-            setStreetPreviewUrl(previewUrl);
+            journeyStore.patch({ imageId }, profile?.userId);
+            if (previewUrl) setStreetPreviewUrl(previewUrl);
           }}
         />
       </div>
@@ -162,17 +187,32 @@ export default function StreetViewer360({ cityId, onBack, onExploreSpot, resume 
         </span>
       </button>
 
-      <HUDBottom key={spot.id} title={guide.title} text={guide.text} />
+      <HUDBottom title={guide.title} text={guide.text} />
       <MiniMap3D
         city={city}
         currentSpotId={spot.id}
         discoveredSpotIds={discoveredSpotIds}
+        unlockedRoutes={state.unlockedRoutes}
         imagePreviewUrl={streetPreviewUrl}
         onTravel={travel}
+      />
+      <TravelCompanion
+        cityId={city.id}
+        spotId={spot.id}
+        paused={Boolean(hotspotId || showMission || showCamera || passport || challenge)}
+        onStartChallenge={startChallenge}
       />
 
       {hotspotId && <VocabularyCard cityId={city.id} hotspotId={hotspotId} onClose={() => setHotspotId(null)} />}
       {showCamera && <PolaroidCamera cityId={city.id} cityName={city.city} spotName={spot.name} onClose={() => setShowCamera(false)} />}
+      {challenge && (
+        <StreetChallengeModal
+          cityId={city.id}
+          spotId={spot.id}
+          challenge={challenge}
+          onClose={() => setChallenge(null)}
+        />
+      )}
       {showMission && (
         <MissionPanel
           cityId={city.id}

@@ -1,0 +1,48 @@
+[
+  {
+    "id": "hot-dog-vendor",
+    "character": "Hot dog vendor",
+    "line": "The vendor asks: \"What would you like on your hot dog?\"",
+    "tip": "Para pedir acompanhamentos, você pode dizer: \"I'd like ... on it, please.\"",
+    "options": [
+      { "text": "Mustard and onions, please.", "correct": true, "response": "Coming right up! You know exactly what you want." },
+      { "text": "I am requesting the yellow condiment.", "correct": false, "response": "Haha, no need to sound like a textbook. Just say \"mustard\"!" },
+      { "text": "Where is the airport?", "correct": false, "response": "The vendor points down the street. Let's try ordering first!" }
+    ]
+  },
+  {
+    "id": "coffee-counter",
+    "character": "Barista",
+    "line": "The barista smiles: \"What can I get started for you?\"",
+    "tip": "Um pedido simples e natural começa com: \"Could I get ...?\"",
+    "options": [
+      { "text": "Could I get a small coffee, please?", "correct": true, "response": "You got it! That was friendly and natural." },
+      { "text": "I demand one coffee immediately.", "correct": false, "response": "Whoa, Shakespeare! A relaxed \"Could I get...\" works better here." },
+      { "text": "I am coffee.", "correct": false, "response": "The barista laughs kindly. Try asking for a coffee instead." }
+    ]
+  },
+  {
+    "id": "subway-platform",
+    "character": "Helpful commuter",
+    "line": "A commuter asks: \"Are you looking for the downtown train?\"",
+    "tip": "Para aceitar uma ajuda, uma resposta natural é: \"Yes, please. That would be great.\"",
+    "options": [
+      { "text": "Yes, please. That would be great!", "correct": true, "response": "Happy to help! The commuter points to the right platform." },
+      { "text": "I am requiring the underground transportation.", "correct": false, "response": "That is quite formal! Try \"the train\" or \"the subway\" instead." },
+      { "text": "No, I am a platform.", "correct": false, "response": "The commuter smiles. You're a traveler, not a platform! Try again next time." }
+    ]
+  },
+  {
+    "id": "listening-uptown-train",
+    "kind": "listening",
+    "character": "Subway announcement",
+    "line": "Listen to the announcement and choose what it means.",
+    "audioText": "The uptown train is arriving on the downtown platform.",
+    "tip": "\"Uptown\" aponta para o norte de Manhattan; \"downtown\" é a região sul.",
+    "options": [
+      { "text": "O trem para o norte está chegando na plataforma sentido sul.", "correct": true, "response": "That's right! You caught both directions in the announcement." },
+      { "text": "O trem para o sul está chegando na plataforma sentido norte.", "correct": false, "response": "Close! Listen for the difference between uptown and downtown." },
+      { "text": "O trem está saindo da estação sem passageiros.", "correct": false, "response": "Not quite. Listen for the direction words in the announcement." }
+    ]
+  }
+]

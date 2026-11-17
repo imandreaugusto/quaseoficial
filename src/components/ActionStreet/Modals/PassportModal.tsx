@@ -1,17 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
-import { BookOpen, Backpack, Lock, X } from 'lucide-react';
+import { BookOpen, Backpack, Lock, ScrollText, X } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import gsap from 'gsap';
+import { getAdventureItem, getAdventurePhrase } from '../../../lib/actionStreet/adventureCatalog';
 import { getVisaStatus } from '../../../lib/actionStreet/visa';
 import { useActionStreet } from '../ActionStreetContext';
 import { glass } from '../shared/glass';
 import DiscoveryAtlas from './DiscoveryAtlas';
+import TravelJournal from './TravelJournal';
 import StampBadge from '../shared/StampBadge';
 import StreakChip from '../shared/StreakChip';
 import VisaNotice from './VisaNotice';
 import VisaRenewalQuiz from './VisaRenewalQuiz';
 
-export type PassportTab = 'stamps' | 'backpack';
+export type PassportTab = 'stamps' | 'backpack' | 'journal';
 export interface PassportHighlight {
   stampId: string;
   kind: 'earn' | 'renew';
@@ -81,6 +83,7 @@ export default function PassportModal({ initialTab, highlight: initialHighlight,
   }, [highlight, tab]);
 
   const earnedByCity = new Map(state.stamps.map((stamp) => [stamp.cityId, stamp]));
+  const cityNames = new Map(allCities.map((city) => [city.id, city.city]));
   const expiredCities = allCities
     .map((city) => ({ city, visa: getVisaStatus(state, city.id) }))
     .filter(({ visa }) => visa.hasStamp && visa.expired);
@@ -109,10 +112,11 @@ export default function PassportModal({ initialTab, highlight: initialHighlight,
 
         <StreakChip count={state.streak.count} className="relative mb-4" />
 
-        <div className={`relative mb-5 grid grid-cols-2 gap-1 p-1 ${glass.chip}`} role="tablist">
+        <div className={`relative mb-5 grid grid-cols-3 gap-1 p-1 ${glass.chip}`} role="tablist">
           {([
             ['stamps', 'Carimbos', BookOpen],
-            ['backpack', 'Coleção', Backpack],
+            ['backpack', 'Mochila', Backpack],
+            ['journal', 'Diário', ScrollText],
           ] as const).map(([id, label, Icon]) => (
             <button
               key={id}
@@ -159,8 +163,59 @@ export default function PassportModal({ initialTab, highlight: initialHighlight,
               </div>
             )}
           </div>
+        ) : tab === 'backpack' ? (
+          <div className="relative space-y-5">
+            <section aria-label="Itens de viagem">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <h3 className="font-black">Itens de viagem</h3>
+                <span className={glass.label}>{state.inventory.length}</span>
+              </div>
+              {state.inventory.length ? (
+                <ul className="grid gap-2 sm:grid-cols-2">
+                  {state.inventory.map((itemId) => {
+                    const item = getAdventureItem(itemId);
+                    return (
+                      <li key={itemId} className={`rounded-2xl px-4 py-3 ${glass.chip}`}>
+                        <p className="font-bold">{item.name}</p>
+                        {item.translation && <p className="mt-1 text-xs text-white/55">{item.translation}</p>}
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p className={`rounded-2xl px-4 py-4 text-sm text-white/55 ${glass.chip}`}>Os itens que você ganhar em conversas aparecerão aqui.</p>
+              )}
+            </section>
+
+            <section aria-label="Expressões aprendidas">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <h3 className="font-black">Expressões aprendidas</h3>
+                <span className={glass.label}>{state.learnedPhrases.length}</span>
+              </div>
+              {state.learnedPhrases.length ? (
+                <ul className="grid gap-2 sm:grid-cols-2">
+                  {state.learnedPhrases.map((phraseId) => {
+                    const phrase = getAdventurePhrase(phraseId);
+                    return (
+                      <li key={phraseId} className={`rounded-2xl px-4 py-3 ${glass.chip}`}>
+                        <p className="font-bold">{phrase.phrase}</p>
+                        {phrase.translation && <p className="mt-1 text-xs text-white/55">{phrase.translation}</p>}
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p className={`rounded-2xl px-4 py-4 text-sm text-white/55 ${glass.chip}`}>As expressões que você aprender em conversas aparecerão aqui.</p>
+              )}
+            </section>
+
+            <section aria-label="Atlas de descobertas">
+              <h3 className="mb-2 font-black">Atlas de descobertas</h3>
+              <DiscoveryAtlas onExploreSpot={onExploreSpot} />
+            </section>
+          </div>
         ) : (
-          <DiscoveryAtlas onExploreSpot={onExploreSpot} />
+          <TravelJournal state={state} cityNames={cityNames} />
         )}
       </div>
 

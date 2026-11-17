@@ -1,43 +1,89 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { ActionStreetState, SpeechRate } from '../../types/actionStreet';
+import type { UserProfile } from '../../types';
 import { journeyStore } from '../../lib/actionStreet/journeyStore';
 import { persistenceManager } from '../../lib/actionStreet/persistenceManager';
 import { actionStreetCities } from '../../data/actionStreetCities';
-import { ActionStreetContext, type ActionStreetContextType } from './ActionStreetContext';
+import { hasSeenFirstMissionIntro, markFirstMissionIntroSeen } from '../../lib/actionStreet/firstMissionIntro';
+import { hasLegacySaveToImport, importLegacySave, recordLegacySaveDecision } from '../../lib/actionStreet/legacySave';
+import { refreshChallengeTickets } from '../../lib/actionStreet/progression';
+import { ActionStreetContext, type ActionStreetActivity, type ActionStreetActivityKind, type ActionStreetContextType } from './ActionStreetContext';
 import LobbyEmbarque from './Lobby/LobbyEmbarque';
 import StreetViewer360, { type StreetResume } from './StreetViewer360/StreetViewer360';
 import Map3DExplorer from './Map3D/Map3DExplorer';
+import FirstMissionIntro from './FirstMissionIntro';
+import { glass } from './shared/glass';
 
 interface Props {
   onClose?: () => void;
+  currentUser: Pick<
+    UserProfile,
+    'id' | 'auth_user_id' | 'full_name' | 'first_name' | 'last_name' | 'profile_city' | 'profile_country'
+  > | null;
 }
 
 type ViewType = 'lobby' | 'map3d' | 'street360';
 
 const cities = actionStreetCities;
 
-export default function ActionStreet({ onClose }: Props) {
-  const [state, setState] = useState<ActionStreetState>(() => persistenceManager.loadState());
+export default function ActionStreet({ onClose, currentUser }: Props) {
+  const fullNameParts = currentUser?.full_name?.trim().split(/\s+/).filter(Boolean) ?? [];
+  const profile = currentUser
+    ? {
+        userId: currentUser.auth_user_id || currentUser.id,
+        firstName: currentUser.first_name?.trim() || fullNameParts[0] || '',
+        lastName: currentUser.last_name?.trim() || fullNameParts.slice(1).join(' '),
+        city: currentUser.profile_city?.trim() || '',
+        country: currentUser.profile_country?.trim() || '',
+      }
+    : null;
+  const userId = profile?.userId;
+  const [state, setState] = useState<ActionStreetState>(() => persistenceManager.loadState(userId));
+  const [soundEnabled, setSoundEnabled] = useState(true);
   const [speechRate, setSpeechRate] = useState<SpeechRate>(1);
-  const [savedJourney] = useState(() => journeyStore.load());
+  const [savedJourney, setSavedJourney] = useState(() => journeyStore.load(userId));
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [view, setView] = useState<ViewType>('lobby');
   const [selectedCity, setSelectedCity] = useState<string>('ny');
   const [streetResume, setStreetResume] = useState<StreetResume | null>(null);
+  const [firstMissionIntro, setFirstMissionIntro] = useState<{ userId: string; cityId: string } | null>(null);
+  const [showLegacyImport, setShowLegacyImport] = useState(() => Boolean(userId && hasLegacySaveToImport(userId)));
+  const [legacyImportNotice, setLegacyImportNotice] = useState('');
+  const [activity, setActivity] = useState<ActionStreetActivity | null>(null);
+  const activitySequence = useRef(0);
 
   useEffect(() => {
-    persistenceManager.saveState(state);
-  }, [state]);
+    if (showLegacyImport) return;
+    persistenceManager.saveState(state, userId);
+  }, [state, userId, showLegacyImport]);
 
   useEffect(() => {
     setState((previous) => persistenceManager.registerDailyVisit(previous));
+  }, []);
+
+  useEffect(() => {
+    if (!userId) return;
+    setShowLegacyImport(hasLegacySaveToImport(userId));
+  }, [userId]);
+
+  useEffect(() => {
+    setState((previous) => {
+      const tickets = refreshChallengeTickets(previous.tickets);
+      return tickets.available === previous.tickets.available && tickets.lastRefillAt === previous.tickets.lastRefillAt
+        ? previous
+        : { ...previous, tickets };
+    });
   }, []);
 
   const updateState = useCallback(
     (updater: (previous: ActionStreetState) => ActionStreetState) => setState(updater),
     []
   );
+  const reportActivity = useCallback((kind: ActionStreetActivityKind, cityId: string, spotId?: string, elapsedMs?: number) => {
+    activitySequence.current += 1;
+    setActivity({ id: activitySequence.current, kind, cityId, spotId, elapsedMs, at: Date.now() });
+  }, []);
 
   const contextValue = useMemo<ActionStreetContextType>(
     () => ({
@@ -45,10 +91,15 @@ export default function ActionStreet({ onClose }: Props) {
       updateState,
       getCityData: (cityId: string) => cities.find((city) => city.id === cityId),
       allCities: cities,
+      profile,
+      activity,
+      reportActivity,
+      soundEnabled,
+      setSoundEnabled,
       speechRate,
       setSpeechRate,
     }),
-    [state, updateState, speechRate]
+    [state, updateState, profile?.userId, profile?.firstName, profile?.lastName, profile?.city, profile?.country, activity, reportActivity, soundEnabled, speechRate]
   );
 
   const resumableCity =
@@ -59,7 +110,7 @@ export default function ActionStreet({ onClose }: Props) {
   const goTo = (nextView: ViewType, cityId?: string) => {
     if (cityId) setSelectedCity(cityId);
     setView(nextView);
-    journeyStore.patch({ view: nextView, ...(cityId ? { cityId } : {}) });
+    journeyStore.patch({ view: nextView, ...(cityId ? { cityId } : {}) }, userId);
   };
 
   const continueJourney = () => {
@@ -71,7 +122,47 @@ export default function ActionStreet({ onClose }: Props) {
 
   const dismissJourney = () => {
     setBannerDismissed(true);
-    journeyStore.patch({ view: 'lobby' });
+    journeyStore.patch({ view: 'lobby' }, userId);
+  };
+
+  const chooseLegacyImport = (shouldImport: boolean) => {
+    if (!userId) return;
+    if (shouldImport) {
+      const imported = importLegacySave(userId);
+      if (imported.state) setState(imported.state);
+      if (imported.journey) setSavedJourney(imported.journey);
+      setLegacyImportNotice(imported.state || imported.journey
+        ? 'Progresso antigo copiado para esta conta. O save original continua neste navegador.'
+        : 'Não foi possível importar o save antigo. Seu progresso novo continuará separado.');
+      if (!imported.state && !imported.journey) {
+        setShowLegacyImport(false);
+        return;
+      }
+      recordLegacySaveDecision(userId, 'imported');
+    } else {
+      recordLegacySaveDecision(userId, 'skipped');
+      setLegacyImportNotice('Vamos começar com um save separado. O progresso antigo foi preservado neste navegador.');
+    }
+    setShowLegacyImport(false);
+  };
+
+  const boardCity = (cityId: string, spotId?: string, openMission = false) => {
+    setFirstMissionIntro(null);
+    setStreetResume(openMission ? { openMission: true } : spotId ? { spotId } : null);
+    goTo('map3d', cityId);
+  };
+
+  const requestBoarding = (cityId: string, spotId?: string) => {
+    const userId = profile?.userId;
+    const isFirstMission = cityId === 'ny'
+      && !spotId
+      && Boolean(userId)
+      && !hasSeenFirstMissionIntro(userId);
+    if (isFirstMission && userId) {
+      setFirstMissionIntro({ userId, cityId });
+      return;
+    }
+    boardCity(cityId, spotId);
   };
 
   const exploreSpot = (cityId: string, spotId: string) => {
@@ -83,12 +174,25 @@ export default function ActionStreet({ onClose }: Props) {
   return createPortal(
     <ActionStreetContext.Provider value={contextValue}>
       <div className="fixed inset-0 z-30 overflow-hidden bg-slate-950">
+        {view === 'lobby' && showLegacyImport && profile && (
+          <div className={`absolute inset-0 z-[80] flex items-center justify-center p-4 ${glass.backdrop}`}>
+            <section role="dialog" aria-modal="true" aria-labelledby="legacy-save-title" className={`w-full max-w-lg p-6 text-white ${glass.panelOverImagery}`}>
+              <p className={glass.label}>Action Street · save antigo</p>
+              <h2 id="legacy-save-title" className="mt-1 text-xl font-black">Encontramos um progresso anterior neste navegador</h2>
+              <p className="mt-3 text-sm leading-relaxed text-white/75">
+                Você pode copiar esse progresso para esta conta ou começar um save individual. A cópia original não será apagada; saves novos ficam separados por conta neste navegador e não são sincronizados entre dispositivos.
+              </p>
+              {legacyImportNotice && <p className="mt-3 text-xs text-sky-100" role="status">{legacyImportNotice}</p>}
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <button type="button" onClick={() => chooseLegacyImport(true)} className={glass.primaryButton}>Importar uma cópia</button>
+                <button type="button" onClick={() => chooseLegacyImport(false)} className={glass.secondaryButton}>Começar save individual</button>
+              </div>
+            </section>
+          </div>
+        )}
         {view === 'lobby' && (
           <LobbyEmbarque
-            onBoard={(cityId, spotId) => {
-              setStreetResume(spotId ? { spotId } : null);
-              goTo('map3d', cityId);
-            }}
+            onBoard={requestBoarding}
             onWalk={(cityId) => {
               setStreetResume(null);
               goTo('street360', cityId);
@@ -96,11 +200,17 @@ export default function ActionStreet({ onClose }: Props) {
             onClose={() => onClose?.()}
             initialCamera={savedJourney?.lobbyCamera}
             resume={resumableCity ? { cityName: resumableCity.city, onContinue: continueJourney, onDismiss: dismissJourney } : undefined}
+            legacyImportNotice={legacyImportNotice}
           />
         )}
 
         {view === 'map3d' && (
-          <Map3DExplorer key={selectedCity} cityId={selectedCity} onComplete={() => goTo('street360')} onBack={() => goTo('lobby')} />
+          <Map3DExplorer
+            key={selectedCity}
+            cityId={selectedCity}
+            onComplete={() => goTo('street360')}
+            onBack={() => goTo('lobby')}
+          />
         )}
 
         {view === 'street360' && (
@@ -110,6 +220,21 @@ export default function ActionStreet({ onClose }: Props) {
             resume={streetResume ?? undefined}
             onBack={() => goTo('lobby')}
             onExploreSpot={exploreSpot}
+          />
+        )}
+
+        {view === 'lobby' && firstMissionIntro && profile && (
+          <FirstMissionIntro
+            profile={profile}
+            destination={cities.find((city) => city.id === firstMissionIntro.cityId) ?? cities[0]}
+            onSkip={() => {
+              markFirstMissionIntroSeen(firstMissionIntro.userId);
+              boardCity(firstMissionIntro.cityId, undefined, true);
+            }}
+            onStart={() => {
+              markFirstMissionIntroSeen(firstMissionIntro.userId);
+              boardCity(firstMissionIntro.cityId, undefined, true);
+            }}
           />
         )}
       </div>

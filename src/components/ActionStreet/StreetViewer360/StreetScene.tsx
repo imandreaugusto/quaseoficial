@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Check, ImageOff, Sparkles } from 'lucide-react';
 import 'mapillary-js/dist/mapillary.css';
+import type { Viewer as MapillaryViewer } from 'mapillary-js';
 import type { City, Hotspot, Spot } from '../../../types/actionStreet';
 import { MAPILLARY_ATTRIBUTION, findNearestImage, getMapillaryImageById, getMapillaryToken, type MapillaryStreetImage } from '../../../lib/actionStreet/mapillaryConfig';
 import { routeAnimations } from '../../../lib/actionStreet/routeAnimations';
@@ -76,34 +77,87 @@ function MapillaryLayer({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const imageChangeRef = useRef(onImageChange);
+  const statusRef = useRef(onStatus);
+  const spotRef = useRef(spot);
+  const initialImageIdRef = useRef(initialImageId);
+  const viewerRef = useRef<MapillaryViewer | null>(null);
+  const currentImageId = useRef('');
+  const activeSpotId = useRef<string | null>(null);
+  const moveSequence = useRef(0);
+  const thumbnailSequence = useRef(0);
+  const imageReadyTimeout = useRef<number | undefined>(undefined);
 
-  useEffect(() => {
-    imageChangeRef.current = onImageChange;
-  }, [onImageChange]);
+  imageChangeRef.current = onImageChange;
+  statusRef.current = onStatus;
+  spotRef.current = spot;
+  initialImageIdRef.current = initialImageId;
+
+  const resolveImage = useCallback(async (targetSpot: Spot, preferredImageId?: string) => {
+    const savedImageId = targetSpot.imageId ?? preferredImageId;
+    let image: MapillaryStreetImage | null = null;
+    if (savedImageId) {
+      try {
+        image = await getMapillaryImageById(token, savedImageId);
+      } catch {
+        console.warn('A imagem Mapillary salva não está disponível; buscando a mais próxima.');
+      }
+    }
+    return image ?? findNearestImage(token, targetSpot.coordinates);
+  }, [token]);
+
+  const clearImageTimeout = () => {
+    if (imageReadyTimeout.current !== undefined) window.clearTimeout(imageReadyTimeout.current);
+    imageReadyTimeout.current = undefined;
+  };
+
+  const startImageTimeout = () => {
+    clearImageTimeout();
+    imageReadyTimeout.current = window.setTimeout(() => {
+      statusRef.current('error', 'O Mapillary não concluiu o carregamento 360º. A foto real mais próxima continua exibida.');
+    }, 15_000);
+  };
+
+  const moveToSpot = useCallback((targetSpot: Spot, preferredImageId?: string) => {
+    const viewer = viewerRef.current;
+    if (!viewer) return;
+    activeSpotId.current = targetSpot.id;
+    const sequence = ++moveSequence.current;
+    statusRef.current('loading');
+    startImageTimeout();
+
+    void resolveImage(targetSpot, preferredImageId)
+      .then(async (image) => {
+        if (sequence !== moveSequence.current) return;
+        if (!image) throw new Error('Nenhuma imagem do Mapillary foi encontrada perto deste local.');
+        currentImageId.current = image.id;
+        imageChangeRef.current?.(image.id, image.thumbnailUrl);
+        await viewer.moveTo(image.id);
+        if (sequence !== moveSequence.current) return;
+        clearImageTimeout();
+        statusRef.current('ready');
+      })
+      .catch((reason: unknown) => {
+        if (sequence !== moveSequence.current) return;
+        clearImageTimeout();
+        const message = reason instanceof Error ? reason.message : 'Falha inesperada ao carregar o Mapillary.';
+        statusRef.current('error', message);
+      });
+  }, [resolveImage]);
+  const moveToSpotRef = useRef(moveToSpot);
+  moveToSpotRef.current = moveToSpot;
 
   useEffect(() => {
     let cancelled = false;
-    let viewer: { remove: () => void } | null = null;
-    let imageReadyTimeout: number | undefined;
-    let currentImageId = '';
-    onStatus('loading');
+    statusRef.current('loading');
 
     (async () => {
       try {
-        const savedImageId = spot.imageId ?? initialImageId;
-        let image: MapillaryStreetImage | null = null;
-        if (savedImageId) {
-          try {
-            image = await getMapillaryImageById(token, savedImageId);
-          } catch {
-            console.warn('A imagem Mapillary salva não está disponível; buscando a mais próxima.');
-          }
-        }
-        if (!image) image = await findNearestImage(token, spot.coordinates);
+        const requestedSpot = spotRef.current;
+        const image = await resolveImage(requestedSpot, initialImageIdRef.current);
         if (!image) throw new Error('Nenhuma imagem do Mapillary foi encontrada perto deste local.');
         const { Viewer } = await import('mapillary-js');
         if (cancelled || !containerRef.current) return;
-        currentImageId = image.id;
+        currentImageId.current = image.id;
         imageChangeRef.current?.(image.id, image.thumbnailUrl);
         const created = new Viewer({
           accessToken: token,
@@ -111,43 +165,63 @@ function MapillaryLayer({
           imageId: image.id,
           component: { cover: false, sequence: true, direction: true, keyboard: true },
         });
-        imageReadyTimeout = window.setTimeout(() => {
-          if (!cancelled) onStatus('error', 'O Mapillary não concluiu o carregamento 360º. A foto real mais próxima continua exibida.');
-        }, 15_000);
+        viewerRef.current = created;
+        activeSpotId.current = requestedSpot.id;
+        startImageTimeout();
         created.on('image', (event) => {
-          if (cancelled || currentImageId === event.image.id) return;
-          currentImageId = event.image.id;
+          if (cancelled || currentImageId.current === event.image.id) return;
+          currentImageId.current = event.image.id;
+          const sequence = ++thumbnailSequence.current;
           imageChangeRef.current?.(event.image.id, null);
           void getMapillaryImageById(token, event.image.id)
             .then((nextImage) => {
-              if (!cancelled && currentImageId === nextImage.id) {
+              if (!cancelled && sequence === thumbnailSequence.current && currentImageId.current === nextImage.id) {
                 imageChangeRef.current?.(nextImage.id, nextImage.thumbnailUrl);
+                clearImageTimeout();
+                statusRef.current('ready');
               }
             })
             .catch((reason: unknown) => {
               console.error('Não foi possível carregar a miniatura Mapillary desta imagem.', reason);
+              if (!cancelled && sequence === thumbnailSequence.current) {
+                clearImageTimeout();
+                statusRef.current('ready');
+              }
             });
         });
         created.on('load', () => {
           if (cancelled) return;
-          window.clearTimeout(imageReadyTimeout);
-          onStatus('ready');
+          clearImageTimeout();
+          statusRef.current('ready');
         });
-        viewer = created;
+        if (spotRef.current.id !== requestedSpot.id) {
+          moveToSpotRef.current(spotRef.current, initialImageIdRef.current);
+        }
       } catch (reason) {
         if (!cancelled) {
           const message = reason instanceof Error ? reason.message : 'Falha inesperada ao carregar o Mapillary.';
-          onStatus('error', message);
+          statusRef.current('error', message);
         }
       }
     })();
 
     return () => {
       cancelled = true;
-      window.clearTimeout(imageReadyTimeout);
-      viewer?.remove();
+      moveSequence.current += 1;
+      thumbnailSequence.current += 1;
+      clearImageTimeout();
+      viewerRef.current?.remove();
+      viewerRef.current = null;
+      activeSpotId.current = null;
     };
-  }, [spot, token, initialImageId, onStatus]);
+  }, [token, resolveImage]);
+
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer) return;
+    if (activeSpotId.current === spot.id) return;
+    moveToSpotRef.current(spot, initialImageId);
+  }, [spot.id, initialImageId]);
 
   return <div ref={containerRef} className="absolute inset-0 bg-slate-950" />;
 }
@@ -197,7 +271,7 @@ export default function StreetScene({ city, spot, hotspots, collectedIds, onHots
     setViewerError(nextStatus === 'error' ? message ?? 'Não foi possível carregar as imagens reais do Mapillary.' : '');
   }, []);
   const handleImageChange = useCallback((imageId: string, imageUrl: string | null) => {
-    setPreviewUrl(imageUrl);
+    if (imageUrl) setPreviewUrl(imageUrl);
     onImageChange?.(imageId, imageUrl);
   }, [onImageChange]);
 

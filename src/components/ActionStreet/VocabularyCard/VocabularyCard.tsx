@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, Coins, Gift, Volume2, X } from 'lucide-react';
 import { persistenceManager } from '../../../lib/actionStreet/persistenceManager';
+import { addInventoryItem, appendJournalEntry, awardXp, createJournalEntry } from '../../../lib/actionStreet/progression';
 import { routeAnimations } from '../../../lib/actionStreet/routeAnimations';
 import { useActionStreet } from '../ActionStreetContext';
 import ClickableText from '../shared/ClickableText';
@@ -26,11 +27,12 @@ function speak(text: string, rate: number) {
 }
 
 export default function VocabularyCard({ cityId, hotspotId, onClose }: Props) {
-  const { state, updateState, getCityData, speechRate, setSpeechRate } = useActionStreet();
+  const { state, updateState, getCityData, speechRate, setSpeechRate, reportActivity } = useActionStreet();
   const city = getCityData(cityId);
   const hotspot = city?.hotspots.find((item) => item.id === hotspotId);
   const cardRef = useRef<HTMLDivElement>(null);
   const iconRef = useRef<HTMLSpanElement>(null);
+  const openedAt = useRef(Date.now());
   const [collecting, setCollecting] = useState(false);
 
   const alreadyCollected = state.souvenirs.some((item) => item.id === souvenirId(cityId, hotspotId));
@@ -61,15 +63,22 @@ export default function VocabularyCard({ cityId, hotspotId, onClose }: Props) {
     const award = () => {
       updateState((previous) => {
         if (previous.souvenirs.some((item) => item.id === id)) return previous;
-        const withItem = persistenceManager.addSouvenir(previous, {
+        let updated = persistenceManager.addSouvenir(previous, {
           id,
           icon: hotspot.souvenirIcon,
           label: hotspot.word,
           fromCity: city.stateName,
           collectedAt: Date.now(),
         });
-        return persistenceManager.updateBalance(withItem, hotspot.rewardDollars);
+        updated = persistenceManager.updateBalance(updated, hotspot.rewardDollars);
+        updated = awardXp(updated, 10);
+        if (hotspot.inventoryItemId) updated = addInventoryItem(updated, hotspot.inventoryItemId);
+        return appendJournalEntry(
+          updated,
+          createJournalEntry(cityId, 'collectible', `You collected "${hotspot.word}".`, `${city.city} · +${hotspot.rewardDollars} Action Dollars · +10 XP`)
+        );
       });
+      reportActivity('collectible', cityId, hotspot.id, Date.now() - openedAt.current);
       onClose();
     };
 
