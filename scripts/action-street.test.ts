@@ -11,12 +11,23 @@ import { getTouristLevelProgress, refreshChallengeTickets, spendChallengeTicket 
 import { dayKey, emptyStreak, registerVisit, streakMultiplier } from '../src/lib/actionStreet/streak';
 import { VISA_VALIDITY_MS, buildRenewalQuiz, getVisaStatus, recordVisit, renewVisa } from '../src/lib/actionStreet/visa';
 import {
+  buildGoogleMapsFallbackEmbedUrl,
   buildGoogleMapsStreetViewUrl,
   buildGoogleMapsViewEmbedUrl,
   buildGoogleStreetViewEmbedUrl,
 } from '../src/lib/actionStreet/googleMapsConfig';
 import { getVisibleDestinationIds } from '../src/lib/actionStreet/destinationVisibility';
+import { lookupDictionary } from '../src/lib/translator';
+import {
+  hasCompletedVisaOnboarding,
+  loadVisaOnboardingRecord,
+  matchesDs160Answer,
+  saveVisaOnboardingRecord,
+  visaOnboardingCompletedKey,
+  visaOnboardingStorageKey,
+} from '../src/lib/actionStreet/visaOnboarding';
 import actionStreetData from '../src/data/actionStreetData.json';
+import visaInterviewData from '../src/data/visaInterviewData.json';
 import { getActionStreetReminderSlot } from '../src/lib/actionStreet/reminderSchedule';
 import { hasLegacySaveToImport, importLegacySave, recordLegacySaveDecision } from '../src/lib/actionStreet/legacySave';
 import { getSecretMissionOptions, loadSecretMissions, PAGER_TRIGGER_DELAY_MS, PAGER_UNLOCK_DELAY_MS, SECRET_MISSION_COUNT } from '../src/lib/actionStreet/secretPager';
@@ -413,11 +424,23 @@ test('Google Maps satellite embed rejects missing keys and invalid coordinates',
   assert.equal(buildGoogleMapsViewEmbedUrl('maps-key', [-73.973, 91]), null);
 });
 
+test('Google Maps satellite fallback stays embedded when no API key is configured', () => {
+  const url = new URL(buildGoogleMapsFallbackEmbedUrl([-73.9857, 40.7484]) ?? '');
+  assert.equal(url.origin, 'https://maps.google.com');
+  assert.equal(url.searchParams.get('q'), '40.7484,-73.9857');
+  assert.equal(url.searchParams.get('t'), 'k');
+  assert.equal(url.searchParams.get('output'), 'embed');
+  assert.equal(buildGoogleMapsFallbackEmbedUrl([Number.NaN, 40.7484]), null);
+});
+
 test('New York arrival and mission point to their corresponding map locations', () => {
   const newYork = actionStreetData.states.find((city) => city.id === 'ny');
   assert.ok(newYork);
-  assert.equal(newYork.spots.find((spot) => spot.id === newYork.arrivalSpotId)?.name, 'John F. Kennedy International Airport');
-  assert.equal(newYork.spots.find((spot) => spot.id === newYork.mission.locationSpotId)?.name, 'Times Square');
+  const arrivalSpot = newYork.spots.find((spot) => spot.id === newYork.arrivalSpotId);
+  const missionSpot = newYork.spots.find((spot) => spot.id === newYork.mission.locationSpotId);
+  assert.equal(arrivalSpot?.id, 'jfk-airport');
+  assert.deepEqual(arrivalSpot?.coordinates, [-73.7826336, 40.6447978]);
+  assert.equal(missionSpot?.id, 'times-square');
 });
 
 test('lobby limits locked destinations to four until the rest are revealed', () => {
@@ -426,6 +449,74 @@ test('lobby limits locked destinations to four until the rest are revealed', () 
   const allVisible = getVisibleDestinationIds(cities, ['city-0', 'city-1'], 'city-1', true);
   assert.deepEqual(visible, ['city-0', 'city-1', 'city-2', 'city-3', 'city-4', 'city-7']);
   assert.equal(allVisible.length, cities.length);
+});
+
+test('visa onboarding stores completion and passport stamps per account locally', () => {
+  const previousWindow = globalThis.window;
+  const stored = new Map<string, string>();
+  Object.defineProperty(globalThis, 'window', {
+    configurable: true,
+    value: {
+      localStorage: {
+        getItem: (key: string) => stored.get(key) ?? null,
+        setItem: (key: string, value: string) => stored.set(key, value),
+      },
+    },
+  });
+  try {
+    const record = {
+      hasCompletedOnboarding: true as const,
+      purpose: 'tourism' as const,
+      intendedStay: '2-weeks' as const,
+      destination: 'new-york-city' as const,
+      visaApprovedAt: 1_000,
+      admittedAt: 2_000,
+    };
+    assert.notEqual(visaOnboardingStorageKey('auth-user-1'), visaOnboardingStorageKey('auth-user-2'));
+    assert.equal(hasCompletedVisaOnboarding('auth-user-1'), false);
+    assert.equal(saveVisaOnboardingRecord('auth-user-1', record), true);
+    assert.equal(stored.get(visaOnboardingCompletedKey('auth-user-1')), 'true');
+    assert.equal(hasCompletedVisaOnboarding('auth-user-1'), true);
+    assert.deepEqual(loadVisaOnboardingRecord('auth-user-1'), record);
+    assert.equal(hasCompletedVisaOnboarding('auth-user-2'), false);
+    stored.set(visaOnboardingStorageKey('auth-user-2'), JSON.stringify({ ...record, hasCompletedOnboarding: false }));
+    stored.set(visaOnboardingCompletedKey('auth-user-2'), 'true');
+    assert.equal(hasCompletedVisaOnboarding('auth-user-2'), false);
+    assert.equal(loadVisaOnboardingRecord('auth-user-2'), null);
+  } finally {
+    if (previousWindow) Object.defineProperty(globalThis, 'window', { configurable: true, value: previousWindow });
+    else Reflect.deleteProperty(globalThis, 'window');
+  }
+});
+
+test('visa onboarding interview data includes the DS-160 checks and JFK question', () => {
+  assert.equal(visaInterviewData.ds160.purposeOptions.length, 2);
+  assert.equal(visaInterviewData.ds160.stayOptions.length, 3);
+  assert.equal(visaInterviewData.consularInterview.questions.length, 3);
+  assert.ok(visaInterviewData.consularInterview.questions.every((question) => question.options.length > 1));
+  assert.ok(visaInterviewData.airportImmigration.options.some((option) => option.correct));
+});
+
+test('visa interview prompts have local translations for each clickable word', () => {
+  const prompts = [
+    ...visaInterviewData.consularInterview.questions.map((question) => question.prompt.replace(/\{\{[^}]+\}\}/g, '')),
+    visaInterviewData.airportImmigration.prompt,
+  ];
+  const words = new Set(
+    prompts.flatMap((prompt) => prompt.split(/\s+/).map((token) => token.toLowerCase().replace(/[^a-z']/g, ''))).filter(Boolean)
+  );
+  for (const word of words) {
+    assert.ok(visaInterviewData.wordTranslations[word] || lookupDictionary(word), `Missing local translation for "${word}"`);
+  }
+});
+
+test('consular purpose and stay responses must match the DS-160 selections', () => {
+  const answers = { purpose: 'tourism' as const, intendedStay: '2-weeks' as const };
+  assert.equal(matchesDs160Answer('purpose', 'tourism', answers), true);
+  assert.equal(matchesDs160Answer('purpose', 'business', answers), false);
+  assert.equal(matchesDs160Answer('stayDuration', '2-weeks', answers), true);
+  assert.equal(matchesDs160Answer('stayDuration', '10-days', answers), false);
+  assert.equal(matchesDs160Answer('unknown', 'tourism', answers), false);
 });
 
 test('Google Maps Street View link opens the selected coordinates without an embed key', () => {

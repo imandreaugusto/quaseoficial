@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { Banknote, BookMarked, BookOpen, Backpack, Lock, ScrollText, X } from 'lucide-react';
+import { Banknote, BookMarked, BookOpen, Backpack, Lock, ScrollText, ShieldCheck, X } from 'lucide-react';
 import gsap from 'gsap';
 import { getAdventureItem, getAdventurePhrase } from '../../../lib/actionStreet/adventureCatalog';
+import { loadVisaOnboardingRecord } from '../../../lib/actionStreet/visaOnboarding';
 import { getVisaStatus } from '../../../lib/actionStreet/visa';
 import { useActionStreet } from '../ActionStreetContext';
 import { glass } from '../shared/glass';
@@ -28,7 +29,7 @@ interface Props {
 }
 
 export default function PassportModal({ initialTab, highlight: initialHighlight, onClose, onExploreSpot }: Props) {
-  const { state, allCities, speechRate } = useActionStreet();
+  const { state, allCities, speechRate, profile } = useActionStreet();
   const [tab, setTab] = useState<PassportTab>(initialTab);
   const [highlight, setHighlight] = useState<PassportHighlight | undefined>(initialHighlight);
   const [renewingCityId, setRenewingCityId] = useState<string | null>(null);
@@ -77,6 +78,7 @@ export default function PassportModal({ initialTab, highlight: initialHighlight,
 
   const earnedByCity = new Map(state.stamps.map((stamp) => [stamp.cityId, stamp]));
   const cityNames = new Map(allCities.map((city) => [city.id, city.city]));
+  const visaOnboardingRecord = loadVisaOnboardingRecord(profile?.userId);
   const expiredCities = allCities
     .map((city) => ({ city, visa: getVisaStatus(state, city.id) }))
     .filter(({ visa }) => visa.hasStamp && visa.expired);
@@ -130,6 +132,31 @@ export default function PassportModal({ initialTab, highlight: initialHighlight,
 
         {tab === 'stamps' ? (
           <div className="relative">
+            {visaOnboardingRecord && (
+              <section className={`mb-5 rounded-2xl p-4 ${glass.chip}`} aria-label="Visto e entrada simulados">
+                <div className="flex items-start gap-3">
+                  <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-200" aria-hidden="true" />
+                  <div className="min-w-0">
+                    <p className={glass.label}>Registro de treinamento · não é documento oficial</p>
+                    <h3 className="mt-1 text-sm font-black">Prática de visto B1/B2 · chegada pelo JFK</h3>
+                    <p className="mt-1 text-xs leading-relaxed text-white/65">
+                      DS-160: {visaOnboardingRecord.purpose === 'tourism' ? 'Tourism / Vacation' : 'Business'} · {visaOnboardingRecord.intendedStay === '10-days' ? '10 Days' : visaOnboardingRecord.intendedStay === '2-weeks' ? '2 Weeks' : '1 Month'} · New York City
+                    </p>
+                    <p className="mt-1 text-[10px] text-white/45">
+                      Concluído em {new Date(visaOnboardingRecord.admittedAt).toLocaleDateString('pt-BR')}
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <span className="rotate-[-3deg] rounded border-2 border-emerald-300/50 px-2 py-1 text-[9px] font-black uppercase tracking-wide text-emerald-100">
+                        U.S. Visa B1/B2 · Training Only
+                      </span>
+                      <span className="rotate-[2deg] rounded border-2 border-emerald-300/50 px-2 py-1 text-[9px] font-black uppercase tracking-wide text-emerald-100">
+                        Admitted · JFK · Training Only
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            )}
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               {allCities.map((city) => {
                 const earned = earnedByCity.get(city.id);

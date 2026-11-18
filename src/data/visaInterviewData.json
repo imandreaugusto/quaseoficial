@@ -1,0 +1,148 @@
+{
+  "ds160": {
+    "title": "DS-160 · Nonimmigrant Visa Application",
+    "purposeLabel": "Purpose of Trip",
+    "purposeOptions": [
+      {
+        "value": "tourism",
+        "label": "Tourism / Vacation",
+        "visaClass": "B1/B2"
+      },
+      {
+        "value": "business",
+        "label": "Business",
+        "visaClass": "B1/B2"
+      }
+    ],
+    "stayLabel": "Intended Length of Stay",
+    "stayOptions": [
+      {
+        "value": "10-days",
+        "label": "10 Days"
+      },
+      {
+        "value": "2-weeks",
+        "label": "2 Weeks"
+      },
+      {
+        "value": "1-month",
+        "label": "1 Month"
+      }
+    ],
+    "destinationLabel": "Destination City",
+    "destination": {
+      "value": "new-york-city",
+      "label": "New York City",
+      "country": "United States"
+    },
+    "confirmation": "DS-160 Practice Confirmation Generated • No Fee Charged • No Official Biometrics"
+  },
+  "wordTranslations": {
+    "morning": "manhã",
+    "purpose": "propósito",
+    "trip": "viagem",
+    "united": "unidos (United States: Estados Unidos)",
+    "states": "estados (United States: Estados Unidos)",
+    "long": "quanto tempo (How long?)",
+    "plan": "planejar, plano",
+    "there": "lá",
+    "ties": "vínculos",
+    "brazil": "Brasil",
+    "welcome": "bem-vindo",
+    "york": "York (New York: Nova York)",
+    "return": "volta, retorno",
+    "ticket": "passagem, bilhete",
+    "staying": "ficando, hospedado"
+  },
+  "consularInterview": {
+    "officerRole": "Consular Officer",
+    "questions": [
+      {
+        "id": "purpose",
+        "prompt": "Good morning, {{playerName}}. What is the purpose of your trip to the United States?",
+        "consistencyField": "purpose",
+        "mismatchLine": "Hold on, that's not what you wrote on your DS-160. Please check your application.",
+        "mismatchFeedback": "O cônsul percebeu a diferença. Confira o Purpose of Trip que você marcou no DS-160 e tente novamente.",
+        "options": [
+          {
+            "value": "tourism",
+            "label": "Tourism / Vacation",
+            "feedback": "Sua resposta está de acordo com o DS-160."
+          },
+          {
+            "value": "business",
+            "label": "Business",
+            "feedback": "Sua resposta está de acordo com o DS-160."
+          }
+        ]
+      },
+      {
+        "id": "duration",
+        "prompt": "How long do you plan to stay there?",
+        "consistencyField": "stayDuration",
+        "mismatchLine": "That is different from the length of stay on your DS-160. Please check your application.",
+        "mismatchFeedback": "A duração não corresponde ao DS-160. Confira Intended Length of Stay e tente outra vez.",
+        "options": [
+          {
+            "value": "10-days",
+            "label": "I plan to stay for 10 days.",
+            "feedback": "Sua resposta está de acordo com a duração informada no DS-160."
+          },
+          {
+            "value": "2-weeks",
+            "label": "I plan to stay for two weeks.",
+            "feedback": "Sua resposta está de acordo com a duração informada no DS-160."
+          },
+          {
+            "value": "1-month",
+            "label": "I plan to stay for one month.",
+            "feedback": "Sua resposta está de acordo com a duração informada no DS-160."
+          }
+        ]
+      },
+      {
+        "id": "ties",
+        "prompt": "Where are you going to stay and do you have ties in Brazil?",
+        "options": [
+          {
+            "value": "midtown-return-ticket",
+            "label": "I will stay in Midtown Manhattan. I have a job or studies in Brazil and a return ticket.",
+            "correct": true,
+            "feedback": "Resposta clara: você informa onde ficará e demonstra vínculos e plano de retorno."
+          },
+          {
+            "value": "no-plan",
+            "label": "I don't know where I'll stay, and I haven't planned a return.",
+            "correct": false,
+            "feedback": "Tente responder com clareza onde ficará e mencione seu plano de retorno e seus vínculos no Brasil."
+          }
+        ]
+      }
+    ],
+    "approval": "Your visa is approved! Welcome to the United States."
+  },
+  "airportImmigration": {
+    "officerRole": "CBP · Airport Immigration",
+    "prompt": "Welcome to New York! Show me your return ticket and tell me: where are you staying?",
+    "options": [
+      {
+        "value": "midtown-return-ticket",
+        "label": "I'm staying in Midtown Manhattan. Here is my return ticket.",
+        "correct": true,
+        "feedback": "Resposta objetiva: você informou onde ficará e apresentou a passagem de volta."
+      },
+      {
+        "value": "no-return-plan",
+        "label": "I'm not sure where I'll stay, and I don't have a return ticket.",
+        "correct": false,
+        "feedback": "Tente informar a hospedagem em Manhattan e apresentar sua passagem de volta."
+      },
+      {
+        "value": "repeat-question",
+        "label": "I don't understand. Can you repeat the question, please?",
+        "correct": false,
+        "feedback": "Essa frase pede que o oficial repita. Para concluir, responda onde vai ficar e mostre a passagem de volta."
+      }
+    ]
+  }
+}

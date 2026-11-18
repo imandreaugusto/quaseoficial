@@ -33,15 +33,32 @@ export function buildGoogleMapsViewEmbedUrl(apiKey: string, coordinates: Coordin
   return `${GOOGLE_MAPS_VIEW_EMBED_URL}?${params.toString()}`;
 }
 
+export function buildGoogleMapsFallbackEmbedUrl(coordinates: Coordinates): string | null {
+  if (!isValidCoordinates(coordinates)) return null;
+
+  const [longitude, latitude] = coordinates;
+  const params = new URLSearchParams({
+    q: `${latitude},${longitude}`,
+    t: 'k',
+    z: '16',
+    output: 'embed',
+    hl: 'pt-BR',
+  });
+  return `https://maps.google.com/maps?${params.toString()}`;
+}
+
 export function buildGoogleMapsStreetViewUrl(coordinates: Coordinates): string {
   const [longitude, latitude] = coordinates;
   return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${latitude},${longitude}`;
 }
 
 function isValidEmbedInput(apiKey: string, [longitude, latitude]: Coordinates): boolean {
+  return Boolean(apiKey.trim() && isValidCoordinates([longitude, latitude]));
+}
+
+function isValidCoordinates([longitude, latitude]: Coordinates): boolean {
   return Boolean(
-    apiKey.trim()
-    && Number.isFinite(longitude)
+    Number.isFinite(longitude)
     && Number.isFinite(latitude)
     && latitude >= -90
     && latitude <= 90

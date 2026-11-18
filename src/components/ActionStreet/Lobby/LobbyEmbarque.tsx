@@ -124,7 +124,13 @@ export default function LobbyEmbarque({ onBoard, onWalk, onClose, initialCamera,
             <span className={`${glass.label} hidden sm:inline`}>Action Dollars</span>
           </div>
           <StreakChip count={state.streak.count} />
-          <button type="button" onClick={() => setPassportTab('stamps')} aria-label="Abrir passaporte" className={glass.iconButton}>
+          <button
+            type="button"
+            onClick={() => setPassportTab('stamps')}
+            aria-label="Rever Visto/Passaporte"
+            title="Rever Visto/Passaporte"
+            className={glass.iconButton}
+          >
             <BookOpen className="h-5 w-5" />
           </button>
           <button type="button" onClick={() => setPassportTab('backpack')} aria-label="Abrir coleção e descobertas" className={glass.iconButton}>

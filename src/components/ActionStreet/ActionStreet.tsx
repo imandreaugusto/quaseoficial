@@ -6,16 +6,15 @@ import { journeyStore } from '../../lib/actionStreet/journeyStore';
 import { persistenceManager } from '../../lib/actionStreet/persistenceManager';
 import { actionStreetCities } from '../../data/actionStreetCities';
 import { useActionStreetStore } from './useActionStreetStore';
-import { markFirstMissionIntroSeen, shouldShowFirstMissionIntro } from '../../lib/actionStreet/firstMissionIntro';
 import { hasLegacySaveToImport, importLegacySave, recordLegacySaveDecision } from '../../lib/actionStreet/legacySave';
 import { refreshChallengeTickets } from '../../lib/actionStreet/progression';
 import { ActionStreetContext, type ActionStreetActivity, type ActionStreetActivityKind, type ActionStreetContextType } from './ActionStreetContext';
 import LobbyEmbarque from './Lobby/LobbyEmbarque';
 import StreetViewer360, { type StreetResume } from './StreetViewer360/StreetViewer360';
 import Map3DExplorer from './Map3D/Map3DExplorer';
-import FirstMissionIntro from './FirstMissionIntro';
 import ActionStreetInfo from './ActionStreetInfo';
 import { glass } from './shared/glass';
+import VisaOnboardingModal from './VisaOnboardingModal';
 
 interface Props {
   onClose?: () => void;
@@ -44,18 +43,39 @@ export default function ActionStreet({ onClose, currentUser }: Props) {
       }
     : null;
   const userId = profile?.userId;
-  const { state, updateState, savedJourney, setSavedJourney, saveError } = useActionStreetStore(userId);
+  const {
+    state,
+    updateState,
+    savedJourney,
+    setSavedJourney,
+    saveError,
+    visaOnboardingUserId,
+    hasCompletedOnboarding,
+    completeVisaOnboarding,
+  } = useActionStreetStore(userId);
+  const savedStreetJourney = visaOnboardingUserId === userId
+    && hasCompletedOnboarding
+    && savedJourney?.view === 'street360'
+    && state.unlockedCities.includes(savedJourney.cityId)
+    && cities.some((city) => city.id === savedJourney.cityId)
+    ? savedJourney
+    : null;
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [speechRate, setSpeechRate] = useState<SpeechRate>(1);
   const [bannerDismissed, setBannerDismissed] = useState(false);
-  const [view, setView] = useState<ViewType>('lobby');
-  const [selectedCity, setSelectedCity] = useState<string>('ny');
-  const [streetResume, setStreetResume] = useState<StreetResume | null>(null);
-  const [firstMissionIntro, setFirstMissionIntro] = useState<{ userId: string; cityId: string } | null>(null);
+  const [view, setView] = useState<ViewType>(() => savedStreetJourney ? 'street360' : 'lobby');
+  const [selectedCity, setSelectedCity] = useState<string>(() => savedStreetJourney?.cityId ?? 'ny');
+  const [streetResume, setStreetResume] = useState<StreetResume | null>(() => savedStreetJourney
+    ? { spotId: savedStreetJourney.spotId, openMission: savedStreetJourney.mission?.open === true }
+    : null);
+  const [visaOnboardingOpen, setVisaOnboardingOpen] = useState(() => Boolean(userId && !hasCompletedOnboarding));
+  const [visaArrivalPrepared, setVisaArrivalPrepared] = useState(false);
+  const [visaArrivalTransitioning, setVisaArrivalTransitioning] = useState(false);
   const [showLegacyImport, setShowLegacyImport] = useState(() => Boolean(userId && hasLegacySaveToImport(userId)));
   const [legacyImportNotice, setLegacyImportNotice] = useState('');
   const [activity, setActivity] = useState<ActionStreetActivity | null>(null);
   const activitySequence = useRef(0);
+  const restoredUserId = useRef(userId);
 
   useEffect(() => {
     if (showLegacyImport) return;
@@ -66,6 +86,26 @@ export default function ActionStreet({ onClose, currentUser }: Props) {
     if (!userId) return;
     setShowLegacyImport(hasLegacySaveToImport(userId));
   }, [userId]);
+
+  useEffect(() => {
+    if (!userId || visaOnboardingUserId !== userId) return;
+    if (!hasCompletedOnboarding) setVisaOnboardingOpen(true);
+    else setVisaOnboardingOpen(false);
+  }, [userId, visaOnboardingUserId]);
+
+  useEffect(() => {
+    if (!userId || visaOnboardingUserId !== userId || restoredUserId.current === userId) return;
+    restoredUserId.current = userId;
+    if (
+      !hasCompletedOnboarding
+      || savedJourney?.view !== 'street360'
+      || !state.unlockedCities.includes(savedJourney.cityId)
+      || !cities.some((city) => city.id === savedJourney.cityId)
+    ) return;
+    setSelectedCity(savedJourney.cityId);
+    setStreetResume({ spotId: savedJourney.spotId, openMission: savedJourney.mission?.open === true });
+    setView('street360');
+  }, [userId, visaOnboardingUserId]);
 
   useEffect(() => {
     if (showLegacyImport) return;
@@ -112,11 +152,6 @@ export default function ActionStreet({ onClose, currentUser }: Props) {
 
   const continueJourney = () => {
     if (!savedJourney || !resumableCity) return;
-    const userId = profile?.userId;
-    if (shouldShowFirstMissionIntro(userId, savedJourney.cityId) && userId) {
-      setFirstMissionIntro({ userId, cityId: 'ny' });
-      return;
-    }
     setStreetResume({ spotId: savedJourney.spotId, openMission: savedJourney.mission?.open === true });
     setBannerDismissed(true);
     goTo('street360', resumableCity.id);
@@ -148,25 +183,24 @@ export default function ActionStreet({ onClose, currentUser }: Props) {
     setShowLegacyImport(false);
   };
 
-  const boardCity = (cityId: string, spotId?: string, openMission = false) => {
-    setFirstMissionIntro(null);
-    setStreetResume(openMission ? { openMission: true } : spotId ? { spotId } : null);
+  const boardCity = (cityId: string, spotId?: string) => {
+    setStreetResume(spotId ? { spotId } : null);
     goTo('map3d', cityId);
-  };
-
-  const requestBoarding = (cityId: string, spotId?: string) => {
-    const userId = profile?.userId;
-    if (shouldShowFirstMissionIntro(userId, cityId) && userId) {
-      setFirstMissionIntro({ userId, cityId });
-      return;
-    }
-    boardCity(cityId, spotId);
   };
 
   const exploreSpot = (cityId: string, spotId: string) => {
     setStreetResume({ spotId });
     goTo('street360', cityId);
   };
+
+  const saveVisaOnboarding = useCallback((record: Parameters<typeof completeVisaOnboarding>[0]): boolean => {
+    if (!journeyStore.patch({ view: 'street360', cityId: 'ny', spotId: 'jfk-airport' }, userId)) return false;
+    if (!completeVisaOnboarding(record)) return false;
+    setStreetResume({ spotId: 'jfk-airport' });
+    setSelectedCity('ny');
+    setVisaArrivalPrepared(true);
+    return true;
+  }, [completeVisaOnboarding, userId]);
 
   // Portal no body: os wrappers de página do App animam transform, o que prenderia o "fixed" ao wrapper.
   return createPortal(
@@ -196,12 +230,8 @@ export default function ActionStreet({ onClose, currentUser }: Props) {
         )}
         {view === 'lobby' && (
           <LobbyEmbarque
-            onBoard={requestBoarding}
+            onBoard={boardCity}
             onWalk={(cityId) => {
-              if (shouldShowFirstMissionIntro(profile?.userId, cityId)) {
-                requestBoarding(cityId);
-                return;
-              }
               const saved = userId ? journeyStore.load(userId) : null;
               setStreetResume(saved?.cityId === cityId && saved.spotId
                 ? { spotId: saved.spotId, openMission: saved.mission?.open === true }
@@ -224,22 +254,33 @@ export default function ActionStreet({ onClose, currentUser }: Props) {
           />
         )}
 
-        {view === 'street360' && (
+        {(view === 'street360' || visaArrivalPrepared) && (
+          <div className={`absolute inset-0 transition-opacity duration-700 ${view === 'street360' || visaArrivalTransitioning ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}>
           <StreetViewer360
             cityId={selectedCity}
             resume={streetResume ?? undefined}
             onBack={() => goTo('lobby')}
             onExploreSpot={exploreSpot}
           />
+          </div>
         )}
 
-        {view === 'lobby' && firstMissionIntro && profile && (
-          <FirstMissionIntro
+        {view === 'lobby'
+          && !showLegacyImport
+          && profile
+          && visaOnboardingUserId === userId
+          && (visaOnboardingOpen || !hasCompletedOnboarding) && (
+          <VisaOnboardingModal
             profile={profile}
-            destination={cities.find((city) => city.id === firstMissionIntro.cityId) ?? cities[0]}
-            onStart={() => {
-              markFirstMissionIntroSeen(firstMissionIntro.userId);
-              boardCity(firstMissionIntro.cityId, undefined, true);
+            onSave={saveVisaOnboarding}
+            onBeginArrival={() => setVisaArrivalTransitioning(true)}
+            onComplete={() => {
+              setVisaOnboardingOpen(false);
+              setVisaArrivalPrepared(false);
+              setStreetResume({ spotId: 'jfk-airport' });
+              setSelectedCity('ny');
+              setView('street360');
+              journeyStore.patch({ view: 'street360', cityId: 'ny', spotId: 'jfk-airport' }, userId);
             }}
           />
         )}

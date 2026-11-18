@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { ExternalLink, MapPin } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 import type { Coordinates } from '../../lib/actionStreet/firstMissionIntro';
 import {
-  buildGoogleMapsStreetViewUrl,
+  buildGoogleMapsFallbackEmbedUrl,
   buildGoogleMapsViewEmbedUrl,
   buildGoogleStreetViewEmbedUrl,
   getGoogleMapsApiKey,
@@ -20,9 +20,8 @@ interface Props {
 export default function GoogleStreetView({ coordinates, title, className = '', onViewChange }: Props) {
   const apiKey = getGoogleMapsApiKey();
   const embedUrl = buildGoogleStreetViewEmbedUrl(apiKey, coordinates);
-  const mapUrl = buildGoogleMapsViewEmbedUrl(apiKey, coordinates);
-  const streetViewUrl = buildGoogleMapsStreetViewUrl(coordinates);
-  const [activeView, setActiveView] = useState<'street' | 'satellite'>('satellite');
+  const mapUrl = buildGoogleMapsViewEmbedUrl(apiKey, coordinates) ?? buildGoogleMapsFallbackEmbedUrl(coordinates);
+  const [activeView, setActiveView] = useState<'street' | 'satellite'>(() => embedUrl ? 'street' : 'satellite');
   const [streetViewStatus, setStreetViewStatus] = useState<'loading' | 'ready' | 'failed'>('loading');
   const timeoutRef = useRef<number | null>(null);
 
@@ -63,7 +62,7 @@ export default function GoogleStreetView({ coordinates, title, className = '', o
   };
 
   return (
-    <div className={`relative isolate overflow-hidden bg-slate-950 ${className}`}>
+    <div className={`isolate overflow-hidden bg-[radial-gradient(ellipse_at_75%_35%,rgba(72,104,144,0.35),transparent_48%),linear-gradient(135deg,#102440,#071426_72%)] ${className}`}>
       {mapUrl && (
         <iframe
           title={`Mapa de satélite: ${title}`}
@@ -116,18 +115,11 @@ export default function GoogleStreetView({ coordinates, title, className = '', o
       )}
       {streetViewStatus === 'failed' && mapUrl && (
         <p role="status" className="absolute bottom-3 left-3 z-10 max-w-[calc(100%-1.5rem)] rounded-xl border border-white/20 bg-slate-950/85 px-3 py-2 text-xs font-semibold text-white shadow-lg">
-          Street View indisponível neste ponto. Exibindo o mapa de satélite da localização.
+          {embedUrl
+            ? 'Street View indisponível neste ponto. Exibindo o mapa do Google da localização.'
+            : 'Para a imagem imersiva da rua, configure a Maps Embed API. O mapa do Google continua disponível aqui.'}
         </p>
       )}
-      <a
-        href={streetViewUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="absolute right-3 top-14 z-10 inline-flex items-center gap-2 rounded-full border border-white/20 bg-slate-950/85 px-3 py-2 text-xs font-bold text-white shadow-lg transition hover:bg-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300 sm:top-3"
-      >
-        <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-        Abrir no Google Maps
-      </a>
     </div>
   );
 }

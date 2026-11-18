@@ -44,7 +44,7 @@ export default function HUDTop({ cityName, spotName, balance, streak, visaAlert,
           <Camera className="h-5 w-5" />
         </button>
         <AmbientSoundToggle weather={weatherPreset} />
-        <button type="button" onClick={onPassport} aria-label={visaAlert ? 'Abrir passaporte (visto expirado)' : 'Abrir passaporte'} className={`relative ${glass.iconButton}`}>
+        <button type="button" onClick={onPassport} aria-label={visaAlert ? 'Rever Visto/Passaporte (visto expirado)' : 'Rever Visto/Passaporte'} title="Rever Visto/Passaporte" className={`relative ${glass.iconButton}`}>
           <BookOpen className="h-5 w-5" />
           {visaAlert && <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-slate-950 bg-amber-400" />}
         </button>

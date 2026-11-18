@@ -136,14 +136,14 @@
       "spots": [
         {
           "id": "jfk-airport",
-          "name": "John F. Kennedy International Airport",
+          "name": "JFK · Terminal 4 Arrivals",
           "coordinates": [
-            -73.7781,
-            40.6413
+            -73.7826336,
+            40.6447978
           ],
           "guide": {
-            "title": "Aeroporto JFK",
-            "text": "Você chegou a Nova York pelo John F. Kennedy International Airport. Escolha um destino no minimapa para começar a explorar a cidade."
+            "title": "JFK · Terminal 4",
+            "text": "Você desembarcou em Nova York e está diante da área de chegadas do Terminal 4. Abra o minimapa para seguir até Times Square."
           }
         },
         {
