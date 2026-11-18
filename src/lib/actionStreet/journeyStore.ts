@@ -26,7 +26,6 @@ export interface Journey {
   view: JourneyView;
   cityId: string;
   spotId?: string;
-  imageId?: string;
   lobbyCamera?: CameraSnapshot;
   mission?: MissionProgress;
   savedAt: number;
@@ -57,7 +56,6 @@ export function parseJourney(raw: string | null): Journey | null {
       view: value.view as JourneyView,
       cityId: value.cityId,
       spotId: typeof value.spotId === 'string' ? value.spotId : undefined,
-      imageId: typeof value.imageId === 'string' ? value.imageId : undefined,
       lobbyCamera: isCamera(value.lobbyCamera) ? value.lobbyCamera : undefined,
       mission:
         mission && typeof mission.missionId === 'string' && isFiniteNumber(mission.step)

@@ -21,7 +21,7 @@ interface Props {
   onClose?: () => void;
   currentUser: Pick<
     UserProfile,
-    'id' | 'auth_user_id' | 'full_name' | 'first_name' | 'last_name' | 'profile_city' | 'profile_country' | 'photo_url'
+    'id' | 'auth_user_id' | 'full_name' | 'first_name' | 'last_name' | 'profile_city' | 'profile_country' | 'ip_city' | 'ip_country' | 'photo_url'
   > | null;
 }
 
@@ -38,6 +38,8 @@ export default function ActionStreet({ onClose, currentUser }: Props) {
         lastName: currentUser.last_name?.trim() || fullNameParts.slice(1).join(' '),
         city: currentUser.profile_city?.trim() || '',
         country: currentUser.profile_country?.trim() || '',
+        ipCity: currentUser.ip_city?.trim() || '',
+        ipCountry: currentUser.ip_country?.trim() || '',
         photoUrl: currentUser.photo_url?.trim() || undefined,
       }
     : null;
@@ -94,7 +96,7 @@ export default function ActionStreet({ onClose, currentUser }: Props) {
       setSpeechRate,
       saveError,
     }),
-    [state, updateState, profile?.userId, profile?.firstName, profile?.lastName, profile?.city, profile?.country, activity, reportActivity, soundEnabled, speechRate, saveError]
+    [state, updateState, profile?.userId, profile?.firstName, profile?.lastName, profile?.city, profile?.country, profile?.ipCity, profile?.ipCountry, activity, reportActivity, soundEnabled, speechRate, saveError]
   );
 
   const resumableCity =
@@ -115,7 +117,7 @@ export default function ActionStreet({ onClose, currentUser }: Props) {
       setFirstMissionIntro({ userId, cityId: 'ny' });
       return;
     }
-    setStreetResume({ spotId: savedJourney.spotId, imageId: savedJourney.imageId, openMission: savedJourney.mission?.open === true });
+    setStreetResume({ spotId: savedJourney.spotId, openMission: savedJourney.mission?.open === true });
     setBannerDismissed(true);
     goTo('street360', resumableCity.id);
   };

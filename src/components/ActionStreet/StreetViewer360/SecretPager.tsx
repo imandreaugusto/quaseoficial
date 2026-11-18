@@ -18,12 +18,11 @@ interface Props {
   cityId: string;
   spotId: string;
   paused: boolean;
-  previewUrl: string | null;
   onModalChange: (open: boolean) => void;
   onOpenPassport: (stampId: string) => void;
 }
 
-export default function SecretPager({ cityId, spotId, paused, previewUrl, onModalChange, onOpenPassport }: Props) {
+export default function SecretPager({ cityId, spotId, paused, onModalChange, onOpenPassport }: Props) {
   const { state, updateState, soundEnabled, reportActivity } = useActionStreet();
   const [visible, setVisible] = useState(() => document.visibilityState === 'visible');
   const [missions, setMissions] = useState<SecretMission[] | null>(null);
@@ -233,7 +232,6 @@ export default function SecretPager({ cityId, spotId, paused, previewUrl, onModa
         <SecretPagerModal
           mission={activeMission}
           unlockAt={progress.unlockAt}
-          previewUrl={previewUrl}
           onClose={closePager}
           onAccept={acceptMission}
           onVerify={verifyMission}

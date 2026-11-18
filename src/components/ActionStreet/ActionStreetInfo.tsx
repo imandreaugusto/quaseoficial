@@ -3,8 +3,7 @@ import { useState } from 'react';
 import { glass } from './shared/glass';
 
 const credits = [
-  { label: 'Imagens de rua: Mapillary contributors', href: 'https://www.mapillary.com/' },
-  { label: 'Licença das imagens: Creative Commons CC BY-SA 4.0', href: 'https://creativecommons.org/licenses/by-sa/4.0/' },
+  { label: 'Street View: Google Maps Platform', href: 'https://maps.google.com/' },
   { label: 'Mapas: OpenFreeMap', href: 'https://openfreemap.org/' },
   { label: 'Estilo de mapa: OpenMapTiles', href: 'https://openmaptiles.org/' },
   { label: 'Dados geográficos: OpenStreetMap contributors', href: 'https://www.openstreetmap.org/copyright' },

@@ -21,7 +21,7 @@ services:
         sync: false
       - key: TYPESAFE_API_KEY
         sync: false
-      - key: VITE_MAPILLARY_ACCESS_TOKEN
+      - key: VITE_GOOGLE_MAPS_API_KEY
         sync: false
       - key: GEMINI_API_KEY
         sync: false

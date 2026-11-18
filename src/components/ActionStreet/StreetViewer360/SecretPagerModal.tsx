@@ -7,14 +7,13 @@ import { glass } from '../shared/glass';
 interface Props {
   mission: SecretMission;
   unlockAt: number | null;
-  previewUrl: string | null;
   onClose: () => void;
   onAccept: () => void;
   onVerify: (correct: boolean, mission: SecretMission) => boolean;
   onOpenPassport: (stampId: string) => void;
 }
 
-export default function SecretPagerModal({ mission, unlockAt, previewUrl, onClose, onAccept, onVerify, onOpenPassport }: Props) {
+export default function SecretPagerModal({ mission, unlockAt, onClose, onAccept, onVerify, onOpenPassport }: Props) {
   const cardRef = useRef<HTMLDivElement>(null);
   const options = useState(() => getSecretMissionOptions(mission))[0];
   const [result, setResult] = useState<'success' | 'failure' | null>(null);
@@ -77,13 +76,6 @@ export default function SecretPagerModal({ mission, unlockAt, previewUrl, onClos
         onClick={(event) => event.stopPropagation()}
         className={`relative w-full max-w-lg overflow-hidden p-6 text-white ${glass.modal}`}
       >
-        {previewUrl && (
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 opacity-25 blur-[16px]"
-            style={{ backgroundImage: `url("${previewUrl}")`, backgroundPosition: 'center', backgroundSize: 'cover' }}
-          />
-        )}
         {result === 'success' && (
           <div className="pointer-events-none absolute inset-x-0 top-0 h-full overflow-hidden">
             <div data-pager-scanner className="absolute inset-y-0 w-1/3 bg-gradient-to-r from-transparent via-emerald-300/25 to-transparent" />

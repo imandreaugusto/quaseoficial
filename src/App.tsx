@@ -1812,6 +1812,8 @@ export default function App() {
                         last_name: currentUser.last_name,
                         profile_city: currentUser.profile_city,
                         profile_country: currentUser.profile_country,
+                        ip_city: currentUser.ip_city,
+                        ip_country: currentUser.ip_country,
                         photo_url: currentUser.photo_url,
                       } : null}
                       onClose={() => setCurrentApp('home')}

@@ -85,7 +85,6 @@ export interface Spot {
   id: string;
   name: string;
   coordinates: [number, number];
-  imageId?: string;
   requiresRoute?: string;
   nightTone?: boolean;
   guide?: { title: string; text: string };

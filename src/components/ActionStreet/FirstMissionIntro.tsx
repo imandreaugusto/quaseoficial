@@ -3,15 +3,14 @@ import { ArrowRight, Instagram, MapPin, Plane, Share2 } from 'lucide-react';
 import gsap from 'gsap';
 import type { City } from '../../types/actionStreet';
 import {
-  FIRST_MISSION_MAPILLARY_RADII,
   NEW_YORK_AIRPORT,
   findNearestAirport,
   findProfileCityAirport,
   getCurrentCoordinates,
   type IntroAirport,
 } from '../../lib/actionStreet/firstMissionIntro';
-import { findNearestImage, getMapillaryToken, MAPILLARY_ATTRIBUTION, type MapillaryStreetImage } from '../../lib/actionStreet/mapillaryConfig';
 import { createTravelPassArtwork, downloadTravelPassArtwork } from '../../lib/actionStreet/travelPassShare';
+import GoogleStreetView from './GoogleStreetView';
 import type { ActionStreetProfile } from './ActionStreetContext';
 import { glass } from './shared/glass';
 
@@ -25,42 +24,23 @@ interface Props {
 
 interface AirportScene {
   airport: IntroAirport | null;
-  image: MapillaryStreetImage | null;
   note: string;
 }
 
 const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
-function distanceKm(from: [number, number], to: [number, number]): number {
-  const radians = (degrees: number) => degrees * Math.PI / 180;
-  const latDelta = radians(to[1] - from[1]);
-  const lonDelta = radians(to[0] - from[0]);
-  const a = Math.sin(latDelta / 2) ** 2
-    + Math.cos(radians(from[1])) * Math.cos(radians(to[1])) * Math.sin(lonDelta / 2) ** 2;
-  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-function imageCaption(image: MapillaryStreetImage | null, airport: IntroAirport | null): string {
-  if (!image?.coordinates || !airport) return MAPILLARY_ATTRIBUTION;
-  const distance = distanceKm(airport.coordinates, image.coordinates);
-  return distance < 0.3
-    ? `Foto Mapillary próxima de ${airport.name}`
-    : `Foto Mapillary a cerca de ${distance.toFixed(1)} km de ${airport.name}`;
-}
-
-function AirportSceneCard({ scene, heading, onImageError }: { scene: AirportScene; heading: string; onImageError: () => void }) {
+function AirportSceneCard({ scene, heading }: { scene: AirportScene; heading: string }) {
   return (
     <div className="relative isolate min-h-56 overflow-hidden rounded-3xl border border-white/20 bg-gradient-to-br from-sky-950 via-indigo-950 to-slate-950 sm:min-h-72">
-      {scene.image?.thumbnailUrl && (
-        <img
-          src={scene.image.thumbnailUrl}
-          alt={`Imagem real do Mapillary próxima de ${scene.airport?.name ?? heading}`}
-          className="absolute inset-0 h-full w-full object-cover"
-          onError={onImageError}
+      {scene.airport && (
+        <GoogleStreetView
+          coordinates={scene.airport.coordinates}
+          title={`Google Street View: ${scene.airport.name}`}
+          className="absolute inset-0"
         />
       )}
-      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/20 to-slate-950/20" />
-      {!scene.image?.thumbnailUrl && (
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/20 to-slate-950/20" />
+      {!scene.airport && (
         <div className="absolute inset-0 flex items-center justify-center" aria-hidden="true">
           <div className="rounded-full border border-white/15 bg-slate-950/85 p-7 text-sky-100/80">
             <Plane className="h-10 w-10" />
@@ -74,9 +54,6 @@ function AirportSceneCard({ scene, heading, onImageError }: { scene: AirportScen
         <p className="mt-2 text-[10px] text-white/55">
           Dados do aeroporto © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer" className="underline hover:text-white">OpenStreetMap contributors</a>
         </p>
-        {scene.image?.thumbnailUrl && (
-          <p className="mt-2 text-[10px] text-white/65">{imageCaption(scene.image, scene.airport)} · {MAPILLARY_ATTRIBUTION}</p>
-        )}
       </div>
     </div>
   );
@@ -188,72 +165,62 @@ export default function FirstMissionIntro({ profile, destination, onStart }: Pro
     }, passRef);
   };
 
-  const loadAirportScene = async (airport: IntroAirport | null, sourceNote: string): Promise<AirportScene> => {
-    if (!airport) {
-      return {
-        airport: null,
-        image: null,
-        note: `${sourceNote} Não encontramos um aeroporto próximo nesta região; você ainda pode continuar a viagem.`,
-      };
-    }
+  const loadAirportScene = (airport: IntroAirport | null, sourceNote: string): AirportScene => ({
+    airport,
+    note: airport
+      ? sourceNote
+      : `${sourceNote} Não encontramos um aeroporto próximo nesta região; você ainda pode continuar a viagem.`,
+  });
 
+  const loadCityAirport = async (city: string, country: string, sourceNote: string) => {
     try {
-      const token = getMapillaryToken();
-      if (!token) {
-        return {
-          airport,
-          image: null,
-          note: 'O acesso ao Mapillary não está disponível agora. A viagem continua sem foto do aeroporto.',
-        };
-      }
-      const image = await findNearestImage(token, airport.coordinates, FIRST_MISSION_MAPILLARY_RADII);
-      return {
+      const airport = await findProfileCityAirport({ city, country });
+      return loadAirportScene(
         airport,
-        image,
-        note: image
-          ? sourceNote || 'Imagem real disponível perto do aeroporto.'
-          : 'Sem foto Mapillary próxima deste aeroporto; esta etapa não mostrará uma imagem como se fosse dele.',
-      };
-    } catch (error) {
-      console.error('Não foi possível carregar a foto Mapillary da introdução do Action Street.', error);
-      return {
-        airport,
-        image: null,
-        note: 'Não foi possível carregar uma foto Mapillary agora. Você ainda pode continuar a viagem.',
-      };
-    }
-  };
-
-  const loadProfileAirport = async (sourceNote: string) => {
-    try {
-      const airport = await findProfileCityAirport({ city: profile.city, country: profile.country });
-      return await loadAirportScene(
-        airport,
-        airport ? `${sourceNote} · ${profile.city}${profile.country ? `, ${profile.country}` : ''}` : sourceNote
+        airport ? `${sourceNote} · ${city}${country ? `, ${country}` : ''}` : sourceNote
       );
     } catch (error) {
-      console.error('Não foi possível localizar um aeroporto perto da cidade do perfil.', error);
+      console.error('Não foi possível localizar um aeroporto perto da cidade escolhida.', error);
       return {
         airport: null,
-        image: null,
-        note: `${sourceNote} Não conseguimos localizar um aeroporto; você pode seguir para Nova York.`,
+        note: `${sourceNote} Não conseguimos localizar um aeroporto; você pode escolher outra origem.`,
       };
     }
   };
 
   const useProfileCity = async () => {
     if (!profile.city.trim()) {
-      setNotice('Não há uma cidade cadastrada no perfil. Autorize a localização ou escolha o aeroporto de referência.');
-      setPhase('location');
+      setNotice('Ainda não há cidade cadastrada no perfil. Você pode escolher a cidade aproximada da conta, autorizar a localização atual ou usar o aeroporto de referência.');
       return;
     }
     setBusy(true);
     setNotice('');
     try {
-      const scene = await loadProfileAirport('Origem baseada na cidade cadastrada no perfil.');
+      const scene = await loadCityAirport(profile.city, profile.country, 'Origem baseada na cidade cadastrada no perfil.');
       if (!scene.airport) {
-        setNotice('Não encontramos um aeroporto para a cidade do perfil. Você pode tentar a localização atual ou usar o aeroporto de referência.');
-        setPhase('location');
+        setNotice('Não encontramos um aeroporto para a cidade do perfil. Você pode tentar a cidade aproximada, a localização atual ou o aeroporto de referência.');
+        return;
+      }
+      setOriginScene(scene);
+      setPhase('origin');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const useApproximateCity = async () => {
+    const city = profile.ipCity?.trim() ?? '';
+    const country = profile.ipCountry?.trim() ?? '';
+    if (!city) {
+      setNotice('Não há uma cidade aproximada disponível para esta conta. Você pode cadastrar uma cidade no perfil ou autorizar a localização atual.');
+      return;
+    }
+    setBusy(true);
+    setNotice('');
+    try {
+      const scene = await loadCityAirport(city, country, 'Origem baseada na cidade aproximada da conta (estimativa por IP).');
+      if (!scene.airport) {
+        setNotice('Não encontramos um aeroporto para a cidade aproximada. Você pode tentar a localização atual ou usar o aeroporto de referência.');
         return;
       }
       setOriginScene(scene);
@@ -271,14 +238,14 @@ export default function FirstMissionIntro({ profile, destination, onStart }: Pro
       const airport = await findNearestAirport(coordinates);
       if (!airport) {
         setNotice('Não encontramos um aeroporto próximo da localização autorizada. Exibiremos um aeroporto de referência sem apresentá-lo como sua origem local.');
-        setOriginScene(await loadAirportScene(NEW_YORK_AIRPORT, 'Aeroporto de referência em Nova York; a origem local não pôde ser identificada.'));
+        setOriginScene(loadAirportScene(NEW_YORK_AIRPORT, 'Aeroporto de referência em Nova York; a origem local não pôde ser identificada.'));
       } else {
-        setOriginScene(await loadAirportScene(airport, 'Aeroporto mais próximo da localização que você autorizou.'));
+        setOriginScene(loadAirportScene(airport, 'Aeroporto mais próximo da localização que você autorizou.'));
       }
     } catch (error) {
       const reason = error instanceof Error ? error.message : 'A localização não foi disponibilizada.';
       setNotice(`${reason} Exibiremos um aeroporto de referência em Nova York; ele não representa sua origem local.`);
-      setOriginScene(await loadAirportScene(NEW_YORK_AIRPORT, 'Aeroporto de referência em Nova York; a localização não foi disponibilizada.'));
+      setOriginScene(loadAirportScene(NEW_YORK_AIRPORT, 'Aeroporto de referência em Nova York; a localização não foi disponibilizada.'));
     } finally {
       setBusy(false);
       setPhase('origin');
@@ -289,7 +256,7 @@ export default function FirstMissionIntro({ profile, destination, onStart }: Pro
     setBusy(true);
     setNotice('');
     try {
-      setOriginScene(await loadAirportScene(NEW_YORK_AIRPORT, 'Aeroporto de referência em Nova York; a origem local não foi identificada.'));
+      setOriginScene(loadAirportScene(NEW_YORK_AIRPORT, 'Aeroporto de referência em Nova York; a origem local não foi identificada.'));
     } finally {
       setBusy(false);
       setPhase('origin');
@@ -302,7 +269,7 @@ export default function FirstMissionIntro({ profile, destination, onStart }: Pro
       void useProfileCity();
       return;
     }
-    setNotice('Sua cidade ainda não está no perfil. Autorize a localização ou escolha um aeroporto de referência.');
+    setNotice('Sua cidade ainda não está no perfil. Escolha uma cidade aproximada, autorize a localização ou use um aeroporto de referência.');
     setPhase('location');
   };
 
@@ -349,7 +316,7 @@ export default function FirstMissionIntro({ profile, destination, onStart }: Pro
     setBusy(true);
     setNotice('');
     try {
-      setNewYorkScene(await loadAirportScene(NEW_YORK_AIRPORT, 'Aeroporto internacional de Nova York.'));
+      setNewYorkScene(loadAirportScene(NEW_YORK_AIRPORT, 'Aeroporto internacional de Nova York.'));
     } finally {
       setBusy(false);
       setPhase('new-york');
@@ -517,39 +484,38 @@ export default function FirstMissionIntro({ profile, destination, onStart }: Pro
         {phase === 'location' && (
           <div className="relative mt-5 space-y-4">
             <p className="text-sm leading-relaxed text-white/75">
-              Para encontrar o aeroporto mais próximo, você pode autorizar o navegador a enviar sua localização atual ao OpenStreetMap para esta busca. Ela não será salva no seu perfil nem no aplicativo; serviços externos podem tratar registros técnicos conforme suas próprias políticas.
+              Escolha a cidade cadastrada no perfil, uma estimativa aproximada da conta ou autorize o navegador a buscar sua localização atual. A localização precisa só será consultada se você autorizar.
             </p>
             <div className="grid gap-3 sm:grid-cols-2">
               <button type="button" onClick={() => void useCurrentLocation()} disabled={busy} data-intro-focus className={glass.primaryButton}>
                 <MapPin className="h-4 w-4" /> Usar localização atual
               </button>
-              <button type="button" onClick={() => void useProfileCity()} disabled={busy || !profile.city.trim()} className={`${glass.secondaryButton} disabled:cursor-not-allowed disabled:opacity-45`}>
-                {profile.city.trim() ? 'Usar cidade do meu perfil' : 'Cidade não cadastrada no perfil'}
+              <button type="button" onClick={() => void useProfileCity()} disabled={busy} className={`${glass.secondaryButton} disabled:cursor-wait disabled:opacity-50`}>
+                Usar cidade do meu perfil
               </button>
+              {profile.ipCity?.trim() && (
+                <button type="button" onClick={() => void useApproximateCity()} disabled={busy} className={`${glass.secondaryButton} disabled:cursor-wait disabled:opacity-50`}>
+                  Usar cidade aproximada · {profile.ipCity}
+                </button>
+              )}
             </div>
             <button type="button" onClick={() => void useReferenceAirport()} disabled={busy} className={`${glass.chip} w-full px-4 py-2.5 text-xs font-bold text-white/75 transition hover:bg-white/10 disabled:opacity-45`}>
               Continuar com aeroporto de referência em Nova York
             </button>
             {busy && <p className="text-sm text-sky-100" role="status" aria-live="polite">Procurando o aeroporto mais próximo…</p>}
             {notice && <p className="text-xs text-white/70" role="status" aria-live="polite">{notice}</p>}
-            <p className="text-[10px] leading-relaxed text-white/45">A localização da cidade é consultada no OpenStreetMap; imagens, quando disponíveis, vêm do Mapillary.</p>
+            <p className="text-[10px] leading-relaxed text-white/45">
+              A estimativa por IP pode estar incorreta. A busca do aeroporto usa OpenStreetMap; a visualização de rua usa Google Maps.
+            </p>
           </div>
         )}
 
         {phase === 'origin' && originScene && (
           <div className="relative mt-5 space-y-4">
-            <AirportSceneCard
-              scene={originScene}
-              heading={profileOrigin}
-              onImageError={() => setOriginScene((current) => current ? {
-                ...current,
-                image: null,
-                note: 'A imagem não pôde ser exibida. Você ainda pode continuar a viagem.',
-              } : current)}
-            />
+            <AirportSceneCard scene={originScene} heading={profileOrigin} />
             <div className="flex flex-col gap-3 sm:flex-row">
               <button type="button" onClick={() => void boardForNewYork()} disabled={busy} data-intro-focus className={glass.primaryButton}>
-                {busy ? 'Procurando imagem de Nova York…' : 'Embarcar para Nova York'} <ArrowRight className="h-4 w-4" />
+                {busy ? 'Preparando Nova York…' : 'Embarcar para Nova York'} <ArrowRight className="h-4 w-4" />
               </button>
             </div>
             {notice && <p className="text-xs text-white/70" role="status" aria-live="polite">{notice}</p>}
@@ -558,15 +524,7 @@ export default function FirstMissionIntro({ profile, destination, onStart }: Pro
 
         {phase === 'new-york' && newYorkScene && (
           <div className="relative mt-5 space-y-4">
-            <AirportSceneCard
-              scene={newYorkScene}
-              heading="JFK · New York"
-              onImageError={() => setNewYorkScene((current) => current ? {
-                ...current,
-                image: null,
-                note: 'A imagem não pôde ser exibida. Continue para a chegada à cidade.',
-              } : current)}
-            />
+            <AirportSceneCard scene={newYorkScene} heading="JFK · New York" />
             <p className="text-sm text-white/75">Agora vamos sobrevoar Nova York e chegar a {destination.spots[0]?.name ?? destination.city}.</p>
             <button type="button" onClick={onStart} data-intro-focus className={glass.primaryButton}>
               Iniciar minha primeira missão <ArrowRight className="h-4 w-4" />

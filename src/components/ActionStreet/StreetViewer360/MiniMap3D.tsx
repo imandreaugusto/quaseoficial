@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { ChevronDown, Map as MapIcon, MapPin } from 'lucide-react';
+import { ChevronDown, ExternalLink, Map as MapIcon, MapPin } from 'lucide-react';
 import type { City } from '../../../types/actionStreet';
 import { OPENFREEMAP_STYLES, canUseWebGL } from '../../../lib/actionStreet/maplibreConfig';
 import { spotDiscoveryId } from '../../../lib/actionStreet/discovery';
+import { buildGoogleMapsStreetViewUrl } from '../../../lib/actionStreet/googleMapsConfig';
 import { glass } from '../shared/glass';
 
 interface Props {
@@ -12,11 +13,10 @@ interface Props {
   currentSpotId: string;
   discoveredSpotIds: Set<string>;
   unlockedRoutes: string[];
-  imagePreviewUrl: string | null;
   onTravel: (spotId: string) => void;
 }
 
-export default function MiniMap3D({ city, currentSpotId, discoveredSpotIds, unlockedRoutes, imagePreviewUrl, onTravel }: Props) {
+export default function MiniMap3D({ city, currentSpotId, discoveredSpotIds, unlockedRoutes, onTravel }: Props) {
   const [expanded, setExpanded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -25,6 +25,7 @@ export default function MiniMap3D({ city, currentSpotId, discoveredSpotIds, unlo
   const currentRef = useRef(currentSpotId);
   const discoveredRef = useRef(discoveredSpotIds);
   const availableSpots = city.spots.filter((spot) => !spot.requiresRoute || unlockedRoutes.includes(spot.requiresRoute));
+  const currentSpot = city.spots.find((spot) => spot.id === currentSpotId);
 
   useEffect(() => {
     travelRef.current = onTravel;
@@ -118,25 +119,26 @@ export default function MiniMap3D({ city, currentSpotId, discoveredSpotIds, unlo
 
       {expanded && canUseWebGL() && <div ref={containerRef} className="h-40 w-full" />}
       <div className="flex items-center gap-2.5 border-t border-white/10 p-2.5">
-        {imagePreviewUrl ? (
-          <img
-            src={imagePreviewUrl}
-            alt={`Imagem real da rua perto de ${currentSpotName}`}
-            className="h-12 w-16 shrink-0 rounded-lg border border-white/15 object-cover"
-          />
-        ) : (
-          <div className="flex h-12 w-16 shrink-0 items-center justify-center rounded-lg border border-white/15 bg-slate-950/40 text-[9px] text-white/55">
-            Foto de rua
-          </div>
-        )}
+        <MapPin className="h-5 w-5 shrink-0 text-sky-200" aria-hidden="true" />
         <div className="min-w-0">
           <p className="text-[9px] font-bold uppercase tracking-wider text-blue-200">
-            {imagePreviewUrl ? 'Foto real · Mapillary' : 'Buscando foto de rua'}
+            Google Maps · Street View
           </p>
           <p className="truncate text-[11px] font-bold text-white/90">
             {currentSpotName}
           </p>
         </div>
+        {currentSpot && (
+          <a
+            href={buildGoogleMapsStreetViewUrl(currentSpot.coordinates)}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Abrir ${currentSpotName} no Google Maps`}
+            className="ml-auto rounded-full p-2 text-white/75 transition hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-300"
+          >
+            <ExternalLink className="h-4 w-4" aria-hidden="true" />
+          </a>
+        )}
       </div>
       {expanded && (
         <div>

@@ -10,7 +10,7 @@ import { persistenceManager, sanitizeState } from '../src/lib/actionStreet/persi
 import { getTouristLevelProgress, refreshChallengeTickets, spendChallengeTicket } from '../src/lib/actionStreet/progression';
 import { dayKey, emptyStreak, registerVisit, streakMultiplier } from '../src/lib/actionStreet/streak';
 import { VISA_VALIDITY_MS, buildRenewalQuiz, getVisaStatus, recordVisit, renewVisa } from '../src/lib/actionStreet/visa';
-import { findNearestImage, getMapillaryImageById } from '../src/lib/actionStreet/mapillaryConfig';
+import { buildGoogleMapsStreetViewUrl, buildGoogleStreetViewEmbedUrl } from '../src/lib/actionStreet/googleMapsConfig';
 import { getActionStreetReminderSlot } from '../src/lib/actionStreet/reminderSchedule';
 import { hasLegacySaveToImport, importLegacySave, recordLegacySaveDecision } from '../src/lib/actionStreet/legacySave';
 import { getSecretMissionOptions, loadSecretMissions, PAGER_TRIGGER_DELAY_MS, PAGER_UNLOCK_DELAY_MS, SECRET_MISSION_COUNT } from '../src/lib/actionStreet/secretPager';
@@ -325,17 +325,15 @@ test('Action Street saves and journeys stay isolated per account in this browser
   withFakeLocalStorage((storage) => {
     persistenceManager.saveState(baseState({ balance: 91 }), 'account-one');
     persistenceManager.saveState(baseState({ balance: 37 }), 'account-two');
-    journeyStore.patch({ view: 'street360', cityId: 'ny', spotId: 'times-square', imageId: 'exact-mapillary-image' }, 'account-one');
+    journeyStore.patch({ view: 'street360', cityId: 'ny', spotId: 'times-square' }, 'account-one');
     journeyStore.patch({ view: 'street360', cityId: 'ny', spotId: 'central-park' }, 'account-two');
 
     assert.equal(persistenceManager.loadState('account-one').balance, 91);
     assert.equal(persistenceManager.loadState('account-two').balance, 37);
     assert.equal(journeyStore.load('account-one')?.spotId, 'times-square');
-    assert.equal(journeyStore.load('account-one')?.imageId, 'exact-mapillary-image');
     assert.equal(journeyStore.load('account-two')?.spotId, 'central-park');
     assert.equal(persistenceManager.hasLegacyState(), false);
     assert.equal(JSON.parse(storage.get('action_street_save_v1_account-one') ?? 'null').state.balance, 91);
-    assert.equal(JSON.parse(storage.get('action_street_save_v1_account-one') ?? 'null').journey.imageId, 'exact-mapillary-image');
     assert.equal(JSON.parse(storage.get('action_street_save_v1_account-two') ?? 'null').state.balance, 37);
   });
 });
@@ -347,19 +345,18 @@ test('Action Street migrates existing account state and journey into the version
       view: 'street360',
       cityId: 'ny',
       spotId: 'central-park',
-      imageId: 'saved-image-42',
       savedAt: 12,
     };
     storage.set('ACTION_STREET_STATE_V2_account-migration', JSON.stringify(state));
     storage.set('ACTION_STREET_JOURNEY_V2_account-migration', JSON.stringify(journey));
 
     assert.equal(persistenceManager.loadState('account-migration').balance, 84);
-    assert.equal(journeyStore.load('account-migration')?.imageId, 'saved-image-42');
+    assert.equal(journeyStore.load('account-migration')?.spotId, 'central-park');
     assert.ok(storage.has('ACTION_STREET_STATE_V2_account-migration'));
     assert.ok(storage.has('ACTION_STREET_JOURNEY_V2_account-migration'));
     const migrated = JSON.parse(storage.get('action_street_save_v1_account-migration') ?? 'null');
     assert.equal(migrated.state.balance, 84);
-    assert.equal(migrated.journey.imageId, 'saved-image-42');
+    assert.equal(migrated.journey.spotId, 'central-park');
   });
 });
 
@@ -381,189 +378,26 @@ test('legacy save import copies state and journey without deleting their origina
   });
 });
 
-test('street image lookup expands the search and chooses the nearest real image', async () => {
-  const originalFetch = globalThis.fetch;
-  const requests: URL[] = [];
-  globalThis.fetch = async (input) => {
-    const url = new URL(String(input));
-    requests.push(url);
-    const radius = url.searchParams.has('bbox')
-      ? Number(url.searchParams.get('bbox')?.split(',')[2]) - (-73.9857)
-      : 0;
-    const images = radius > 0.003
-      ? [
-          { id: 'farther-image', is_pano: true, width: 2048, height: 1024, computed_geometry: { coordinates: [-73.98, 40.75] }, thumb_1024_url: 'https://images.example/farther.jpg' },
-          { id: 'nearest-image', is_pano: true, width: 4096, height: 2048, computed_geometry: { coordinates: [-73.985, 40.7485] }, thumb_2048_url: 'https://images.example/nearest.jpg' },
-        ]
-      : [];
-    return new Response(JSON.stringify({ data: images }), { status: 200 });
-  };
-
-  try {
-    assert.deepEqual(await findNearestImage('token', [-73.9857, 40.7484]), {
-      id: 'nearest-image',
-      coordinates: [-73.985, 40.7485],
-      thumbnailUrl: 'https://images.example/nearest.jpg',
-      isPano: true,
-      width: 4096,
-      height: 2048,
-    });
-    assert.equal(requests.length, 3);
-    assert.equal(requests[2].searchParams.get('is_pano'), 'true');
-    assert.equal(requests[0].searchParams.get('radius'), '50');
-    assert.equal(requests[0].searchParams.get('limit'), '100');
-    assert.match(requests[2].searchParams.get('fields') ?? '', /is_pano,width,height,.*thumb_2048_url/);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+test('Google Street View embed uses the Google Maps key and latitude-longitude order', () => {
+  const url = new URL(buildGoogleStreetViewEmbedUrl(' maps-key ', [-73.9857, 40.7484]) ?? '');
+  assert.equal(url.origin, 'https://www.google.com');
+  assert.equal(url.pathname, '/maps/embed/v1/streetview');
+  assert.equal(url.searchParams.get('key'), 'maps-key');
+  assert.equal(url.searchParams.get('location'), '40.7484,-73.9857');
+  assert.equal(url.searchParams.get('language'), 'pt-BR');
 });
 
-test('street image lookup prefers a farther panorama over a nearby flat photo', async () => {
-  const originalFetch = globalThis.fetch;
-  const requests: URL[] = [];
-  globalThis.fetch = async (input) => {
-    const url = new URL(String(input));
-    requests.push(url);
-    const radius = url.searchParams.has('bbox')
-      ? Number(url.searchParams.get('bbox')?.split(',')[2]) - (-73.9857)
-      : 0;
-    const images = !url.searchParams.has('bbox')
-      ? [{ id: 'nearby-photo', is_pano: false, width: 1600, height: 1200, computed_geometry: { coordinates: [-73.9857, 40.7484] } }]
-      : url.searchParams.get('is_pano') === 'true'
-        ? radius > 0.003
-        ? [{ id: 'farther-panorama', is_pano: true, width: 4096, height: 2048, computed_geometry: { coordinates: [-73.98, 40.75] } }]
-        : []
-        : [];
-    return new Response(JSON.stringify({ data: images }), { status: 200 });
-  };
-
-  try {
-    assert.deepEqual(await findNearestImage('token', [-73.9857, 40.7484], [0.0015, 0.004]), {
-      id: 'farther-panorama',
-      coordinates: [-73.98, 40.75],
-      thumbnailUrl: null,
-      isPano: true,
-      width: 4096,
-      height: 2048,
-    });
-    assert.equal(requests.length, 3);
-    assert.equal(requests[0].searchParams.get('radius'), '50');
-    assert.ok(requests.slice(1).every((url) => url.searchParams.get('is_pano') === 'true'));
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+test('Google Street View embed falls back cleanly when its key or coordinates are invalid', () => {
+  assert.equal(buildGoogleStreetViewEmbedUrl('', [-73.9857, 40.7484]), null);
+  assert.equal(buildGoogleStreetViewEmbedUrl('maps-key', [-73.9857, 95]), null);
 });
 
-test('street image lookup falls back to a real flat photo only after panorama searches', async () => {
-  const originalFetch = globalThis.fetch;
-  const requests: URL[] = [];
-  globalThis.fetch = async (input) => {
-    const url = new URL(String(input));
-    requests.push(url);
-    const isRadiusSearch = url.searchParams.has('lat');
-    const images = isRadiusSearch
-      ? [{ id: 'flat-photo', is_pano: false, width: 1600, height: 1200, computed_geometry: { coordinates: [-73.9857, 40.7484] } }]
-      : [];
-    return new Response(JSON.stringify({ data: images }), { status: 200 });
-  };
-
-  try {
-    assert.deepEqual(await findNearestImage('token', [-73.9857, 40.7484], [0.0015, 0.004]), {
-      id: 'flat-photo',
-      coordinates: [-73.9857, 40.7484],
-      thumbnailUrl: null,
-      isPano: false,
-      width: 1600,
-      height: 1200,
-    });
-    assert.equal(requests.length, 3);
-    assert.ok(requests.slice(1).every((url) => url.searchParams.get('is_pano') === 'true'));
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
-test('street image lookup honors a caller-provided search radius limit', async () => {
-  const originalFetch = globalThis.fetch;
-  const requests: URL[] = [];
-  globalThis.fetch = async (input) => {
-    requests.push(new URL(String(input)));
-    return new Response(JSON.stringify({ data: [] }), { status: 200 });
-  };
-
-  try {
-    assert.equal(await findNearestImage('token', [-73.9857, 40.7484], [0.002, 0.004]), null);
-    const panoRadii = requests
-      .filter((url) => url.searchParams.get('is_pano') === 'true')
-      .map((url) => Number(url.searchParams.get('bbox')?.split(',')[2]) - (-73.9857));
-    assert.deepEqual(panoRadii.map((radius) => Number(radius.toFixed(3))), [0.002, 0.004]);
-    assert.equal(requests.length, 5);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
-test('street image lookup returns null only after checking the expanded area', async () => {
-  const originalFetch = globalThis.fetch;
-  let fetchCalls = 0;
-  globalThis.fetch = async () => {
-    fetchCalls += 1;
-    return new Response(JSON.stringify({ data: [] }), { status: 200 });
-  };
-
-  try {
-    assert.equal(await findNearestImage('token', [-73.9857, 40.7484]), null);
-    assert.equal(fetchCalls, 5);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
-test('street image lookup rejects a bbox radius outside Mapillary limits before requesting data', async () => {
-  const originalFetch = globalThis.fetch;
-  let fetchCalls = 0;
-  globalThis.fetch = async () => {
-    fetchCalls += 1;
-    return new Response(JSON.stringify({ data: [] }), { status: 200 });
-  };
-
-  try {
-    await assert.rejects(findNearestImage('token', [-73.9857, 40.7484], [0.004, 0.015]), /no máximo 0.004 grau/);
-    assert.equal(fetchCalls, 0);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
-test('street image lookup by id returns the same image thumbnail and location', async () => {
-  const originalFetch = globalThis.fetch;
-  let requestUrl: URL | null = null;
-  globalThis.fetch = async (input) => {
-    requestUrl = new URL(String(input));
-    return new Response(JSON.stringify({
-      id: 'current-image',
-      is_pano: true,
-      width: 2048,
-      height: 1024,
-      computed_geometry: { coordinates: [-73.985, 40.7485] },
-      thumb_2048_url: 'https://images.example/current.jpg',
-    }), { status: 200 });
-  };
-
-  try {
-    assert.deepEqual(await getMapillaryImageById('token', 'current-image'), {
-      id: 'current-image',
-      coordinates: [-73.985, 40.7485],
-      thumbnailUrl: 'https://images.example/current.jpg',
-      isPano: true,
-      width: 2048,
-      height: 1024,
-    });
-    assert.equal(requestUrl?.pathname, '/current-image');
-    assert.equal(requestUrl?.searchParams.get('access_token'), 'token');
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+test('Google Maps Street View link opens the selected coordinates without an embed key', () => {
+  const url = new URL(buildGoogleMapsStreetViewUrl([-73.9857, 40.7484]));
+  assert.equal(url.origin, 'https://www.google.com');
+  assert.equal(url.searchParams.get('api'), '1');
+  assert.equal(url.searchParams.get('map_action'), 'pano');
+  assert.equal(url.searchParams.get('viewpoint'), '40.7484,-73.9857');
 });
 
 test('first-mission intro completion is stored per user without putting profile data in the key', () => {

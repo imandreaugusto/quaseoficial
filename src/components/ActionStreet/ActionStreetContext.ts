@@ -26,6 +26,8 @@ export interface ActionStreetProfile {
   lastName: string;
   city: string;
   country: string;
+  ipCity?: string;
+  ipCountry?: string;
   photoUrl?: string;
 }
 

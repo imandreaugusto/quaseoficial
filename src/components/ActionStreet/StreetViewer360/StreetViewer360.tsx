@@ -23,7 +23,6 @@ import SecretPager from './SecretPager';
 
 export interface StreetResume {
   spotId?: string;
-  imageId?: string;
   openMission?: boolean;
 }
 
@@ -54,7 +53,6 @@ export default function StreetViewer360({ cityId, onBack, onExploreSpot, resume 
   const [passport, setPassport] = useState<PassportState | null>(null);
   const [challenge, setChallenge] = useState<LocalChallenge | null>(null);
   const [showPager, setShowPager] = useState(false);
-  const [streetPreviewUrl, setStreetPreviewUrl] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<HTMLDivElement>(null);
   const traveling = useRef(false);
@@ -109,7 +107,6 @@ export default function StreetViewer360({ cityId, onBack, onExploreSpot, resume 
     setChallenge(null);
     setPassport(null);
     setShowPager(false);
-    setStreetPreviewUrl(null);
     updateState((previous) => previous.currentCity === cityId ? previous : { ...previous, currentCity: cityId });
   }, [cityId, city, resume?.spotId, updateState]);
 
@@ -120,8 +117,8 @@ export default function StreetViewer360({ cityId, onBack, onExploreSpot, resume 
   }, [cityId, spotId, updateState]);
 
   useEffect(() => {
-    if (spotId) journeyStore.patch({ view: 'street360', cityId, spotId, imageId: spotId === resume?.spotId ? resume.imageId : undefined }, profile?.userId);
-  }, [cityId, spotId, resume, profile?.userId]);
+    if (spotId) journeyStore.patch({ view: 'street360', cityId, spotId }, profile?.userId);
+  }, [cityId, spotId, profile?.userId]);
 
   const collectedIds = useMemo(() => new Set(state.souvenirs.map((item) => item.id)), [state.souvenirs]);
   const discoveredSpotIds = useMemo(
@@ -192,12 +189,7 @@ export default function StreetViewer360({ cityId, onBack, onExploreSpot, resume 
           hotspots={hotspots}
           collectedIds={collectedIds}
           onHotspot={setHotspotId}
-          initialImageId={spot.id === resume?.spotId ? resume.imageId : undefined}
           paused={streetPaused}
-          onImageChange={(imageId, previewUrl) => {
-            journeyStore.patch({ imageId }, profile?.userId);
-            if (previewUrl) setStreetPreviewUrl(previewUrl);
-          }}
         />
       </div>
       <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-slate-950/70 to-transparent" />
@@ -237,7 +229,6 @@ export default function StreetViewer360({ cityId, onBack, onExploreSpot, resume 
         currentSpotId={spot.id}
         discoveredSpotIds={discoveredSpotIds}
         unlockedRoutes={state.unlockedRoutes}
-        imagePreviewUrl={streetPreviewUrl}
         onTravel={travel}
       />
       <TravelCompanion
@@ -251,7 +242,6 @@ export default function StreetViewer360({ cityId, onBack, onExploreSpot, resume 
         cityId={city.id}
         spotId={spot.id}
         paused={streetPaused}
-        previewUrl={streetPreviewUrl}
         onModalChange={setShowPager}
         onOpenPassport={(stampId) => setPassport({ tab: 'stamps', highlight: { stampId, kind: 'earn' } })}
       />
