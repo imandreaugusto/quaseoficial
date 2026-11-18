@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Check, ImageOff, Sparkles } from 'lucide-react';
+import gsap from 'gsap';
 import 'mapillary-js/dist/mapillary.css';
 import type { Viewer as MapillaryViewer } from 'mapillary-js';
 import type { City, Hotspot, Spot } from '../../../types/actionStreet';
@@ -16,6 +17,7 @@ interface Props {
   collectedIds: Set<string>;
   onHotspot: (hotspotId: string) => void;
   initialImageId?: string;
+  paused: boolean;
   onImageChange?: (imageId: string, previewUrl: string | null) => void;
 }
 
@@ -71,15 +73,19 @@ function StreetBackdrop({ city, imageUrl, notice }: { city: City; imageUrl: stri
 }
 
 function MapillaryLayer({
+  cityId,
   spot,
   token,
   initialImageId,
+  paused,
   onStatus,
   onImageChange,
 }: {
+  cityId: string;
   spot: Spot;
   token: string;
   initialImageId?: string;
+  paused: boolean;
   onStatus: (status: ViewerStatus, message?: string) => void;
   onImageChange?: (imageId: string, previewUrl: string | null) => void;
 }) {
@@ -87,18 +93,25 @@ function MapillaryLayer({
   const imageChangeRef = useRef(onImageChange);
   const statusRef = useRef(onStatus);
   const spotRef = useRef(spot);
+  const cityIdRef = useRef(cityId);
   const initialImageIdRef = useRef(initialImageId);
   const viewerRef = useRef<MapillaryViewer | null>(null);
   const currentImageId = useRef('');
   const activeSpotId = useRef<string | null>(null);
   const moveSequence = useRef(0);
   const thumbnailSequence = useRef(0);
+  const initializationSequence = useRef(0);
+  const initializationKey = useRef<string | null>(null);
+  const initializeViewerRef = useRef<() => void>(() => undefined);
   const imageReadyTimeout = useRef<number | undefined>(undefined);
+  const pausedRef = useRef(paused);
 
   imageChangeRef.current = onImageChange;
   statusRef.current = onStatus;
   spotRef.current = spot;
+  cityIdRef.current = cityId;
   initialImageIdRef.current = initialImageId;
+  pausedRef.current = paused;
 
   const resolveImage = useCallback(async (targetSpot: Spot, preferredImageId?: string) => {
     const savedImageId = targetSpot.imageId ?? preferredImageId;
@@ -129,7 +142,7 @@ function MapillaryLayer({
   const moveToSpot = useCallback((targetSpot: Spot, preferredImageId?: string) => {
     const viewer = viewerRef.current;
     if (!viewer) return;
-    activeSpotId.current = targetSpot.id;
+    activeSpotId.current = `${cityIdRef.current}:${targetSpot.id}`;
     const sequence = ++moveSequence.current;
     statusRef.current('loading');
     startImageTimeout();
@@ -167,29 +180,38 @@ function MapillaryLayer({
   useEffect(() => {
     let cancelled = false;
     let initialImageValidated = false;
-    statusRef.current('loading');
-
-    (async () => {
+    const initializeViewer = async () => {
+      if (viewerRef.current) return;
+      const requestedSpot = spotRef.current;
+      const requestedCityId = cityIdRef.current;
+      const locationKey = `${requestedCityId}:${requestedSpot.id}`;
+      if (initializationKey.current === locationKey) return;
+      initializationKey.current = locationKey;
+      const initialization = ++initializationSequence.current;
+      statusRef.current('loading');
       try {
-        const requestedSpot = spotRef.current;
         const image = await resolveImage(requestedSpot, initialImageIdRef.current);
+        if (cancelled || initialization !== initializationSequence.current) return;
         if (!image) throw new Error('Nenhuma imagem do Mapillary foi encontrada perto deste local.');
         imageChangeRef.current?.(image.id, image.thumbnailUrl);
         if (!hasUsablePanorama(image)) {
+          initializationKey.current = null;
           statusRef.current('error', 'Não há uma foto panorâmica compatível neste ponto. A foto real mais próxima continua exibida.');
           return;
         }
         const { Viewer } = await import('mapillary-js');
-        if (cancelled || !containerRef.current) return;
+        if (cancelled || initialization !== initializationSequence.current || !containerRef.current) return;
         currentImageId.current = image.id;
         const created = new Viewer({
           accessToken: token,
           container: containerRef.current,
           imageId: image.id,
-          component: { cover: false, sequence: true, direction: true, keyboard: true },
+          component: { cover: false, sequence: false, direction: false, zoom: false, keyboard: false },
         });
         viewerRef.current = created;
-        activeSpotId.current = requestedSpot.id;
+        initializationKey.current = null;
+        created.getContainer().style.pointerEvents = pausedRef.current ? 'none' : '';
+        activeSpotId.current = `${requestedCityId}:${requestedSpot.id}`;
         startImageTimeout();
         created.on('image', (event) => {
           if (cancelled || currentImageId.current === event.image.id) return;
@@ -237,34 +259,50 @@ function MapillaryLayer({
               }
             });
         });
-        if (spotRef.current.id !== requestedSpot.id) {
+        if (`${cityIdRef.current}:${spotRef.current.id}` !== `${requestedCityId}:${requestedSpot.id}`) {
           moveToSpotRef.current(spotRef.current, initialImageIdRef.current);
         }
       } catch (reason) {
-        if (!cancelled) {
+        initializationKey.current = null;
+        if (!cancelled && initialization === initializationSequence.current) {
           const message = reason instanceof Error ? reason.message : 'Falha inesperada ao carregar o Mapillary.';
           statusRef.current('error', message);
         }
       }
-    })();
+    };
+    initializeViewerRef.current = () => { void initializeViewer(); };
+    initializeViewerRef.current();
 
     return () => {
       cancelled = true;
+      initializationSequence.current += 1;
       moveSequence.current += 1;
       thumbnailSequence.current += 1;
       clearImageTimeout();
       viewerRef.current?.remove();
       viewerRef.current = null;
       activeSpotId.current = null;
+      initializationKey.current = null;
+      initializeViewerRef.current = () => undefined;
     };
   }, [token, resolveImage]);
 
   useEffect(() => {
     const viewer = viewerRef.current;
-    if (!viewer) return;
-    if (activeSpotId.current === spot.id) return;
-    moveToSpotRef.current(spot, initialImageId);
-  }, [spot.id, initialImageId]);
+    const container = containerRef.current;
+    if (!viewer || !container) return;
+    container.style.pointerEvents = paused ? 'none' : '';
+  }, [paused]);
+
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (viewer) {
+      if (activeSpotId.current === `${cityId}:${spot.id}`) return;
+      moveToSpotRef.current(spot, initialImageId);
+      return;
+    }
+    initializeViewerRef.current();
+  }, [cityId, spot.id, initialImageId]);
 
   return <div ref={containerRef} className="absolute inset-0 bg-slate-950" />;
 }
@@ -275,10 +313,10 @@ function HotspotPin({ hotspot, position, collected, onClick }: { hotspot: Hotspo
   useEffect(() => {
     const ring = ringRef.current;
     if (!ring || collected || prefersReducedMotion()) return;
-    const tween = routeAnimations.hotspotPulse(ring);
-    return () => {
-      tween.kill();
-    };
+    const context = gsap.context(() => {
+      routeAnimations.hotspotPulse(ring);
+    }, ring);
+    return () => context.revert();
   }, [collected]);
 
   return (
@@ -292,19 +330,19 @@ function HotspotPin({ hotspot, position, collected, onClick }: { hotspot: Hotspo
       <span className="relative flex h-11 w-11 items-center justify-center">
         {!collected && <span ref={ringRef} className="pointer-events-none absolute inset-0 rounded-full border-2 border-blue-200/80" />}
         <span
-          className={`relative flex h-11 w-11 items-center justify-center rounded-full border text-white shadow-lg backdrop-blur-xl transition group-hover:scale-110 group-focus-visible:ring-2 group-focus-visible:ring-blue-200 ${
+          className={`relative flex h-11 w-11 items-center justify-center rounded-full border text-white shadow-lg transition group-hover:scale-110 group-focus-visible:ring-2 group-focus-visible:ring-blue-200 ${
             collected ? 'border-emerald-300/60 bg-emerald-400/30' : 'border-white/45 bg-blue-500/50 shadow-violet-500/30'
           }`}
         >
           {collected ? <Check className="h-5 w-5" /> : <Sparkles className="h-5 w-5" />}
         </span>
       </span>
-      <span className="whitespace-nowrap rounded-full border border-white/20 bg-slate-950/60 px-2.5 py-0.5 text-[11px] font-bold text-white backdrop-blur-xl">{hotspot.word}</span>
+      <span className="whitespace-nowrap rounded-full border border-white/20 bg-slate-950/85 px-2.5 py-0.5 text-[11px] font-bold text-white">{hotspot.word}</span>
     </button>
   );
 }
 
-export default function StreetScene({ city, spot, hotspots, collectedIds, onHotspot, initialImageId, onImageChange }: Props) {
+export default function StreetScene({ city, spot, hotspots, collectedIds, onHotspot, initialImageId, paused, onImageChange }: Props) {
   const token = getMapillaryToken();
   const [status, setStatus] = useState<ViewerStatus>(token ? 'loading' : 'error');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -318,7 +356,8 @@ export default function StreetScene({ city, spot, hotspots, collectedIds, onHots
     onImageChange?.(imageId, imageUrl);
   }, [onImageChange]);
 
-  const usingMapillary = Boolean(token) && status !== 'error';
+  const hasMapillaryToken = Boolean(token);
+  const showStreetBackdrop = !hasMapillaryToken || status === 'loading' || status === 'error';
   const notice = previewUrl
     ? status === 'loading'
       ? 'Carregando a visão 360º. A foto real do local continua visível.'
@@ -331,8 +370,8 @@ export default function StreetScene({ city, spot, hotspots, collectedIds, onHots
 
   return (
     <div className="absolute inset-0">
-      {usingMapillary && <MapillaryLayer spot={spot} token={token} initialImageId={initialImageId} onStatus={handleStatus} onImageChange={handleImageChange} />}
-      {!usingMapillary || status === 'loading' ? <StreetBackdrop city={city} imageUrl={previewUrl} notice={notice} /> : null}
+      {hasMapillaryToken && <MapillaryLayer cityId={city.id} spot={spot} token={token} initialImageId={initialImageId} paused={paused || status !== 'ready'} onStatus={handleStatus} onImageChange={handleImageChange} />}
+      {showStreetBackdrop ? <StreetBackdrop city={city} imageUrl={previewUrl} notice={notice} /> : null}
 
       {(status === 'ready' || !token || status === 'error') &&
         hotspots.map((hotspot, index) => (

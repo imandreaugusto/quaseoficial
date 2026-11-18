@@ -227,7 +227,7 @@ export default function PolaroidCamera({ cityId, cityName, spotName, onClose }: 
         aria-modal="true"
         aria-label="Câmera Polaroid e álbum"
         onClick={(event) => event.stopPropagation()}
-        className={`relative max-h-[94dvh] w-full max-w-5xl overflow-y-auto p-4 text-white sm:p-6 ${glass.panelOverImagery}`}
+        className={`relative max-h-[94dvh] w-full max-w-5xl overflow-y-auto p-4 text-white sm:p-6 ${glass.modal}`}
       >
         <header className="relative flex items-start justify-between gap-4">
           <div>
@@ -298,7 +298,7 @@ export default function PolaroidCamera({ cityId, cityName, spotName, onClose }: 
                       src={previewUrl}
                       alt={`Foto de ${selectedPhoto.spotName}`}
                       className={`h-full w-full object-cover transition-all duration-[1200ms] ${
-                        developingPhotoId === selectedPhoto.id ? 'scale-110 opacity-30 blur-[3px] grayscale' : 'scale-100 opacity-100 blur-0'
+                        developingPhotoId === selectedPhoto.id ? 'scale-110 opacity-30 grayscale' : 'scale-100 opacity-100'
                       }`}
                     />
                     {developingPhotoId === selectedPhoto.id && <span className="absolute inset-0 flex items-center justify-center bg-black/25 text-[8px] font-black uppercase text-white">Revelando</span>}

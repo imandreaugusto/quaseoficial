@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Backpack, BookOpen, Coins, Lock, MapPin, Plane, Sparkles } from 'lucide-react';
 import gsap from 'gsap';
 import actionStreetData from '../../../data/actionStreetData.json';
@@ -36,12 +36,16 @@ export default function LobbyEmbarque({ onBoard, onWalk, onClose, initialCamera,
   const [passportTab, setPassportTab] = useState<PassportTab | null>(null);
   const [passportHighlight, setPassportHighlight] = useState<PassportHighlight | undefined>();
   const [renewingCityId, setRenewingCityId] = useState<string | null>(null);
+  const boardingCardRef = useRef<HTMLElement>(null);
+  const boardingContext = useRef<gsap.Context | null>(null);
 
   const selected = allCities.find((city) => city.id === selectedId) ?? allCities[0];
   const isUnlocked = state.unlockedCities.includes(selected.id);
   const missing = Math.max(0, selected.unlockCost - state.balance);
   const completed = state.completedMissions.includes(selected.mission.id);
   const visa = getVisaStatus(state, selected.id);
+
+  useEffect(() => () => boardingContext.current?.revert(), []);
 
   const select = (cityId: string) => {
     setSelectedId(cityId);
@@ -55,7 +59,13 @@ export default function LobbyEmbarque({ onBoard, onWalk, onClose, initialCamera,
     }
     updateState((previous) => persistenceManager.unlockCity(previous, selected.id, selected.unlockCost));
     setConfirmUnlock(false);
-    gsap.fromTo('[data-boarding-card]', { scale: 0.97 }, { scale: 1, duration: 0.5, ease: 'elastic.out(1, 0.4)' });
+    const card = boardingCardRef.current;
+    if (card) {
+      boardingContext.current?.revert();
+      boardingContext.current = gsap.context(() => {
+        gsap.fromTo(card, { scale: 0.97 }, { scale: 1, duration: 0.5, ease: 'elastic.out(1, 0.4)' });
+      }, card);
+    }
   };
 
   return (
@@ -133,9 +143,7 @@ export default function LobbyEmbarque({ onBoard, onWalk, onClose, initialCamera,
           })}
         </div>
 
-        <article data-boarding-card className={`relative overflow-hidden p-5 sm:p-6 ${glass.panel}`}>
-          <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-violet-500/25 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-24 left-10 h-56 w-56 rounded-full bg-blue-500/20 blur-3xl" />
+        <article ref={boardingCardRef} data-boarding-card className={`relative overflow-hidden p-5 sm:p-6 ${glass.panel}`}>
 
           <div className="relative grid gap-5 md:grid-cols-[1fr_auto] md:items-center">
             <div className="min-w-0">

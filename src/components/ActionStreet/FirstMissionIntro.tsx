@@ -62,7 +62,7 @@ function AirportSceneCard({ scene, heading, onImageError }: { scene: AirportScen
       <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/20 to-slate-950/20" />
       {!scene.image?.thumbnailUrl && (
         <div className="absolute inset-0 flex items-center justify-center" aria-hidden="true">
-          <div className="rounded-full border border-white/15 bg-white/10 p-7 text-sky-100/80 backdrop-blur">
+          <div className="rounded-full border border-white/15 bg-slate-950/85 p-7 text-sky-100/80">
             <Plane className="h-10 w-10" />
           </div>
         </div>
@@ -95,6 +95,7 @@ export default function FirstMissionIntro({ profile, destination, onStart }: Pro
   const passRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const flipTweenRef = useRef<gsap.core.Tween | null>(null);
+  const flipContextRef = useRef<gsap.Context | null>(null);
   const openFirstName = profile.firstName || 'Viajante';
   const displayName = [profile.firstName, profile.lastName].filter(Boolean).join(' ') || 'Viajante';
   const profileOrigin = [profile.city, profile.country].filter(Boolean).join(', ') || 'Origem a definir';
@@ -110,16 +111,20 @@ export default function FirstMissionIntro({ profile, destination, onStart }: Pro
     if (reducedMotion()) {
       return restoreFocus;
     }
-    const entrance = gsap.fromTo(dialog, { opacity: 0, y: 22, scale: 0.97 }, {
-      opacity: 1,
-      y: 0,
-      scale: 1,
-      duration: 0.55,
-      ease: 'power3.out',
-      clearProps: 'transform',
-    });
+    const context = gsap.context(() => {
+      gsap.fromTo(dialog, { opacity: 0, y: 22, scale: 0.97 }, {
+        opacity: 1,
+        y: 0,
+        scale: 1,
+        duration: 0.55,
+        ease: 'power3.out',
+        clearProps: 'transform',
+      });
+    }, dialog);
     return () => {
-      entrance.kill();
+      context.revert();
+      flipContextRef.current?.revert();
+      flipContextRef.current = null;
       flipTweenRef.current?.kill();
       restoreFocus();
     };
@@ -153,15 +158,18 @@ export default function FirstMissionIntro({ profile, destination, onStart }: Pro
       setPhase('details');
       return;
     }
-    flipTweenRef.current = gsap.to(passRef.current, {
-      rotationY: 180,
-      duration: 0.8,
-      ease: 'power2.inOut',
-      onComplete: () => {
-        flipTweenRef.current = null;
-        setPhase('details');
-      },
-    });
+    flipContextRef.current?.revert();
+    flipContextRef.current = gsap.context(() => {
+      flipTweenRef.current = gsap.to(passRef.current, {
+        rotationY: 180,
+        duration: 0.8,
+        ease: 'power2.inOut',
+        onComplete: () => {
+          flipTweenRef.current = null;
+          setPhase('details');
+        },
+      });
+    }, passRef);
   };
 
   const loadAirportScene = async (airport: IntroAirport | null, sourceNote: string): Promise<AirportScene> => {
@@ -339,7 +347,7 @@ export default function FirstMissionIntro({ profile, destination, onStart }: Pro
   };
 
   return (
-    <div className="absolute inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/75 p-3 backdrop-blur-md sm:p-6">
+    <div className="absolute inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/75 p-3 sm:p-6">
       <section
         ref={dialogRef}
         role="dialog"
@@ -364,9 +372,8 @@ export default function FirstMissionIntro({ profile, destination, onStart }: Pro
             first.focus();
           }
         }}
-        className={`relative my-auto w-full max-w-2xl overflow-hidden p-4 text-white sm:p-7 ${glass.panelOverImagery}`}
+        className={`relative my-auto w-full max-w-2xl overflow-hidden p-4 text-white sm:p-7 ${glass.modal}`}
       >
-        <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-sky-400/15 blur-3xl" />
         <div className="relative flex items-start justify-between gap-4">
           <div>
             <p className={glass.label}>Action Street · sua primeira missão</p>

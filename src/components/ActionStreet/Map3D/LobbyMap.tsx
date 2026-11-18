@@ -44,7 +44,7 @@ function createPin(city: City, onClick: () => void): PinParts {
   button.type = 'button';
   button.setAttribute('aria-label', `Selecionar ${city.city}`);
   button.style.cssText =
-    'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;border-radius:9999px;border:1px solid rgba(255,255,255,0.45);backdrop-filter:blur(10px);cursor:pointer;color:#fff;';
+    'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;border-radius:9999px;border:1px solid rgba(255,255,255,0.45);cursor:pointer;color:#fff;';
   const icon = document.createElement('span');
   icon.style.cssText = 'display:flex;';
   button.appendChild(icon);
@@ -56,7 +56,7 @@ function createPin(city: City, onClick: () => void): PinParts {
   const label = document.createElement('span');
   label.textContent = city.stateName;
   label.style.cssText =
-    'padding:2px 8px;border-radius:9999px;font:700 11px system-ui,sans-serif;color:#fff;background:rgba(2,6,23,0.55);border:1px solid rgba(255,255,255,0.2);backdrop-filter:blur(8px);white-space:nowrap;';
+    'padding:2px 8px;border-radius:9999px;font:700 11px system-ui,sans-serif;color:#fff;background:rgba(2,6,23,0.85);border:1px solid rgba(255,255,255,0.2);white-space:nowrap;';
 
   wrap.append(ring, button);
   root.append(wrap, label);
@@ -147,7 +147,7 @@ export default function LobbyMap({ cities, unlocked, selectedId, origin, onSelec
         type: 'line',
         source: 'arc',
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': '#8b5cf6', 'line-width': 9, 'line-blur': 7, 'line-opacity': 0.55 },
+        paint: { 'line-color': '#8b5cf6', 'line-width': 9, 'line-opacity': 0.28 },
       });
       map.addLayer({
         id: 'arc-line',
@@ -161,7 +161,7 @@ export default function LobbyMap({ cities, unlocked, selectedId, origin, onSelec
 
     const originEl = document.createElement('div');
     originEl.style.cssText =
-      'padding:3px 10px;border-radius:9999px;font:700 11px system-ui,sans-serif;color:#fff;background:rgba(59,130,246,0.45);border:1px solid rgba(147,197,253,0.6);backdrop-filter:blur(8px);white-space:nowrap;';
+      'padding:3px 10px;border-radius:9999px;font:700 11px system-ui,sans-serif;color:#fff;background:rgba(2,6,23,0.85);border:1px solid rgba(147,197,253,0.6);white-space:nowrap;';
     originEl.textContent = origin.name;
     const originMarker = new maplibregl.Marker({ element: originEl }).setLngLat(origin.coordinates).addTo(map);
 
@@ -192,17 +192,20 @@ export default function LobbyMap({ cities, unlocked, selectedId, origin, onSelec
   }, [cities, origin]);
 
   useEffect(() => {
-    pinsRef.current.forEach((pin, cityId) => {
-      const isUnlocked = unlocked.includes(cityId);
-      const isSelected = cityId === selectedId;
-      pin.icon.innerHTML = isUnlocked ? PIN_SVG : LOCK_SVG;
-      pin.button.style.background = isUnlocked ? 'rgba(59,130,246,0.55)' : 'rgba(15,23,42,0.6)';
-      pin.button.style.boxShadow = isSelected ? '0 0 0 3px rgba(196,181,253,0.9), 0 0 24px rgba(139,92,246,0.8)' : '0 4px 14px rgba(0,0,0,0.4)';
-      pin.ring.style.border = `2px solid ${isUnlocked ? 'rgba(147,197,253,0.9)' : 'rgba(148,163,184,0.5)'}`;
-      gsap.killTweensOf(pin.ring);
-      gsap.fromTo(pin.ring, { scale: 1, opacity: 0.8 }, { scale: isSelected ? 2.6 : 2, opacity: 0, duration: isSelected ? 1.4 : 2.2, repeat: -1, ease: 'power1.out' });
-      gsap.to(pin.button, { scale: isSelected ? 1.18 : 1, duration: 0.25, ease: 'power2.out' });
+    const pins = [...pinsRef.current.entries()];
+    const context = gsap.context(() => {
+      pins.forEach(([cityId, pin]) => {
+        const isUnlocked = unlocked.includes(cityId);
+        const isSelected = cityId === selectedId;
+        pin.icon.innerHTML = isUnlocked ? PIN_SVG : LOCK_SVG;
+        pin.button.style.background = isUnlocked ? 'rgba(59,130,246,0.55)' : 'rgba(15,23,42,0.85)';
+        pin.button.style.boxShadow = isSelected ? '0 0 0 3px rgba(196,181,253,0.9), 0 0 24px rgba(139,92,246,0.8)' : '0 4px 14px rgba(0,0,0,0.4)';
+        pin.ring.style.border = `2px solid ${isUnlocked ? 'rgba(147,197,253,0.9)' : 'rgba(148,163,184,0.5)'}`;
+        gsap.fromTo(pin.ring, { scale: 1, opacity: 0.8 }, { scale: isSelected ? 2.6 : 2, opacity: 0, duration: isSelected ? 1.4 : 2.2, repeat: -1, ease: 'power1.out' });
+        gsap.to(pin.button, { scale: isSelected ? 1.18 : 1, duration: 0.25, ease: 'power2.out' });
+      });
     });
+    return () => context.revert();
   }, [unlocked, selectedId, mapReady]);
 
   useEffect(() => {
@@ -218,23 +221,26 @@ export default function LobbyMap({ cities, unlocked, selectedId, origin, onSelec
     planeTween.current?.kill();
     const plane = new maplibregl.Marker({ element: planeEl, rotationAlignment: 'map' }).setLngLat(coordinates[0]).addTo(map);
     const progress = { value: 0 };
-    planeTween.current = gsap.to(progress, {
-      value: coordinates.length - 1,
-      duration: 7,
-      ease: 'none',
-      repeat: -1,
-      repeatDelay: 0.8,
-      onUpdate: () => {
-        const index = Math.min(Math.floor(progress.value), coordinates.length - 2);
-        const from = coordinates[index];
-        const to = coordinates[index + 1];
-        plane.setLngLat(from);
-        plane.setRotation(turfBearing(from, to) - 45);
-      },
+    const context = gsap.context(() => {
+      planeTween.current = gsap.to(progress, {
+        value: coordinates.length - 1,
+        duration: 7,
+        ease: 'none',
+        repeat: -1,
+        repeatDelay: 0.8,
+        onUpdate: () => {
+          const index = Math.min(Math.floor(progress.value), coordinates.length - 2);
+          const from = coordinates[index];
+          const to = coordinates[index + 1];
+          plane.setLngLat(from);
+          plane.setRotation(turfBearing(from, to) - 45);
+        },
+      });
     });
 
     return () => {
-      planeTween.current?.kill();
+      context.revert();
+      planeTween.current = null;
       plane.remove();
     };
   }, [mapReady, selectedId, cities, origin]);

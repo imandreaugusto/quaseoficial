@@ -15,19 +15,17 @@ export default function ResumeBanner({ cityName, onContinue, onDismiss }: Props)
   useEffect(() => {
     const element = ref.current;
     if (!element) return;
-    const timeline = gsap.timeline();
-    timeline
-      .fromTo(element, { opacity: 0, y: -26, scale: 0.97 }, { opacity: 1, y: 0, scale: 1, duration: 0.55, ease: 'power3.out' })
-      .fromTo(element.querySelectorAll('[data-reveal-item]'), { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.35, stagger: 0.09, ease: 'power2.out' }, '-=0.25');
-    return () => {
-      timeline.kill();
-    };
+    const context = gsap.context(() => {
+      const timeline = gsap.timeline();
+      timeline
+        .fromTo(element, { opacity: 0, y: -26, scale: 0.97 }, { opacity: 1, y: 0, scale: 1, duration: 0.55, ease: 'power3.out' })
+        .fromTo(element.querySelectorAll('[data-reveal-item]'), { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.35, stagger: 0.09, ease: 'power2.out' }, '-=0.25');
+    }, element);
+    return () => context.revert();
   }, []);
 
   return (
     <section ref={ref} aria-label="Continuar viagem" className={`relative overflow-hidden p-4 sm:p-5 ${glass.panel}`}>
-      <div className="pointer-events-none absolute -left-16 -top-20 h-48 w-48 rounded-full bg-blue-500/25 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-20 right-8 h-44 w-44 rounded-full bg-violet-500/25 blur-3xl" />
       <div className="relative flex flex-wrap items-center gap-4">
         <span data-reveal-item className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/25 bg-blue-500/30">
           <PlaneTakeoff className="h-5 w-5" />

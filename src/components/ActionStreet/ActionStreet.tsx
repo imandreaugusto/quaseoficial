@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { ActionStreetState, SpeechRate } from '../../types/actionStreet';
+import type { SpeechRate } from '../../types/actionStreet';
 import type { UserProfile } from '../../types';
 import { journeyStore } from '../../lib/actionStreet/journeyStore';
 import { persistenceManager } from '../../lib/actionStreet/persistenceManager';
 import { actionStreetCities } from '../../data/actionStreetCities';
+import { useActionStreetStore } from './useActionStreetStore';
 import { markFirstMissionIntroSeen, shouldShowFirstMissionIntro } from '../../lib/actionStreet/firstMissionIntro';
 import { hasLegacySaveToImport, importLegacySave, recordLegacySaveDecision } from '../../lib/actionStreet/legacySave';
 import { refreshChallengeTickets } from '../../lib/actionStreet/progression';
@@ -40,10 +41,9 @@ export default function ActionStreet({ onClose, currentUser }: Props) {
       }
     : null;
   const userId = profile?.userId;
-  const [state, setState] = useState<ActionStreetState>(() => persistenceManager.loadState(userId));
+  const { state, updateState, savedJourney, setSavedJourney, saveError } = useActionStreetStore(userId);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [speechRate, setSpeechRate] = useState<SpeechRate>(1);
-  const [savedJourney, setSavedJourney] = useState(() => journeyStore.load(userId));
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [view, setView] = useState<ViewType>('lobby');
   const [selectedCity, setSelectedCity] = useState<string>('ny');
@@ -56,12 +56,8 @@ export default function ActionStreet({ onClose, currentUser }: Props) {
 
   useEffect(() => {
     if (showLegacyImport) return;
-    persistenceManager.saveState(state, userId);
-  }, [state, userId, showLegacyImport]);
-
-  useEffect(() => {
-    setState((previous) => persistenceManager.registerDailyVisit(previous));
-  }, []);
+    updateState((previous) => persistenceManager.registerDailyVisit(previous));
+  }, [showLegacyImport, updateState]);
 
   useEffect(() => {
     if (!userId) return;
@@ -69,18 +65,14 @@ export default function ActionStreet({ onClose, currentUser }: Props) {
   }, [userId]);
 
   useEffect(() => {
-    setState((previous) => {
+    if (showLegacyImport) return;
+    updateState((previous) => {
       const tickets = refreshChallengeTickets(previous.tickets);
       return tickets.available === previous.tickets.available && tickets.lastRefillAt === previous.tickets.lastRefillAt
         ? previous
         : { ...previous, tickets };
     });
-  }, []);
-
-  const updateState = useCallback(
-    (updater: (previous: ActionStreetState) => ActionStreetState) => setState(updater),
-    []
-  );
+  }, [showLegacyImport, updateState]);
   const reportActivity = useCallback((kind: ActionStreetActivityKind, cityId: string, spotId?: string, elapsedMs?: number) => {
     activitySequence.current += 1;
     setActivity({ id: activitySequence.current, kind, cityId, spotId, elapsedMs, at: Date.now() });
@@ -99,8 +91,9 @@ export default function ActionStreet({ onClose, currentUser }: Props) {
       setSoundEnabled,
       speechRate,
       setSpeechRate,
+      saveError,
     }),
-    [state, updateState, profile?.userId, profile?.firstName, profile?.lastName, profile?.city, profile?.country, activity, reportActivity, soundEnabled, speechRate]
+    [state, updateState, profile?.userId, profile?.firstName, profile?.lastName, profile?.city, profile?.country, activity, reportActivity, soundEnabled, speechRate, saveError]
   );
 
   const resumableCity =
@@ -135,7 +128,7 @@ export default function ActionStreet({ onClose, currentUser }: Props) {
     if (!userId) return;
     if (shouldImport) {
       const imported = importLegacySave(userId);
-      if (imported.state) setState(imported.state);
+    if (imported.state) updateState(() => imported.state!);
       if (imported.journey) setSavedJourney(imported.journey);
       setLegacyImportNotice(imported.state || imported.journey
         ? 'Progresso antigo copiado para esta conta. O save original continua neste navegador.'
@@ -177,9 +170,14 @@ export default function ActionStreet({ onClose, currentUser }: Props) {
     <ActionStreetContext.Provider value={contextValue}>
       <div className="fixed inset-0 z-30 overflow-hidden bg-slate-950">
         <ActionStreetInfo />
+        {saveError && (
+          <div role="alert" className="absolute left-1/2 top-2 z-[100] w-[min(34rem,calc(100%-1rem))] -translate-x-1/2 rounded-xl border border-rose-300/50 bg-slate-950/95 px-4 py-3 text-center text-xs font-semibold text-rose-100 shadow-xl">
+            {saveError}
+          </div>
+        )}
         {view === 'lobby' && showLegacyImport && profile && (
           <div className={`absolute inset-0 z-[80] flex items-center justify-center p-4 ${glass.backdrop}`}>
-            <section role="dialog" aria-modal="true" aria-labelledby="legacy-save-title" className={`w-full max-w-lg p-6 text-white ${glass.panelOverImagery}`}>
+            <section role="dialog" aria-modal="true" aria-labelledby="legacy-save-title" className={`w-full max-w-lg p-6 text-white ${glass.modal}`}>
               <p className={glass.label}>Action Street · save antigo</p>
               <h2 id="legacy-save-title" className="mt-1 text-xl font-black">Encontramos um progresso anterior neste navegador</h2>
               <p className="mt-3 text-sm leading-relaxed text-white/75">
@@ -222,7 +220,6 @@ export default function ActionStreet({ onClose, currentUser }: Props) {
 
         {view === 'street360' && (
           <StreetViewer360
-            key={selectedCity}
             cityId={selectedCity}
             resume={streetResume ?? undefined}
             onBack={() => goTo('lobby')}

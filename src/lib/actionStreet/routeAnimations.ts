@@ -13,32 +13,40 @@ export const routeAnimations = {
     return gsap.fromTo(ring, { scale: 1, opacity: 0.8 }, { scale: 2.1, opacity: 0, duration: 1.8, repeat: -1, ease: 'power1.out' });
   },
 
-  // O souvenir sai do card e voa até o botão da mochila, que "recebe" com um pulso.
-  flyToBackpack(from: HTMLElement, iconMarkup: string, onComplete?: () => void): void {
-    const target = document.querySelector<HTMLElement>('[data-backpack-button]');
+  flyToNotebook(from: HTMLElement, iconMarkup: string, onComplete?: () => void): () => void {
+    const target = document.querySelector<HTMLElement>('[data-notebook-button]');
     if (!target) {
       onComplete?.();
-      return;
+      return () => undefined;
     }
 
     const start = from.getBoundingClientRect();
     const end = target.getBoundingClientRect();
     const token = document.createElement('div');
     token.innerHTML = iconMarkup;
-    token.style.cssText = `position:fixed;z-index:10001;left:${start.left}px;top:${start.top}px;width:${start.width}px;height:${start.height}px;display:flex;align-items:center;justify-content:center;border-radius:9999px;color:#fff;background:rgba(59,130,246,0.55);border:1px solid rgba(255,255,255,0.45);backdrop-filter:blur(10px);pointer-events:none;`;
+    token.style.cssText = `position:fixed;z-index:10001;left:${start.left}px;top:${start.top}px;width:${start.width}px;height:${start.height}px;display:flex;align-items:center;justify-content:center;border-radius:9999px;color:#fff;background:rgba(59,130,246,0.85);border:1px solid rgba(255,255,255,0.45);pointer-events:none;`;
     document.body.appendChild(token);
 
-    gsap.to(token, {
-      x: end.left + end.width / 2 - (start.left + start.width / 2),
-      y: end.top + end.height / 2 - (start.top + start.height / 2),
-      scale: 0.4,
-      duration: 0.8,
-      ease: 'power2.inOut',
-      onComplete: () => {
-        token.remove();
-        gsap.fromTo(target, { scale: 1 }, { scale: 1.3, duration: 0.18, yoyo: true, repeat: 1, ease: 'power2.out' });
-        onComplete?.();
-      },
-    });
+    const contexts: gsap.Context[] = [];
+    contexts.push(gsap.context(() => {
+      gsap.to(token, {
+        x: end.left + end.width / 2 - (start.left + start.width / 2),
+        y: end.top + end.height / 2 - (start.top + start.height / 2),
+        scale: 0.4,
+        duration: 0.8,
+        ease: 'power2.inOut',
+        onComplete: () => {
+          token.remove();
+          contexts.push(gsap.context(() => {
+            gsap.fromTo(target, { scale: 1 }, { scale: 1.3, duration: 0.18, yoyo: true, repeat: 1, ease: 'power2.out' });
+          }, target));
+          onComplete?.();
+        },
+      });
+    }, token));
+    return () => {
+      contexts.forEach((context) => context.revert());
+      token.remove();
+    };
   },
 };

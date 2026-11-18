@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { actionStreetCities } from '../src/data/actionStreetCities';
 import { applyChallengeResult, CHALLENGE_REWARD_DOLLARS, CHALLENGE_REWARD_XP, chooseLocalChallenge } from '../src/lib/actionStreet/challengeEngine';
-import { applyDialogueChoice, getAvailableDialogueChoices, getDialogueForSpot } from '../src/lib/actionStreet/dialogueEngine';
+import { applyDialogueChoice, getAvailableDialogueChoices, getDialogueForSpot, presentDialogue, type LocalDialogue } from '../src/lib/actionStreet/dialogueEngine';
 import { missionPayout } from '../src/lib/actionStreet/economy';
 import { getDiscoveredSpotIds } from '../src/lib/actionStreet/discovery';
 import { journeyStore, parseJourney } from '../src/lib/actionStreet/journeyStore';
@@ -13,6 +13,7 @@ import { VISA_VALIDITY_MS, buildRenewalQuiz, getVisaStatus, recordVisit, renewVi
 import { findNearestImage, getMapillaryImageById } from '../src/lib/actionStreet/mapillaryConfig';
 import { getActionStreetReminderSlot } from '../src/lib/actionStreet/reminderSchedule';
 import { hasLegacySaveToImport, importLegacySave, recordLegacySaveDecision } from '../src/lib/actionStreet/legacySave';
+import { getSecretMissionOptions, loadSecretMissions, PAGER_TRIGGER_DELAY_MS, PAGER_UNLOCK_DELAY_MS, SECRET_MISSION_COUNT } from '../src/lib/actionStreet/secretPager';
 import {
   findNearestAirport,
   findProfileCityAirport,
@@ -23,6 +24,8 @@ import {
   shouldShowFirstMissionIntro,
 } from '../src/lib/actionStreet/firstMissionIntro';
 import type { ActionStreetState } from '../src/types/actionStreet';
+import nyDialoguesRaw from '../src/data/actionStreetDialogues.ny.json';
+const nyDialogues = nyDialoguesRaw as LocalDialogue[];
 
 const cities = actionStreetCities;
 const ny = cities[0];
@@ -210,7 +213,7 @@ test('challenge tickets refill one at a time every six hours and cannot be overs
 });
 
 test('local street dialogues apply costs, inventory, phrases, routes, reputation and journal entries', () => {
-  const musician = getDialogueForSpot(baseState({ balance: 20 }), 'ny', 'times-square');
+  const musician = getDialogueForSpot(baseState({ balance: 20 }), 'ny', 'times-square', nyDialogues);
   assert.ok(musician);
   const tipChoice = getAvailableDialogueChoices(musician, baseState({ balance: 20 })).find((choice) => choice.id === 'compliment-and-tip');
   assert.ok(tipChoice);
@@ -218,6 +221,7 @@ test('local street dialogues apply costs, inventory, phrases, routes, reputation
   assert.equal(tipped.balance, 10);
   assert.equal(tipped.xp, 25);
   assert.equal(tipped.reputation.ny, 2);
+  assert.equal(tipped.moods[musician.id], 'impressed');
   assert.ok(tipped.learnedPhrases.includes('keep-the-change'));
   assert.ok(tipped.unlockedRoutes.includes('central-park-after-dark'));
   assert.ok(tipped.journal.some((entry) => entry.type === 'phrase'));
@@ -227,7 +231,8 @@ test('local street dialogues apply costs, inventory, phrases, routes, reputation
   const parkDialogue = getDialogueForSpot(
     baseState({ inventory: ['subway-map'] }),
     'ny',
-    'central-park'
+    'central-park',
+    nyDialogues
   );
   assert.ok(parkDialogue);
   const shareMap = getAvailableDialogueChoices(parkDialogue, baseState({ inventory: ['subway-map'] }))
@@ -236,6 +241,65 @@ test('local street dialogues apply costs, inventory, phrases, routes, reputation
   const shared = applyDialogueChoice(baseState({ inventory: ['subway-map'] }), parkDialogue, shareMap);
   assert.ok(!shared.inventory.includes('subway-map'));
   assert.ok(shared.inventory.includes('broadway-ticket'));
+});
+
+test('dialogue text selects variants and resolves player, item and city placeholders', () => {
+  const dialogue = {
+    id: 'template-test',
+    cityId: 'ny',
+    spotId: 'times-square',
+    character: 'Local vendor',
+    line: ['Hi {{playerName}}, welcome to {{city}}.', 'Hey there!'],
+    choices: [{
+      id: 'tip',
+      text: 'Need help, {{playerName}}?',
+      feedback: ['Enjoy {{lastItem}} in {{city}}!', 'Have a great trip!'],
+      journalLabel: 'Talked to the vendor.',
+    }],
+  };
+  const presented = presentDialogue(dialogue, {
+    playerName: 'Alex',
+    lastItem: 'subway map',
+    city: 'New York',
+  }, () => 0);
+
+  assert.equal(presented.line, 'Hi Alex, welcome to New York.');
+  assert.equal(presented.choices[0].text, 'Need help, Alex?');
+  assert.equal(presented.choices[0].feedback, 'Enjoy subway map in New York!');
+});
+
+test('save migration keeps only supported character moods', () => {
+  assert.deepEqual(sanitizeState({
+    moods: { friendlyNpc: 'friendly', annoyedNpc: 'annoyed', invalidNpc: 'sleepy' },
+  } as unknown as Partial<ActionStreetState>).moods, {
+    friendlyNpc: 'friendly',
+    annoyedNpc: 'annoyed',
+  });
+
+  test('secret pager loads 50 unique local missions and offers four shuffled passphrase choices', async () => {
+    const missions = await loadSecretMissions();
+    assert.equal(PAGER_TRIGGER_DELAY_MS, 120_000);
+    assert.equal(PAGER_UNLOCK_DELAY_MS, 86_400_000);
+    assert.equal(missions.length, SECRET_MISSION_COUNT);
+    assert.equal(new Set(missions.map((mission) => mission.id)).size, SECRET_MISSION_COUNT);
+
+    const mission = missions[0];
+    const options = getSecretMissionOptions(mission, seededRandom(42));
+    assert.equal(options.length, 4);
+    assert.equal(new Set(options).size, 4);
+    assert.ok(options.includes(mission.secretPhrase));
+    assert.deepEqual(sanitizeState({
+      secretMission: { currentIndex: 2, status: 'pending_tomorrow', unlockAt: 123_000, activeTimeMs: 90_000 },
+    } as Partial<ActionStreetState>).secretMission, {
+      currentIndex: 2,
+      status: 'pending_tomorrow',
+      unlockAt: 123_000,
+      activeTimeMs: 90_000,
+    });
+    assert.equal(sanitizeState({
+      secretMission: { status: 'pending_tomorrow', unlockAt: null },
+    } as Partial<ActionStreetState>).secretMission.status, 'idle');
+  });
 });
 
 test('street challenges reward correct answers, keep retries free and advance traveler levels locally', () => {
@@ -258,17 +322,44 @@ test('street challenges reward correct answers, keep retries free and advance tr
 });
 
 test('Action Street saves and journeys stay isolated per account in this browser', () => {
-  withFakeLocalStorage(() => {
+  withFakeLocalStorage((storage) => {
     persistenceManager.saveState(baseState({ balance: 91 }), 'account-one');
     persistenceManager.saveState(baseState({ balance: 37 }), 'account-two');
-    journeyStore.patch({ view: 'street360', cityId: 'ny', spotId: 'times-square' }, 'account-one');
+    journeyStore.patch({ view: 'street360', cityId: 'ny', spotId: 'times-square', imageId: 'exact-mapillary-image' }, 'account-one');
     journeyStore.patch({ view: 'street360', cityId: 'ny', spotId: 'central-park' }, 'account-two');
 
     assert.equal(persistenceManager.loadState('account-one').balance, 91);
     assert.equal(persistenceManager.loadState('account-two').balance, 37);
     assert.equal(journeyStore.load('account-one')?.spotId, 'times-square');
+    assert.equal(journeyStore.load('account-one')?.imageId, 'exact-mapillary-image');
     assert.equal(journeyStore.load('account-two')?.spotId, 'central-park');
     assert.equal(persistenceManager.hasLegacyState(), false);
+    assert.equal(JSON.parse(storage.get('action_street_save_v1_account-one') ?? 'null').state.balance, 91);
+    assert.equal(JSON.parse(storage.get('action_street_save_v1_account-one') ?? 'null').journey.imageId, 'exact-mapillary-image');
+    assert.equal(JSON.parse(storage.get('action_street_save_v1_account-two') ?? 'null').state.balance, 37);
+  });
+});
+
+test('Action Street migrates existing account state and journey into the versioned save without deleting originals', () => {
+  withFakeLocalStorage((storage) => {
+    const state = { balance: 84, inventory: ['subway-map'], unlockedCities: ['ny'] };
+    const journey = {
+      view: 'street360',
+      cityId: 'ny',
+      spotId: 'central-park',
+      imageId: 'saved-image-42',
+      savedAt: 12,
+    };
+    storage.set('ACTION_STREET_STATE_V2_account-migration', JSON.stringify(state));
+    storage.set('ACTION_STREET_JOURNEY_V2_account-migration', JSON.stringify(journey));
+
+    assert.equal(persistenceManager.loadState('account-migration').balance, 84);
+    assert.equal(journeyStore.load('account-migration')?.imageId, 'saved-image-42');
+    assert.ok(storage.has('ACTION_STREET_STATE_V2_account-migration'));
+    assert.ok(storage.has('ACTION_STREET_JOURNEY_V2_account-migration'));
+    const migrated = JSON.parse(storage.get('action_street_save_v1_account-migration') ?? 'null');
+    assert.equal(migrated.state.balance, 84);
+    assert.equal(migrated.journey.imageId, 'saved-image-42');
   });
 });
 

@@ -45,6 +45,7 @@ export default function Map3DViewer({ city, onStage, onDiveComplete }: Props) {
 
     let cancelled = false;
     let routeTween: gsap.core.Tween | null = null;
+    let routeContext: gsap.Context | null = null;
     let map: maplibregl.Map;
     try {
       map = new maplibregl.Map({
@@ -108,17 +109,19 @@ export default function Map3DViewer({ city, onStage, onDiveComplete }: Props) {
       const total = turfLength(line, { units: 'kilometers' });
       const source = map.getSource('route') as maplibregl.GeoJSONSource;
       const progress = { value: 0 };
-      routeTween = gsap.to(progress, {
-        value: 1,
-        duration: 4,
-        ease: 'power1.inOut',
-        onUpdate: () => {
-          if (progress.value < 0.005) return;
-          source.setData(lineSliceAlong(line, 0, total * progress.value, { units: 'kilometers' }));
-          const head = along(line, total * progress.value, { units: 'kilometers' }).geometry.coordinates as [number, number];
-          map.jumpTo({ center: head, bearing: city.camera.bearing + progress.value * 25, pitch: city.camera.pitch });
-        },
-        onComplete: land,
+      routeContext = gsap.context(() => {
+        routeTween = gsap.to(progress, {
+          value: 1,
+          duration: 4,
+          ease: 'power1.inOut',
+          onUpdate: () => {
+            if (progress.value < 0.005) return;
+            source.setData(lineSliceAlong(line, 0, total * progress.value, { units: 'kilometers' }));
+            const head = along(line, total * progress.value, { units: 'kilometers' }).geometry.coordinates as [number, number];
+            map.jumpTo({ center: head, bearing: city.camera.bearing + progress.value * 25, pitch: city.camera.pitch });
+          },
+          onComplete: land,
+        });
       });
     };
 
@@ -184,6 +187,7 @@ export default function Map3DViewer({ city, onStage, onDiveComplete }: Props) {
     return () => {
       cancelled = true;
       window.clearTimeout(watchdog);
+      routeContext?.revert();
       routeTween?.kill();
       map.remove();
     };

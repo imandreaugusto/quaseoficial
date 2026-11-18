@@ -1,4 +1,4 @@
-type SoundCue = 'collect' | 'success' | 'error' | 'camera' | 'stamp' | 'takeoff' | 'coin';
+type SoundCue = 'collect' | 'success' | 'error' | 'camera' | 'stamp' | 'takeoff' | 'coin' | 'pager';
 type AudioWindow = Window & { webkitAudioContext?: typeof AudioContext };
 
 const NOTES: Record<SoundCue, Array<{ frequency: number; offset: number; duration: number; wave: OscillatorType }>> = {
@@ -31,6 +31,10 @@ const NOTES: Record<SoundCue, Array<{ frequency: number; offset: number; duratio
   coin: [
     { frequency: 988, offset: 0, duration: 0.08, wave: 'sine' },
     { frequency: 1318, offset: 0.06, duration: 0.12, wave: 'sine' },
+  ],
+  pager: [
+    { frequency: 740, offset: 0, duration: 0.08, wave: 'square' },
+    { frequency: 980, offset: 0.11, duration: 0.1, wave: 'square' },
   ],
 };
 

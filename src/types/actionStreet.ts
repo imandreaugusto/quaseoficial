@@ -21,12 +21,21 @@ export interface ActionStreetState {
   visas: Record<string, VisaRecord>;
   xp: number;
   reputation: Record<string, number>;
+  moods: Record<string, 'friendly' | 'annoyed' | 'impressed'>;
   inventory: string[];
   learnedPhrases: string[];
   unlockedRoutes: string[];
   dialogueChoices: Record<string, string>;
+  secretMission: SecretMissionProgress;
   tickets: ChallengeTickets;
   journal: TravelJournalEntry[];
+}
+
+export interface SecretMissionProgress {
+  currentIndex: number;
+  status: 'idle' | 'pending_tomorrow' | 'ready_to_verify';
+  unlockAt: number | null;
+  activeTimeMs: number;
 }
 
 export type SpeechRate = 1 | 0.7;

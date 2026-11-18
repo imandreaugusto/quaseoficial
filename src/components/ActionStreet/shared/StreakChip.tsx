@@ -18,18 +18,18 @@ export default function StreakChip({ count, className = '' }: Props) {
     const element = numberRef.current;
     if (!element) return;
     const counter = { value: shown.current };
-    const tween = gsap.to(counter, {
-      value: count,
-      duration: 0.9,
-      ease: 'power2.out',
-      onUpdate: () => {
-        shown.current = counter.value;
-        element.textContent = String(Math.round(counter.value));
-      },
-    });
-    return () => {
-      tween.kill();
-    };
+    const context = gsap.context(() => {
+      gsap.to(counter, {
+        value: count,
+        duration: 0.9,
+        ease: 'power2.out',
+        onUpdate: () => {
+          shown.current = counter.value;
+          element.textContent = String(Math.round(counter.value));
+        },
+      });
+    }, element);
+    return () => context.revert();
   }, [count]);
 
   return (

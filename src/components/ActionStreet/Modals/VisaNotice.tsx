@@ -10,7 +10,7 @@ interface Props {
 
 export default function VisaNotice({ stateName, days, onRenew, compact = false }: Props) {
   return (
-    <div role="alert" className="flex items-start gap-3 rounded-2xl border border-amber-300/40 bg-amber-400/15 px-4 py-3 text-left text-white shadow-[0_0_24px_rgba(251,191,36,0.18)] backdrop-blur-xl">
+    <div role="alert" className="flex items-start gap-3 rounded-2xl border border-amber-300/40 bg-slate-950/85 px-4 py-3 text-left text-white shadow-[0_0_24px_rgba(251,191,36,0.18)]">
       <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" />
       <div className="min-w-0 flex-1">
         <p className="text-[10px] font-bold uppercase tracking-wider text-amber-200">Visto expirado · revisão pendente</p>

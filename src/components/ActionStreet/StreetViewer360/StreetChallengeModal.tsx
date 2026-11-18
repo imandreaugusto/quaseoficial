@@ -117,9 +117,8 @@ export default function StreetChallengeModal({ cityId, spotId, challenge, onClos
         aria-modal="true"
         aria-label={`Street conversation with ${challenge.character}`}
         onClick={(event) => event.stopPropagation()}
-        className={`relative max-h-[92dvh] w-full max-w-lg overflow-y-auto p-5 text-white sm:p-6 ${glass.panelOverImagery}`}
+        className={`relative max-h-[92dvh] w-full max-w-lg overflow-y-auto p-5 text-white sm:p-6 ${glass.modal}`}
       >
-        <div className="pointer-events-none absolute -right-16 -top-20 h-52 w-52 rounded-full bg-amber-400/20 blur-3xl" />
         <header className="relative flex items-start justify-between gap-4">
           <div>
             <p className={glass.label}>Bonus street challenge</p>

@@ -1,3 +1,5 @@
+import { readActionStreetSave, writeActionStreetSave } from './saveEnvelope';
+
 const LEGACY_KEY = 'ACTION_STREET_JOURNEY';
 const ACCOUNT_KEY_PREFIX = `${LEGACY_KEY}_V2_`;
 
@@ -71,22 +73,32 @@ export function parseJourney(raw: string | null): Journey | null {
 // Gravado direto no localStorage (fora do estado do React) para o auto-save não re-renderizar a tela.
 export const journeyStore = {
   load(userId?: string): Journey | null {
+    const savedJourney = readActionStreetSave(userId)?.journey;
+    if (savedJourney) return parseJourney(JSON.stringify(savedJourney));
     try {
-      return parseJourney(localStorage.getItem(storageKey(userId)));
-    } catch {
+      const raw = localStorage.getItem(storageKey(userId));
+      const journey = parseJourney(raw);
+      if (journey) writeActionStreetSave({ journey }, userId);
+      return journey;
+    } catch (error) {
+      console.warn('Não foi possível carregar a jornada local do Action Street.', error);
       return null;
     }
   },
 
-  patch(partial: Partial<Journey> & { cityId?: string }, userId?: string): void {
+  patch(partial: Partial<Journey> & { cityId?: string }, userId?: string): boolean {
     try {
-      const current = parseJourney(localStorage.getItem(storageKey(userId)));
+      const savedJourney = readActionStreetSave(userId)?.journey;
+      const current = savedJourney
+        ? parseJourney(JSON.stringify(savedJourney))
+        : parseJourney(localStorage.getItem(storageKey(userId)));
       const cityId = partial.cityId ?? current?.cityId;
-      if (!cityId) return;
+      if (!cityId) return false;
       const next: Journey = { view: 'lobby', ...current, ...partial, cityId, savedAt: Date.now() };
-      localStorage.setItem(storageKey(userId), JSON.stringify(next));
-    } catch {
-      // storage indisponível: a viagem continua, só não é retomada depois
+      return writeActionStreetSave({ journey: next }, userId);
+    } catch (error) {
+      console.warn('Não foi possível salvar a jornada local do Action Street.', error);
+      return false;
     }
   },
 
@@ -94,11 +106,7 @@ export const journeyStore = {
     const current = journeyStore.load(userId);
     if (!current) return;
     delete current.mission;
-    try {
-      localStorage.setItem(storageKey(userId), JSON.stringify({ ...current, savedAt: Date.now() }));
-    } catch {
-      // ignorado
-    }
+    writeActionStreetSave({ journey: { ...current, savedAt: Date.now() } }, userId);
   },
 
   hasLegacyJourney(): boolean {
@@ -112,12 +120,10 @@ export const journeyStore = {
 
   importLegacyJourney(userId: string): Journey | null {
     try {
-      const targetKey = storageKey(userId);
-      if (localStorage.getItem(targetKey) !== null) return null;
+      if (readActionStreetSave(userId)?.journey || localStorage.getItem(storageKey(userId)) !== null) return null;
       const legacy = parseJourney(localStorage.getItem(LEGACY_KEY));
       if (!legacy) return null;
-      localStorage.setItem(targetKey, JSON.stringify(legacy));
-      return legacy;
+      return writeActionStreetSave({ journey: legacy }, userId) ? legacy : null;
     } catch (error) {
       console.warn('Não foi possível importar a jornada antiga do Action Street.', error);
       return null;
@@ -127,8 +133,9 @@ export const journeyStore = {
   clear(userId?: string): void {
     try {
       localStorage.removeItem(storageKey(userId));
-    } catch {
-      // ignorado
+      writeActionStreetSave({ journey: null }, userId);
+    } catch (error) {
+      console.warn('Não foi possível limpar a jornada local do Action Street.', error);
     }
   },
 };

@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { BookOpen, Backpack, Lock, ScrollText, X } from 'lucide-react';
-import confetti from 'canvas-confetti';
+import { Banknote, BookMarked, BookOpen, Backpack, Lock, ScrollText, X } from 'lucide-react';
 import gsap from 'gsap';
 import { getAdventureItem, getAdventurePhrase } from '../../../lib/actionStreet/adventureCatalog';
 import { getVisaStatus } from '../../../lib/actionStreet/visa';
@@ -12,8 +11,10 @@ import StampBadge from '../shared/StampBadge';
 import StreakChip from '../shared/StreakChip';
 import VisaNotice from './VisaNotice';
 import VisaRenewalQuiz from './VisaRenewalQuiz';
+import ActionDollarNotes from '../ActionDollarNotes';
+import StreetSlangNotebook from './StreetSlangNotebook';
 
-export type PassportTab = 'stamps' | 'backpack' | 'journal';
+export type PassportTab = 'stamps' | 'backpack' | 'journal' | 'slang' | 'dollars';
 export interface PassportHighlight {
   stampId: string;
   kind: 'earn' | 'renew';
@@ -27,7 +28,7 @@ interface Props {
 }
 
 export default function PassportModal({ initialTab, highlight: initialHighlight, onClose, onExploreSpot }: Props) {
-  const { state, allCities } = useActionStreet();
+  const { state, allCities, speechRate } = useActionStreet();
   const [tab, setTab] = useState<PassportTab>(initialTab);
   const [highlight, setHighlight] = useState<PassportHighlight | undefined>(initialHighlight);
   const [renewingCityId, setRenewingCityId] = useState<string | null>(null);
@@ -45,10 +46,10 @@ export default function PassportModal({ initialTab, highlight: initialHighlight,
   useEffect(() => {
     const card = cardRef.current;
     if (!card) return;
-    const opening = gsap.fromTo(card, { opacity: 0, y: 24, scale: 0.94 }, { opacity: 1, y: 0, scale: 1, duration: 0.3, ease: 'back.out(1.4)' });
-    return () => {
-      opening.kill();
-    };
+    const context = gsap.context(() => {
+      gsap.fromTo(card, { opacity: 0, y: 24, scale: 0.94 }, { opacity: 1, y: 0, scale: 1, duration: 0.3, ease: 'power2.out' });
+    }, card);
+    return () => context.revert();
   }, []);
 
   useEffect(() => {
@@ -57,29 +58,21 @@ export default function PassportModal({ initialTab, highlight: initialHighlight,
     const stamp = card?.querySelector<HTMLElement>(`[data-stamp-id="${highlight.stampId}"]`);
     if (!card || !stamp) return;
 
-    const timeline = gsap.timeline({ delay: 0.55 });
-    if (highlight.kind === 'earn') {
-      timeline
-        .fromTo(stamp, { scale: 3.4, rotation: -32, opacity: 0 }, { scale: 1, rotation: -8, opacity: 1, duration: 0.32, ease: 'power4.in' })
-        .add(() => {
-          confetti({ particleCount: 140, spread: 80, origin: { y: 0.6 }, zIndex: 10000 });
-        })
-        .fromTo(card, { x: -7 }, { x: 0, duration: 0.45, ease: 'elastic.out(1, 0.25)' }, '<')
-        .fromTo(stamp, { filter: 'brightness(2.2)' }, { filter: 'brightness(1)', duration: 0.5 }, '<');
-    } else {
-      timeline
-        .fromTo(stamp, { filter: 'saturate(0.4) brightness(0.8)', opacity: 0.6 }, { filter: 'saturate(1) brightness(1.6)', opacity: 1, duration: 0.35, ease: 'power2.out' })
-        .fromTo(stamp, { scale: 1.3, rotation: -14 }, { scale: 1, rotation: -8, duration: 0.45, ease: 'elastic.out(1, 0.45)' }, '<')
-        .add(() => {
-          confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 }, zIndex: 10000, colors: ['#fbbf24', '#34d399', '#60a5fa'] });
-        })
-        .to(stamp, { filter: 'brightness(1)', duration: 0.5 });
-    }
-
-    return () => {
-      timeline.kill();
-      gsap.set(stamp, { clearProps: 'all' });
-    };
+    const context = gsap.context(() => {
+      const timeline = gsap.timeline({ delay: 0.2 });
+      if (highlight.kind === 'earn') {
+        timeline
+          .fromTo(stamp, { scale: 2.5, rotation: -24, opacity: 0 }, { scale: 1, rotation: -8, opacity: 1, duration: 0.28, ease: 'power4.in' })
+          .fromTo(card, { x: -5 }, { x: 0, duration: 0.24, ease: 'power2.out' }, '<')
+          .fromTo(stamp, { filter: 'brightness(1.8)' }, { filter: 'brightness(1)', duration: 0.32 }, '<');
+      } else {
+        timeline
+          .fromTo(stamp, { filter: 'saturate(0.4) brightness(0.8)', opacity: 0.6 }, { filter: 'saturate(1) brightness(1.4)', opacity: 1, duration: 0.3, ease: 'power2.out' })
+          .fromTo(stamp, { scale: 1.2, rotation: -14 }, { scale: 1, rotation: -8, duration: 0.34, ease: 'power2.out' }, '<')
+          .to(stamp, { filter: 'brightness(1)', duration: 0.32 });
+      }
+    }, card);
+    return () => context.revert();
   }, [highlight, tab]);
 
   const earnedByCity = new Map(state.stamps.map((stamp) => [stamp.cityId, stamp]));
@@ -96,10 +89,8 @@ export default function PassportModal({ initialTab, highlight: initialHighlight,
         aria-modal="true"
         aria-label="Passaporte digital"
         onClick={(event) => event.stopPropagation()}
-        className={`relative max-h-[92dvh] w-full max-w-3xl overflow-y-auto p-6 text-white ${glass.panelOverImagery}`}
+        className={`relative max-h-[92dvh] w-full max-w-3xl overflow-y-auto p-6 text-white ${glass.modal}`}
       >
-        <div className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full bg-violet-500/25 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-24 -left-16 h-56 w-56 rounded-full bg-blue-500/20 blur-3xl" />
         <div className="relative mb-4 flex items-center justify-between">
           <div>
             <p className={glass.label}>Action Street</p>
@@ -112,11 +103,13 @@ export default function PassportModal({ initialTab, highlight: initialHighlight,
 
         <StreakChip count={state.streak.count} className="relative mb-4" />
 
-        <div className={`relative mb-5 grid grid-cols-3 gap-1 p-1 ${glass.chip}`} role="tablist">
+        <div className={`relative mb-5 grid grid-cols-5 gap-1 p-1 ${glass.chip}`} role="tablist">
           {([
             ['stamps', 'Carimbos', BookOpen],
             ['backpack', 'Mochila', Backpack],
             ['journal', 'Diário', ScrollText],
+            ['slang', 'Caderno', BookMarked],
+            ['dollars', 'Dólares', Banknote],
           ] as const).map(([id, label, Icon]) => (
             <button
               key={id}
@@ -124,12 +117,13 @@ export default function PassportModal({ initialTab, highlight: initialHighlight,
               role="tab"
               aria-selected={tab === id}
               onClick={() => setTab(id)}
-              className={`flex items-center justify-center gap-2 rounded-full border px-3 py-2 text-sm font-bold transition ${
+              title={label}
+              className={`flex min-w-0 items-center justify-center gap-1 rounded-full border px-1.5 py-2 text-[10px] font-bold transition sm:gap-2 sm:px-3 sm:text-sm ${
                 tab === id ? glass.chipActive + ' text-white' : 'border-transparent text-white/60 hover:text-white'
               }`}
             >
-              <Icon className="h-4 w-4" />
-              {label}
+              <Icon className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+              <span className="truncate">{label}</span>
             </button>
           ))}
         </div>
@@ -214,8 +208,12 @@ export default function PassportModal({ initialTab, highlight: initialHighlight,
               <DiscoveryAtlas onExploreSpot={onExploreSpot} />
             </section>
           </div>
-        ) : (
+        ) : tab === 'journal' ? (
           <TravelJournal state={state} cityNames={cityNames} />
+        ) : tab === 'slang' ? (
+          <StreetSlangNotebook cities={allCities} state={state} speechRate={speechRate} />
+        ) : (
+          <ActionDollarNotes balance={state.balance} />
         )}
       </div>
 

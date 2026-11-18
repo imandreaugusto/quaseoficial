@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Plane, RotateCcw } from 'lucide-react';
 import gsap from 'gsap';
 import { useActionStreet } from '../ActionStreetContext';
@@ -18,6 +18,9 @@ export default function Map3DExplorer({ cityId, onComplete, onBack }: Props) {
   const [attempt, setAttempt] = useState(0);
   const stageRef = useRef<HTMLDivElement>(null);
   const leaving = useRef(false);
+  const exitContext = useRef<gsap.Context | null>(null);
+
+  useEffect(() => () => exitContext.current?.revert(), []);
 
   if (!city) return null;
 
@@ -32,7 +35,12 @@ export default function Map3DExplorer({ cityId, onComplete, onBack }: Props) {
   const enterStreet = () => {
     if (leaving.current) return;
     leaving.current = true;
-    gsap.to(stageRef.current, { opacity: 0, scale: 1.08, duration: 0.8, ease: 'power2.inOut', onComplete });
+    const stage = stageRef.current;
+    if (!stage) return;
+    exitContext.current?.revert();
+    exitContext.current = gsap.context(() => {
+      gsap.to(stage, { opacity: 0, scale: 1.08, duration: 0.8, ease: 'power2.inOut', onComplete });
+    }, stage);
   };
 
   return (

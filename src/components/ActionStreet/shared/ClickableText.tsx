@@ -97,7 +97,7 @@ export default function ClickableText({ text, className, speechRate = 1 }: Props
           <div
             role="dialog"
             aria-label={`Tradução de ${popup.word}`}
-            className="fixed z-[100] w-[280px] rounded-2xl border border-white/20 bg-slate-950/80 p-3 text-sm text-white shadow-2xl backdrop-blur-2xl"
+            className="fixed z-[100] w-[280px] rounded-2xl border border-white/20 bg-slate-950/95 p-3 text-sm text-white shadow-2xl"
             style={{ left: popup.left, top: popup.top }}
           >
             <div className="flex items-start justify-between gap-3">

@@ -37,10 +37,10 @@ export default function VisaRenewalQuiz({ cityId, onClose, onRenewed }: Props) {
   useEffect(() => {
     const card = cardRef.current;
     if (!card) return;
-    const tween = gsap.fromTo(card, { opacity: 0, y: 24, scale: 0.94 }, { opacity: 1, y: 0, scale: 1, duration: 0.3, ease: 'back.out(1.4)' });
-    return () => {
-      tween.kill();
-    };
+    const context = gsap.context(() => {
+      gsap.fromTo(card, { opacity: 0, y: 24, scale: 0.94 }, { opacity: 1, y: 0, scale: 1, duration: 0.3, ease: 'back.out(1.4)' });
+    }, card);
+    return () => context.revert();
   }, []);
 
   useEffect(() => {
@@ -91,9 +91,8 @@ export default function VisaRenewalQuiz({ cityId, onClose, onRenewed }: Props) {
         aria-modal="true"
         aria-label={`Renovar visto: ${city.stateName}`}
         onClick={(event) => event.stopPropagation()}
-        className={`relative w-full max-w-md overflow-hidden p-6 text-white ${glass.panelOverImagery}`}
+        className={`relative w-full max-w-md overflow-hidden p-6 text-white ${glass.modal}`}
       >
-        <div className="pointer-events-none absolute -right-16 -top-20 h-52 w-52 rounded-full bg-amber-400/20 blur-3xl" />
         <div className="relative flex items-start justify-between gap-4">
           <div>
             <p className={glass.label}>Revisão rápida · {city.stateName}</p>
@@ -138,7 +137,7 @@ export default function VisaRenewalQuiz({ cityId, onClose, onRenewed }: Props) {
                       : 'border-white/10 bg-white/5 opacity-60';
                 return (
                   <li key={option}>
-                    <button type="button" disabled={revealed} onClick={() => choose(optionIndex)} className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left text-sm backdrop-blur-xl transition ${tone}`}>
+                    <button type="button" disabled={revealed} onClick={() => choose(optionIndex)}                     className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left text-sm transition ${tone}`}>
                       <span className="flex-1">{option}</span>
                       {revealed && isCorrect && <Check className="h-4 w-4 shrink-0 text-emerald-300" />}
                     </button>

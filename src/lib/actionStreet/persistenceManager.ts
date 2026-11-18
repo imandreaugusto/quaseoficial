@@ -3,6 +3,7 @@ import actionStreetData from '../../data/actionStreetData.json';
 import { emptyStreak, registerVisit } from './streak';
 import { recordVisit, renewVisa } from './visa';
 import { spotDiscoveryId } from './discovery';
+import { readActionStreetSave, writeActionStreetSave } from './saveEnvelope';
 
 const STORAGE_KEY = 'ACTION_STREET_STATE';
 const ACCOUNT_STORAGE_PREFIX = `${STORAGE_KEY}_V2_`;
@@ -21,10 +22,12 @@ export const defaultState: ActionStreetState = {
   visas: {},
   xp: 0,
   reputation: {},
+  moods: {},
   inventory: [],
   learnedPhrases: [],
   unlockedRoutes: [],
   dialogueChoices: {},
+  secretMission: { currentIndex: 0, status: 'idle', unlockAt: null, activeTimeMs: 0 },
   tickets: { available: TICKET_CAP, lastRefillAt: Date.now() },
   journal: [],
 };
@@ -54,6 +57,17 @@ function sanitizeReputation(raw: unknown): Record<string, number> {
     Object.entries(raw as Record<string, unknown>)
       .filter((entry): entry is [string, number] => typeof entry[1] === 'number' && Number.isFinite(entry[1]))
       .map(([cityId, reputation]) => [cityId, Math.min(10, Math.max(-10, Math.floor(reputation)))])
+      .slice(0, 100)
+  );
+}
+
+function sanitizeMoods(raw: unknown): ActionStreetState['moods'] {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  return Object.fromEntries(
+    Object.entries(raw as Record<string, unknown>)
+      .filter((entry): entry is [string, ActionStreetState['moods'][string]] =>
+        entry[1] === 'friendly' || entry[1] === 'annoyed' || entry[1] === 'impressed'
+      )
       .slice(0, 100)
   );
 }
@@ -111,6 +125,14 @@ function sanitizeVisas(raw: unknown, stamps: Stamp[], now: number): Record<strin
 export function sanitizeState(raw: Partial<ActionStreetState>, now = Date.now()): ActionStreetState {
   const stamps = asArray<Stamp>(raw.stamps);
   const rawTickets = raw.tickets as Partial<ActionStreetState['tickets']> | undefined;
+  const rawSecretMission = raw.secretMission as Partial<ActionStreetState['secretMission']> | undefined;
+  const secretUnlockAt = isCount(rawSecretMission?.unlockAt) ? rawSecretMission.unlockAt : null;
+  const requestedSecretStatus = rawSecretMission?.status === 'pending_tomorrow' || rawSecretMission?.status === 'ready_to_verify'
+    ? rawSecretMission.status
+    : 'idle';
+  const secretStatus = requestedSecretStatus === 'pending_tomorrow' && secretUnlockAt === null
+    ? 'idle'
+    : requestedSecretStatus;
   return {
     currentCity: typeof raw.currentCity === 'string' ? raw.currentCity : defaultState.currentCity,
     balance: typeof raw.balance === 'number' && Number.isFinite(raw.balance) ? Math.max(0, raw.balance) : defaultState.balance,
@@ -123,10 +145,17 @@ export function sanitizeState(raw: Partial<ActionStreetState>, now = Date.now())
     visas: sanitizeVisas(raw.visas, stamps, now),
     xp: boundedInteger(raw.xp, 0, Number.MAX_SAFE_INTEGER, 0),
     reputation: sanitizeReputation(raw.reputation),
+    moods: sanitizeMoods(raw.moods),
     inventory: asStringArray(raw.inventory).slice(0, 200),
     learnedPhrases: asStringArray(raw.learnedPhrases).slice(0, 500),
     unlockedRoutes: asStringArray(raw.unlockedRoutes).slice(0, 300),
     dialogueChoices: sanitizeStringRecord(raw.dialogueChoices),
+    secretMission: {
+      currentIndex: boundedInteger(rawSecretMission?.currentIndex, 0, 50, 0),
+      status: secretStatus,
+      unlockAt: secretStatus === 'idle' ? null : secretUnlockAt,
+      activeTimeMs: boundedInteger(rawSecretMission?.activeTimeMs, 0, 120_000, 0),
+    },
     tickets: {
       available: boundedInteger(rawTickets?.available, 0, TICKET_CAP, TICKET_CAP),
       lastRefillAt: isCount(rawTickets?.lastRefillAt) ? rawTickets.lastRefillAt : now,
@@ -137,23 +166,26 @@ export function sanitizeState(raw: Partial<ActionStreetState>, now = Date.now())
 
 export const persistenceManager = {
   loadState(userId?: string): ActionStreetState {
+    const savedState = readActionStreetSave(userId)?.state;
+    if (savedState) return sanitizeState(savedState);
     try {
       const stored = localStorage.getItem(userId ? accountStorageKey(userId) : STORAGE_KEY);
-      return stored ? sanitizeState(JSON.parse(stored)) : sanitizeState(defaultState);
-    } catch {
+      if (!stored) return sanitizeState(defaultState);
+      const state = sanitizeState(JSON.parse(stored));
+      writeActionStreetSave({ state }, userId);
+      return state;
+    } catch (error) {
+      console.warn('Não foi possível carregar o progresso local do Action Street.', error);
       return sanitizeState(defaultState);
     }
   },
 
-  saveState(state: ActionStreetState, userId?: string): void {
-    try {
-      localStorage.setItem(userId ? accountStorageKey(userId) : STORAGE_KEY, JSON.stringify(state));
-    } catch {
-      // storage cheio/indisponível: o progresso da sessão continua em memória
-    }
+  saveState(state: ActionStreetState, userId?: string): boolean {
+    return writeActionStreetSave({ state }, userId);
   },
 
   hasAccountState(userId: string): boolean {
+    if (readActionStreetSave(userId)?.state) return true;
     try {
       return localStorage.getItem(accountStorageKey(userId)) !== null;
     } catch (error) {
@@ -173,12 +205,11 @@ export const persistenceManager = {
 
   importLegacyState(userId: string): ActionStreetState | null {
     try {
-      if (localStorage.getItem(accountStorageKey(userId)) !== null) return null;
+      if (readActionStreetSave(userId)?.state || localStorage.getItem(accountStorageKey(userId)) !== null) return null;
       const stored = localStorage.getItem(STORAGE_KEY);
       if (!stored) return null;
       const imported = sanitizeState(JSON.parse(stored));
-      localStorage.setItem(accountStorageKey(userId), JSON.stringify(imported));
-      return imported;
+      return writeActionStreetSave({ state: imported }, userId) ? imported : null;
     } catch (error) {
       console.warn('Não foi possível importar o save antigo do Action Street.', error);
       return null;

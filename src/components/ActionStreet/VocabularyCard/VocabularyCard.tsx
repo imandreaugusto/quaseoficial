@@ -32,13 +32,24 @@ export default function VocabularyCard({ cityId, hotspotId, onClose }: Props) {
   const hotspot = city?.hotspots.find((item) => item.id === hotspotId);
   const cardRef = useRef<HTMLDivElement>(null);
   const iconRef = useRef<HTMLSpanElement>(null);
+  const animationCleanup = useRef<(() => void) | null>(null);
   const openedAt = useRef(Date.now());
   const [collecting, setCollecting] = useState(false);
 
   const alreadyCollected = state.souvenirs.some((item) => item.id === souvenirId(cityId, hotspotId));
 
   useEffect(() => {
-    if (cardRef.current) routeAnimations.modalOpen(cardRef.current);
+    const card = cardRef.current;
+    if (!card) return;
+    const context = gsap.context(() => {
+      routeAnimations.modalOpen(card);
+    }, card);
+    return () => context.revert();
+  }, []);
+
+  useEffect(() => () => {
+    animationCleanup.current?.();
+    animationCleanup.current = null;
   }, []);
 
   useEffect(() => {
@@ -83,7 +94,7 @@ export default function VocabularyCard({ cityId, hotspotId, onClose }: Props) {
     };
 
     if (iconRef.current) {
-      routeAnimations.flyToBackpack(iconRef.current, iconRef.current.innerHTML, award);
+      animationCleanup.current = routeAnimations.flyToNotebook(iconRef.current, iconRef.current.innerHTML, award);
     } else {
       award();
     }
@@ -97,11 +108,8 @@ export default function VocabularyCard({ cityId, hotspotId, onClose }: Props) {
         aria-modal="true"
         aria-label={`Vocabulário: ${hotspot.word}`}
         onClick={(event) => event.stopPropagation()}
-        className={`relative w-full max-w-md overflow-hidden p-6 text-white ${glass.panelOverImagery}`}
+        className={`relative w-full max-w-md overflow-hidden p-6 text-white ${glass.modal}`}
       >
-        <div className="pointer-events-none absolute -right-16 -top-20 h-52 w-52 rounded-full bg-violet-500/25 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-20 -left-12 h-48 w-48 rounded-full bg-blue-500/20 blur-3xl" />
-
         <button type="button" onClick={onClose} aria-label="Fechar" className={`absolute right-4 top-4 ${glass.iconButton}`}>
           <X className="h-4 w-4" />
         </button>
@@ -133,7 +141,7 @@ export default function VocabularyCard({ cityId, hotspotId, onClose }: Props) {
           </button>
           <button type="button" onClick={collect} disabled={alreadyCollected || collecting} className={glass.primaryButton}>
             {alreadyCollected ? <Check className="h-5 w-5" /> : <Gift className="h-5 w-5" />}
-            {alreadyCollected ? 'Coletado' : 'Coletar'}
+            {alreadyCollected ? 'Anotado no Caderno' : 'Anotar no Caderno'}
           </button>
         </div>
         <div className="relative mt-3 flex items-center justify-between gap-3">

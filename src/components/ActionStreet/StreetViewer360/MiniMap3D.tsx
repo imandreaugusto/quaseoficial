@@ -59,7 +59,7 @@ export default function MiniMap3D({ city, currentSpotId, discoveredSpotIds, unlo
         type: 'geojson',
         data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: city.route3D.waypoints } },
       });
-      map.addLayer({ id: 'mini-route-glow', type: 'line', source: 'mini-route', paint: { 'line-color': '#8b5cf6', 'line-width': 9, 'line-blur': 6, 'line-opacity': 0.8 } });
+      map.addLayer({ id: 'mini-route-glow', type: 'line', source: 'mini-route', paint: { 'line-color': '#8b5cf6', 'line-width': 9, 'line-opacity': 0.45 } });
       map.addLayer({ id: 'mini-route-line', type: 'line', source: 'mini-route', paint: { 'line-color': '#bfdbfe', 'line-width': 3 } });
     });
 
@@ -69,7 +69,7 @@ export default function MiniMap3D({ city, currentSpotId, discoveredSpotIds, unlo
       const discovered = discoveredRef.current.has(spotDiscoveryId(city.id, spot.id));
       button.title = `${spot.name}${discovered ? ' · descoberto' : ' · novo local'}`;
       button.setAttribute('aria-label', `${discovered ? 'Visitar' : 'Explorar'} ${spot.name}`);
-      button.style.cssText = 'width:22px;height:22px;border-radius:9999px;border:2px solid #fff;cursor:pointer;backdrop-filter:blur(6px);transition:transform .2s;';
+      button.style.cssText = 'width:22px;height:22px;border-radius:9999px;border:2px solid #fff;cursor:pointer;transition:transform .2s;';
       button.style.borderStyle = discovered ? 'solid' : 'dashed';
       button.addEventListener('click', () => {
         if (spot.id !== currentRef.current) travelRef.current(spot.id);

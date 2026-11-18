@@ -1,17 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, Check, Coins, MessagesSquare, RotateCcw, Sparkles, Stamp as StampIcon, X } from 'lucide-react';
-import confetti from 'canvas-confetti';
+import gsap from 'gsap';
 import { missionPayout } from '../../../lib/actionStreet/economy';
 import { journeyStore } from '../../../lib/actionStreet/journeyStore';
 import { missionEngine, type MissionState } from '../../../lib/actionStreet/missionEngine';
 import { persistenceManager } from '../../../lib/actionStreet/persistenceManager';
-import { routeAnimations } from '../../../lib/actionStreet/routeAnimations';
 import { getVisaStatus } from '../../../lib/actionStreet/visa';
 import { appendJournalEntry, awardXp, createJournalEntry } from '../../../lib/actionStreet/progression';
 import { useActionStreet } from '../ActionStreetContext';
 import ClickableText from '../shared/ClickableText';
 import { glass } from '../shared/glass';
 import SpeechRateControl from '../shared/SpeechRateControl';
+import { getActionDollarNote } from '../ActionDollarNotes';
 
 interface Props {
   cityId: string;
@@ -38,8 +38,22 @@ export default function MissionPanel({ cityId, onClose, onOpenPassport }: Props)
   const finishedRef = useRef(false);
 
   useEffect(() => {
-    if (panelRef.current) routeAnimations.modalOpen(panelRef.current);
+    const panel = panelRef.current;
+    if (!panel) return;
+    const context = gsap.context(() => {
+      gsap.fromTo(panel, { opacity: 0, y: 20, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.26, ease: 'power2.out' });
+    }, panel);
+    return () => context.revert();
   }, []);
+
+  useEffect(() => {
+    if (!firstCompletion || !panelRef.current) return;
+    const panel = panelRef.current;
+    const context = gsap.context(() => {
+      gsap.fromTo(panel, { x: -5 }, { x: 0, duration: 0.22, ease: 'power2.out' });
+    }, panel);
+    return () => context.revert();
+  }, [firstCompletion]);
 
   // Auto-save do passo da missão: ao fechar (por qualquer caminho) o aluno volta exatamente de onde parou.
   useEffect(() => {
@@ -105,7 +119,6 @@ export default function MissionPanel({ cityId, onClose, onOpenPassport }: Props)
       );
     });
     reportActivity('mission-complete', city.id);
-    confetti({ particleCount: 110, spread: 75, origin: { y: 0.55 }, zIndex: 10000 });
   };
 
   const restart = () => {
@@ -126,11 +139,8 @@ export default function MissionPanel({ cityId, onClose, onOpenPassport }: Props)
         aria-modal="true"
         aria-label={`Missão: ${mission.title}`}
         onClick={(event) => event.stopPropagation()}
-        className={`relative w-full max-w-lg overflow-hidden p-6 text-white ${glass.panelOverImagery}`}
+        className={`relative w-full max-w-lg overflow-hidden p-6 text-white ${glass.modal}`}
       >
-        <div className="pointer-events-none absolute -right-16 -top-20 h-52 w-52 rounded-full bg-violet-500/25 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-20 -left-12 h-48 w-48 rounded-full bg-blue-500/20 blur-3xl" />
-
         <div className="relative flex items-start justify-between gap-4">
           <div className="min-w-0">
             <p className={glass.label}>Missão · {mission.npcRole}</p>
@@ -155,6 +165,13 @@ export default function MissionPanel({ cityId, onClose, onOpenPassport }: Props)
             <h3 className="mt-3 text-2xl font-black">Missão completa!</h3>
             {firstCompletion ? (
               <>
+                <img
+                  src={getActionDollarNote(cityId).image}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  className="mx-auto mt-4 aspect-[1.55] w-48 rounded-lg object-cover shadow-xl"
+                />
                 <p className="mt-2 inline-flex items-center gap-2 text-lg font-black text-amber-200">
                   <Coins className="h-5 w-5" />+{payout.total} Action Dollars
                 </p>
@@ -209,7 +226,7 @@ export default function MissionPanel({ cityId, onClose, onOpenPassport }: Props)
                         : 'border-white/10 bg-white/5 opacity-60';
                   return (
                     <li key={option.text}>
-                      <button type="button" disabled={revealed} onClick={() => choose(index)} className={`flex w-full items-start gap-3 rounded-2xl border px-4 py-3 text-left text-sm backdrop-blur-xl transition ${tone}`}>
+                      <button type="button" disabled={revealed} onClick={() => choose(index)} className={`flex w-full items-start gap-3 rounded-2xl border px-4 py-3 text-left text-sm transition ${tone}`}>
                         <span className="flex-1 leading-relaxed">{option.text}</span>
                         {revealed && option.isCorrect && <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />}
                       </button>
@@ -220,7 +237,7 @@ export default function MissionPanel({ cityId, onClose, onOpenPassport }: Props)
 
               {selected !== null && (
                 <div className="mt-4" role="status">
-                  <p className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm leading-relaxed text-white/90 backdrop-blur-xl">{step.options[selected].feedback}</p>
+                  <p className="rounded-2xl border border-white/15 bg-slate-950/85 px-4 py-3 text-sm leading-relaxed text-white/90">{step.options[selected].feedback}</p>
                   <button type="button" onClick={next} className={`mt-3 w-full ${glass.primaryButton}`}>
                     {progress.current === progress.total ? 'Concluir missão' : 'Continuar'}
                     <ArrowRight className="h-5 w-5" />

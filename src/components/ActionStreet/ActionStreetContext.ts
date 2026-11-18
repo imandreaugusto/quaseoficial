@@ -30,6 +30,7 @@ export interface ActionStreetProfile {
 
 export interface ActionStreetContextType {
   state: ActionStreetState;
+  saveError: string;
   updateState: (updater: (previous: ActionStreetState) => ActionStreetState) => void;
   getCityData: (cityId: string) => City | undefined;
   allCities: City[];

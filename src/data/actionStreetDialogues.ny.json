@@ -4,14 +4,21 @@
     "cityId": "ny",
     "spotId": "times-square",
     "character": "Street musician",
-    "line": "Hey, traveler! Glad you stopped to listen. What do you think of the song?",
+    "line": [
+      "Hey {{playerName}}, glad you stopped to listen in {{city}}. What do you think of the song?",
+      "Welcome to {{city}}, {{playerName}}! Catch that last tune?"
+    ],
     "choices": [
       {
         "id": "compliment-and-tip",
-        "text": "Your music is amazing. Keep the change!",
+        "text": "Your music in {{city}} is amazing. Keep the change!",
         "costDollars": 10,
-        "feedback": "The musician smiles and points you toward a quieter path in Central Park.",
+        "feedback": [
+          "The musician smiles, {{playerName}}, and points you toward a quieter path in Central Park.",
+          "The musician nods. That tip earned you a local route through {{city}}."
+        ],
         "reputationChange": 2,
+        "mood": "impressed",
         "xp": 25,
         "learnPhrase": "keep-the-change",
         "unlockRoute": "central-park-after-dark",
@@ -33,6 +40,14 @@
         "reputationChange": 0,
         "xp": 2,
         "journalLabel": "You said goodbye to the musician."
+      },
+      {
+        "id": "rush-musician",
+        "text": "I'm busy. Just point me to the next place.",
+        "feedback": "The musician looks annoyed and goes back to the song.",
+        "reputationChange": -2,
+        "mood": "annoyed",
+        "journalLabel": "You rushed the street musician."
       }
     ]
   },
