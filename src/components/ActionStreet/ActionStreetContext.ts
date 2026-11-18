@@ -26,6 +26,7 @@ export interface ActionStreetProfile {
   lastName: string;
   city: string;
   country: string;
+  photoUrl?: string;
 }
 
 export interface ActionStreetContextType {

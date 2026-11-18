@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, Download, MapPin, Plane, Share2, Sparkles } from 'lucide-react';
+import { ArrowRight, Instagram, MapPin, Plane, Share2 } from 'lucide-react';
 import gsap from 'gsap';
 import type { City } from '../../types/actionStreet';
 import {
@@ -90,9 +90,12 @@ export default function FirstMissionIntro({ profile, destination, onStart }: Pro
   const [notice, setNotice] = useState('');
   const [travelPassFile, setTravelPassFile] = useState<File | null>(null);
   const [travelPassError, setTravelPassError] = useState('');
+  const [travelPassNotice, setTravelPassNotice] = useState('');
   const [shareMessage, setShareMessage] = useState('');
   const [shareBusy, setShareBusy] = useState(false);
+  const [profilePhotoFailed, setProfilePhotoFailed] = useState(false);
   const passRef = useRef<HTMLDivElement>(null);
+  const coverRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const flipTweenRef = useRef<gsap.core.Tween | null>(null);
   const flipContextRef = useRef<gsap.Context | null>(null);
@@ -139,9 +142,19 @@ export default function FirstMissionIntro({ profile, destination, onStart }: Pro
     let active = true;
     setTravelPassFile(null);
     setTravelPassError('');
-    void createTravelPassArtwork({ displayName, origin: profileOrigin, destination: destinationLabel })
-      .then((file) => {
-        if (active) setTravelPassFile(file);
+    setTravelPassNotice('');
+    void createTravelPassArtwork({
+      displayName,
+      origin: profileOrigin,
+      destination: destinationLabel,
+      photoUrl: profile.photoUrl,
+    })
+      .then(({ file, photoUnavailable }) => {
+        if (!active) return;
+        setTravelPassFile(file);
+        if (photoUnavailable) {
+          setTravelPassNotice('A foto do perfil não está disponível agora; a imagem foi preparada com suas iniciais.');
+        }
       })
       .catch((error: unknown) => {
         console.error('Não foi possível preparar a imagem compartilhável do Travel Pass.', error);
@@ -150,21 +163,24 @@ export default function FirstMissionIntro({ profile, destination, onStart }: Pro
     return () => {
       active = false;
     };
-  }, [phase, displayName, profileOrigin, destinationLabel]);
+  }, [phase, displayName, profileOrigin, destinationLabel, profile.photoUrl]);
 
   const openPass = () => {
+    const cover = coverRef.current;
     if (phase !== 'cover' || flipTweenRef.current?.isActive()) return;
-    if (reducedMotion() || !passRef.current) {
+    if (reducedMotion() || !cover) {
+      if (cover) gsap.set(cover, { autoAlpha: 0, rotationY: -165 });
       setPhase('details');
       return;
     }
     flipContextRef.current?.revert();
     flipContextRef.current = gsap.context(() => {
-      flipTweenRef.current = gsap.to(passRef.current, {
-        rotationY: 180,
-        duration: 0.8,
+      flipTweenRef.current = gsap.to(cover, {
+        rotationY: -165,
+        duration: 1.05,
         ease: 'power2.inOut',
         onComplete: () => {
+          gsap.set(cover, { autoAlpha: 0 });
           flipTweenRef.current = null;
           setPhase('details');
         },
@@ -290,7 +306,7 @@ export default function FirstMissionIntro({ profile, destination, onStart }: Pro
     setPhase('location');
   };
 
-  const shareTravelPass = async () => {
+  const shareTravelPass = async (destination: 'general' | 'instagram') => {
     if (!travelPassFile) return;
     setShareBusy(true);
     setTravelPassError('');
@@ -303,13 +319,19 @@ export default function FirstMissionIntro({ profile, destination, onStart }: Pro
       ) {
         await navigator.share({
           files: [travelPassFile],
-          title: 'Meu Action Street Travel Pass',
-          text: `Minha primeira viagem no Action Street: ${displayName} · ${destinationLabel}`,
+          title: destination === 'instagram' ? 'Postar no Instagram Stories' : 'Meu Action Street Travel Pass',
+          text: destination === 'instagram'
+            ? 'Escolha Instagram Stories no menu de compartilhamento. A publicação será confirmada no Instagram.'
+            : `Minha primeira viagem no Action Street: ${displayName} · ${destinationLabel}`,
         });
-        setShareMessage('Compartilhamento concluído. Você escolhe onde publicar; nada foi postado automaticamente.');
+        setShareMessage(destination === 'instagram'
+          ? 'Compartilhamento enviado. Confirme a publicação nos Stories dentro do Instagram.'
+          : 'Compartilhamento concluído. O app escolhido pedirá confirmação antes de publicar.');
       } else {
         downloadTravelPassArtwork(travelPassFile);
-        setShareMessage('A imagem foi baixada. Abra o Instagram ou outra rede e escolha o arquivo para compartilhar.');
+        setShareMessage(destination === 'instagram'
+          ? 'Imagem baixada. Abra o Instagram, crie um Story e selecione o Travel Pass. Este navegador não abre o editor de Stories diretamente.'
+          : 'Imagem baixada. Escolha um app para compartilhar o Travel Pass.');
       }
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
@@ -320,18 +342,6 @@ export default function FirstMissionIntro({ profile, destination, onStart }: Pro
       }
     } finally {
       setShareBusy(false);
-    }
-  };
-
-  const downloadTravelPass = () => {
-    if (!travelPassFile) return;
-    try {
-      downloadTravelPassArtwork(travelPassFile);
-      setShareMessage('Imagem baixada. Você pode selecioná-la ao publicar no Instagram.');
-      setTravelPassError('');
-    } catch (error) {
-      console.error('Não foi possível baixar o Travel Pass.', error);
-      setTravelPassError('Não foi possível baixar a imagem do Travel Pass.');
     }
   };
 
@@ -347,7 +357,7 @@ export default function FirstMissionIntro({ profile, destination, onStart }: Pro
   };
 
   return (
-    <div className="absolute inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/75 p-3 sm:p-6">
+    <div className="absolute inset-0 z-50 flex items-center justify-center overflow-y-auto bg-[#080b12] p-3 sm:p-6">
       <section
         ref={dialogRef}
         role="dialog"
@@ -384,65 +394,101 @@ export default function FirstMissionIntro({ profile, destination, onStart }: Pro
         </div>
 
         {(phase === 'cover' || phase === 'details') && (
-          <div className="relative mt-5" style={{ perspective: '1200px' }}>
+          <div className="relative mx-auto mt-5 w-full max-w-2xl" style={{ perspective: '1500px' }}>
             <div
               ref={passRef}
-              className="relative min-h-64 rounded-3xl border border-amber-100/25 bg-gradient-to-br from-slate-800 via-indigo-950 to-slate-950 p-5 shadow-2xl shadow-black/40 sm:min-h-72 sm:p-7"
-              style={{ transformStyle: 'preserve-3d', transform: phase === 'details' ? 'rotateY(180deg)' : undefined }}
+              className="relative min-h-[20rem] overflow-hidden rounded-[1.35rem] border-[0.55rem] border-[#172944] bg-[#172944] shadow-[0_24px_70px_rgba(0,0,0,0.65)] sm:min-h-[23rem]"
+              style={{ transformStyle: 'preserve-3d' }}
             >
-              <div className="absolute inset-0 flex flex-col justify-between rounded-3xl p-5 sm:p-7" style={{ backfaceVisibility: 'hidden' }}>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <img src="/brazilian-in-action-icon.svg" alt="Brazilian in Action" className="h-10 w-10" />
-                    <div>
-                      <p className="text-xs font-black uppercase tracking-[0.28em] text-sky-200">Action Street</p>
-                      <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.18em] text-amber-200">Travel Pass · edição de aventura</p>
-                    </div>
-                  </div>
-                  <Sparkles className="h-6 w-6 text-amber-200" />
-                </div>
-                <div>
-                  <p className="text-2xl font-black tracking-wide sm:text-3xl">FIRST JOURNEY</p>
-                  <p className="mt-2 text-sm text-white/70">Seu passaporte de aprendizado está pronto para abrir.</p>
-                  <p className="mt-4 inline-flex rounded-full border border-amber-100/40 bg-amber-200/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-amber-100">
-                    Fictício · não é documento oficial
-                  </p>
-                </div>
-                <button type="button" onClick={openPass} tabIndex={phase === 'cover' ? 0 : -1} disabled={phase !== 'cover'} data-intro-focus className={`${glass.primaryButton} w-full sm:w-auto`} aria-label="Abrir seu Action Street Travel Pass">
-                  Abrir meu Travel Pass <ArrowRight className="h-4 w-4" />
-                </button>
-              </div>
-
               <div
-                className="absolute inset-0 flex flex-col justify-between rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900 via-indigo-950 to-sky-950 p-5 sm:p-7"
-                style={{ transform: 'rotateY(180deg)', backfaceVisibility: 'hidden' }}
+                className="absolute inset-0 grid grid-cols-[0.38fr_0.62fr] overflow-hidden rounded-lg border border-[#d7cba9] bg-[#f0e8d5] text-slate-800"
                 aria-hidden={phase !== 'details'}
               >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <img src="/brazilian-in-action-icon.svg" alt="" className="h-9 w-9" />
-                    <p className="text-xs font-black uppercase tracking-[0.24em] text-sky-200">Action Street Travel Pass</p>
+                <div className="relative flex flex-col justify-between border-r border-[#b8aa89] bg-[linear-gradient(145deg,#f8f2e3,#e7dcc1)] p-3 sm:p-5">
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-[0.16em] sm:text-[11px]">Brazilian in Action</p>
+                    <p className="mt-1 text-[8px] font-black uppercase tracking-[0.19em] text-slate-600 sm:text-[10px]">Action Street</p>
                   </div>
-                  <span className="rounded-full border border-amber-100/40 bg-amber-200/10 px-3 py-1 text-[9px] font-black uppercase tracking-wider text-amber-100">
-                    Fictício · não oficial
-                  </span>
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/50">Viajante</p>
-                  <p className="mt-1 break-words text-2xl font-black sm:text-3xl">{displayName}</p>
-                  <div className="mt-5 grid grid-cols-2 gap-3 border-t border-white/15 pt-4">
-                    <div>
-                      <p className="text-[9px] font-bold uppercase tracking-wider text-white/50">Embarque</p>
-                      <p className="mt-1 flex items-center gap-1.5 text-sm font-bold"><MapPin className="h-3.5 w-3.5 text-sky-300" />{profileOrigin}</p>
+                  <div className="flex flex-col items-center text-center">
+                    <div className="relative flex h-16 w-16 items-center justify-center rounded-full border border-[#b79c5a] text-[#8b7642] sm:h-24 sm:w-24" aria-hidden="true">
+                      <div className="absolute inset-2 rounded-full border border-[#b79c5a]/70" />
+                      <svg viewBox="0 0 42 30" role="img" aria-label="Bandeira do Brasil" className="h-9 w-12 sm:h-12 sm:w-16">
+                        <rect width="42" height="30" fill="#009b3a" />
+                        <path d="M21 3 38 15 21 27 4 15Z" fill="#ffdf00" />
+                        <circle cx="21" cy="15" r="6.5" fill="#002776" />
+                      </svg>
                     </div>
+                    <p className="mt-3 text-[10px] font-black uppercase tracking-[0.17em] sm:text-xs">First Journey</p>
+                    <p className="mt-1 text-[8px] font-medium text-slate-600 sm:text-[10px]">Explore · Learn · Collect</p>
+                  </div>
+                  <div className="border-t border-[#b8aa89] pt-2 text-[7px] font-bold uppercase tracking-[0.13em] text-slate-600 sm:text-[9px]">Your travel story starts here</div>
+                </div>
+
+                <div className="relative flex min-w-0 flex-col justify-between p-3 sm:p-5">
+                  <div className="flex items-center justify-between gap-2 border-b border-[#b8aa89] pb-2">
                     <div>
-                      <p className="text-[9px] font-bold uppercase tracking-wider text-white/50">Destino</p>
-                      <p className="mt-1 text-sm font-bold">{destination.city}, USA</p>
+                      <p className="text-[8px] font-black uppercase tracking-[0.18em] text-slate-600 sm:text-[10px]">Brazilian in Action</p>
+                      <p className="mt-0.5 text-[10px] font-black uppercase tracking-[0.16em] sm:text-xs">Action Street Travel Pass</p>
+                    </div>
+                    <Plane className="h-4 w-4 shrink-0 text-slate-600 sm:h-5 sm:w-5" aria-hidden="true" />
+                  </div>
+                  <div className="grid min-w-0 grid-cols-[0.78fr_1.22fr] items-center gap-2 py-2 sm:gap-4">
+                    <div className="aspect-[0.76] overflow-hidden border border-[#a99c7e] bg-[#d8d0bd] shadow-inner">
+                      {profile.photoUrl && !profilePhotoFailed ? (
+                        <img
+                          src={profile.photoUrl}
+                          alt={`Foto de perfil de ${displayName}`}
+                          className="h-full w-full object-cover"
+                          onError={() => setProfilePhotoFailed(true)}
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center bg-[linear-gradient(145deg,#d9d2c3,#bcb39e)] text-2xl font-bold text-slate-600 sm:text-4xl">
+                          {displayName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase()}
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 space-y-3">
+                      <div>
+                        <p className="text-[7px] font-bold uppercase tracking-[0.13em] text-slate-500 sm:text-[9px]">Traveler</p>
+                        <p className="break-words text-xs font-black uppercase leading-tight sm:text-base">{displayName}</p>
+                      </div>
+                      <div>
+                        <p className="text-[7px] font-bold uppercase tracking-[0.13em] text-slate-500 sm:text-[9px]">From</p>
+                        <p className="break-words text-[9px] font-semibold leading-tight sm:text-xs">{profileOrigin}</p>
+                      </div>
+                      <div>
+                        <p className="text-[7px] font-bold uppercase tracking-[0.13em] text-slate-500 sm:text-[9px]">First destination</p>
+                        <p className="break-words text-[9px] font-semibold leading-tight sm:text-xs">{destinationLabel}</p>
+                      </div>
                     </div>
                   </div>
+                  <p className="border-t border-[#b8aa89] pt-2 text-[7px] font-bold uppercase tracking-[0.13em] text-slate-600 sm:text-[9px]">A journey to learn English through real places</p>
                 </div>
-                <p className="text-[10px] leading-relaxed text-white/55">Cartão de experiência do Action Street. Não serve como identificação, viagem ou documento oficial.</p>
               </div>
+
+              {phase === 'cover' && (
+                <div
+                  ref={coverRef}
+                  className="absolute inset-0 flex flex-col justify-between overflow-hidden rounded-lg border border-[#d7b76b]/75 bg-[radial-gradient(ellipse_at_75%_35%,rgba(72,104,144,0.5),transparent_48%),linear-gradient(135deg,#102440,#071426_72%)] p-5 sm:p-8"
+                  style={{ transformOrigin: 'left center', backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
+                >
+                  <div className="absolute inset-3 rounded-md border border-[#d7b76b]/45" aria-hidden="true" />
+                  <div className="relative flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[11px] font-black uppercase tracking-[0.23em] text-white sm:text-sm">Brazilian in Action</p>
+                      <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.28em] text-[#e2c47a] sm:text-xs">Action Street</p>
+                    </div>
+                  </div>
+                  <div className="relative text-center">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-white/65">Learning journey</p>
+                    <h3 className="mt-3 text-3xl font-black uppercase tracking-[0.12em] text-[#f0d58b] sm:text-4xl">Travel Passport</h3>
+                    <p className="mt-2 text-xs font-bold uppercase tracking-[0.3em] text-white/75">A new city. A new story.</p>
+                  </div>
+                  <button type="button" onClick={openPass} tabIndex={phase === 'cover' ? 0 : -1} disabled={phase !== 'cover'} data-intro-focus className={`${glass.primaryButton} relative mx-auto w-full sm:w-auto`} aria-label="Abrir seu Action Street Travel Pass">
+                    Abrir meu Travel Pass <ArrowRight className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -452,14 +498,15 @@ export default function FirstMissionIntro({ profile, destination, onStart }: Pro
             <p className="text-sm text-white/75">Prepare-se para sair da sua cidade, conhecer um aeroporto de Nova York e chegar à sua primeira missão.</p>
             <p className="text-xs text-white/55">Vamos tentar usar a cidade do seu perfil para localizar o aeroporto; a localização do dispositivo só será consultada se você autorizar.</p>
             <div className="grid gap-2 sm:grid-cols-2">
-              <button type="button" onClick={() => void shareTravelPass()} disabled={!travelPassFile || shareBusy} className={`${glass.secondaryButton} disabled:cursor-wait disabled:opacity-50`}>
-                <Share2 className="h-4 w-4" /> {shareBusy ? 'Preparando…' : 'Compartilhar Travel Pass'}
+              <button type="button" onClick={() => void shareTravelPass('general')} disabled={!travelPassFile || shareBusy} className={`${glass.secondaryButton} disabled:cursor-wait disabled:opacity-50`}>
+                <Share2 className="h-4 w-4" /> {shareBusy ? 'Preparando…' : 'Compartilhar'}
               </button>
-              <button type="button" onClick={downloadTravelPass} disabled={!travelPassFile} className={`${glass.secondaryButton} disabled:cursor-wait disabled:opacity-50`}>
-                <Download className="h-4 w-4" /> Baixar imagem
+              <button type="button" onClick={() => void shareTravelPass('instagram')} disabled={!travelPassFile || shareBusy} className={`${glass.secondaryButton} disabled:cursor-wait disabled:opacity-50`}>
+                <Instagram className="h-4 w-4" /> Postar no Instagram Stories
               </button>
             </div>
             {travelPassError && <p className="text-xs text-rose-200" role="alert">{travelPassError}</p>}
+            {travelPassNotice && <p className="text-xs text-amber-100" role="status">{travelPassNotice}</p>}
             {shareMessage && <p className="text-xs text-sky-100" role="status">{shareMessage}</p>}
             <button type="button" onClick={prepareJourney} disabled={busy} data-intro-focus className={glass.primaryButton}>
               {busy ? 'Procurando o aeroporto…' : 'Preparar minha viagem'} <ArrowRight className="h-4 w-4" />

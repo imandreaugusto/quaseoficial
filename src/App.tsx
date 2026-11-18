@@ -1812,6 +1812,7 @@ export default function App() {
                         last_name: currentUser.last_name,
                         profile_city: currentUser.profile_city,
                         profile_country: currentUser.profile_country,
+                        photo_url: currentUser.photo_url,
                       } : null}
                       onClose={() => setCurrentApp('home')}
                     />

@@ -21,7 +21,7 @@ interface Props {
   onClose?: () => void;
   currentUser: Pick<
     UserProfile,
-    'id' | 'auth_user_id' | 'full_name' | 'first_name' | 'last_name' | 'profile_city' | 'profile_country'
+    'id' | 'auth_user_id' | 'full_name' | 'first_name' | 'last_name' | 'profile_city' | 'profile_country' | 'photo_url'
   > | null;
 }
 
@@ -38,6 +38,7 @@ export default function ActionStreet({ onClose, currentUser }: Props) {
         lastName: currentUser.last_name?.trim() || fullNameParts.slice(1).join(' '),
         city: currentUser.profile_city?.trim() || '',
         country: currentUser.profile_country?.trim() || '',
+        photoUrl: currentUser.photo_url?.trim() || undefined,
       }
     : null;
   const userId = profile?.userId;
