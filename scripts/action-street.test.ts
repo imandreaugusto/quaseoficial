@@ -10,7 +10,13 @@ import { persistenceManager, sanitizeState } from '../src/lib/actionStreet/persi
 import { getTouristLevelProgress, refreshChallengeTickets, spendChallengeTicket } from '../src/lib/actionStreet/progression';
 import { dayKey, emptyStreak, registerVisit, streakMultiplier } from '../src/lib/actionStreet/streak';
 import { VISA_VALIDITY_MS, buildRenewalQuiz, getVisaStatus, recordVisit, renewVisa } from '../src/lib/actionStreet/visa';
-import { buildGoogleMapsStreetViewUrl, buildGoogleStreetViewEmbedUrl } from '../src/lib/actionStreet/googleMapsConfig';
+import {
+  buildGoogleMapsStreetViewUrl,
+  buildGoogleMapsViewEmbedUrl,
+  buildGoogleStreetViewEmbedUrl,
+} from '../src/lib/actionStreet/googleMapsConfig';
+import { getVisibleDestinationIds } from '../src/lib/actionStreet/destinationVisibility';
+import actionStreetData from '../src/data/actionStreetData.json';
 import { getActionStreetReminderSlot } from '../src/lib/actionStreet/reminderSchedule';
 import { hasLegacySaveToImport, importLegacySave, recordLegacySaveDecision } from '../src/lib/actionStreet/legacySave';
 import { getSecretMissionOptions, loadSecretMissions, PAGER_TRIGGER_DELAY_MS, PAGER_UNLOCK_DELAY_MS, SECRET_MISSION_COUNT } from '../src/lib/actionStreet/secretPager';
@@ -390,6 +396,36 @@ test('Google Street View embed uses the Google Maps key and latitude-longitude o
 test('Google Street View embed falls back cleanly when its key or coordinates are invalid', () => {
   assert.equal(buildGoogleStreetViewEmbedUrl('', [-73.9857, 40.7484]), null);
   assert.equal(buildGoogleStreetViewEmbedUrl('maps-key', [-73.9857, 95]), null);
+});
+
+test('Google Maps satellite embed follows the selected coordinates', () => {
+  const url = new URL(buildGoogleMapsViewEmbedUrl(' maps-key ', [-73.973, 40.7749]) ?? '');
+  assert.equal(url.origin, 'https://www.google.com');
+  assert.equal(url.pathname, '/maps/embed/v1/view');
+  assert.equal(url.searchParams.get('key'), 'maps-key');
+  assert.equal(url.searchParams.get('center'), '40.7749,-73.973');
+  assert.equal(url.searchParams.get('maptype'), 'satellite');
+  assert.equal(url.searchParams.get('language'), 'pt-BR');
+});
+
+test('Google Maps satellite embed rejects missing keys and invalid coordinates', () => {
+  assert.equal(buildGoogleMapsViewEmbedUrl('', [-73.973, 40.7749]), null);
+  assert.equal(buildGoogleMapsViewEmbedUrl('maps-key', [-73.973, 91]), null);
+});
+
+test('New York arrival and mission point to their corresponding map locations', () => {
+  const newYork = actionStreetData.states.find((city) => city.id === 'ny');
+  assert.ok(newYork);
+  assert.equal(newYork.spots.find((spot) => spot.id === newYork.arrivalSpotId)?.name, 'John F. Kennedy International Airport');
+  assert.equal(newYork.spots.find((spot) => spot.id === newYork.mission.locationSpotId)?.name, 'Times Square');
+});
+
+test('lobby limits locked destinations to four until the rest are revealed', () => {
+  const cities = Array.from({ length: 8 }, (_, index) => ({ id: `city-${index}` }));
+  const visible = getVisibleDestinationIds(cities, ['city-0', 'city-1'], 'city-7', false);
+  const allVisible = getVisibleDestinationIds(cities, ['city-0', 'city-1'], 'city-1', true);
+  assert.deepEqual(visible, ['city-0', 'city-1', 'city-2', 'city-3', 'city-4', 'city-7']);
+  assert.equal(allVisible.length, cities.length);
 });
 
 test('Google Maps Street View link opens the selected coordinates without an embed key', () => {

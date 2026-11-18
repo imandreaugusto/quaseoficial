@@ -10,6 +10,7 @@ import type { CameraSnapshot } from '../../../lib/actionStreet/journeyStore';
 interface Props {
   cities: City[];
   unlocked: string[];
+  visibleCityIds: string[];
   selectedId: string;
   origin: { name: string; coordinates: [number, number] };
   onSelect: (cityId: string) => void;
@@ -81,7 +82,7 @@ function fanOutOffsets(cities: City[]): Record<string, [number, number]> {
   return offsets;
 }
 
-export default function LobbyMap({ cities, unlocked, selectedId, origin, onSelect, initialCamera, onCameraChange }: Props) {
+export default function LobbyMap({ cities, unlocked, visibleCityIds, selectedId, origin, onSelect, initialCamera, onCameraChange }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const pinsRef = useRef<Map<string, PinParts>>(new Map());
@@ -193,8 +194,15 @@ export default function LobbyMap({ cities, unlocked, selectedId, origin, onSelec
 
   useEffect(() => {
     const pins = [...pinsRef.current.entries()];
+    const visible = new Set(visibleCityIds);
     const context = gsap.context(() => {
       pins.forEach(([cityId, pin]) => {
+        if (!visible.has(cityId)) {
+          pin.root.style.display = 'none';
+          gsap.killTweensOf(pin.ring);
+          return;
+        }
+        pin.root.style.display = 'flex';
         const isUnlocked = unlocked.includes(cityId);
         const isSelected = cityId === selectedId;
         pin.icon.innerHTML = isUnlocked ? PIN_SVG : LOCK_SVG;
@@ -206,7 +214,7 @@ export default function LobbyMap({ cities, unlocked, selectedId, origin, onSelec
       });
     });
     return () => context.revert();
-  }, [unlocked, selectedId, mapReady]);
+  }, [unlocked, visibleCityIds, selectedId, mapReady]);
 
   useEffect(() => {
     const map = mapRef.current;

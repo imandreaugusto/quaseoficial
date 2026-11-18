@@ -90,7 +90,7 @@ export default function Map3DViewer({ city, onStage, onDiveComplete }: Props) {
     const land = () => {
       if (cancelled) return;
       stage('landing');
-      const spot = city.spots[0];
+      const spot = city.spots.find((item) => item.id === city.arrivalSpotId) ?? city.spots[0];
       map.flyTo({
         center: spot.coordinates,
         zoom: 18,

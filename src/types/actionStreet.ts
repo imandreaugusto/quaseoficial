@@ -100,6 +100,7 @@ export interface City {
   weatherPreset: 'rainy' | 'golden_hour' | 'clear_day' | 'night' | 'cloudy' | 'snowy';
   camera: { center: [number, number]; zoom: number; pitch: number; bearing: number };
   route3D: { name: string; waypoints: [number, number][] };
+  arrivalSpotId?: string;
   spots: Spot[];
   stamp: CityStamp;
   touristGuide: { title: string; text: string };
@@ -125,11 +126,13 @@ export interface Mission {
   description: string;
   rewardDollars: number;
   npcRole: string;
+  locationSpotId?: string;
   steps: MissionStep[];
 }
 
 export interface MissionStep {
   npcLine: string;
+  locationSpotId?: string;
   options: MissionOption[];
 }
 

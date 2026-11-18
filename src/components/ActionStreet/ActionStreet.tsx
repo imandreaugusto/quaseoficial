@@ -202,7 +202,10 @@ export default function ActionStreet({ onClose, currentUser }: Props) {
                 requestBoarding(cityId);
                 return;
               }
-              setStreetResume(null);
+              const saved = userId ? journeyStore.load(userId) : null;
+              setStreetResume(saved?.cityId === cityId && saved.spotId
+                ? { spotId: saved.spotId, openMission: saved.mission?.open === true }
+                : null);
               goTo('street360', cityId);
             }}
             onClose={() => onClose?.()}

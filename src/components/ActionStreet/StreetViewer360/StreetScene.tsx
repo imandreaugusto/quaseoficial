@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Check, Sparkles } from 'lucide-react';
 import gsap from 'gsap';
 import type { City, Hotspot, Spot } from '../../../types/actionStreet';
@@ -59,15 +59,18 @@ function HotspotPin({ hotspot, position, collected, onClick }: { hotspot: Hotspo
 }
 
 export default function StreetScene({ city, spot, hotspots, collectedIds, onHotspot, paused }: Props) {
+  const [viewMode, setViewMode] = useState<'street' | 'satellite'>('satellite');
+
   return (
     <div className={`absolute inset-0 ${paused ? 'pointer-events-none' : ''}`}>
       <GoogleStreetView
         coordinates={spot.coordinates}
         title={`Google Street View: ${spot.name}, ${city.city}`}
         className="absolute inset-0"
+        onViewChange={setViewMode}
       />
       <p className={`absolute left-4 top-[12.75rem] z-10 max-w-[min(20rem,calc(100vw-2rem))] px-4 py-2.5 text-xs text-white/90 sm:left-6 ${glass.panelOverImagery}`}>
-        Google Street View · {spot.name}, {city.city}
+        Google Maps · {viewMode === 'street' ? 'Street View' : 'Satélite'} · {spot.name}, {city.city}
       </p>
       {hotspots.map((hotspot, index) => (
         <HotspotPin

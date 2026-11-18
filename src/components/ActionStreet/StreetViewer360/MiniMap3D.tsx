@@ -122,7 +122,7 @@ export default function MiniMap3D({ city, currentSpotId, discoveredSpotIds, unlo
         <MapPin className="h-5 w-5 shrink-0 text-sky-200" aria-hidden="true" />
         <div className="min-w-0">
           <p className="text-[9px] font-bold uppercase tracking-wider text-blue-200">
-            Google Maps · Street View
+            Google Maps · local atual
           </p>
           <p className="truncate text-[11px] font-bold text-white/90">
             {currentSpotName}

@@ -20,6 +20,7 @@ import StreetChallengeModal from './StreetChallengeModal';
 import StreetScene from './StreetScene';
 import TravelCompanion from './TravelCompanion';
 import SecretPager from './SecretPager';
+import type { City } from '../../../types/actionStreet';
 
 export interface StreetResume {
   spotId?: string;
@@ -38,15 +39,24 @@ interface PassportState {
   highlight?: { stampId: string; kind: 'earn' | 'renew' };
 }
 
+function findEntrySpotId(city: City | undefined, preferredSpotId: string | undefined, unlockedRoutes: string[]): string {
+  if (!city) return '';
+  const available = (spot: City['spots'][number]) => !spot.requiresRoute || unlockedRoutes.includes(spot.requiresRoute);
+  return city.spots.find((spot) => spot.id === preferredSpotId && available(spot))?.id
+    ?? city.spots.find((spot) => spot.id === city.arrivalSpotId && available(spot))?.id
+    ?? city.spots.find(available)?.id
+    ?? city.spots[0]?.id
+    ?? '';
+}
+
 export default function StreetViewer360({ cityId, onBack, onExploreSpot, resume }: Props) {
   const { state, updateState, getCityData, allCities, profile, reportActivity } = useActionStreet();
   const city = getCityData(cityId);
-  const [spotId, setSpotId] = useState(() =>
-    city?.spots.find((spot) => spot.id === resume?.spotId && (!spot.requiresRoute || state.unlockedRoutes.includes(spot.requiresRoute)))?.id
-    ?? city?.spots.find((spot) => !spot.requiresRoute || state.unlockedRoutes.includes(spot.requiresRoute))?.id
-    ?? city?.spots[0]?.id
-    ?? ''
-  );
+  const [spotId, setSpotId] = useState(() => findEntrySpotId(
+    city,
+    resume?.openMission ? city?.mission.locationSpotId : resume?.spotId,
+    state.unlockedRoutes
+  ));
   const [hotspotId, setHotspotId] = useState<string | null>(null);
   const [showMission, setShowMission] = useState(() => resume?.openMission === true);
   const [showCamera, setShowCamera] = useState(false);
@@ -93,14 +103,16 @@ export default function StreetViewer360({ cityId, onBack, onExploreSpot, resume 
     const cityChanged = activeCityId.current !== cityId;
     activeCityId.current = cityId;
     if (!cityChanged) return;
-    const firstSpot = city.spots.find((item) =>
-      item.id === resume?.spotId && (!item.requiresRoute || unlockedRoutes.current.includes(item.requiresRoute))
-    ) ?? city.spots.find((item) => !item.requiresRoute || unlockedRoutes.current.includes(item.requiresRoute)) ?? city.spots[0];
+    const firstSpotId = findEntrySpotId(
+      city,
+      resume?.openMission ? city.mission.locationSpotId : resume?.spotId,
+      unlockedRoutes.current
+    );
     travelContext.current?.revert();
     travelContext.current = null;
     travelTimeline.current = null;
     traveling.current = false;
-    setSpotId(firstSpot?.id ?? '');
+    setSpotId(firstSpotId);
     setHotspotId(null);
     setShowMission(false);
     setShowCamera(false);
@@ -108,7 +120,7 @@ export default function StreetViewer360({ cityId, onBack, onExploreSpot, resume 
     setPassport(null);
     setShowPager(false);
     updateState((previous) => previous.currentCity === cityId ? previous : { ...previous, currentCity: cityId });
-  }, [cityId, city, resume?.spotId, updateState]);
+  }, [cityId, city, resume?.openMission, resume?.spotId, updateState]);
 
   useEffect(() => {
     if (spotId) {
@@ -163,6 +175,11 @@ export default function StreetViewer360({ cityId, onBack, onExploreSpot, resume 
     }, sceneRef);
   };
 
+  const openMission = () => {
+    if (city.mission.locationSpotId) travel(city.mission.locationSpotId);
+    setShowMission(true);
+  };
+
   const exploreSpot = (targetCityId: string, targetSpotId: string) => {
     setPassport(null);
     if (targetCityId === city.id) {
@@ -210,7 +227,7 @@ export default function StreetViewer360({ cityId, onBack, onExploreSpot, resume 
 
       <button
         type="button"
-        onClick={() => setShowMission(true)}
+        onClick={openMission}
         className={`absolute left-4 top-[8.25rem] z-20 flex max-w-[min(20rem,calc(100vw-2rem))] items-center gap-3 px-4 py-3 text-left transition hover:bg-white/10 sm:left-6 ${glass.panelOverImagery} !rounded-2xl`}
       >
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-violet-500/40">
@@ -260,6 +277,7 @@ export default function StreetViewer360({ cityId, onBack, onExploreSpot, resume 
         <MissionPanel
           cityId={city.id}
           onClose={() => setShowMission(false)}
+          onLocationChange={(nextSpotId) => travel(nextSpotId)}
           onOpenPassport={(stampId) => {
             setShowMission(false);
             setPassport({ tab: 'stamps', highlight: { stampId, kind: 'earn' } });

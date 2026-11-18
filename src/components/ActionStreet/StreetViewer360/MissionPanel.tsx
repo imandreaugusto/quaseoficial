@@ -17,12 +17,15 @@ interface Props {
   cityId: string;
   onClose: () => void;
   onOpenPassport: (stampId: string) => void;
+  onLocationChange: (spotId: string) => void;
 }
 
-export default function MissionPanel({ cityId, onClose, onOpenPassport }: Props) {
+export default function MissionPanel({ cityId, onClose, onOpenPassport, onLocationChange }: Props) {
   const { state, updateState, getCityData, speechRate, setSpeechRate, profile, reportActivity } = useActionStreet();
   const city = getCityData(cityId);
   const mission = city?.mission;
+  const locationChangeRef = useRef(onLocationChange);
+  locationChangeRef.current = onLocationChange;
   const panelRef = useRef<HTMLDivElement>(null);
   const [missionState, setMissionState] = useState<MissionState>(() => {
     const saved = journeyStore.load(profile?.userId)?.mission;
@@ -72,6 +75,15 @@ export default function MissionPanel({ cityId, onClose, onOpenPassport }: Props)
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [onClose]);
+
+  useEffect(() => {
+    if (!city || !mission) return;
+    const step = missionEngine.getCurrentStep(mission, missionState);
+    const locationSpotId = step?.locationSpotId ?? mission.locationSpotId;
+    if (locationSpotId && city.spots.some((spot) => spot.id === locationSpotId)) {
+      locationChangeRef.current(locationSpotId);
+    }
+  }, [city, mission, missionState.currentStep, missionState.completed]);
 
   if (!city || !mission) return null;
 
@@ -152,6 +164,9 @@ export default function MissionPanel({ cityId, onClose, onOpenPassport }: Props)
         </div>
 
         <div className="relative mt-4" aria-label={`Progresso ${progress.current} de ${progress.total}`}>
+          <p className="mb-1 text-right text-xs font-bold text-white/75">
+            Etapa {done ? progress.total : progress.current} de {progress.total}
+          </p>
           <div className="h-2 overflow-hidden rounded-full border border-white/15 bg-white/10">
             <div className="h-full rounded-full bg-gradient-to-r from-blue-500 to-violet-500 transition-[width] duration-500" style={{ width: `${done ? 100 : ((progress.current - 1) / progress.total) * 100}%` }} />
           </div>
@@ -181,13 +196,21 @@ export default function MissionPanel({ cityId, onClose, onOpenPassport }: Props)
                   {payout.streakBonus > 0 && <li className="text-orange-300">Ofensiva de viagem (x{payout.streakMultiplier}): +{payout.streakBonus}</li>}
                   {!payout.bonusesActive && <li className="text-amber-300">Bônus desligados: seu visto de {city.stateName} estava expirado</li>}
                 </ul>
+                <p className="mt-3 text-sm text-white/75">
+                  Próximo passo: carimbe seu passaporte. Depois, feche o passaporte para voltar à rua.
+                </p>
                 <button type="button" onClick={() => onOpenPassport(stampId)} className={`mt-5 w-full ${glass.primaryButton}`}>
                   <StampIcon className="h-5 w-5" />
                   Carimbar meu passaporte
                 </button>
               </>
             ) : (
-              <p className="mt-2 text-sm text-white/70">Você já tinha concluído esta missão, então a recompensa não se repete. Continue praticando!</p>
+              <p className="mt-2 text-sm text-white/70">Você já concluiu esta missão e recebeu a recompensa. Feche este painel para voltar à rua ou pratique novamente.</p>
+            )}
+            {!firstCompletion && (
+              <button type="button" onClick={onClose} className={`mt-3 w-full ${glass.secondaryButton}`}>
+                Voltar à rua
+              </button>
             )}
             <button type="button" onClick={restart} className={`mt-3 w-full ${glass.secondaryButton}`}>
               <RotateCcw className="h-4 w-4" />
@@ -197,6 +220,9 @@ export default function MissionPanel({ cityId, onClose, onOpenPassport }: Props)
         ) : (
           step && (
             <div className="relative mt-5">
+              <p className={`${glass.chip} mb-3 !rounded-2xl px-4 py-3 text-sm leading-relaxed text-white/90`}>
+                Leia a fala, escolha a resposta mais natural e, depois do feedback, toque em <strong>Continuar</strong>. No último passo, toque em <strong>Concluir missão</strong>.
+              </p>
               {progress.current === 1 && <p className="mb-3 text-sm text-white/70">{mission.description}</p>}
 
               <div className={`${glass.chip} !rounded-2xl px-4 py-3`}>

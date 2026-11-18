@@ -49,6 +49,7 @@
           ]
         ]
       },
+      "arrivalSpotId": "jfk-airport",
       "stamp": {
         "id": "stamp-nyc",
         "title": "THE BIG APPLE",
@@ -98,6 +99,7 @@
         "description": "Está chovendo em Manhattan. Entre na cafeteria da esquina e faça seu pedido em inglês.",
         "rewardDollars": 100,
         "npcRole": "Barista",
+        "locationSpotId": "times-square",
         "steps": [
           {
             "npcLine": "Hi there! Welcome to Midtown Coffee. What can I get started for you today?",
@@ -132,6 +134,18 @@
         ]
       },
       "spots": [
+        {
+          "id": "jfk-airport",
+          "name": "John F. Kennedy International Airport",
+          "coordinates": [
+            -73.7781,
+            40.6413
+          ],
+          "guide": {
+            "title": "Aeroporto JFK",
+            "text": "Você chegou a Nova York pelo John F. Kennedy International Airport. Escolha um destino no minimapa para começar a explorar a cidade."
+          }
+        },
         {
           "id": "times-square",
           "name": "Times Square",

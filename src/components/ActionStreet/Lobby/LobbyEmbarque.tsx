@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Backpack, BookOpen, Coins, Lock, MapPin, Plane, Sparkles } from 'lucide-react';
 import gsap from 'gsap';
 import actionStreetData from '../../../data/actionStreetData.json';
 import { journeyStore, type CameraSnapshot } from '../../../lib/actionStreet/journeyStore';
+import { getVisibleDestinationIds, MAX_VISIBLE_LOCKED_DESTINATIONS } from '../../../lib/actionStreet/destinationVisibility';
 import { persistenceManager } from '../../../lib/actionStreet/persistenceManager';
 import { getVisaStatus } from '../../../lib/actionStreet/visa';
 import { useActionStreet } from '../ActionStreetContext';
@@ -36,20 +37,39 @@ export default function LobbyEmbarque({ onBoard, onWalk, onClose, initialCamera,
   const [passportTab, setPassportTab] = useState<PassportTab | null>(null);
   const [passportHighlight, setPassportHighlight] = useState<PassportHighlight | undefined>();
   const [renewingCityId, setRenewingCityId] = useState<string | null>(null);
+  const [showAllLockedCities, setShowAllLockedCities] = useState(false);
   const boardingCardRef = useRef<HTMLElement>(null);
   const boardingContext = useRef<gsap.Context | null>(null);
+  const lockedCitiesTimer = useRef<number | null>(null);
 
   const selected = allCities.find((city) => city.id === selectedId) ?? allCities[0];
   const isUnlocked = state.unlockedCities.includes(selected.id);
   const missing = Math.max(0, selected.unlockCost - state.balance);
   const completed = state.completedMissions.includes(selected.mission.id);
   const visa = getVisaStatus(state, selected.id);
+  const lockedCities = allCities.filter((city) => !state.unlockedCities.includes(city.id));
+  const visibleCityIds = useMemo(
+    () => getVisibleDestinationIds(allCities, state.unlockedCities, selected.id, showAllLockedCities),
+    [allCities, state.unlockedCities, selected.id, showAllLockedCities]
+  );
 
-  useEffect(() => () => boardingContext.current?.revert(), []);
+  useEffect(() => () => {
+    boardingContext.current?.revert();
+    if (lockedCitiesTimer.current !== null) window.clearTimeout(lockedCitiesTimer.current);
+  }, []);
 
   const select = (cityId: string) => {
     setSelectedId(cityId);
     setConfirmUnlock(false);
+  };
+
+  const revealLockedCities = () => {
+    setShowAllLockedCities(true);
+    if (lockedCitiesTimer.current !== null) window.clearTimeout(lockedCitiesTimer.current);
+    lockedCitiesTimer.current = window.setTimeout(() => {
+      setShowAllLockedCities(false);
+      lockedCitiesTimer.current = null;
+    }, 10_000);
   };
 
   const unlock = () => {
@@ -73,6 +93,7 @@ export default function LobbyEmbarque({ onBoard, onWalk, onClose, initialCamera,
       <LobbyMap
         cities={allCities}
         unlocked={state.unlockedCities}
+        visibleCityIds={visibleCityIds}
         selectedId={selected.id}
         origin={origin}
         onSelect={select}
@@ -121,26 +142,40 @@ export default function LobbyEmbarque({ onBoard, onWalk, onClose, initialCamera,
       <section className="absolute inset-x-0 bottom-0 z-10 flex flex-col gap-3 p-4 sm:p-6">
         {resume && <ResumeBanner cityName={resume.cityName} onContinue={resume.onContinue} onDismiss={resume.onDismiss} />}
 
-        <div className="flex max-w-full flex-nowrap gap-2 overflow-x-auto pb-2" role="tablist" aria-label="Destinos">
-          {allCities.map((city) => {
-            const open = state.unlockedCities.includes(city.id);
-            return (
-              <button
-                key={city.id}
-                type="button"
-                role="tab"
-                aria-selected={city.id === selected.id}
-                onClick={() => select(city.id)}
-                className={`inline-flex shrink-0 items-center gap-2 px-4 py-2 text-xs font-bold transition ${glass.chip} ${
-                  city.id === selected.id ? glass.chipActive : 'text-white/75 hover:bg-white/15 hover:text-white'
-                }`}
-              >
-                {open ? <MapPin className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
-                {city.stateName}
-                {!open && <span className="text-amber-300">{city.unlockCost}</span>}
-              </button>
-            );
-          })}
+        <div className="space-y-1">
+          <div className="flex max-w-full flex-nowrap gap-2 overflow-x-auto pb-2" role="tablist" aria-label="Destinos">
+            {allCities.filter((city) => visibleCityIds.includes(city.id)).map((city) => {
+              const open = state.unlockedCities.includes(city.id);
+              return (
+                <button
+                  key={city.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={city.id === selected.id}
+                  onClick={() => select(city.id)}
+                  className={`inline-flex shrink-0 items-center gap-2 px-4 py-2 text-xs font-bold transition ${glass.chip} ${
+                    city.id === selected.id ? glass.chipActive : 'text-white/75 hover:bg-white/15 hover:text-white'
+                  }`}
+                >
+                  {open ? <MapPin className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
+                  {city.stateName}
+                  {!open && <span className="text-amber-300">{city.unlockCost}</span>}
+                </button>
+              );
+            })}
+          </div>
+          {lockedCities.length > MAX_VISIBLE_LOCKED_DESTINATIONS && (
+            <button
+              type="button"
+              onClick={revealLockedCities}
+              disabled={showAllLockedCities}
+              className="rounded-full border border-white/15 bg-slate-950/70 px-3 py-1.5 text-xs font-bold text-white/80 transition hover:bg-white/10 disabled:cursor-default disabled:text-white/55"
+            >
+              {showAllLockedCities
+                ? 'Todos os locais bloqueados estão visíveis por 10 segundos'
+                : `Ver os outros ${lockedCities.length - MAX_VISIBLE_LOCKED_DESTINATIONS} locais bloqueados`}
+            </button>
+          )}
         </div>
 
         <article ref={boardingCardRef} data-boarding-card className={`relative overflow-hidden p-5 sm:p-6 ${glass.panel}`}>
