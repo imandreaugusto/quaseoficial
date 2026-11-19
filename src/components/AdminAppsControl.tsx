@@ -24,6 +24,7 @@ import { GlobalAppConfig, AppDefinition } from '../types';
 
 // TODOS OS 11 MÓDULOS DO ALUNO TOTALMENTE CONTROLADOS PELO CEO
 export const ALL_STUDENT_APPS: AppDefinition[] = [
+  { id: 'actionstreet', label: 'Action Street', desc: 'Aprendizado de inglês em lugares reais, vocabulário e missões interativas', category: 'Imersão & Missões', targetRole: 'both' },
   { id: 'brazilianfriends', label: 'Brazilian Friends', desc: 'Messenger e chat estilo MSN para prática de conversação com alunos, salas e IA', category: 'Conversação & Chat', targetRole: 'both' },
   { id: 'brazilianspace', label: 'Brazilian Space', desc: 'Comunidade para compartilhar descobertas, tirar dúvidas e ajudar outros alunos', category: 'Comunidade & Aprendizagem', targetRole: 'both' },
   { id: 'stories', label: 'Brazilian Post', desc: 'Gravação de stories com teleprompter inteligente e mural de destaques no Instagram', category: 'Prática & Mídia', targetRole: 'both' },
