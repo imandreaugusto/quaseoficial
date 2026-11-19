@@ -292,11 +292,11 @@ export default function TravelCompanion({ cityId, spotId, paused, onStartChallen
       <div className="grid grid-cols-2 gap-2 px-3 pb-3">
         <button type="button" onClick={openDialogue} disabled={!availableDialogue} className={`${glass.secondaryButton} !min-h-10 !px-2 !py-2 !text-xs disabled:cursor-not-allowed disabled:opacity-45`}>
           <MessageCircle className="h-4 w-4" />
-          {availableDialogue ? 'Talk to local' : 'No new chat'}
+          {availableDialogue ? 'Conversar com local' : 'Sem nova conversa'}
         </button>
         <button type="button" onClick={onStartChallenge} disabled={tickets.available === 0} className={`${glass.primaryButton} !min-h-10 !px-2 !py-2 !text-xs disabled:cursor-not-allowed disabled:opacity-45`}>
           <Ticket className="h-4 w-4" />
-          Challenge · {tickets.available}/3
+          Desafio · {tickets.available}/3
         </button>
       </div>
 
@@ -308,15 +308,15 @@ export default function TravelCompanion({ cityId, spotId, paused, onStartChallen
           </div>
           <div>
             <div className="mb-1.5 flex items-center justify-between text-[10px] font-bold text-white/60">
-              <span>Next level: {level.next?.title ?? 'Local legend'}</span>
-              <span>{level.next ? `${Math.max(0, level.next.minXp - state.xp)} XP left` : 'MAX'}</span>
+              <span>Próximo nível: {level.next?.title ?? 'Lenda da rua'}</span>
+              <span>{level.next ? `faltam ${Math.max(0, level.next.minXp - state.xp)} XP` : 'Máximo'}</span>
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
               <div className="h-full rounded-full bg-gradient-to-r from-blue-400 to-violet-400 transition-[width]" style={{ width: `${level.progress * 100}%` }} />
             </div>
           </div>
 
-          <p className="text-center text-[10px] text-white/45">Optional challenge tickets refill one every 6 hours.</p>
+          <p className="text-center text-[10px] text-white/45">Os desafios opcionais ganham 1 ticket a cada 6 horas.</p>
 
           {dialogue && (
             <section className={`rounded-2xl p-3 ${glass.chip}`} aria-label={`Conversation with ${dialogue.character}`}>

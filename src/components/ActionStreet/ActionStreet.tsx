@@ -143,6 +143,16 @@ export default function ActionStreet({ onClose, currentUser }: Props) {
     savedJourney && savedJourney.view !== 'lobby' && !bannerDismissed && state.unlockedCities.includes(savedJourney.cityId)
       ? cities.find((city) => city.id === savedJourney.cityId)
       : undefined;
+  const resumableMission =
+    savedJourney?.mission?.missionId
+      ? (() => {
+          const city = cities.find((item) => item.id === savedJourney.cityId);
+          const mission = city?.mission;
+          if (!mission || mission.id !== savedJourney.mission?.missionId) return undefined;
+          const current = Math.min(savedJourney.mission.step + 1, mission.steps.length);
+          return { current, total: mission.steps.length };
+        })()
+      : undefined;
 
   const goTo = (nextView: ViewType, cityId?: string) => {
     if (cityId) setSelectedCity(cityId);
@@ -240,7 +250,7 @@ export default function ActionStreet({ onClose, currentUser }: Props) {
             }}
             onClose={() => onClose?.()}
             initialCamera={savedJourney?.lobbyCamera}
-            resume={resumableCity ? { cityName: resumableCity.city, onContinue: continueJourney, onDismiss: dismissJourney } : undefined}
+            resume={resumableCity ? { cityName: resumableCity.city, missionStep: resumableMission, onContinue: continueJourney, onDismiss: dismissJourney } : undefined}
             legacyImportNotice={legacyImportNotice}
           />
         )}
@@ -273,6 +283,7 @@ export default function ActionStreet({ onClose, currentUser }: Props) {
           <VisaOnboardingModal
             profile={profile}
             onSave={saveVisaOnboarding}
+            onExit={() => setVisaOnboardingOpen(false)}
             onBeginArrival={() => setVisaArrivalTransitioning(true)}
             onComplete={() => {
               setVisaOnboardingOpen(false);

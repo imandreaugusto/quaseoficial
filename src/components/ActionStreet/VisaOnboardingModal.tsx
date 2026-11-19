@@ -14,6 +14,7 @@ interface Props {
   onSave: (record: VisaOnboardingRecord) => boolean;
   onBeginArrival: () => void;
   onComplete: () => void;
+  onExit?: () => void;
 }
 
 function prefersReducedMotion(): boolean {
@@ -195,7 +196,7 @@ function DigitalPassport({
   );
 }
 
-export default function VisaOnboardingModal({ profile, onSave, onBeginArrival, onComplete }: Props) {
+export default function VisaOnboardingModal({ profile, onSave, onBeginArrival, onComplete, onExit }: Props) {
   const [phase, setPhase] = useState<Phase>('ds160');
   const [purpose, setPurpose] = useState<TripPurpose | null>(null);
   const [intendedStay, setIntendedStay] = useState<IntendedStay | null>(null);
@@ -481,9 +482,16 @@ export default function VisaOnboardingModal({ profile, onSave, onBeginArrival, o
             <p className={glass.label}>Action Street · experiência de aprendizagem</p>
             <h1 className="mt-1 text-lg font-black leading-tight sm:text-2xl">Sua primeira entrada nos Estados Unidos</h1>
           </div>
-          <span className="shrink-0 rounded-full border border-amber-200/30 bg-amber-300/10 px-2.5 py-1 text-[8px] font-black uppercase tracking-wider text-amber-100 sm:text-[9px]">
-            Treinamento · não é documento oficial
-          </span>
+          <div className="flex shrink-0 items-start gap-2">
+            <span className="rounded-full border border-amber-200/30 bg-amber-300/10 px-2.5 py-1 text-[8px] font-black uppercase tracking-wider text-amber-100 sm:text-[9px]">
+              Treinamento · não é documento oficial
+            </span>
+            {onExit && (
+              <button type="button" onClick={onExit} aria-label="Voltar ao lobby" title="Voltar ao lobby" className={glass.iconButton}>
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
         </header>
 
         <div ref={passportRef} className="mb-4">
@@ -577,6 +585,11 @@ export default function VisaOnboardingModal({ profile, onSave, onBeginArrival, o
               </div>
             )}
             <p className="text-[10px] leading-relaxed text-white/45">Exercício de idioma. Nenhuma solicitação oficial, taxa ou coleta biométrica é realizada.</p>
+            {!hasForm && (
+              <p className="rounded-xl border border-sky-200/15 bg-sky-300/10 px-3 py-2 text-xs leading-relaxed text-sky-100" role="status">
+                Para continuar, selecione: finalidade da viagem, tempo de permanência e destino.
+              </p>
+            )}
             <button type="button" onClick={confirmDs160} disabled={!hasForm} className={`w-full ${glass.primaryButton}`}>
               {showDs160Confirmation ? 'Ir para a entrevista consular' : 'Confirmar DS-160'}
               {showDs160Confirmation ? <ArrowRight className="h-4 w-4" /> : <Check className="h-4 w-4" />}

@@ -3,7 +3,7 @@ import { ArrowRight, Check, Coins, MessagesSquare, RotateCcw, Sparkles, Stamp as
 import gsap from 'gsap';
 import { missionPayout } from '../../../lib/actionStreet/economy';
 import { journeyStore } from '../../../lib/actionStreet/journeyStore';
-import { missionEngine, type MissionState } from '../../../lib/actionStreet/missionEngine';
+import { missionEngine, shuffleMissionOptions, type MissionState } from '../../../lib/actionStreet/missionEngine';
 import { persistenceManager } from '../../../lib/actionStreet/persistenceManager';
 import { getVisaStatus } from '../../../lib/actionStreet/visa';
 import { appendJournalEntry, awardXp, createJournalEntry } from '../../../lib/actionStreet/progression';
@@ -88,6 +88,9 @@ export default function MissionPanel({ cityId, onClose, onOpenPassport, onLocati
   if (!city || !mission) return null;
 
   const step = missionEngine.getCurrentStep(mission, missionState);
+  const orderedOptions = step
+    ? shuffleMissionOptions(step.options, `${mission.id}:${missionState.currentStep}`)
+    : [];
   const progress = missionEngine.getMissionProgress(mission, missionState);
   const done = missionEngine.isMissionComplete(missionState);
   const visa = getVisaStatus(state, city.id);
@@ -221,7 +224,7 @@ export default function MissionPanel({ cityId, onClose, onOpenPassport, onLocati
           step && (
             <div className="relative mt-5">
               <p className={`${glass.chip} mb-3 !rounded-2xl px-4 py-3 text-sm leading-relaxed text-white/90`}>
-                Leia a fala, escolha a resposta mais natural e, depois do feedback, toque em <strong>Continuar</strong>. No último passo, toque em <strong>Concluir missão</strong>.
+                Leia a fala em inglês, escolha a resposta mais natural e confira a explicação em português. Depois, toque em <strong>Continuar</strong>.
               </p>
               {progress.current === 1 && <p className="mb-3 text-sm text-white/70">{mission.description}</p>}
 
@@ -238,7 +241,8 @@ export default function MissionPanel({ cityId, onClose, onOpenPassport, onLocati
 
               <p className="mt-4 text-xs text-white/55">A correção e o feedback são locais; nenhuma resposta é enviada para uma IA.</p>
               <ul className="mt-3 space-y-2">
-                {step.options.map((option, index) => {
+                {orderedOptions.map((option) => {
+                  const index = step.options.indexOf(option);
                   const isSelected = selected === index;
                   const revealed = selected !== null;
                   const tone = !revealed
@@ -263,6 +267,9 @@ export default function MissionPanel({ cityId, onClose, onOpenPassport, onLocati
 
               {selected !== null && (
                 <div className="mt-4" role="status">
+                  <p className={`mb-2 text-xs font-black uppercase tracking-wider ${step.options[selected].isCorrect ? 'text-emerald-300' : 'text-amber-300'}`}>
+                    {step.options[selected].isCorrect ? 'Resposta correta' : 'Resposta para revisar'}
+                  </p>
                   <p className="rounded-2xl border border-white/15 bg-slate-950/85 px-4 py-3 text-sm leading-relaxed text-white/90">{step.options[selected].feedback}</p>
                   <button type="button" onClick={next} className={`mt-3 w-full ${glass.primaryButton}`}>
                     {progress.current === progress.total ? 'Concluir missão' : 'Continuar'}

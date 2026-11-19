@@ -5,11 +5,12 @@ import { glass } from '../shared/glass';
 
 interface Props {
   cityName: string;
+  missionStep?: { current: number; total: number };
   onContinue: () => void;
   onDismiss: () => void;
 }
 
-export default function ResumeBanner({ cityName, onContinue, onDismiss }: Props) {
+export default function ResumeBanner({ cityName, missionStep, onContinue, onDismiss }: Props) {
   const ref = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -33,6 +34,11 @@ export default function ResumeBanner({ cityName, onContinue, onDismiss }: Props)
         <div data-reveal-item className="min-w-0 flex-1">
           <p className="text-base font-black leading-tight">Bem-vindo de volta!</p>
           <p className="text-sm text-white/75">Continuar sua viagem em {cityName}?</p>
+          {missionStep && (
+            <p className="mt-1 text-xs font-bold text-sky-200">
+              Missão salva: etapa {missionStep.current} de {missionStep.total}
+            </p>
+          )}
         </div>
         <div data-reveal-item className="flex items-center gap-2">
           <button type="button" onClick={onContinue} className={`${glass.primaryButton} !px-5 !py-2.5 text-sm`}>

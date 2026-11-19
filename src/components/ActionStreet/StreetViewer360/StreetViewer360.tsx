@@ -225,22 +225,20 @@ export default function StreetViewer360({ cityId, onBack, onExploreSpot, resume 
         onNotebook={() => setPassport({ tab: 'slang' })}
       />
 
-      {(!city.mission.locationSpotId || spot.id === city.mission.locationSpotId) && (
-        <button
-          type="button"
-          onClick={openMission}
-          className={`absolute left-4 top-[8.25rem] z-20 flex max-w-[min(20rem,calc(100vw-2rem))] items-center gap-3 px-4 py-3 text-left transition hover:bg-white/10 sm:left-6 ${glass.panelOverImagery} !rounded-2xl`}
-        >
+      <button
+        type="button"
+        onClick={openMission}
+        className={`absolute left-4 top-[8.25rem] z-20 flex max-w-[min(20rem,calc(100vw-2rem))] items-center gap-3 px-4 py-3 text-left transition hover:bg-white/10 sm:left-6 ${glass.panelOverImagery} !rounded-2xl`}
+      >
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-violet-500/40">
             {missionDone ? <Check className="h-4 w-4" /> : <MessagesSquare className="h-4 w-4" />}
           </span>
           <span className="min-w-0">
-            <span className={`block ${glass.label}`}>{missionDone ? 'Missão opcional · praticar' : 'Missão opcional · disponível'}</span>
+            <span className={`block ${glass.label}`}>{missionDone ? 'Missão concluída · praticar novamente' : 'Sua missão agora · ir ao local'}</span>
             <span className="block truncate text-sm font-black">{city.mission.title}</span>
             {visaExpired && <span className="block text-[11px] font-bold text-amber-300">Visto expirado · bônus desligados</span>}
           </span>
-        </button>
-      )}
+      </button>
 
       <HUDBottom key={spot.id} title={guide.title} text={guide.text} defaultExpanded={spot.id === city.arrivalSpotId} />
       <MiniMapGoogle

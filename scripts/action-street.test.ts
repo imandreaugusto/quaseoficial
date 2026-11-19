@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { actionStreetCities } from '../src/data/actionStreetCities';
 import { applyChallengeResult, CHALLENGE_REWARD_DOLLARS, CHALLENGE_REWARD_XP, chooseLocalChallenge } from '../src/lib/actionStreet/challengeEngine';
+import { shuffleMissionOptions } from '../src/lib/actionStreet/missionEngine';
 import { applyDialogueChoice, getAvailableDialogueChoices, getDialogueForSpot, presentDialogue, type LocalDialogue } from '../src/lib/actionStreet/dialogueEngine';
 import { missionPayout } from '../src/lib/actionStreet/economy';
 import { getDiscoveredSpotIds } from '../src/lib/actionStreet/discovery';
@@ -199,6 +200,21 @@ test('renewal quiz asks 3 valid questions and prefers words the student learned'
     const hotspot = ny.hotspots.find((item) => item.id === question.id)!;
     assert.equal(question.options[question.correctIndex], hotspot.translation);
   }
+});
+
+test('mission options are deterministically shuffled and keep every option', () => {
+  const options = [
+    { text: 'primeira', isCorrect: true },
+    { text: 'segunda', isCorrect: false },
+    { text: 'terceira', isCorrect: false },
+  ];
+  const first = shuffleMissionOptions(options, 'mission-a:0');
+  const repeated = shuffleMissionOptions(options, 'mission-a:0');
+  assert.deepEqual(first, repeated);
+  assert.equal(first.length, options.length);
+  assert.equal(new Set(first.map((option) => option.text)).size, options.length);
+  assert.equal(first.filter((option) => option.isCorrect).length, 1);
+  assert.deepEqual(shuffleMissionOptions(options, 'mission-a:1'), shuffleMissionOptions(options, 'mission-a:1'));
 });
 
 test('mission payout adds bonuses together and drops them when the visa is expired', () => {

@@ -21,7 +21,7 @@ interface Props {
   onWalk: (cityId: string) => void;
   onClose: () => void;
   initialCamera?: CameraSnapshot;
-  resume?: { cityName: string; onContinue: () => void; onDismiss: () => void };
+  resume?: { cityName: string; missionStep?: { current: number; total: number }; onContinue: () => void; onDismiss: () => void };
   legacyImportNotice?: string;
 }
 
@@ -146,7 +146,7 @@ export default function LobbyEmbarque({ onBoard, onWalk, onClose, initialCamera,
       )}
 
       <section className="absolute inset-x-0 bottom-0 z-10 flex flex-col gap-3 p-4 sm:p-6">
-        {resume && <ResumeBanner cityName={resume.cityName} onContinue={resume.onContinue} onDismiss={resume.onDismiss} />}
+        {resume && <ResumeBanner cityName={resume.cityName} missionStep={resume.missionStep} onContinue={resume.onContinue} onDismiss={resume.onDismiss} />}
 
         <div className="space-y-1">
           <div className="flex max-w-full flex-nowrap gap-2 overflow-x-auto pb-2" role="tablist" aria-label="Destinos">
