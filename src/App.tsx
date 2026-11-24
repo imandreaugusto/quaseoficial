@@ -1744,7 +1744,11 @@ export default function App() {
                     <Flashcards userId={currentUser.auth_user_id || currentUser.id} />
                   )}
 
-                  {currentApp === 'holybible' && <HolyBible />}
+                  {currentApp === 'holybible' && (
+                    <HolyBible
+                      userName={currentUser?.first_name?.trim() || currentUser?.full_name?.trim() || ''}
+                    />
+                  )}
 
                   {currentApp === 'brazilianhq' && (
                     <BrazilianHQ

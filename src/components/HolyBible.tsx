@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { gsap } from 'gsap';
-import { BookOpen, Check, ChevronLeft, ChevronRight, Clipboard, Highlighter, LoaderCircle, NotebookPen, Volume2, VolumeX, X } from 'lucide-react';
+import { BookOpen, Check, ChevronLeft, ChevronRight, Clipboard, Highlighter, LoaderCircle, NotebookPen, Share2, Volume2, VolumeX, X } from 'lucide-react';
 import { ChristianCrossIcon } from './ChristianCrossIcon';
+import { createBibleShareCard } from '../lib/bibleShareCard';
 import { lookupDictionary, translateText } from '../lib/translator';
+
+interface HolyBibleProps {
+  userName?: string;
+}
 
 interface BibleVerse {
   number: number;
@@ -160,7 +165,7 @@ const getPopupPosition = (rect: DOMRect) => ({
   top: Math.max(12, Math.min(rect.top - 120, window.innerHeight - 132)),
 });
 
-export const HolyBible = () => {
+export const HolyBible = ({ userName = '' }: HolyBibleProps) => {
   const [books, setBooks] = useState<BibleBook[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -182,6 +187,12 @@ export const HolyBible = () => {
   const [translationPopup, setTranslationPopup] = useState<TranslationPopup | null>(null);
   const [copiedVerse, setCopiedVerse] = useState<number | null>(null);
   const [copyError, setCopyError] = useState('');
+  const [shareSelection, setShareSelection] = useState<{ reference: string; verse: string } | null>(null);
+  const [sharePreviewUrl, setSharePreviewUrl] = useState<string | null>(null);
+  const [shareImageBlob, setShareImageBlob] = useState<Blob | null>(null);
+  const [isGeneratingShare, setIsGeneratingShare] = useState(false);
+  const [shareError, setShareError] = useState('');
+  const [shareNotice, setShareNotice] = useState('');
   const pageFrameRef = useRef<HTMLDivElement | null>(null);
   const openingSpreadRef = useRef<HTMLDivElement | null>(null);
   const openingCoverRef = useRef<HTMLButtonElement | null>(null);
@@ -196,6 +207,7 @@ export const HolyBible = () => {
   const translationRequest = useRef(0);
   const copiedFeedbackTimer = useRef<number | null>(null);
   const popupAnchor = useRef<HTMLElement | null>(null);
+  const studentFirstName = userName.trim().split(/\s+/)[0] || 'Estudante';
 
   useEffect(() => {
     const controller = new AbortController();
@@ -371,6 +383,40 @@ export const HolyBible = () => {
   useEffect(() => () => {
     if (copiedFeedbackTimer.current !== null) window.clearTimeout(copiedFeedbackTimer.current);
   }, []);
+
+  useEffect(() => {
+    if (!shareSelection) return undefined;
+    let cancelled = false;
+    let previewUrl: string | null = null;
+    setIsGeneratingShare(true);
+    setSharePreviewUrl(null);
+    setShareImageBlob(null);
+    setShareError('');
+    setShareNotice('');
+
+    void createBibleShareCard({
+      reference: shareSelection.reference,
+      verse: shareSelection.verse,
+      studentName: studentFirstName,
+      logoUrl: `${import.meta.env.BASE_URL}brazilian-in-action-icon.svg`,
+    }).then((blob) => {
+      if (cancelled) return;
+      previewUrl = URL.createObjectURL(blob);
+      setShareImageBlob(blob);
+      setSharePreviewUrl(previewUrl);
+      setIsGeneratingShare(false);
+    }).catch((error: unknown) => {
+      if (cancelled) return;
+      console.error('Could not generate the Bible share image:', error);
+      setShareError('Não foi possível preparar a imagem. Tente novamente.');
+      setIsGeneratingShare(false);
+    });
+
+    return () => {
+      cancelled = true;
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [shareSelection, studentFirstName]);
 
   useEffect(() => {
     if (!translationPopup) return undefined;
@@ -702,6 +748,64 @@ export const HolyBible = () => {
     }
   };
 
+  const handleOpenShare = (verse: BibleVerse) => {
+    const fullVerse = activeChapter?.verses.find((chapterVerse) => chapterVerse.number === verse.number);
+    if (!activeBook || !fullVerse) {
+      setShareError('Não foi possível localizar o texto completo deste versículo.');
+      return;
+    }
+
+    setShareSelection({
+      reference: `${activeBook.name} ${chapterNumber}:${verse.number}`,
+      verse: fullVerse.copyText ?? fullVerse.text,
+    });
+  };
+
+  const handleDownloadShareImage = () => {
+    if (!shareImageBlob || !shareSelection) return;
+    const imageUrl = URL.createObjectURL(shareImageBlob);
+    const link = document.createElement('a');
+    const filename = shareSelection.reference.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    link.href = imageUrl;
+    link.download = `bible-verse-${filename}.png`;
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(imageUrl), 1000);
+    setShareNotice('Imagem baixada. Abra o Instagram e adicione-a ao seu story.');
+  };
+
+  const handleShareImage = async () => {
+    if (!shareImageBlob || !shareSelection) return;
+    const filename = shareSelection.reference.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    const caption = `${studentFirstName} está estudando a Bíblia King James no Brazilian in Action.`;
+
+    try {
+      if (typeof File === 'undefined') {
+        handleDownloadShareImage();
+        return;
+      }
+      const file = new File([shareImageBlob], `bible-verse-${filename}.png`, { type: 'image/png' });
+      if (
+        typeof navigator.share === 'function'
+        && typeof navigator.canShare === 'function'
+        && navigator.canShare({ files: [file] })
+      ) {
+        await navigator.share({
+          files: [file],
+          title: `Versículo ${shareSelection.reference}`,
+          text: caption,
+        });
+        setShareNotice('Compartilhamento concluído.');
+        return;
+      }
+
+      handleDownloadShareImage();
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      console.error('Could not share the Bible verse image:', error);
+      setShareError('Não foi possível abrir o compartilhamento. Baixe a imagem para continuar.');
+    }
+  };
+
   const updateAnnotation = (reference: string, update: Partial<VerseAnnotation>) => {
     setAnnotations((current) => {
       const annotation = {
@@ -721,7 +825,7 @@ export const HolyBible = () => {
     const reference = `${activeBook.name} ${chapterNumber}:${verse.number}`;
     const annotation = annotations[reference];
     return (
-    <div key={`${verse.number}-${verse.text}`} className="relative mb-2 pr-16 text-[13px] leading-[1.65] text-[#3d3021] sm:text-sm">
+    <div key={`${verse.number}-${verse.text}`} className="relative mb-2 pr-24 text-[13px] leading-[1.65] text-[#3d3021] sm:text-sm">
       <p className="m-0 text-justify">
         <span
           data-verse-reference={reference}
@@ -769,6 +873,15 @@ export const HolyBible = () => {
         }`}
       >
         <Highlighter size={13} />
+      </button>
+      <button
+        type="button"
+        onClick={() => handleOpenShare(verse)}
+        aria-label={`Compartilhar ${reference} no Instagram`}
+        title="Compartilhar no Instagram"
+        className="absolute right-[4.5rem] top-0 rounded p-1 text-[#8f704a] transition hover:bg-amber-200 hover:text-amber-950 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-800"
+      >
+        <Share2 size={13} />
       </button>
       <button
         type="button"
@@ -1150,7 +1263,7 @@ export const HolyBible = () => {
         </button>
       </nav>
 
-      {(translationPopup || copiedVerse !== null || copyError || soundError) && (
+      {(translationPopup || copiedVerse !== null || copyError || soundError || (shareError && !shareSelection)) && (
         createPortal(
           <div
             role="status"
@@ -1180,12 +1293,13 @@ export const HolyBible = () => {
               <p>Versículo copiado.</p>
             ) : (
               <div className="flex items-start justify-between gap-3">
-                <span>{copyError || soundError}</span>
+                <span>{copyError || soundError || shareError}</span>
                 <button
                   type="button"
                   onClick={() => {
                     setCopyError('');
                     setSoundError('');
+                    setShareError('');
                   }}
                   aria-label="Fechar aviso"
                   className="rounded-lg p-1 text-white/60 hover:bg-white/10 hover:text-white"
@@ -1197,6 +1311,81 @@ export const HolyBible = () => {
           </div>,
           document.body,
         )
+      )}
+      {shareSelection && createPortal(
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
+          <button
+            type="button"
+            aria-label="Fechar prévia de compartilhamento"
+            onClick={() => setShareSelection(null)}
+            className="absolute inset-0 h-full w-full cursor-default"
+          />
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="bible-share-title"
+            className="relative z-10 max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-3xl border border-amber-200/20 bg-[#24190f] p-5 text-amber-50 shadow-2xl sm:p-6"
+          >
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <div>
+                <h2 id="bible-share-title" className="font-serif text-xl font-bold text-amber-100">
+                  Compartilhar versículo
+                </h2>
+                <p className="mt-1 text-sm text-white/60">{shareSelection.reference}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShareSelection(null)}
+                aria-label="Fechar"
+                className="rounded-lg p-1.5 text-white/60 transition hover:bg-white/10 hover:text-white"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="flex justify-center rounded-2xl border border-white/10 bg-black/20 p-3">
+              {isGeneratingShare ? (
+                <div className="flex aspect-[9/16] w-full max-w-[13rem] items-center justify-center gap-2 text-sm text-white/65">
+                  <LoaderCircle className="animate-spin" size={18} />
+                  Preparando imagem...
+                </div>
+              ) : sharePreviewUrl ? (
+                <img
+                  src={sharePreviewUrl}
+                  alt={`Prévia do card de ${shareSelection.reference} com o nome ${studentFirstName}`}
+                  className="max-h-[50dvh] w-auto max-w-full rounded-xl object-contain shadow-xl"
+                />
+              ) : null}
+            </div>
+
+            <p className="mt-4 text-center text-xs leading-relaxed text-white/60">
+              No celular, escolha Instagram no menu de compartilhamento. Se ele não aparecer, baixe a imagem e publique pelo app.
+            </p>
+            {shareNotice && <p role="status" className="mt-3 text-center text-sm text-emerald-200">{shareNotice}</p>}
+            {shareError && <p role="alert" className="mt-3 text-center text-sm text-rose-200">{shareError}</p>}
+
+            <div className="mt-5 flex flex-wrap justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => void handleShareImage()}
+                disabled={isGeneratingShare || !shareImageBlob}
+                className="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-4 py-2.5 text-sm font-bold text-neutral-950 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Share2 size={16} />
+                Compartilhar
+              </button>
+              <button
+                type="button"
+                onClick={handleDownloadShareImage}
+                disabled={isGeneratingShare || !shareImageBlob}
+                className="rounded-xl border border-white/15 px-4 py-2.5 text-sm font-semibold text-white/80 transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Baixar imagem
+              </button>
+            </div>
+          </section>
+        </div>,
+        document.body,
       )}
       {editingNote && createPortal(
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
