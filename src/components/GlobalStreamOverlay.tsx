@@ -17,6 +17,7 @@ import {
   Maximize2,
   Layout,
   BookOpen,
+  Coffee,
   Presentation,
   Check,
   Camera
@@ -192,7 +193,7 @@ export const GlobalStreamOverlay: React.FC<GlobalStreamOverlayProps> = ({
     home: 'Início',
     agenda: 'Agenda',
     dashboard: 'Dashboard',
-    readclub: 'Read Club',
+    readclub: 'Coffee & Read',
     streamstudio: 'Brazilian LIVE',
     youtube: 'Brazilian Music',
     studytime: 'Study Time',

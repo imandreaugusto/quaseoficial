@@ -202,7 +202,7 @@ export default function App() {
   const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
 
-  // Read Club persistent databases
+  // Coffee & Read persistent databases
   const [library, setLibrary] = useState<StoryItem[]>([]);
   const [sessions, setSessions] = useState<ReadSession[]>([]);
   const [glossary, setGlossary] = useState<Record<string, GlossaryEntry>>({});
@@ -312,7 +312,7 @@ export default function App() {
         }
       })
       .catch((error) => {
-        console.error('Read Club progress cloud save failed:', error);
+        console.error('Coffee & Read progress cloud save failed:', error);
         setCloudSaveStatus('error');
       });
   };
@@ -473,7 +473,7 @@ export default function App() {
           progress = await loadStudentProgressFromSupabase(authUserId);
         } catch (error) {
           progressLoadFailed = true;
-          console.error('Could not load this user’s Read Club progress:', error);
+          console.error('Could not load this user’s Coffee & Read progress:', error);
         }
         if (cancelled) return;
 
@@ -510,7 +510,7 @@ export default function App() {
               learnedWords: parsed.learnedWords && typeof parsed.learnedWords === 'object' ? parsed.learnedWords : {},
             };
           } catch (error) {
-            console.warn('This user’s local Read Club progress cache is invalid:', error);
+            console.warn('This user’s local Coffee & Read progress cache is invalid:', error);
           }
         }
 
@@ -997,7 +997,7 @@ export default function App() {
     });
   };
 
-  // Read Club actions
+  // Coffee & Read actions
   const handleAddStory = (story: Omit<StoryItem, 'id'>) => {
     if (!effectiveIsAdmin) return;
     const newStory: StoryItem = { ...story, id: Date.now() };

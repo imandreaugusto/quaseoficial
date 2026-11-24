@@ -9,7 +9,7 @@ import {
   LayoutDashboard,
   GraduationCap,
   Video,
-  BookOpen,
+  Coffee,
   VenetianMask,
   Presentation,
   Settings as SettingsIcon,
@@ -88,7 +88,7 @@ const ALL_STUDENT_ITEMS = [
   { id: 'brazilianspace', label: 'Brazilian Space', icon: PlanetOrbitIcon },
   { id: 'stories', label: 'Brazilian Post', icon: Instagram },
   { id: 'practice', label: 'Brazilian Practice', icon: Globe },
-  { id: 'readclub', label: 'Read Club', icon: BookOpen },
+  { id: 'readclub', label: 'Coffee & Read', icon: Coffee },
   { id: 'flashcards', label: 'Brazilian Anki', icon: Layers },
   { id: 'holybible', label: 'Holy Bible', icon: ChristianCrossIcon },
   { id: 'brazilianhq', label: 'Brazilian HQ', icon: VenetianMask },
@@ -130,7 +130,7 @@ const NavButton: React.FC<{
 }> = ({ item, isActive, accentColor, menuSoundsEnabled, notificationCount = 0, onClick }) => {
   const btnRef = useRef<HTMLButtonElement | null>(null);
   const iconRef = useRef<HTMLSpanElement | null>(null);
-  const isPlatformBrand = item.label.startsWith('Brazilian ') || item.label === 'Read Club' || item.label === 'Holy Bible' || item.label === 'BIA Compare';
+  const isPlatformBrand = item.label.startsWith('Brazilian ') || item.label === 'Coffee & Read' || item.label === 'Holy Bible' || item.label === 'BIA Compare';
 
   // 1. Ao passar o mouse: toca o som e aciona o GSAP
   const handleMouseEnter = () => {
@@ -265,7 +265,7 @@ const ALL_ADMIN_ITEMS = [
   { id: 'practice', label: 'Brazilian Practice', icon: Globe },
   { id: 'dashboard', label: 'Controle Financeiro', icon: LayoutDashboard },
   { id: 'admin_settings', label: 'Painel do CEO', icon: Users },
-  { id: 'readclub', label: 'Read Club', icon: BookOpen },
+  { id: 'readclub', label: 'Coffee & Read', icon: Coffee },
   { id: 'flashcards', label: 'Brazilian Anki', icon: Layers },
   { id: 'holybible', label: 'Holy Bible', icon: ChristianCrossIcon },
   { id: 'brazilianhq', label: 'Brazilian HQ', icon: VenetianMask },

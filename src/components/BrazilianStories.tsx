@@ -80,11 +80,11 @@ const STORY_PROMPTS: StoryPromptOption[] = [
   {
     id: 'read-club-flow',
     category: 'readclub',
-    title: 'Leitura e pronúncia no Read Club',
-    teleprompterEn: 'I am practicing my reading and pronunciation with the Read Club on Brazilian in Action. I listen to the audio and repeat each sentence. The accent training here is next level!',
-    teleprompterPt: 'Estou praticando leitura e pronúncia com o Read Club da Brazilian in Action. Ouço o áudio e repito cada frase. O treino de sotaque aqui é de outro nível!',
-    suggestedCaption: 'Treino de pronúncia e leitura no Read Club da @brazilianinaction! 🎧🇺🇸',
-    hashtags: '#ReadClub #Pronunciation #BrazilianInAction #ReadingInEnglish'
+    title: 'Leitura e pronúncia no Coffee & Read',
+    teleprompterEn: 'I am practicing my reading and pronunciation with Coffee & Read on Brazilian in Action. I listen to the audio and repeat each sentence. The accent training here is next level!',
+    teleprompterPt: 'Estou praticando leitura e pronúncia com o Coffee & Read da Brazilian in Action. Ouço o áudio e repito cada frase. O treino de sotaque aqui é de outro nível!',
+    suggestedCaption: 'Treino de pronúncia e leitura no Coffee & Read da @brazilianinaction! 🎧🇺🇸',
+    hashtags: '#CoffeeAndRead #Pronunciation #BrazilianInAction #ReadingInEnglish'
   }
 ];
 
@@ -93,7 +93,7 @@ const STORY_MURAL_DAYS = 7;
 const CATEGORY_LABELS: Record<StorySubmission['category'], string> = {
   challenge: 'Evolução',
   episoden: 'Conversação',
-  readclub: 'Read Club',
+  readclub: 'Coffee & Read',
   expression: 'Expressão',
   routine: 'Rotina'
 };

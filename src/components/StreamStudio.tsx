@@ -1919,7 +1919,7 @@ export const StreamStudio: React.FC<StreamStudioProps> = ({
                           : 'text-white/70 hover:text-white hover:bg-white/10'
                       }`}
                     >
-                      <BookOpen size={12} /> Read Club
+                      <Coffee size={12} /> Coffee & Read
                     </button>
                     <button
                       type="button"
@@ -3389,7 +3389,7 @@ export const StreamStudio: React.FC<StreamStudioProps> = ({
                               : 'text-white/70 hover:text-white hover:bg-white/10'
                           }`}
                         >
-                          <BookOpen size={13} /> Read Club
+                          <Coffee size={13} /> Coffee & Read
                         </button>
                         <button
                           type="button"
@@ -3575,7 +3575,7 @@ export const StreamStudio: React.FC<StreamStudioProps> = ({
                 {streamSource === 'scene' && activeScene === 'reading' && (
                   <div className="absolute inset-0 bg-neutral-900/90 border-4 border-amber-500/30 p-8 flex flex-col justify-center z-0">
                     <div className="flex items-center gap-2 text-amber-400 text-xs font-mono font-bold uppercase mb-2">
-                      <BookOpen size={18} /> Read Club & Leitura Guiada
+                      <Coffee size={18} /> Coffee & Read · Leitura Guiada
                     </div>
                     <h2 className="text-3xl font-black text-white">{lessonSubject}</h2>
                     <p className="text-sm text-white/70 mt-2 font-light">Acompanhe a leitura e pronúncia no material na tela.</p>

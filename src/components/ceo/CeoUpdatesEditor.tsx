@@ -88,7 +88,7 @@ export const CeoUpdatesEditor: React.FC = () => {
         </label>
         <label className="block">
           <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-white/60">Texto</span>
-          <textarea value={body} onChange={(event) => setBody(event.target.value)} maxLength={1200} rows={7} placeholder={'• Novo menu: Brazilian Post\n• Brazilian Games com visual novo\n• Read Club com marcador de página'} className="w-full resize-none rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-sm leading-relaxed text-white outline-none backdrop-blur-xl placeholder:text-white/40 focus:border-violet-300/70" />
+          <textarea value={body} onChange={(event) => setBody(event.target.value)} maxLength={1200} rows={7} placeholder={'• Novo menu: Brazilian Post\n• Brazilian Games com visual novo\n• Coffee & Read com marcador de página'} className="w-full resize-none rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-sm leading-relaxed text-white outline-none backdrop-blur-xl placeholder:text-white/40 focus:border-violet-300/70" />
           <span className="mt-1 block text-right text-[10px] text-white/45">{body.length}/1200</span>
         </label>
         {message && (

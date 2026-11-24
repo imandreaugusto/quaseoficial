@@ -443,11 +443,11 @@ export const Settings: React.FC<SettingsProps> = ({
           </div>
         </div>
 
-        {/* Read Club Premium */}
+        {/* Coffee & Read Premium */}
         <div>
           <h3 className="text-xs font-bold tracking-widest text-white/40 uppercase mb-3 flex items-center gap-2">
             <Sliders size={13} />
-            <span>Biblioteca & Read Club</span>
+            <span>Biblioteca & Coffee & Read</span>
           </h3>
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/5 rounded-xl">
@@ -589,7 +589,7 @@ export const Settings: React.FC<SettingsProps> = ({
             <span>Dados & Backups</span>
           </h3>
           <p className="mb-3 rounded-xl border border-amber-300/15 bg-amber-300/5 p-3 text-xs leading-relaxed text-amber-100/80">
-            O backup JSON inclui aulas, despesas, configurações e dados do Read Club. Baixe-o regularmente e guarde-o em local privado, como um Drive protegido. Ele não substitui uma cópia completa do banco Supabase e pode conter informações pessoais de alunos. Restaurar um backup substitui os dados correspondentes.
+            O backup JSON inclui aulas, despesas, configurações e dados do Coffee & Read. Baixe-o regularmente e guarde-o em local privado, como um Drive protegido. Ele não substitui uma cópia completa do banco Supabase e pode conter informações pessoais de alunos. Restaurar um backup substitui os dados correspondentes.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <button

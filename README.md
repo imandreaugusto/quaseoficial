@@ -21,7 +21,7 @@ Se um deploy falhar, consulte os eventos e logs do servico no Render. As verific
 
 ## Salvamento automatico entre dispositivos
 
-Para habilitar a sincronizacao global de aulas, biblioteca do Read Club/Brazilian Music e progresso individual dos alunos, execute uma vez o script [`supabase/enable_platform_autosave.sql`](./supabase/enable_platform_autosave.sql) no SQL Editor do projeto Supabase. As alteracoes do conteudo compartilhado ficam restritas aos administradores autorizados, com excecao da biblioteca Brazilian Music, que assinantes ativos podem adicionar e editar; a exclusao continua restrita aos administradores.
+Para habilitar a sincronizacao global de aulas, biblioteca do Coffee & Read/Brazilian Music e progresso individual dos alunos, execute uma vez o script [`supabase/enable_platform_autosave.sql`](./supabase/enable_platform_autosave.sql) no SQL Editor do projeto Supabase. As alteracoes do conteudo compartilhado ficam restritas aos administradores autorizados, com excecao da biblioteca Brazilian Music, que assinantes ativos podem adicionar e editar; a exclusao continua restrita aos administradores.
 
 Se a configuracao de salvamento ou de acesso pago ja foi aplicada, execute tambem [`supabase/allow_subscribers_manage_youtube_library.sql`](./supabase/allow_subscribers_manage_youtube_library.sql) no SQL Editor para liberar a escrita de assinantes ativos somente na biblioteca Brazilian Music.
 
@@ -37,7 +37,7 @@ No painel CEO > Assinantes, a liberacao manual permite informar o e-mail exato d
 
 No painel da AbacatePay, cadastre a URL exibida em CEO > Pagamentos e Supabase, escolha o evento `transparent.completed` e configure um secret igual ao valor de `ABACATEPAY_WEBHOOK_SECRET` no Render. O servidor valida o secret da URL e a assinatura HMAC da AbacatePay. A chave publica oficial de assinatura HMAC esta incluida como padrao; `ABACATEPAY_WEBHOOK_HMAC_KEY` e um override opcional caso a AbacatePay altere essa chave. Nunca coloque a chave privada da API no frontend.
 
-As bibliotecas do Read Club e Brazilian Music atualizam os usuarios conectados em tempo real. Para habilitar os eventos instantaneos do Supabase, execute tambem [`supabase/shared_content_realtime.sql`](./supabase/shared_content_realtime.sql) no SQL Editor. Se a publicacao Realtime ainda nao estiver habilitada, o aplicativo verifica atualizacoes periodicamente como alternativa.
+As bibliotecas do Coffee & Read e Brazilian Music atualizam os usuarios conectados em tempo real. Para habilitar os eventos instantaneos do Supabase, execute tambem [`supabase/shared_content_realtime.sql`](./supabase/shared_content_realtime.sql) no SQL Editor. Se a publicacao Realtime ainda nao estiver habilitada, o aplicativo verifica atualizacoes periodicamente como alternativa.
 
 Para receber feedback dos alunos, execute tambem [`supabase/enable_student_feedback.sql`](./supabase/enable_student_feedback.sql) no SQL Editor. Cada aluno pode ver apenas seus proprios envios; a leitura geral e as respostas ficam restritas aos administradores autorizados. Uma nova resposta tambem gera uma notificacao push nos dispositivos em que o aluno ativou as notificacoes.
 

@@ -1764,7 +1764,7 @@ const COMMON_DICTIONARY: Record<string, string> = {
         <div className="fixed inset-0 z-[6000] flex items-center justify-center bg-black/90 backdrop-blur-sm">
           <div className="bg-neutral-950 border border-white/10 rounded-2xl p-8 max-w-md w-full shadow-2xl flex flex-col gap-6">
             <h3 className="text-sm font-bold tracking-widest text-center uppercase" style={{ color: accentColor }}>
-              Atalhos do Teclado - Read Club
+              Atalhos do Teclado - Coffee & Read
             </h3>
 
             <div className="flex flex-col gap-3 font-sans">

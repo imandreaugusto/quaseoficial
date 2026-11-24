@@ -30,6 +30,7 @@ import {
   ToggleLeft,
   ToggleRight,
   BookOpen,
+  Coffee,
   VenetianMask,
   Presentation,
   HelpCircle,
@@ -108,7 +109,7 @@ const ALL_STUDENT_APPS = [
   { id: 'brazilianspace', label: 'Brazilian Space', icon: PlanetOrbitIcon, desc: 'Comunidade para compartilhar descobertas e ajudar outros alunos' },
   { id: 'stories', label: 'Brazilian Post', icon: Instagram, desc: 'Gravação de stories para o Instagram com teleprompter e mural de destaques' },
   { id: 'practice', label: 'Brazilian Practice', icon: Globe, desc: 'Ambientes ao vivo de conversação, imersão e prática livre' },
-  { id: 'readclub', label: 'Read Club', icon: BookOpen, desc: 'Biblioteca imersiva e histórias com áudio' },
+  { id: 'readclub', label: 'Coffee & Read', icon: Coffee, desc: 'Biblioteca imersiva e histórias com áudio' },
   { id: 'flashcards', label: 'Brazilian Anki', icon: Layers, desc: 'Flashcards de inglês com revisão espaçada e áudio nativo' },
   { id: 'holybible', label: 'Holy Bible', icon: ChristianCrossIcon, desc: 'Bíblia em inglês com páginas interativas e tradução de vocabulário' },
   { id: 'brazilianhq', label: 'Brazilian HQ', icon: VenetianMask, desc: 'Histórias em quadrinhos em PDF' },
@@ -154,7 +155,7 @@ const ALL_ADMIN_APPS = [
   { id: 'dashboard', label: 'Controle Financeiro', icon: LayoutDashboard, desc: 'Cálculo de lucros, alunos e despesas' },
   { id: 'admin_settings', label: 'Painel do CEO', icon: Users, desc: 'Gestão geral de alunos, gateway e finanças' },
   { id: 'feedback', label: 'Feedback dos alunos', icon: MessageSquareText, desc: 'Sugestões enviadas pelos alunos' },
-  { id: 'readclub', label: 'Read Club', icon: BookOpen, desc: 'Biblioteca completa de leitura' },
+  { id: 'readclub', label: 'Coffee & Read', icon: Coffee, desc: 'Biblioteca completa de leitura' },
   { id: 'flashcards', label: 'Brazilian Anki', icon: Layers, desc: 'Flashcards de inglês com revisão espaçada e áudio nativo' },
   { id: 'holybible', label: 'Holy Bible', icon: ChristianCrossIcon, desc: 'Leitura interativa da King James Version' },
   { id: 'brazilianhq', label: 'Brazilian HQ', icon: VenetianMask, desc: 'Leitura de histórias em quadrinhos' },
@@ -1531,7 +1532,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                     </div>
                   </div>
                   {false && (<div>
-                    {/* Read Club Toggle */}
+                    {/* Coffee & Read Toggle */}
                     <button
                       type="button"
                       onClick={() => handleTogglePermission(student.id, 'readclub')}
