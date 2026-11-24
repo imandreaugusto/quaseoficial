@@ -25,6 +25,7 @@ import {
 } from './src/lib/paymentSecurity';
 import { getAdminSubscriptionStatus } from './src/lib/subscriptionStatus';
 import { CEO_EMAIL } from './src/utils/security';
+import { selectDailyAnkiReminderMessage } from './src/lib/dailyAnkiReminderMessages';
 
 // Load environment variables
 dotenv.config();
@@ -2010,10 +2011,6 @@ async function startServer() {
       if (!webPushConfigured) {
         return res.status(503).json({ error: 'As notificações push ainda não estão configuradas no servidor.' });
       }
-      if (!process.env.GEMINI_API_KEY) {
-        return res.status(503).json({ error: 'A chave do JEV não está configurada no servidor.' });
-      }
-
       const now = new Date();
       const parts = new Intl.DateTimeFormat('en', {
         timeZone: 'America/Sao_Paulo',
@@ -2032,51 +2029,11 @@ async function startServer() {
         return res.status(502).json({ error: 'Não foi possível consultar o histórico de lembretes.' });
       }
       const recentRuns = await recentRunsResponse.json() as { message: string }[];
-      const activityCycle = [
-        'Read Club e leitura em inglês',
-        'Brazilian HQ e leitura de quadrinhos',
-        'Brazilian Space e participação na comunidade',
-        'Brazilian Practice e conversação',
-        'Brazilian Music e estudo com música',
-        'Brazilian Quiz e um desafio rápido'
-      ];
       const dayNumber = Math.floor(Date.parse(`${reminderDate}T12:00:00-03:00`) / 86_400_000);
-      const focusActivity = activityCycle[((dayNumber % activityCycle.length) + activityCycle.length) % activityCycle.length];
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      let message = '';
-      const generatedMessages: string[] = [];
-      for (let attempt = 0; attempt < 2; attempt += 1) {
-        const response = await ai.models.generateContent({
-          model: 'gemini-2.5-flash',
-          contents: [{
-            role: 'user',
-            parts: [{
-              text: [
-                'Você é JEV, o assistente acolhedor do Brazilian in Action.',
-                'Crie uma única mensagem curta e diferente para incentivar um assinante a estudar inglês hoje.',
-                `Tema do convite de hoje: ${focusActivity}.`,
-                'Escreva em português brasileiro, natural, amigável, com no máximo 150 caracteres.',
-                'Pode incluir uma expressão curta em inglês ou um emoji, mas não use nome, título, aspas, listas ou pressão/cobrança.',
-                'Devolva somente o texto da mensagem.',
-                `Mensagens recentes que não devem ser repetidas: ${[
-                  ...recentRuns.map((run) => run.message),
-                  ...generatedMessages
-                ].join(' | ') || 'nenhuma'}.`
-              ].join('\n')
-            }]
-          }],
-          config: { temperature: 0.9, maxOutputTokens: 100 }
-        });
-        message = response.text?.trim().replace(/^["'“”]+|["'“”]+$/g, '').replace(/\s+/g, ' ') || '';
-        const normalizedMessage = message.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-        const repeated = [...recentRuns.map((run) => run.message), ...generatedMessages].some((recentMessage) =>
-          recentMessage.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() === normalizedMessage
-        );
-        if (message && message.length <= 180 && !repeated) break;
-        if (message) generatedMessages.push(message);
-        message = '';
-      }
-      if (!message) throw new Error('JEV não conseguiu gerar uma mensagem curta e inédita.');
+      const message = selectDailyAnkiReminderMessage(
+        recentRuns.map((run) => run.message),
+        dayNumber,
+      );
 
       const activeResponse = await supabaseServiceRequest(
         `bia_subscription_profiles?status=eq.active&subscription_expires_at=gt.${encodeURIComponent(now.toISOString())}&select=user_id`
@@ -2261,16 +2218,14 @@ async function startServer() {
       let sentCount = 0;
       for (let offset = 0; offset < recipients.length; offset += 25) {
         const batch = recipients.slice(offset, offset + 25);
-        const deliveries = await Promise.all(batch.map((recipientId) => {
-          const profile = profileByUserId.get(recipientId);
-          const name = profile?.first_name?.trim() || profile?.full_name?.trim().split(/\s+/)[0] || 'amigo(a)';
-          return sendFriendsPushNotification(recipientId, {
-            title: `Good morning, ${name.slice(0, 40)}! ☀️`,
+        const deliveries = await Promise.all(batch.map((recipientId) =>
+          sendFriendsPushNotification(recipientId, {
+            title: 'Brazilian Anki',
             body: message,
-            url: '/',
-            tag: `daily-study-${reminderDate}`
-          });
-        }));
+            url: '/?open=flashcards',
+            tag: `brazilian-anki-lunch-${reminderDate}`
+          })
+        ));
         sentCount += deliveries.filter(Boolean).length;
       }
       const failedCount = recipients.length - sentCount;
@@ -2299,8 +2254,8 @@ async function startServer() {
         status
       });
     } catch (error) {
-      console.error('Daily student reminder failed:', error);
-      return res.status(500).json({ error: 'Falha ao gerar ou enviar o lembrete diário.' });
+      console.error('Brazilian Anki lunch reminder failed:', error);
+      return res.status(500).json({ error: 'Falha ao enviar o lembrete diário do Brazilian Anki.' });
     }
   });
 

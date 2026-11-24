@@ -5,10 +5,10 @@ select cron.unschedule(jobid)
 from cron.job
 where jobname = 'bia-daily-student-reminders';
 
--- 09:00 UTC corresponds to 06:00 in Sao Paulo (UTC-3).
+-- 15:00 UTC corresponds to 12:00 in Sao Paulo (UTC-3).
 select cron.schedule(
   'bia-daily-student-reminders',
-  '0 9 * * *',
+  '0 15 * * *',
   $job$
     select net.http_post(
       url := 'https://brazilian-in-action-i036.onrender.com/api/cron/daily-student-reminders',

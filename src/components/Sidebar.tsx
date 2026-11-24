@@ -32,6 +32,7 @@ import {
   Share,
   Plus,
   MapPin,
+  Layers,
 } from 'lucide-react';
 import { UserProfile, GlobalAppConfig } from '../types';
 import { ensureAppAfter } from '../lib/appMenuOrder';
@@ -88,6 +89,7 @@ const ALL_STUDENT_ITEMS = [
   { id: 'stories', label: 'Brazilian Post', icon: Instagram },
   { id: 'practice', label: 'Brazilian Practice', icon: Globe },
   { id: 'readclub', label: 'Read Club', icon: BookOpen },
+  { id: 'flashcards', label: 'Brazilian Anki', icon: Layers },
   { id: 'holybible', label: 'Holy Bible', icon: ChristianCrossIcon },
   { id: 'brazilianhq', label: 'Brazilian HQ', icon: VenetianMask },
   { id: 'board', label: 'Blackboard', icon: Presentation },
@@ -264,6 +266,7 @@ const ALL_ADMIN_ITEMS = [
   { id: 'dashboard', label: 'Controle Financeiro', icon: LayoutDashboard },
   { id: 'admin_settings', label: 'Painel do CEO', icon: Users },
   { id: 'readclub', label: 'Read Club', icon: BookOpen },
+  { id: 'flashcards', label: 'Brazilian Anki', icon: Layers },
   { id: 'holybible', label: 'Holy Bible', icon: ChristianCrossIcon },
   { id: 'brazilianhq', label: 'Brazilian HQ', icon: VenetianMask },
   { id: 'board', label: 'Brazilian Board', icon: Presentation },
@@ -303,8 +306,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [showInstallHelp, setShowInstallHelp] = useState(false);
   const [installError, setInstallError] = useState('');
   const [appConfig, setAppConfig] = useState<GlobalAppConfig>({
-    studentAppOrder: ['home', 'actionstreet', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'readclub', 'holybible', 'brazilianhq', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'studytime', 'feedback', 'settings'],
-    adminAppOrder: ['home', 'work', 'actionstreet', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'holybible', 'brazilianhq', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'studytime', 'settings'],
+    studentAppOrder: ['home', 'actionstreet', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'readclub', 'flashcards', 'holybible', 'brazilianhq', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'studytime', 'feedback', 'settings'],
+    adminAppOrder: ['home', 'work', 'actionstreet', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'flashcards', 'holybible', 'brazilianhq', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'studytime', 'settings'],
     studentGlobalEnabled: {
       actionstreet: true,
       brazilianfriends: true,
@@ -313,6 +316,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       stories: true,
       practice: true,
       readclub: true,
+      flashcards: true,
       holybible: true,
       brazilianhq: true,
       board: true,
@@ -367,6 +371,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         : ['brazilianfriends', ...parsed.studentAppOrder];
       if (!studentAppOrder.includes('brazilianspace')) studentAppOrder.push('brazilianspace');
       if (!studentAppOrder.includes('feedback')) studentAppOrder.push('feedback');
+      if (!studentAppOrder.includes('flashcards')) studentAppOrder.push('flashcards');
       if (!studentAppOrder.includes('settings')) studentAppOrder.push('settings');
       const adminAppOrder = parsed.adminAppOrder.includes('brazilianfriends')
         ? parsed.adminAppOrder
@@ -374,6 +379,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       if (!adminAppOrder.includes('brazilianspace')) adminAppOrder.push('brazilianspace');
       if (!studentAppOrder.includes('braziliangames')) studentAppOrder.push('braziliangames');
       if (!adminAppOrder.includes('braziliangames')) adminAppOrder.push('braziliangames');
+      if (!adminAppOrder.includes('flashcards')) adminAppOrder.push('flashcards');
       if (!adminAppOrder.includes('youtube')) adminAppOrder.push('youtube');
       if (!studentAppOrder.includes('studytime')) studentAppOrder.push('studytime');
       if (!adminAppOrder.includes('studytime')) adminAppOrder.push('studytime');
@@ -402,6 +408,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           brazilianhq: true,
           holybible: true,
           feedback: true,
+          flashcards: true,
           ...parsed.studentGlobalEnabled,
           settings: true
         }
@@ -497,7 +504,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
     });
 
   // Build Ordered Admin Items
-  const adminItems = ensureAppAfter(appConfig.adminAppOrder, 'holybible', 'readclub')
+  const adminItems = ensureAppAfter(
+    ensureAppAfter(appConfig.adminAppOrder, 'holybible', 'readclub'),
+    'flashcards',
+    'readclub',
+  )
     .map((appId) => ALL_ADMIN_ITEMS.find((item) => item.id === appId))
     .filter((item): item is typeof ALL_ADMIN_ITEMS[number] => Boolean(item));
   if (!adminItems.some((item) => item.id === 'feedback')) {

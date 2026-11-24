@@ -11,6 +11,7 @@ const Settings = lazy(() => import('./components/Settings').then(({ Settings }) 
 const BrazilianConversation = lazy(() => import('./components/BrazilianConversation').then(({ BrazilianConversation }) => ({ default: BrazilianConversation })));
 const BrazilianQuiz = lazy(() => import('./components/BrazilianQuiz').then(({ BrazilianQuiz }) => ({ default: BrazilianQuiz })));
 const BrazilianGames = lazy(() => import('./components/BrazilianGames').then(({ BrazilianGames }) => ({ default: BrazilianGames })));
+const Flashcards = lazy(() => import('./components/Flashcards'));
 const BrazilianTradutor = lazy(() => import('./components/BrazilianTradutor').then(({ BrazilianTradutor }) => ({ default: BrazilianTradutor })));
 const BiaCompare = lazy(() => import('./components/BiaCompare').then(({ BiaCompare }) => ({ default: BiaCompare })));
 const YouTubeHub = lazy(() => import('./components/YouTubeHub').then(({ YouTubeHub }) => ({ default: YouTubeHub })));
@@ -159,6 +160,7 @@ const getRequestedStartupApp = () => {
   if (requestedApp === 'space') return 'brazilianspace';
   if (requestedApp === 'friends') return 'friends';
   if (requestedApp === 'actionstreet') return 'actionstreet';
+  if (requestedApp === 'flashcards') return 'flashcards';
   return 'home';
 };
 
@@ -1442,8 +1444,8 @@ export default function App() {
       >
         <BackgroundSlideshow
           settings={settings}
-          paused={bgPaused || currentApp === 'actionstreet'}
-          hidden={currentApp === 'actionstreet'}
+          paused={bgPaused || currentApp === 'actionstreet' || currentApp === 'flashcards'}
+          hidden={currentApp === 'actionstreet' || currentApp === 'flashcards'}
         />
 
         {/* Global Navigation Header with RBAC filtering (Floating islands when logged in) */}
@@ -1736,6 +1738,10 @@ export default function App() {
                         Carregando seu progresso individual...
                       </div>
                     )
+                  )}
+
+                  {currentApp === 'flashcards' && (
+                    <Flashcards userId={currentUser.auth_user_id || currentUser.id} />
                   )}
 
                   {currentApp === 'holybible' && <HolyBible />}
