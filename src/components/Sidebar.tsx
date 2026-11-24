@@ -83,7 +83,7 @@ interface SidebarProps {
 
 const ALL_STUDENT_ITEMS = [
   { id: 'home', label: 'Home', icon: Home },
-  { id: 'actionstreet', label: 'Action Street', icon: MapPin, badge: 'Novo' },
+  { id: 'actionstreet', label: 'Action Street', icon: MapPin },
   { id: 'brazilianfriends', label: 'Brazilian Friends', icon: Users },
   { id: 'brazilianspace', label: 'Brazilian Space', icon: PlanetOrbitIcon },
   { id: 'stories', label: 'Brazilian Post', icon: Instagram },
@@ -258,7 +258,7 @@ const NavButton: React.FC<{
 const ALL_ADMIN_ITEMS = [
   { id: 'home', label: 'Home', icon: Home },
   { id: 'work', label: 'Work', icon: LayoutGrid },
-  { id: 'actionstreet', label: 'Action Street', icon: MapPin, badge: 'Novo' },
+  { id: 'actionstreet', label: 'Action Street', icon: MapPin },
   { id: 'brazilianfriends', label: 'Brazilian Friends', icon: Users },
   { id: 'brazilianspace', label: 'Brazilian Space', icon: PlanetOrbitIcon },
   { id: 'stories', label: 'Brazilian Post', icon: Instagram },
