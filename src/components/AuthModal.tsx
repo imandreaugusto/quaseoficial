@@ -457,7 +457,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </h1>
 
           <p className="text-[11px] text-white/90 tracking-wider uppercase font-mono mt-0.5 drop-shadow-[0_2px_8px_rgba(0,0,0,1)]">
-            {isAdminMode ? 'Acesso Exclusivo do CEO André Augusto' : 'Plataforma Imersiva de Inglês'}
+            {isAdminMode ? 'Acesso Exclusivo de André Augusto' : 'Plataforma Imersiva de Inglês'}
           </p>
         </div>
 

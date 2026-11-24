@@ -810,7 +810,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <div
                   className="px-2 py-2 text-[10px] font-bold uppercase tracking-widest font-mono menu-cinematic-text text-white/75"
                 >
-                  {isAdmin ? 'Painel do CEO André Augusto' : 'Módulos Práticos do Aluno'}
+                  {isAdmin ? 'Painel de André Augusto' : 'Módulos Práticos do Aluno'}
                 </div>
 
                 {menuItems.map((item) => {

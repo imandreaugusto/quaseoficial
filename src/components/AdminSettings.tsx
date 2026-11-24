@@ -679,7 +679,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
       setAuthorizedCeos(getAuthorizedCeoEmails());
       setCeoMessage({ text: `E-mail ${emailToRemove} removido com sucesso.`, type: 'success' });
     } else {
-      setCeoMessage({ text: 'A conta principal do CEO André Augusto não pode ser removida.', type: 'error' });
+      setCeoMessage({ text: 'A conta principal de André Augusto não pode ser removida.', type: 'error' });
     }
   };
 
@@ -1988,7 +1988,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                     <ShieldCheck size={16} />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-white">Menu do CEO André Augusto</h3>
+                    <h3 className="text-sm font-bold text-white">Menu de André Augusto</h3>
                     <p className="text-[11px] text-white/50">Ordem de exibição dos aplicativos no seu menu principal</p>
                   </div>
                 </div>

@@ -172,12 +172,14 @@ export const Home: React.FC<HomeProps> = ({
     return decTime > classDec + 0.85;
   }).length;
   const remainingTodayCount = todayClasses.length - completedTodayCount;
-  const firstName = currentUser?.full_name?.trim().split(/\s+/)[0] || currentUser?.email.split('@')[0] || 'there';
+  const greetingName = isCeo
+    ? 'André Augusto'
+    : currentUser?.full_name?.trim().split(/\s+/)[0] || currentUser?.email.split('@')[0] || 'there';
   const greeting = currentTime.getHours() < 12
-    ? `Good morning, ${firstName}`
+    ? `Good morning, ${greetingName}`
     : currentTime.getHours() < 18
-    ? `Good afternoon, ${firstName}`
-    : `Good evening, ${firstName}`;
+    ? `Good afternoon, ${greetingName}`
+    : `Good evening, ${greetingName}`;
 
   const renderSubscriberCount = () => {
     if (!isCeo || showWorkspace) return null;
