@@ -13,7 +13,7 @@ Criar uma experiência de estudo agradável e recompensadora, que ajude o aluno 
 - [ ] Criar um encerramento de sessão com resumo de cartas, expressões aprendidas, melhor sequência, prática de fala e próximo passo.
 - [ ] Oferecer missões diárias pequenas e opcionais, sem penalidades quando não forem concluídas.
 - [ ] Adicionar um calendário semanal de consistência sem reiniciar sequências nem usar mensagens de culpa.
-- [ ] Enviar um convite diário de almoço às 12:00 de São Paulo para assinantes que ativaram notificações e mantêm os lembretes habilitados. Substituir a campanha diária anterior por uma rotação de 15 mensagens escritas previamente, sem geração por IA.
+- [x] Enviar um convite diário de almoço às 12:00 de São Paulo para assinantes que ativaram notificações e mantêm os lembretes habilitados. Substituir a campanha diária anterior por uma rotação de 15 mensagens escritas previamente, sem geração por IA.
 
 ## Ideias adicionais para priorizar
 
