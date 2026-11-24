@@ -398,7 +398,7 @@ export const HolyBible = ({ userName = '' }: HolyBibleProps) => {
       reference: shareSelection.reference,
       verse: shareSelection.verse,
       studentName: studentFirstName,
-      logoUrl: `${import.meta.env.BASE_URL}brazilian-in-action-icon.svg`,
+      logoUrl: `${import.meta.env.BASE_URL}brazilian-in-action-share-mark.svg`,
     }).then((blob) => {
       if (cancelled) return;
       previewUrl = URL.createObjectURL(blob);
@@ -874,15 +874,17 @@ export const HolyBible = ({ userName = '' }: HolyBibleProps) => {
       >
         <Highlighter size={13} />
       </button>
-      <button
-        type="button"
-        onClick={() => handleOpenShare(verse)}
-        aria-label={`Compartilhar ${reference} no Instagram`}
-        title="Compartilhar no Instagram"
-        className="absolute right-[4.5rem] top-0 rounded p-1 text-[#8f704a] transition hover:bg-amber-200 hover:text-amber-950 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-800"
-      >
-        <Share2 size={13} />
-      </button>
+      {!verse.continuation && (
+        <button
+          type="button"
+          onClick={() => handleOpenShare(verse)}
+          aria-label={`Compartilhar ${reference} no Instagram`}
+          title="Compartilhar no Instagram"
+          className="absolute right-[4.5rem] top-0 rounded p-1 text-[#8f704a] transition hover:bg-amber-200 hover:text-amber-950 focus-visible:outline focus-visible:outline-1 focus-visible:outline-amber-800"
+        >
+          <Share2 size={13} />
+        </button>
+      )}
       <button
         type="button"
         onClick={() => setEditingNote({ reference, text: annotation?.note ?? '' })}

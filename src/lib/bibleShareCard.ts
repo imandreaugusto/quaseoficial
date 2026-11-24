@@ -63,61 +63,61 @@ export const createBibleShareCard = async ({
   context.strokeStyle = 'rgba(218, 190, 129, 0.24)';
   context.strokeRect(72, 72, 936, 1776);
 
-  context.drawImage(logo, 480, 150, 120, 120);
+  context.drawImage(logo, 465, 112, 150, 164);
   context.textAlign = 'center';
   context.textBaseline = 'middle';
   context.fillStyle = '#f4e5be';
-  context.font = '700 28px Arial, sans-serif';
-  context.fillText('BRAZILIAN IN ACTION', 540, 316);
+  context.font = '700 34px Arial, sans-serif';
+  context.fillText('BRAZILIAN IN ACTION', 540, 326);
   context.fillStyle = '#d5bd85';
-  context.font = '500 20px Arial, sans-serif';
-  context.fillText('KING JAMES VERSION', 540, 362);
+  context.font = '500 24px Arial, sans-serif';
+  context.fillText('KING JAMES VERSION', 540, 374);
 
   context.strokeStyle = 'rgba(218, 190, 129, 0.45)';
   context.lineWidth = 1;
   context.beginPath();
-  context.moveTo(180, 418);
-  context.lineTo(900, 418);
+  context.moveTo(180, 428);
+  context.lineTo(900, 428);
   context.stroke();
 
   const textWidth = 840;
-  const availableHeight = 900;
-  let fontSize = 60;
+  const availableHeight = 920;
+  let fontSize = 82;
   let lines: string[] = [];
   let lineHeight = 0;
   do {
     context.font = `${fontSize}px Georgia, "Times New Roman", serif`;
     lines = wrapText(context, verse, textWidth);
-    lineHeight = fontSize * 1.38;
-    if (lines.length * lineHeight <= availableHeight || fontSize <= 34) break;
+    lineHeight = fontSize * 1.24;
+    if (lines.length * lineHeight <= availableHeight || fontSize <= 40) break;
     fontSize -= 2;
-  } while (fontSize >= 34);
+  } while (fontSize >= 40);
 
   context.fillStyle = '#fff8e8';
   context.font = `${fontSize}px Georgia, "Times New Roman", serif`;
   context.textAlign = 'center';
   context.textBaseline = 'middle';
   const textHeight = lines.length * lineHeight;
-  const textStartY = 480 + (availableHeight - textHeight) / 2 + lineHeight / 2;
+  const textStartY = 460 + (availableHeight - textHeight) / 2 + lineHeight / 2;
   lines.forEach((line, index) => {
     context.fillText(line, 540, textStartY + index * lineHeight, textWidth);
   });
 
   context.fillStyle = '#e0c989';
-  context.font = '700 30px Georgia, "Times New Roman", serif';
-  context.fillText(reference, 540, 1450);
+  context.font = '700 38px Georgia, "Times New Roman", serif';
+  context.fillText(reference, 540, 1440);
 
   context.strokeStyle = 'rgba(218, 190, 129, 0.45)';
   context.beginPath();
-  context.moveTo(250, 1510);
-  context.lineTo(830, 1510);
+  context.moveTo(250, 1500);
+  context.lineTo(830, 1500);
   context.stroke();
 
   context.fillStyle = '#f4e5be';
-  context.font = '500 26px Arial, sans-serif';
+  context.font = '500 34px Arial, sans-serif';
   const attribution = `${studentName} está estudando a Bíblia King James no Brazilian in Action.`;
-  const attributionLines = wrapText(context, attribution, 820);
-  const attributionLineHeight = 38;
+  const attributionLines = wrapText(context, attribution, 860);
+  const attributionLineHeight = 46;
   attributionLines.forEach((line, index) => {
     context.fillText(line, 540, 1590 + index * attributionLineHeight);
   });

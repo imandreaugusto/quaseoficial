@@ -1746,7 +1746,7 @@ export default function App() {
 
                   {currentApp === 'holybible' && (
                     <HolyBible
-                      userName={currentUser?.first_name?.trim() || currentUser?.full_name?.trim() || ''}
+                      userName={currentUser?.full_name?.trim() || currentUser?.first_name?.trim() || ''}
                     />
                   )}
 

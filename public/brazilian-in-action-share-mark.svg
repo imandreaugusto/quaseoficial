@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 175" fill="none">
+  <line x1="12" y1="52" x2="12" y2="120" stroke="#fff" stroke-width="2.5" stroke-opacity=".8"/>
+  <line x1="17" y1="52" x2="17" y2="120" stroke="#fff" stroke-width="2.5" stroke-opacity=".8"/>
+  <rect x="118" y="10" width="18" height="18" rx="2" fill="#ef1e28"/>
+  <polygon points="120,158 152,158 136,128" stroke="#ef1e28" stroke-width="2.5" stroke-opacity=".85"/>
+  <circle cx="120" cy="158" r="1.5" fill="#ef1e28"/>
+  <circle cx="152" cy="158" r="1.5" fill="#ef1e28"/>
+  <circle cx="136" cy="128" r="1.5" fill="#ef1e28"/>
+  <path d="M32 30H95C118 30 134 44 134 64C134 76 126 86 114 91C128 96 138 108 138 126C138 148 119 160 95 160H32Z" fill="#ef1e28" stroke="#ef1e28" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M38 36H94C114 36 127 48 127 64C127 75 119 84 106 87C121 91 130 102 130 124C130 143 115 154 94 154H38Z" fill="#fff"/>
+  <path d="M60 52H88C96 52 102 57 102 65C102 73 96 78 88 78H60Z" fill="#b91c1c"/>
+  <path d="M60 52H86C94 52 99 57 99 64C99 71 94 76 86 76H60Z" fill="#ef1e28"/>
+  <rect x="66" y="58" width="16" height="12" rx="2" fill="#0a1c43"/>
+  <path d="M60 98H92C101 98 108 104 108 114C108 124 101 130 92 130H60Z" fill="#b91c1c"/>
+  <path d="M60 98H90C98 98 105 104 105 113C105 122 98 128 90 128H60Z" fill="#ef1e28"/>
+  <rect x="66" y="104" width="18" height="15" rx="2" fill="#0a1c43"/>
+  <g fill="#fff" stroke="#ef1e28" stroke-width=".75">
+    <path d="M44 48L45.2 45.5L46.5 48L49.2 48.4L47.2 50.2L48 52.8L45.8 51.3L43.5 52.8L44.3 50.2L42.4 48.4Z"/>
+    <path d="M44 70L45.2 67.5L46.5 70L49.2 70.4L47.2 72.2L48 74.8L45.8 73.3L43.5 74.8L44.3 72.2L42.4 70.4Z"/>
+    <path d="M44 92L45.2 89.5L46.5 92L49.2 92.4L47.2 94.2L48 96.8L45.8 95.3L43.5 96.8L44.3 94.2L42.4 92.4Z"/>
+    <path d="M44 114L45.2 111.5L46.5 114L49.2 114.4L47.2 116.2L48 118.8L45.8 117.3L43.5 118.8L44.3 116.2L42.4 114.4Z"/>
+    <path d="M44 136L45.2 133.5L46.5 136L49.2 136.4L47.2 138.2L48 140.8L45.8 139.3L43.5 140.8L44.3 138.2L42.4 136.4Z"/>
+  </g>
+</svg>
