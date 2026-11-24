@@ -19,6 +19,7 @@ import {
   Power,
   ArrowUp,
   ArrowDown,
+  Layers,
 } from 'lucide-react';
 import { GlobalAppConfig, AppDefinition } from '../types';
 
@@ -30,6 +31,7 @@ export const ALL_STUDENT_APPS: AppDefinition[] = [
   { id: 'stories', label: 'Brazilian Post', desc: 'Gravação de stories com teleprompter inteligente e mural de destaques no Instagram', category: 'Prática & Mídia', targetRole: 'both' },
   { id: 'practice', label: 'Brazilian Practice', desc: 'Ambientes ao vivo de conversação, pronúncia guiada e imersão livre', category: 'Conversação Ao Vivo', targetRole: 'both' },
   { id: 'readclub', label: 'Read Club', desc: 'Biblioteca de leitura com contos graduados, áudio nativo e vocabulário inteligente', category: 'Leitura & Compreensão', targetRole: 'both' },
+  { id: 'flashcards', label: 'Brazilian Anki', desc: 'Flashcards de inglês com revisão espaçada e áudio nativo', category: 'Estudo', targetRole: 'both' },
   { id: 'holybible', label: 'Holy Bible', desc: 'Leitura interativa da King James Version com tradução de vocabulário', category: 'Leitura & Vocabulário', targetRole: 'both' },
   { id: 'board', label: 'Brazilian Board', desc: 'Lousa interativa de anotações gramaticais, estruturas e frases-chave', category: 'Gramática & Estrutura', targetRole: 'both' },
   { id: 'quiz', label: 'Brazilian Quiz', desc: 'Desafios dinâmicos, simulados de fixação e ranqueamento de alunos', category: 'Avaliação & Jogos', targetRole: 'both' },

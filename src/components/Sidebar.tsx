@@ -35,7 +35,7 @@ import {
   Layers,
 } from 'lucide-react';
 import { UserProfile, GlobalAppConfig } from '../types';
-import { ensureAppAfter } from '../lib/appMenuOrder';
+import { ensureAppAfter, ensureStudentAppsInOrder } from '../lib/appMenuOrder';
 import { PlanetOrbitIcon } from './PlanetOrbitIcon';
 import { ChristianCrossIcon } from './ChristianCrossIcon';
 import { BrazilianLogo } from './BrazilianLogo';
@@ -371,7 +371,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         : ['brazilianfriends', ...parsed.studentAppOrder];
       if (!studentAppOrder.includes('brazilianspace')) studentAppOrder.push('brazilianspace');
       if (!studentAppOrder.includes('feedback')) studentAppOrder.push('feedback');
-      if (!studentAppOrder.includes('flashcards')) studentAppOrder.push('flashcards');
       if (!studentAppOrder.includes('settings')) studentAppOrder.push('settings');
       const adminAppOrder = parsed.adminAppOrder.includes('brazilianfriends')
         ? parsed.adminAppOrder
@@ -386,10 +385,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       const normalizedStudentBibleOrder = ensureAppAfter(studentAppOrder, 'holybible', 'readclub');
       const normalizedAdminBibleOrder = ensureAppAfter(adminAppOrder, 'holybible', 'readclub');
       if (!adminAppOrder.includes('feedback')) adminAppOrder.push('feedback');
-      const normalizedStudentOrder = ensureAppAfter(
+      const normalizedStudentOrder = ensureStudentAppsInOrder(
         ensureAppAfter(normalizedStudentBibleOrder, 'brazilianhq', 'holybible'),
-        'actionstreet',
-        'home'
       );
       const normalizedAdminOrder = ensureAppAfter(
         ensureAppAfter(normalizedAdminBibleOrder, 'brazilianhq', 'holybible'),

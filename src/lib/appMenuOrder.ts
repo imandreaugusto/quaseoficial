@@ -6,3 +6,10 @@ export const ensureAppAfter = (order: string[], appId: string, afterId: string):
   updatedOrder.splice(anchorIndex >= 0 ? anchorIndex + 1 : updatedOrder.length, 0, appId);
   return updatedOrder;
 };
+
+export const ensureStudentAppsInOrder = (order: string[]): string[] =>
+  ensureAppAfter(
+    ensureAppAfter(order, 'actionstreet', 'home'),
+    'flashcards',
+    'readclub',
+  );
