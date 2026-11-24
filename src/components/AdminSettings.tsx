@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { UserProfile, GatewaySettings, StudentPermissions, GlobalAppConfig, ClassItem, ExpenseItem, TrialCoupon, PixPaymentRecord } from '../types';
-import { ensureAppAfter, ensureStudentAppsInOrder } from '../lib/appMenuOrder';
+import { ensureAdminAppsInOrder, ensureAppAfter, ensureStudentAppsInOrder } from '../lib/appMenuOrder';
 import { ChristianCrossIcon } from './ChristianCrossIcon';
 import { 
   getAuthorizedCeoEmails, 
@@ -102,6 +102,7 @@ interface AdminSettingsProps {
 }
 
 const ALL_STUDENT_APPS = [
+  { id: 'home', label: 'Home', icon: Home, desc: 'Página inicial da plataforma' },
   { id: 'actionstreet', label: 'Action Street', icon: MapPin, desc: 'Aprendizado de inglês em lugares reais e missões interativas' },
   { id: 'brazilianfriends', label: 'Brazilian Friends', icon: Users, desc: 'Chat privado e presença online entre estudantes' },
   { id: 'brazilianspace', label: 'Brazilian Space', icon: PlanetOrbitIcon, desc: 'Comunidade para compartilhar descobertas e ajudar outros alunos' },
@@ -119,7 +120,8 @@ const ALL_STUDENT_APPS = [
   { id: 'tradutor', label: 'Tradutor Cultural', icon: Languages, desc: 'Tradução com contexto de gírias e expressões' },
   { id: 'youtube', label: 'Brazilian Music', icon: Music, desc: 'Biblioteca colaborativa de músicas para estudar inglês' },
   { id: 'studytime', label: 'Study Time', icon: BookOpen, desc: 'Biblioteca de aulas, gramática e conversação' },
-  { id: 'feedback', label: 'Feedback', icon: MessageSquareText, desc: 'Envie sugestões e acompanhe respostas da equipe' }
+  { id: 'feedback', label: 'Feedback', icon: MessageSquareText, desc: 'Envie sugestões e acompanhe respostas da equipe' },
+  { id: 'settings', label: 'Configurações', icon: SettingsIcon, desc: 'Preferências e personalização da plataforma' }
 ];
 
 const StudyTimeIcon: React.FC<{ size?: number }> = ({ size = 18 }) => (
@@ -153,6 +155,7 @@ const ALL_ADMIN_APPS = [
   { id: 'admin_settings', label: 'Painel do CEO', icon: Users, desc: 'Gestão geral de alunos, gateway e finanças' },
   { id: 'feedback', label: 'Feedback dos alunos', icon: MessageSquareText, desc: 'Sugestões enviadas pelos alunos' },
   { id: 'readclub', label: 'Read Club', icon: BookOpen, desc: 'Biblioteca completa de leitura' },
+  { id: 'flashcards', label: 'Brazilian Anki', icon: Layers, desc: 'Flashcards de inglês com revisão espaçada e áudio nativo' },
   { id: 'holybible', label: 'Holy Bible', icon: ChristianCrossIcon, desc: 'Leitura interativa da King James Version' },
   { id: 'brazilianhq', label: 'Brazilian HQ', icon: VenetianMask, desc: 'Leitura de histórias em quadrinhos' },
   { id: 'board', label: 'Brazilian Board', icon: Presentation, desc: 'Lousa de anotações e desenhos' },
@@ -255,8 +258,9 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   // App Order and Global Availability Configuration
   const [appConfig, setAppConfig] = useState<GlobalAppConfig>({
     studentAppOrder: ['home', 'actionstreet', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'readclub', 'flashcards', 'holybible', 'brazilianhq', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'studytime', 'feedback', 'settings'],
-    adminAppOrder: ['home', 'work', 'actionstreet', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'holybible', 'brazilianhq', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'studytime', 'settings'],
+    adminAppOrder: ['home', 'work', 'actionstreet', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'flashcards', 'holybible', 'brazilianhq', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'studytime', 'settings'],
     studentGlobalEnabled: {
+      home: true,
       actionstreet: true,
       brazilianfriends: true,
       brazilianspace: true,
@@ -264,6 +268,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
       practice: true,
       readclub: true,
       flashcards: true,
+      settings: true,
       holybible: true,
       brazilianhq: true,
       board: true,
@@ -355,19 +360,21 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
         if (!adminAppOrder.includes('brazilianspace')) {
           adminAppOrder.splice(adminAppOrder.indexOf('brazilianfriends') + 1, 0, 'brazilianspace');
         }
-        const orderedAdminAppOrder = ensureAppAfter(
-          ensureAppAfter(adminAppOrder, 'holybible', 'readclub'),
-          'brazilianhq',
-          'holybible',
+        const orderedAdminAppOrder = ensureAdminAppsInOrder(
+          ensureAppAfter(
+            ensureAppAfter(adminAppOrder, 'holybible', 'readclub'),
+            'brazilianhq',
+            'holybible',
+          ),
+          ALL_ADMIN_APPS.map((app) => app.id),
         );
-        if (!orderedAdminAppOrder.includes('studytime')) orderedAdminAppOrder.push('studytime');
-        if (!orderedAdminAppOrder.includes('actionstreet')) orderedAdminAppOrder.splice(orderedAdminAppOrder.indexOf('work') + 1, 0, 'actionstreet');
         const orderedStudentApps = ensureStudentAppsInOrder(
           ensureAppAfter(
             ensureAppAfter(studentAppOrder, 'holybible', 'readclub'),
             'brazilianhq',
             'holybible',
           ),
+          ALL_STUDENT_APPS.map((app) => app.id),
         );
         const normalizedConfig: GlobalAppConfig = {
           ...sharedConfig,
@@ -380,7 +387,9 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
             feedback: true,
             flashcards: true,
             holybible: true,
-            ...sharedConfig.studentGlobalEnabled
+            ...sharedConfig.studentGlobalEnabled,
+            home: true,
+            settings: true
           }
         };
         setAppConfig(normalizedConfig);
@@ -486,6 +495,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
             'brazilianhq',
             'holybible',
           ),
+          ALL_STUDENT_APPS.map((app) => app.id),
         );
         if (!studentAppOrder.includes('feedback')) studentAppOrder.push('feedback');
         const adminAppOrder = [...parsed.adminAppOrder];
@@ -495,15 +505,14 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
         }
         if (!adminAppOrder.includes('braziliangames')) adminAppOrder.push('braziliangames');
         if (!adminAppOrder.includes('studytime')) adminAppOrder.push('studytime');
-        const orderedAdminApps = ensureAppAfter(
-          ensureAppAfter(adminAppOrder, 'holybible', 'readclub'),
-          'brazilianhq',
-          'holybible',
+        const orderedAdminApps = ensureAdminAppsInOrder(
+          ensureAppAfter(
+            ensureAppAfter(adminAppOrder, 'holybible', 'readclub'),
+            'brazilianhq',
+            'holybible',
+          ),
+          ALL_ADMIN_APPS.map((app) => app.id),
         );
-        if (!orderedAdminApps.includes('actionstreet')) {
-          const workIndex = orderedAdminApps.indexOf('work');
-          orderedAdminApps.splice(workIndex >= 0 ? workIndex + 1 : 0, 0, 'actionstreet');
-        }
         if (!adminAppOrder.includes('feedback')) adminAppOrder.push('feedback');
         setAppConfig({
           ...parsed,
@@ -521,7 +530,9 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
             feedback: true,
             flashcards: true,
             holybible: true,
-            ...parsed.studentGlobalEnabled
+            ...parsed.studentGlobalEnabled,
+            home: true,
+            settings: true
           }
         });
       } catch (e) {}
@@ -994,9 +1005,10 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   // Reset to Default Order
   const handleResetAppOrder = () => {
     const defaultConfig: GlobalAppConfig = {
-      studentAppOrder: ['home', 'actionstreet', 'brazilianfriends', 'brazilianspace', 'readclub', 'flashcards', 'holybible', 'brazilianhq', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'studytime', 'feedback', 'settings'],
-      adminAppOrder: ['home', 'work', 'actionstreet', 'brazilianfriends', 'brazilianspace', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'holybible', 'brazilianhq', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'studytime', 'settings'],
+      studentAppOrder: ['home', 'actionstreet', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'readclub', 'flashcards', 'holybible', 'brazilianhq', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'studytime', 'feedback', 'settings'],
+      adminAppOrder: ['home', 'work', 'actionstreet', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'flashcards', 'holybible', 'brazilianhq', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'studytime', 'settings'],
       studentGlobalEnabled: {
+        home: true,
         actionstreet: true,
         brazilianfriends: true,
         brazilianspace: true,
@@ -1007,6 +1019,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
         quiz: true,
         braziliangames: true,
         holybible: true,
+        settings: true,
         biacompare: true,
         conversation: true,
         tradutor: true,
@@ -1872,7 +1885,8 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                 {appConfig.studentAppOrder.map((appId, index) => {
                   const itemInfo = ALL_STUDENT_APPS.find((a) => a.id === appId) || { label: appId, desc: '', icon: BookOpen };
                   const IconComp = itemInfo.icon;
-                  const isEnabled = appConfig.studentGlobalEnabled[appId] !== false;
+                  const isFixedApp = appId === 'home' || appId === 'settings';
+                  const isEnabled = isFixedApp || appConfig.studentGlobalEnabled[appId] !== false;
 
                   return (
                     <div
@@ -1943,18 +1957,22 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
                         </button>
 
                         {/* Enable/Disable Toggle for Maintenance */}
-                        <button
-                          type="button"
-                          onClick={() => handleToggleGlobalStudentApp(appId)}
-                          className={`p-1.5 rounded-lg border text-xs font-bold transition-all cursor-pointer ml-1 ${
-                            isEnabled
-                              ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30'
-                              : 'bg-red-500/20 border-red-500/40 text-red-300 hover:bg-red-500/30'
-                          }`}
-                          title={isEnabled ? 'Aplicativo liberado (Clique para colocar em manutenção)' : 'Aplicativo em manutenção (Clique para liberar)'}
-                        >
-                          {isEnabled ? <Check size={13} /> : <X size={13} />}
-                        </button>
+                        {isFixedApp ? (
+                          <span className="ml-1 text-[9px] font-semibold text-white/50">Sempre ativo</span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleToggleGlobalStudentApp(appId)}
+                            className={`p-1.5 rounded-lg border text-xs font-bold transition-all cursor-pointer ml-1 ${
+                              isEnabled
+                                ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30'
+                                : 'bg-red-500/20 border-red-500/40 text-red-300 hover:bg-red-500/30'
+                            }`}
+                            title={isEnabled ? 'Aplicativo liberado (Clique para colocar em manutenção)' : 'Aplicativo em manutenção (Clique para liberar)'}
+                          >
+                            {isEnabled ? <Check size={13} /> : <X size={13} />}
+                          </button>
+                        )}
                       </div>
                     </div>
                   );

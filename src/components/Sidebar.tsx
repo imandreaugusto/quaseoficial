@@ -35,7 +35,7 @@ import {
   Layers,
 } from 'lucide-react';
 import { UserProfile, GlobalAppConfig } from '../types';
-import { ensureAppAfter, ensureStudentAppsInOrder } from '../lib/appMenuOrder';
+import { ensureAdminAppsInOrder, ensureAppAfter, ensureStudentAppsInOrder } from '../lib/appMenuOrder';
 import { PlanetOrbitIcon } from './PlanetOrbitIcon';
 import { ChristianCrossIcon } from './ChristianCrossIcon';
 import { BrazilianLogo } from './BrazilianLogo';
@@ -366,32 +366,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
     const applyConfig = (parsed: GlobalAppConfig | null) => {
       if (!parsed || !Array.isArray(parsed.studentAppOrder) || !Array.isArray(parsed.adminAppOrder)) return;
-      const studentAppOrder = parsed.studentAppOrder.includes('brazilianfriends')
-        ? parsed.studentAppOrder
-        : ['brazilianfriends', ...parsed.studentAppOrder];
-      if (!studentAppOrder.includes('brazilianspace')) studentAppOrder.push('brazilianspace');
-      if (!studentAppOrder.includes('feedback')) studentAppOrder.push('feedback');
-      if (!studentAppOrder.includes('settings')) studentAppOrder.push('settings');
-      const adminAppOrder = parsed.adminAppOrder.includes('brazilianfriends')
-        ? parsed.adminAppOrder
-        : ['brazilianfriends', ...parsed.adminAppOrder];
-      if (!adminAppOrder.includes('brazilianspace')) adminAppOrder.push('brazilianspace');
-      if (!studentAppOrder.includes('braziliangames')) studentAppOrder.push('braziliangames');
-      if (!adminAppOrder.includes('braziliangames')) adminAppOrder.push('braziliangames');
-      if (!adminAppOrder.includes('flashcards')) adminAppOrder.push('flashcards');
-      if (!adminAppOrder.includes('youtube')) adminAppOrder.push('youtube');
-      if (!studentAppOrder.includes('studytime')) studentAppOrder.push('studytime');
-      if (!adminAppOrder.includes('studytime')) adminAppOrder.push('studytime');
+      const studentAppOrder = parsed.studentAppOrder;
+      const adminAppOrder = parsed.adminAppOrder;
       const normalizedStudentBibleOrder = ensureAppAfter(studentAppOrder, 'holybible', 'readclub');
       const normalizedAdminBibleOrder = ensureAppAfter(adminAppOrder, 'holybible', 'readclub');
-      if (!adminAppOrder.includes('feedback')) adminAppOrder.push('feedback');
       const normalizedStudentOrder = ensureStudentAppsInOrder(
         ensureAppAfter(normalizedStudentBibleOrder, 'brazilianhq', 'holybible'),
+        ALL_STUDENT_ITEMS.map((item) => item.id),
       );
-      const normalizedAdminOrder = ensureAppAfter(
+      const normalizedAdminOrder = ensureAdminAppsInOrder(
         ensureAppAfter(normalizedAdminBibleOrder, 'brazilianhq', 'holybible'),
-        'actionstreet',
-        'work'
+        ALL_ADMIN_ITEMS.map((item) => item.id),
       );
       const normalized: GlobalAppConfig = {
         ...parsed,
@@ -407,6 +392,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           feedback: true,
           flashcards: true,
           ...parsed.studentGlobalEnabled,
+          home: true,
           settings: true
         }
       };
