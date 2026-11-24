@@ -81,7 +81,7 @@ export const createBibleShareCard = async ({
   context.stroke();
 
   const textWidth = 840;
-  const availableHeight = 920;
+  const availableHeight = 850;
   let fontSize = 82;
   let lines: string[] = [];
   let lineHeight = 0;
@@ -98,14 +98,18 @@ export const createBibleShareCard = async ({
   context.textAlign = 'center';
   context.textBaseline = 'middle';
   const textHeight = lines.length * lineHeight;
-  const textStartY = 460 + (availableHeight - textHeight) / 2 + lineHeight / 2;
+  const verseGroupHeight = 62 + textHeight;
+  const verseGroupTop = 472 + Math.max(0, (930 - verseGroupHeight) / 2);
+  context.fillStyle = '#e0c989';
+  context.font = '700 46px Georgia, "Times New Roman", serif';
+  context.fillText(reference, 540, verseGroupTop + 22, 900);
+
+  context.fillStyle = '#fff8e8';
+  context.font = `${fontSize}px Georgia, "Times New Roman", serif`;
+  const textStartY = verseGroupTop + 62 + lineHeight / 2;
   lines.forEach((line, index) => {
     context.fillText(line, 540, textStartY + index * lineHeight, textWidth);
   });
-
-  context.fillStyle = '#e0c989';
-  context.font = '700 38px Georgia, "Times New Roman", serif';
-  context.fillText(reference, 540, 1440);
 
   context.strokeStyle = 'rgba(218, 190, 129, 0.45)';
   context.beginPath();
