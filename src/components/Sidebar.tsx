@@ -328,6 +328,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       biacompare: true,
       conversation: true,
       tradutor: true,
+      dictionaryaction: true,
       youtube: true,
       studytime: true,
       feedback: true
@@ -392,6 +393,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           braziliangames: true,
           brazilianhq: true,
           holybible: true,
+          dictionaryaction: true,
           feedback: true,
           flashcards: true,
           ...parsed.studentGlobalEnabled,

@@ -33,6 +33,7 @@ export const ensureStudentAppsInOrder = (order: string[], appIds: string[]) =>
   ensureAppsInOrder(order, appIds, {
     actionstreet: 'home',
     flashcards: 'readclub',
+    dictionaryaction: 'tradutor',
   });
 
 export const ensureAdminAppsInOrder = (order: string[], appIds: string[]) =>
@@ -40,4 +41,5 @@ export const ensureAdminAppsInOrder = (order: string[], appIds: string[]) =>
     work: 'home',
     actionstreet: 'work',
     flashcards: 'readclub',
+    dictionaryaction: 'tradutor',
   });

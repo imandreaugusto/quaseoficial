@@ -119,6 +119,7 @@ const ALL_STUDENT_APPS = [
   { id: 'biacompare', label: 'BIA Compare', icon: Sparkles, desc: 'Comparador de pronúncia e frases' },
   { id: 'conversation', label: 'Conversação IA', icon: Mic, desc: 'Diálogos dinâmicos com a inteligência artificial' },
   { id: 'tradutor', label: 'Tradutor Cultural', icon: Languages, desc: 'Tradução com contexto de gírias e expressões' },
+  { id: 'dictionaryaction', label: 'Dictionary Action', icon: BookOpen, desc: 'Raio-X cultural de palavras com pronúncia, contexto e grifos pessoais' },
   { id: 'youtube', label: 'Brazilian Music', icon: Music, desc: 'Biblioteca colaborativa de músicas para estudar inglês' },
   { id: 'studytime', label: 'Study Time', icon: BookOpen, desc: 'Biblioteca de aulas, gramática e conversação' },
   { id: 'feedback', label: 'Feedback', icon: MessageSquareText, desc: 'Envie sugestões e acompanhe respostas da equipe' },
@@ -168,6 +169,7 @@ const ALL_ADMIN_APPS = [
   { id: 'biacompare', label: 'BIA Compare', icon: Sparkles, desc: 'Laboratório de comparação' },
   { id: 'conversation', label: 'Brazilian Conversation', icon: Mic, desc: 'Conversação com IA avançada' },
   { id: 'tradutor', label: 'Brazilian Tradutor', icon: Languages, desc: 'Dicionário e tradutor cultural' },
+  { id: 'dictionaryaction', label: 'Dictionary Action', icon: BookOpen, desc: 'Raio-X cultural de palavras com pronúncia, contexto e grifos pessoais' },
   { id: 'youtube', label: 'Brazilian Music', icon: Music, desc: 'Biblioteca colaborativa de músicas' },
   { id: 'studytime', label: 'Study Time', icon: StudyTimeIcon, desc: 'Aulas, gramática e conversação' },
   { id: 'settings', label: 'Configurações', icon: SettingsIcon, desc: 'Personalização visual da plataforma' },
@@ -278,6 +280,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
       biacompare: true,
       conversation: true,
       tradutor: true,
+      dictionaryaction: true,
       youtube: true,
       studytime: true,
       feedback: true
@@ -385,6 +388,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
             actionstreet: true,
             brazilianhq: true,
             brazilianspace: true,
+            dictionaryaction: true,
             feedback: true,
             flashcards: true,
             holybible: true,
@@ -528,6 +532,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
             brazilianfriends: true,
             braziliangames: true,
             brazilianhq: true,
+            dictionaryaction: true,
             feedback: true,
             flashcards: true,
             holybible: true,
@@ -1006,8 +1011,8 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   // Reset to Default Order
   const handleResetAppOrder = () => {
     const defaultConfig: GlobalAppConfig = {
-      studentAppOrder: ['home', 'actionstreet', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'readclub', 'flashcards', 'holybible', 'brazilianhq', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'studytime', 'feedback', 'settings'],
-      adminAppOrder: ['home', 'work', 'actionstreet', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'flashcards', 'holybible', 'brazilianhq', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'studytime', 'settings'],
+      studentAppOrder: ['home', 'actionstreet', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'readclub', 'flashcards', 'holybible', 'brazilianhq', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'dictionaryaction', 'youtube', 'studytime', 'feedback', 'settings'],
+      adminAppOrder: ['home', 'work', 'actionstreet', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'flashcards', 'holybible', 'brazilianhq', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'dictionaryaction', 'youtube', 'studytime', 'settings'],
       studentGlobalEnabled: {
         home: true,
         actionstreet: true,
@@ -1024,6 +1029,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
         biacompare: true,
         conversation: true,
         tradutor: true,
+        dictionaryaction: true,
         youtube: true,
         studytime: true,
         feedback: true

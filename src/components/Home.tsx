@@ -6,7 +6,6 @@ import {
   Instagram, 
   Youtube, 
   Video, 
-  Book, 
   ArrowRight, 
   Layers, 
   Sparkles
@@ -239,17 +238,7 @@ export const Home: React.FC<HomeProps> = ({
           <Clock clock24h={clock24h} align="left" />
           {renderSubscriberCount()}
         </div>
-        <div className="pt-24">
-          {renderAnniversaryReminder()}
-          <a
-            href={`${import.meta.env.BASE_URL}?open=dictionaryaction`}
-            className="mx-auto mt-5 flex w-fit items-center gap-3 rounded-2xl border border-white/15 bg-white/[0.045] px-4 py-3 text-white/85 shadow-lg backdrop-blur-xl transition hover:border-emerald-200/30 hover:bg-emerald-100/[0.07]"
-          >
-            <Book size={17} className="text-emerald-200/80" aria-hidden="true" />
-            <span className="text-xs font-medium">Dictionary Action</span>
-            <ArrowRight size={14} className="text-white/45" aria-hidden="true" />
-          </a>
-        </div>
+        {isPlatformAnniversary && <div className="pt-24">{renderAnniversaryReminder()}</div>}
         {renderSocialLinks()}
       </div>
     );
