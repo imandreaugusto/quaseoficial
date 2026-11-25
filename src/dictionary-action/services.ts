@@ -1,5 +1,5 @@
 import { getSupabaseClient } from '../utils/supabaseClient';
-import { getMockEntry, normalizeWordKey } from './data';
+import { curatedCollocations, getMockEntry, normalizeWordKey } from './data';
 import type {
   CulturalEntry,
   DictionaryApiEntry,
@@ -125,7 +125,10 @@ export const lookupDictionary = async (term: string): Promise<DictionaryLookup> 
       .filter((item, index, all) => all.findIndex((other) => other.toLowerCase() === item.toLowerCase()) === index)
       .slice(0, 10);
   } else {
-    notices.push('As combinações da Datamuse não puderam ser carregadas.');
+    collocations = curatedCollocations[word] ?? [];
+    notices.push(collocations.length
+      ? 'A Datamuse está indisponível neste domínio; exibindo combinações curadas para este termo.'
+      : 'As combinações da Datamuse não puderam ser carregadas.');
   }
 
   return {

@@ -7,6 +7,14 @@ export const scenarioFilters = [
   { label: 'Amigos', value: 'friends', suggestion: 'awkward' },
 ] as const;
 
+export const curatedCollocations: Record<string, string[]> = {
+  close: ['close friends', 'close call', 'close to home', 'close relationship', 'close attention'],
+  awkward: ['awkward silence', 'awkward moment', 'awkward conversation', 'awkward situation', 'feel awkward'],
+  actually: ['actually happened', 'actually mean', 'actually think', 'actually works', 'actually went'],
+  pretend: ['pretend to be', 'pretend not to', 'pretend otherwise', 'pretend play', 'just pretend'],
+  eventually: ['eventually become', 'eventually find', 'eventually realize', 'eventually lead', 'eventually end up'],
+};
+
 export const mockCulturalDictionary: CulturalEntry[] = [
   {
     word_key: 'close',
