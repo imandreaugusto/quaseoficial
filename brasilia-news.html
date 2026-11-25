@@ -1,0 +1,2228 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F9F8F4">
+  <meta name="description" content="Brasília News: notícias em inglês para praticar leitura e escuta no Brazilian in Action.">
+  <title>Brasília News — Brazilian in Action</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@700;800&family=UnifrakturMaguntia&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #F9F8F4;
+      --white: #FFFFFF;
+      --ink: #111111;
+      --muted: #555555;
+      --rule: #DCD9D0;
+      --red: #C8102E;
+      --serif: "Playfair Display", Georgia, serif;
+      --sans: "Inter", Arial, sans-serif;
+      --blackletter: "UnifrakturMaguntia", Georgia, serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    html::-webkit-scrollbar { display: none; }
+
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--sans);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button, select { font: inherit; }
+    button { color: inherit; }
+    button:focus-visible, select:focus-visible {
+      outline: 2px solid var(--ink);
+      outline-offset: 3px;
+    }
+
+    .page-shell { width: min(1440px, calc(100% - 48px)); margin: 0 auto; }
+    .masthead { padding-top: 16px; }
+
+    .topline {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 16px;
+      min-height: 36px;
+      border-top: 1px solid var(--ink);
+      border-bottom: 1px solid var(--ink);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: .075em;
+      text-transform: uppercase;
+    }
+    .topline-date { justify-self: start; }
+    .edition { color: var(--muted); text-align: center; }
+    .refresh-button {
+      justify-self: end;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      border: 0;
+      background: transparent;
+      padding: 8px 0 8px 8px;
+      cursor: pointer;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+    .refresh-button:hover { color: var(--ink); }
+    .refresh-button:disabled { cursor: wait; opacity: .6; }
+    .refresh-button svg { width: 14px; height: 14px; }
+
+    .brand-block { padding: 13px 0 18px; text-align: center; }
+    .brand-title {
+      margin: 0;
+      font-family: var(--blackletter);
+      font-size: clamp(52px, 8vw, 104px);
+      font-weight: 400;
+      letter-spacing: -.025em;
+      line-height: 1.05;
+    }
+    .brand-subtitle {
+      margin: 5px 0 0;
+      color: #333;
+      font-family: var(--serif);
+      font-size: clamp(13px, 1.7vw, 17px);
+      font-style: italic;
+    }
+
+    .ticker {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      min-height: 42px;
+      overflow: hidden;
+      background: var(--white);
+      border: 1px solid var(--ink);
+    }
+    .ticker-label {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 14px;
+      background: var(--ink);
+      color: var(--white);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: .1em;
+      white-space: nowrap;
+    }
+    .ticker-window { min-width: 0; overflow: hidden; display: flex; align-items: center; }
+    .ticker-track { display: flex; width: max-content; will-change: transform; }
+    .ticker-run { display: flex; flex: none; align-items: center; }
+    .ticker-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 18px;
+      color: var(--ink);
+      font-size: 11px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .ticker-item::after { content: "•"; color: var(--red); font-size: 15px; }
+    .ticker-placeholder { padding: 0 16px; color: var(--muted); font-size: 11px; }
+
+    .section-heading {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 16px;
+      margin: 25px 0 13px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--ink);
+    }
+    .section-heading h2 {
+      margin: 0;
+      font-family: var(--serif);
+      font-size: 20px;
+      font-weight: 700;
+    }
+    .section-heading p { margin: 0; color: var(--muted); font-size: 11px; }
+
+    .reading-rhythm {
+      display: grid;
+      grid-template-columns: minmax(320px, .85fr) minmax(0, 1.15fr);
+      align-items: center;
+      gap: 18px;
+      margin: 18px 0 21px;
+      padding: 14px 16px;
+      background: var(--white);
+      border: 1px solid var(--rule);
+    }
+    .rhythm-main { display: grid; min-width: 0; gap: 12px; }
+    .rhythm-title {
+      margin: 0 0 4px;
+      font-family: var(--serif);
+      font-size: 19px;
+      font-weight: 700;
+    }
+    .rhythm-caption {
+      margin: 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.55;
+    }
+    .rhythm-count {
+      margin: 10px 0 6px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .rhythm-progress {
+      height: 7px;
+      overflow: hidden;
+      background: #e9e7e0;
+      border: 1px solid #d5d2ca;
+    }
+    .rhythm-progress-fill {
+      width: 0;
+      height: 100%;
+      background: #34342f;
+      transition: width .25s ease;
+    }
+    .rhythm-controls {
+      display: grid;
+      grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+      align-items: center;
+      gap: 9px 12px;
+    }
+    .goal-control, .reminder-control {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      color: #333;
+      font-size: 11px;
+      font-weight: 500;
+    }
+    .goal-control select, .reminder-control input {
+      min-height: 32px;
+      padding: 5px 8px;
+      border: 1px solid #c9c6bd;
+      border-radius: 0;
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+    }
+    .goal-control select { min-width: 90px; }
+    .reminder-control input[type="time"] { width: 112px; }
+    .reminder-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+    .reminder-toggle input { width: 15px; height: 15px; accent-color: #333; }
+    .reading-reminder {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin: -10px 0 20px;
+      padding: 14px 16px;
+      background: #fff;
+      border: 1px solid var(--ink);
+    }
+    .reading-reminder[hidden] { display: none; }
+    .reading-reminder strong {
+      display: block;
+      margin-bottom: 4px;
+      font-family: var(--serif);
+      font-size: 16px;
+    }
+    .reading-reminder p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .reminder-actions { display: flex; flex: 0 0 auto; gap: 7px; }
+    .reminder-actions button {
+      min-height: 34px;
+      padding: 7px 10px;
+      border: 1px solid var(--ink);
+      background: #fff;
+      color: var(--ink);
+      font-size: 10px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .reminder-actions button:first-child { background: var(--ink); color: #fff; }
+    .reminder-actions button:hover { opacity: .78; }
+
+    .paper-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+      padding-bottom: 26px;
+    }
+    .paper-grid.is-spotlighting { grid-template-columns: minmax(0, 1fr); }
+    .paper-grid.is-spotlighting .paper:not(.is-spotlight) { display: none; }
+    .paper {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      height: min(76vh, 760px);
+      min-height: 520px;
+      min-width: 0;
+      overflow: hidden;
+      overscroll-behavior: contain;
+      background: var(--white);
+      border: 1px solid var(--rule);
+      scrollbar-color: #aaa69b transparent;
+      scrollbar-width: thin;
+      transition: border-color .25s ease, box-shadow .25s ease;
+    }
+    .paper.is-spotlight {
+      grid-column: 1;
+      height: min(84vh, 900px);
+      border-color: #a9a59a;
+      box-shadow: 0 12px 36px rgba(17,17,17,.14);
+    }
+    .paper::-webkit-scrollbar { width: 7px; }
+    .paper::-webkit-scrollbar-track { background: transparent; }
+    .paper::-webkit-scrollbar-thumb { background: #aaa69b; border-radius: 8px; }
+
+    .paper-head {
+      position: sticky;
+      top: 0;
+      z-index: 4;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 62px;
+      padding: 12px 40px 10px;
+      background: rgba(255,255,255,.97);
+      border-bottom: 3px double var(--ink);
+      text-align: center;
+    }
+    .paper-head h3 {
+      margin: 0;
+      font-family: var(--serif);
+      font-size: clamp(14px, 1.45vw, 19px);
+      font-weight: 800;
+      line-height: 1.15;
+    }
+    .paper-heading-group {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      min-width: 0;
+    }
+    .paper-read-button {
+      display: inline-flex;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-height: 32px;
+      padding: 6px 9px;
+      border: 1px solid var(--ink);
+      background: var(--ink);
+      color: var(--white);
+      font-size: 10px;
+      font-weight: 600;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: background-color .18s ease, color .18s ease, transform .18s ease;
+    }
+    .paper-read-button:hover { background: #333; transform: translateY(-1px); }
+    .paper-read-button svg { width: 14px; height: 14px; }
+    .paper-info {
+      position: absolute;
+      top: 13px;
+      left: 12px;
+      display: grid;
+      width: 21px;
+      height: 21px;
+      place-items: center;
+      padding: 0;
+      border: 1px solid #777;
+      border-radius: 50%;
+      background: transparent;
+      color: #444;
+      font-family: Georgia, serif;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: help;
+    }
+    .paper-info:hover, .paper-info[aria-expanded="true"] { border-color: var(--ink); color: var(--ink); }
+    .source-popover {
+      position: absolute;
+      top: 40px;
+      left: 10px;
+      z-index: 8;
+      width: min(270px, calc(100% - 20px));
+      padding: 12px 13px;
+      background: var(--white);
+      border: 1px solid var(--ink);
+      box-shadow: 0 3px 12px rgba(17,17,17,.12);
+      color: #333;
+      font-size: 11px;
+      line-height: 1.55;
+      text-align: left;
+    }
+    .source-popover[hidden] { display: none; }
+    .site-preview {
+      flex: 1;
+      min-height: 0;
+      background: #f2f0e9;
+    }
+    .site-preview iframe {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      background: #fff;
+    }
+    .story {
+      display: block;
+      width: 100%;
+      padding: 15px 0 16px;
+      border: 0;
+      border-bottom: 1px solid var(--rule);
+      background: transparent;
+      text-align: left;
+    }
+    .story:last-child { border-bottom: 0; }
+    .story-meta {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 500;
+    }
+    .story-title {
+      display: block;
+      font-family: var(--serif);
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 1.28;
+    }
+    .story-summary {
+      display: -webkit-box;
+      overflow: hidden;
+      margin: 7px 0 0;
+      color: #555;
+      font-size: 12px;
+      line-height: 1.55;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+    }
+    .story-action {
+      display: inline-flex;
+      align-items: center;
+      min-height: 34px;
+      margin-top: 11px;
+      padding: 7px 11px;
+      border: 1px solid var(--ink);
+      background: var(--ink);
+      color: var(--white);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .story-action:hover { background: #333; }
+
+    .skeleton { padding: 15px 0; border-bottom: 1px solid var(--rule); }
+    .skeleton-block {
+      height: 150px;
+      margin-bottom: 12px;
+      background: linear-gradient(90deg, #eeece6, #f8f7f3, #eeece6);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s ease-in-out infinite;
+    }
+    .skeleton-line {
+      height: 11px;
+      margin: 9px 0;
+      background: #eeece6;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    .skeleton-line.short { width: 48%; }
+    .skeleton-line.medium { width: 78%; height: 17px; }
+    @keyframes shimmer { to { background-position: -200% 0; } }
+    .feed-message { padding: 24px 4px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+    .feed-message strong { display: block; margin-bottom: 5px; color: var(--ink); font-family: var(--serif); font-size: 17px; }
+    .retry-feed {
+      display: inline-flex;
+      margin-top: 10px;
+      padding: 7px 10px;
+      border: 1px solid var(--ink);
+      background: var(--white);
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .page-footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 0 22px;
+      border-top: 1px solid var(--ink);
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.5;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: rgba(20,19,17,.67);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+    }
+    .modal-backdrop[hidden] { display: none; }
+    .reader {
+      display: flex;
+      flex-direction: column;
+      width: min(820px, 100%);
+      height: 88vh;
+      max-height: 900px;
+      overflow: hidden;
+      background: #fff;
+      color: var(--ink);
+      border: 1px solid #d5d2ca;
+      box-shadow: 0 16px 55px rgba(0,0,0,.24);
+      transform-origin: center;
+    }
+    .reader.theme-sepia { background: #f2e8d5; }
+    .reader.theme-night { background: #191a1b; color: #f2f0e9; border-color: #3b3c3d; }
+    .reader.theme-night .reader-toolbar,
+    .reader.theme-night .reader-tabs,
+    .reader.theme-night .audio-bar,
+    .reader.theme-night .reader-body,
+    .reader.theme-night .reader-site-panel { border-color: #444; }
+    .reader.theme-night .reader-body,
+    .reader.theme-night .reader-tabs,
+    .reader.theme-night .reader-toolbar,
+    .reader.theme-night .audio-bar,
+    .reader.theme-night .reader-site-panel { background: #191a1b; }
+    .reader.theme-night .reader-body p,
+    .reader.theme-night .reader-date,
+    .reader.theme-night .reader-source,
+    .reader.theme-night .reader-hint { color: #c4c1b9; }
+    .reader.theme-night .reader-toolbar button,
+    .reader.theme-night .reader-toolbar select,
+    .reader.theme-night .reader-tabs button,
+    .reader.theme-night .audio-bar button,
+    .reader.theme-night .audio-bar select { color: #f2f0e9; border-color: #777; background: #242526; }
+    .reader.theme-night .reader-tabs button[aria-selected="true"] { background: #f2f0e9; color: #191a1b; }
+    .reader.theme-sepia .reader-toolbar,
+    .reader.theme-sepia .reader-tabs,
+    .reader.theme-sepia .audio-bar,
+    .reader.theme-sepia .reader-body,
+    .reader.theme-sepia .reader-site-panel { background: #f2e8d5; border-color: #d3c4aa; }
+
+    .reader-toolbar {
+      display: grid;
+      grid-template-columns: minmax(115px, 1fr) auto minmax(90px, 1fr);
+      align-items: center;
+      gap: 10px;
+      padding: 11px 15px;
+      border-bottom: 1px solid var(--rule);
+      background: #fff;
+    }
+    .reader-source-wrap { position: relative; display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .reader-info {
+      display: grid;
+      flex: 0 0 auto;
+      width: 22px;
+      height: 22px;
+      place-items: center;
+      padding: 0;
+      border: 1px solid #777;
+      border-radius: 50%;
+      background: transparent;
+      font-family: Georgia, serif;
+      font-size: 13px;
+      cursor: help;
+    }
+    .reader-source { overflow: hidden; color: #444; font-size: 11px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+    .reader-controls { display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .reader-toolbar button, .reader-toolbar select,
+    .audio-bar button, .audio-bar select {
+      min-height: 32px;
+      padding: 6px 9px;
+      border: 1px solid #c9c6bd;
+      border-radius: 0;
+      background: #fff;
+      color: var(--ink);
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .reader-controls button { min-width: 36px; font-weight: 600; }
+    .reader-close { justify-self: end; display: inline-flex; align-items: center; gap: 6px; }
+    .reader-close svg { width: 15px; height: 15px; }
+    .audio-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 7px;
+      padding: 10px 15px;
+      border-bottom: 1px solid var(--rule);
+      background: #fff;
+    }
+    .audio-bar button { display: inline-flex; align-items: center; gap: 6px; }
+    .audio-bar button svg { width: 14px; height: 14px; }
+    .audio-status { margin-left: auto; color: var(--muted); font-size: 10px; }
+    .reader-tabs {
+      display: flex;
+      flex: 0 0 auto;
+      gap: 7px;
+      padding: 9px 15px;
+      border-bottom: 1px solid var(--rule);
+      background: #fff;
+    }
+    .reader-tabs button {
+      min-height: 32px;
+      padding: 6px 11px;
+      border: 1px solid #c9c6bd;
+      background: #fff;
+      color: var(--ink);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .reader-tabs button[aria-selected="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
+    .reader-site-panel {
+      display: flex;
+      flex: 1;
+      min-height: 0;
+      flex-direction: column;
+      gap: 8px;
+      padding: 10px 15px 15px;
+      background: #fff;
+    }
+    .reader-site-panel[hidden], .reader-body[hidden], .reader-controls[hidden], .audio-bar[hidden] { display: none; }
+    .reader-site-note { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.45; }
+    .reader-site-frame { flex: 1; width: 100%; min-height: 0; border: 1px solid var(--rule); background: #fff; }
+    .reader-body {
+      overflow: auto;
+      flex: 1;
+      padding: clamp(18px, 4vw, 38px) clamp(18px, 7vw, 70px) 48px;
+      background: #fff;
+      scrollbar-color: #aaa69b transparent;
+      scrollbar-width: thin;
+    }
+    .reader-date { margin: 0 0 11px; color: var(--muted); font-size: 11px; }
+    .reader-title {
+      margin: 0;
+      font-family: var(--serif);
+      font-size: clamp(28px, 5vw, 45px);
+      font-weight: 800;
+      line-height: 1.15;
+    }
+    .reader-hint { margin: 14px 0 25px; color: #68645d; font-size: 11px; line-height: 1.5; }
+    .reader-text { font-size: 18px; line-height: 1.8; }
+    .reader-text p { margin: 0 0 1.2em; color: inherit; }
+    .reading-complete {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      grid-column: 1 / -1;
+      margin: 0;
+      padding: 8px 10px;
+      border: 1px solid var(--rule);
+      background: rgba(255,255,255,.32);
+    }
+    .reading-complete p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .reading-complete button {
+      flex: 0 0 auto;
+      min-height: 36px;
+      padding: 8px 11px;
+      border: 1px solid var(--ink);
+      background: var(--ink);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .reading-complete button:disabled { background: #e8e6df; color: #555; cursor: default; }
+
+    .brazilian-tv {
+      width: min(100%, 430px);
+      justify-self: end;
+      min-width: 0;
+      padding: 12px;
+      border: 1px solid #2a2a2a;
+      background: #111;
+      color: #f9f8f4;
+    }
+    .tv-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .tv-title {
+      margin: 0;
+      font-family: var(--serif);
+      font-size: 19px;
+      font-weight: 700;
+      line-height: 1;
+      white-space: nowrap;
+    }
+    .sources-kicker {
+      margin: 0 0 4px;
+      color: #bcbab4;
+      font-size: 8px;
+      font-weight: 600;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+    }
+    .tv-header-actions { display: flex; align-items: center; gap: 6px; }
+    .tv-header-button, .tv-channel-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      min-height: 28px;
+      padding: 5px 7px;
+      border: 1px solid #454545;
+      background: #191919;
+      color: #d4d1c9;
+      font: inherit;
+      font-size: 8px;
+      line-height: 1.2;
+      cursor: pointer;
+      transition: background-color .18s ease, border-color .18s ease, color .18s ease, transform .18s ease;
+    }
+    .tv-header-button { width: 28px; padding: 0; }
+    .tv-header-button svg { width: 14px; height: 14px; }
+    .tv-header-button:hover, .tv-channel-button:hover { border-color: #aaa; background: #292929; color: #fff; transform: translateY(-1px); }
+    .tv-screen {
+      position: relative;
+      overflow: hidden;
+      aspect-ratio: 16 / 9;
+      background: #080808;
+    }
+    .tv-screen:fullscreen { width: 100vw; height: 100vh; aspect-ratio: auto; }
+    .tv-screen video {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: #080808;
+      object-fit: contain;
+    }
+    .tv-live {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      color: #dedbd3;
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: .1em;
+      white-space: nowrap;
+    }
+    .tv-live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--red); }
+    .tv-control-row { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+    .tv-control-button {
+      display: inline-grid;
+      flex: 0 0 auto;
+      width: 29px;
+      height: 29px;
+      place-items: center;
+      padding: 0;
+      border: 1px solid #454545;
+      background: #191919;
+      color: #f9f8f4;
+      cursor: pointer;
+    }
+    .tv-control-button:hover { border-color: #aaa; background: #292929; }
+    .tv-control-button svg { width: 14px; height: 14px; }
+    .tv-volume-control { display: flex; flex: 0 1 82px; align-items: center; min-width: 54px; }
+    .tv-volume-control input { width: 100%; accent-color: var(--red); }
+    .tv-volume-control output { min-width: 25px; margin-left: 4px; color: #c9c6bd; font-size: 8px; text-align: right; }
+    .tv-status { flex: 1; min-width: 55px; margin: 0 0 0 2px; color: #bbb8b0; font-size: 9px; line-height: 1.4; }
+    .tv-attribution { margin: 8px 0 0; color: #aaa79f; font-size: 8px; line-height: 1.5; }
+    .tv-attribution a { color: #dedbd3; text-underline-offset: 2px; }
+    .tv-attribution a:hover { color: #fff; }
+    .tv-body[hidden] { display: none; }
+    .translation-tooltip {
+      position: fixed;
+      z-index: 30;
+      max-width: min(300px, calc(100vw - 24px));
+      padding: 10px 12px;
+      border: 1px solid var(--ink);
+      background: #fff;
+      color: var(--ink);
+      box-shadow: 0 4px 16px rgba(0,0,0,.16);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .translation-tooltip[hidden] { display: none; }
+    .translation-tooltip strong { display: block; font-family: var(--serif); font-size: 14px; }
+    .translation-tooltip small { display: block; margin-top: 3px; color: var(--muted); }
+
+    @media (max-width: 1050px) {
+      .paper-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+      .paper-head h3 { font-size: 18px; }
+      .reading-rhythm { grid-template-columns: minmax(260px, .8fr) minmax(0, 1.2fr); gap: 14px; }
+      .rhythm-controls { grid-template-columns: 1fr; gap: 8px; }
+      .reading-complete { grid-column: auto; }
+    }
+    @media (max-width: 760px) {
+      .reading-rhythm { grid-template-columns: 1fr; }
+      .brazilian-tv { justify-self: end; }
+      .rhythm-controls { grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); }
+      .reading-complete { grid-column: 1 / -1; }
+    }
+    @media (max-width: 640px) {
+      .page-shell { width: min(100% - 28px, 480px); }
+      .topline { grid-template-columns: 1fr auto; row-gap: 0; padding: 5px 0; }
+      .edition { grid-column: 1 / -1; grid-row: 2; padding: 2px 0 4px; text-align: left; }
+      .refresh-button { grid-column: 2; grid-row: 1; }
+      .brand-block { padding: 19px 0 16px; }
+      .brand-title { font-size: clamp(50px, 15vw, 76px); }
+      .brand-subtitle { max-width: 320px; margin: 7px auto 0; line-height: 1.4; }
+      .ticker { grid-template-columns: auto minmax(0, 1fr); min-height: 40px; }
+      .ticker-label { padding: 0 9px; font-size: 9px; }
+      .ticker-item { padding: 0 12px; font-size: 10px; }
+      .section-heading { align-items: flex-start; flex-direction: column; gap: 4px; margin-top: 20px; }
+      .reading-rhythm { margin: 16px 0 20px; padding: 12px; gap: 13px; }
+      .rhythm-controls { grid-template-columns: 1fr; gap: 8px; }
+      .reading-complete { grid-column: auto; align-items: flex-start; }
+      .brazilian-tv { padding: 10px; }
+      .tv-title { font-size: 17px; }
+      .tv-control-button { width: 28px; height: 28px; }
+      .tv-volume-control { flex-basis: 68px; }
+      .tv-status { flex-basis: 100%; order: 2; }
+      #tv-fullscreen-button { margin-left: auto; }
+      .reading-reminder { align-items: flex-start; flex-direction: column; }
+      .reminder-actions { width: 100%; }
+      .reminder-actions button { flex: 1; }
+      .paper-grid { grid-template-columns: 1fr; gap: 12px; }
+      .paper { height: min(78vh, 720px); min-height: 520px; }
+      .paper-head h3 { font-size: 20px; }
+      .paper-heading-group { gap: 7px; }
+      .paper-read-button { min-height: 30px; padding: 5px 7px; font-size: 9px; }
+      .paper.is-spotlight { height: min(84vh, 820px); }
+      .reader-backdrop { padding: 0; }
+      .modal-backdrop { padding: 0; }
+      .reader { width: 100%; height: 100dvh; max-height: none; border: 0; }
+      .reader-toolbar { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 9px 10px; }
+      .reader-source-wrap { grid-column: 1; grid-row: 1; }
+      .reader-controls { grid-column: 1 / -1; grid-row: 2; justify-content: flex-start; }
+      .reader-close { grid-column: 2; grid-row: 1; }
+      .audio-bar { padding: 9px 10px; gap: 5px; }
+      .audio-bar button, .audio-bar select { padding: 6px 7px; font-size: 10px; }
+      .audio-status { flex-basis: 100%; margin-left: 0; }
+      .reader-body { padding: 22px 20px 40px; }
+      .reader-text { font-size: 17px; }
+      .reading-complete { align-items: flex-start; flex-direction: column; }
+      .reading-complete button { width: 100%; }
+      .page-footer { flex-direction: column; gap: 5px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-shell">
+    <header class="masthead">
+      <div class="topline">
+        <time id="today-date" class="topline-date"></time>
+        <span class="edition">Brazilian in Action — English Immersion Edition</span>
+        <button id="refresh-button" class="refresh-button" type="button" aria-label="Recarregar sites oficiais">
+          <i data-lucide="refresh-cw" aria-hidden="true"></i>
+          Recarregar sites
+        </button>
+      </div>
+      <div class="brand-block">
+        <h1 class="brand-title">Brasília News</h1>
+        <p class="brand-subtitle">As melhores notícias para praticar o seu inglês você encontra aqui.</p>
+      </div>
+    </header>
+
+    <section class="ticker" aria-label="Manchetes em destaque">
+      <div class="ticker-label">SITES OFICIAIS</div>
+      <div id="ticker-window" class="ticker-window">
+        <span class="ticker-placeholder">As notícias são carregadas diretamente dos veículos e atualizadas por eles.</span>
+      </div>
+    </section>
+
+    <section class="reading-rhythm" aria-label="Ritmo semanal e Brazilian TV">
+      <div class="rhythm-main">
+        <h2 id="rhythm-title" class="rhythm-title">Ritmo da semana</h2>
+        <p class="rhythm-caption">Uma meta leve para criar o hábito de ler notícias em inglês, no seu ritmo.</p>
+        <p id="rhythm-count" class="rhythm-count" aria-live="polite">0 de 3 dias de leitura nesta semana</p>
+        <div id="rhythm-progress" class="rhythm-progress" role="progressbar" aria-label="Progresso da meta semanal" aria-valuemin="0" aria-valuemax="3" aria-valuenow="0">
+          <div id="rhythm-progress-fill" class="rhythm-progress-fill"></div>
+        </div>
+        <div class="rhythm-controls">
+          <label class="goal-control" for="weekly-goal">
+            <span>Meta de leitura</span>
+            <select id="weekly-goal">
+              <option value="3">3 dias por semana</option>
+              <option value="5">5 dias por semana</option>
+              <option value="7">7 dias por semana</option>
+            </select>
+          </label>
+          <div class="reminder-control">
+            <label class="reminder-toggle" for="reminder-enabled">
+              <input id="reminder-enabled" type="checkbox">
+              <span>Ativar lembrete diário</span>
+            </label>
+            <label class="visually-hidden" for="reminder-time">Horário do lembrete</label>
+            <input id="reminder-time" type="time" value="19:00" disabled>
+          </div>
+          <div class="reading-complete">
+            <p id="reading-complete-copy">Ao terminar, registre sua leitura de hoje para acompanhar a meta semanal.</p>
+            <button id="reading-complete-button" type="button">Concluir leitura de hoje</button>
+          </div>
+        </div>
+      </div>
+
+      <section id="brazilian-tv" class="brazilian-tv" aria-labelledby="tv-title">
+        <div class="tv-header">
+          <div>
+            <p class="sources-kicker">Transmissão oficial, sem YouTube</p>
+            <h2 id="tv-title" class="tv-title">Brazilian TV</h2>
+          </div>
+          <div class="tv-header-actions">
+            <span id="tv-onair" class="tv-live" hidden><span class="tv-live-dot" aria-hidden="true"></span>AO VIVO</span>
+            <button id="tv-minimize-button" class="tv-header-button" type="button" aria-label="Minimizar Brazilian TV" aria-controls="tv-body" aria-expanded="true">
+              <i data-lucide="minus" aria-hidden="true"></i>
+            </button>
+          </div>
+        </div>
+        <div id="tv-body" class="tv-body">
+          <div id="tv-screen" class="tv-screen">
+            <video id="tv-video" autoplay muted playsinline preload="none" aria-label="Transmissão ao vivo VOA English TV">
+              Seu navegador não oferece suporte à reprodução deste canal.
+            </video>
+            <div id="tv-placeholder" class="tv-placeholder" role="status">
+              <strong id="tv-placeholder-title">Conectando à VOA English TV</strong>
+              <span id="tv-placeholder-copy">A transmissão está sendo carregada sem som.</span>
+            </div>
+          </div>
+          <div class="tv-control-row">
+            <button id="tv-play-button" class="tv-control-button" type="button" aria-label="Reproduzir transmissão">
+              <i data-lucide="play" aria-hidden="true"></i>
+            </button>
+            <button id="tv-volume-button" class="tv-control-button" type="button" aria-label="Ativar som" aria-pressed="false">
+              <i data-lucide="volume-x" aria-hidden="true"></i>
+            </button>
+            <label class="tv-volume-control">
+              <span class="visually-hidden">Volume da Brazilian TV</span>
+              <input id="tv-volume-slider" type="range" min="0" max="1" step="0.05" value="0.65">
+              <output id="tv-volume-value" for="tv-volume-slider">65%</output>
+            </label>
+            <p id="tv-status" class="tv-status" role="status" aria-live="polite">Iniciando a transmissão sem som…</p>
+            <button id="tv-fullscreen-button" class="tv-control-button" type="button" aria-label="Assistir em tela cheia">
+              <i data-lucide="maximize" aria-hidden="true"></i>
+            </button>
+          </div>
+          <p class="tv-attribution">Sinal oficial HLS da VOA English TV, tocando nesta TV sem abrir outra página.</p>
+        </div>
+      </section>
+    </section>
+    <section id="reading-reminder" class="reading-reminder" aria-live="polite" hidden>
+      <div>
+        <strong id="reminder-message"></strong>
+        <p>Uma leitura já conta para o seu ritmo semanal. Sem pressa: você pode dispensar o aviso de hoje.</p>
+      </div>
+      <div class="reminder-actions">
+        <button id="reminder-read" type="button">Escolher um jornal</button>
+        <button id="reminder-dismiss" type="button">Dispensar hoje</button>
+      </div>
+    </section>
+
+    <div class="section-heading">
+      <h2>Jornais e fontes em inglês</h2>
+      <p>Role cada site oficial dentro da coluna para explorar as notícias sem sair desta página.</p>
+    </div>
+    <main id="paper-grid" class="paper-grid" aria-label="Sites oficiais de notícias"></main>
+
+    <footer class="page-footer">
+      <span>Brasília News · Brazilian in Action — English Immersion Edition</span>
+      <span>As páginas são incorporadas diretamente dos veículos. Não usamos APIs pagas nem tokens de IA.</span>
+    </footer>
+  </div>
+
+  <div id="reader-backdrop" class="modal-backdrop" hidden>
+    <section id="reader" class="reader" role="dialog" aria-modal="true" aria-labelledby="reader-dialog-title">
+      <div class="reader-toolbar">
+        <span id="reader-dialog-title" class="visually-hidden"></span>
+        <div class="reader-source-wrap">
+          <button id="reader-info" class="reader-info" type="button" aria-label="Informações sobre a fonte" aria-expanded="false">(i)</button>
+          <span id="reader-source" class="reader-source"></span>
+          <div id="reader-source-popover" class="source-popover" hidden></div>
+        </div>
+        <div class="reader-controls" aria-label="Controles de leitura">
+          <button id="font-smaller" type="button" aria-label="Diminuir tamanho do texto">A-</button>
+          <button id="font-larger" type="button" aria-label="Aumentar tamanho do texto">A+</button>
+          <select id="reader-theme" aria-label="Tema de leitura">
+            <option value="light">Claro</option>
+            <option value="sepia">Sépia</option>
+            <option value="night">Noturno</option>
+          </select>
+        </div>
+        <button id="reader-close" class="reader-close" type="button"><span>Fechar</span><i data-lucide="x" aria-hidden="true"></i></button>
+      </div>
+      <div id="reader-tabs" class="reader-tabs" role="tablist" aria-label="Versão da matéria">
+        <button id="reader-tab-official" type="button" role="tab" aria-controls="reader-site-panel" aria-selected="false" tabindex="-1">Página oficial</button>
+        <button id="reader-tab-rss" type="button" role="tab" aria-controls="reader-body" aria-selected="false" tabindex="-1">Texto do RSS</button>
+      </div>
+      <section id="reader-site-panel" class="reader-site-panel" role="tabpanel" aria-labelledby="reader-tab-official" hidden>
+        <p id="reader-site-note" class="reader-site-note" role="status">A página oficial é carregada ao vivo. Se não aparecer, o jornal pode bloquear incorporação; use a aba Texto do RSS.</p>
+        <iframe id="reader-article-frame" class="reader-site-frame" title="Página oficial da matéria" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>
+      </section>
+      <div class="audio-bar" aria-label="Narração">
+        <button id="speak-button" type="button"><i data-lucide="volume-2" aria-hidden="true"></i>Ouvir notícia (EN-US)</button>
+        <button id="pause-button" type="button"><i data-lucide="pause" aria-hidden="true"></i>Pausar</button>
+        <button id="stop-button" type="button"><i data-lucide="square" aria-hidden="true"></i>Parar</button>
+        <select id="speech-rate" aria-label="Velocidade da narração">
+          <option value="0.8">0.8x Lento</option>
+          <option value="1">1.0x Normal</option>
+        </select>
+        <span id="audio-status" class="audio-status" role="status">Pronto para ouvir</span>
+      </div>
+      <article id="reader-body" class="reader-body" role="tabpanel" aria-labelledby="reader-tab-rss" hidden>
+        <div id="reader-content"></div>
+      </article>
+    </section>
+  </div>
+  <div id="translation-tooltip" class="translation-tooltip" role="status" hidden></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.18/dist/hls.min.js"></script>
+  <script>
+    (() => {
+      "use strict";
+
+      const READING_SETTINGS_KEY = "brasilia-news-reading-v1";
+      const FEEDS = [
+        { id: "npr", name: "NPR News", siteUrl: "https://www.npr.org/" },
+        { id: "cbs-news", name: "CBS News", siteUrl: "https://www.cbsnews.com/" },
+        { id: "fox-news", name: "FOX News", siteUrl: "https://www.foxnews.com/" },
+        { id: "democracy-now", name: "Democracy Now!", siteUrl: "https://www.democracynow.org/" },
+        { id: "cnet", name: "CNET", siteUrl: "https://www.cnet.com/" },
+        { id: "sciencedaily", name: "ScienceDaily", siteUrl: "https://www.sciencedaily.com/" }
+      ];
+      const TV_STREAM_URL = "https://voa-ingest.akamaized.net/hls/live/2033874/tvmc06/playlist_0480.m3u8";
+      const REMINDER_MESSAGES = [
+        "Que tal alguns minutos de inglês com as manchetes de hoje?",
+        "Uma manchete em inglês pode ser seu próximo pequeno passo da semana.",
+        "Quer praticar leitura com as manchetes de hoje?",
+        "Seu ritmo de leitura continua aqui. Escolha uma história e comece.",
+        "Notícias reais, inglês em contexto. Vamos ler uma manchete?",
+        "Uma leitura em inglês já conta para a sua meta semanal.",
+        "Pratique inglês com um assunto que está acontecendo no mundo.",
+        "Reserve alguns minutos para ler uma notícia no seu ritmo.",
+        "Quer explorar uma manchete em inglês hoje?",
+        "Sua próxima leitura pode trazer uma expressão nova para o vocabulário.",
+        "Um pouco de leitura em inglês já é um bom começo para hoje.",
+        "Escolha um jornal e descubra uma manchete que desperte sua curiosidade.",
+        "Inglês fica mais próximo quando você lê sobre o mundo real.",
+        "Quer ouvir uma notícia em inglês e acompanhar o texto?",
+        "Uma leitura hoje ajuda a construir o hábito, sem pressa.",
+        "Passe alguns minutos com as notícias de hoje.",
+        "Leia uma notícia, ouça a pronúncia e siga no seu próprio ritmo.",
+        "Sua meta é flexível. Uma história de cada vez já ajuda.",
+        "Veja o que está em destaque e pratique inglês com contexto.",
+        "Quando quiser, há uma nova oportunidade de ler em inglês por aqui."
+      ];
+
+      const grid = document.getElementById("paper-grid");
+      const refreshButton = document.getElementById("refresh-button");
+      const tickerWindow = document.getElementById("ticker-window");
+      const backdrop = document.getElementById("reader-backdrop");
+      const reader = document.getElementById("reader");
+      const readerContent = document.getElementById("reader-content");
+      const readerBody = document.getElementById("reader-body");
+      const tvVideo = document.getElementById("tv-video");
+      const tvPlaceholder = document.getElementById("tv-placeholder");
+      const tvPlaceholderTitle = document.getElementById("tv-placeholder-title");
+      const tvPlaceholderCopy = document.getElementById("tv-placeholder-copy");
+      const tvOnAir = document.getElementById("tv-onair");
+      const tvPlayButton = document.getElementById("tv-play-button");
+      const tvVolumeButton = document.getElementById("tv-volume-button");
+      const tvVolumeSlider = document.getElementById("tv-volume-slider");
+      const tvVolumeValue = document.getElementById("tv-volume-value");
+      const tvFullscreenButton = document.getElementById("tv-fullscreen-button");
+      const tvScreen = document.getElementById("tv-screen");
+      const tvStatus = document.getElementById("tv-status");
+      const tvBody = document.getElementById("tv-body");
+      const tvMinimizeButton = document.getElementById("tv-minimize-button");
+      const translationTooltip = document.getElementById("translation-tooltip");
+      const audioStatus = document.getElementById("audio-status");
+      const speechSupported = "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
+      const feedState = new Map();
+      let activeHls = null;
+      let tvStreamUnavailable = false;
+      let tickerAnimation = null;
+      let currentStory = null;
+      let fontSize = 18;
+      let lastFocusedElement = null;
+      let translationRequest = 0;
+      let readingPrefs = loadReadingPrefs();
+      let reminderTimer = null;
+
+      tickerWindow.addEventListener("mouseenter", () => tickerAnimation?.pause());
+      tickerWindow.addEventListener("mouseleave", () => tickerAnimation?.resume());
+      tickerWindow.addEventListener("focusin", () => tickerAnimation?.pause());
+      tickerWindow.addEventListener("focusout", () => tickerAnimation?.resume());
+
+      document.getElementById("today-date").textContent = new Intl.DateTimeFormat("en-US", {
+        weekday: "long", year: "numeric", month: "long", day: "numeric"
+      }).format(new Date());
+
+      function escapeHtml(value) {
+        return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+          "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+        })[char]);
+      }
+
+      function cleanParagraphs(raw) {
+        if (!raw) return [];
+        const doc = new DOMParser().parseFromString(String(raw), "text/html");
+        doc.querySelectorAll("script,style,iframe,noscript,object,svg").forEach((node) => node.remove());
+        const blocks = Array.from(doc.body.querySelectorAll("p,li,blockquote,h2,h3"))
+          .map((node) => (node.textContent || "").replace(/\s+/g, " ").trim())
+          .filter(Boolean);
+        const fallback = (doc.body.textContent || "").replace(/\s+/g, " ").trim();
+        const paragraphs = blocks.length ? blocks : (fallback ? [fallback] : []);
+        return [...new Set(paragraphs)];
+      }
+
+      function formatDate(value) {
+        if (!value) return "";
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return "";
+        return new Intl.DateTimeFormat("en-US", {
+          month: "long", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit"
+        }).format(date);
+      }
+
+      function dateKey(date = new Date()) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        return `${year}-${month}-${day}`;
+      }
+
+      function loadReadingPrefs() {
+        const defaults = {
+          weeklyGoal: 3,
+          reminderEnabled: false,
+          reminderTime: "19:00",
+          messageIndex: 0,
+          readingDates: [],
+          remindedDates: []
+        };
+        try {
+          const stored = JSON.parse(localStorage.getItem(READING_SETTINGS_KEY) || "null");
+          if (!stored || typeof stored !== "object") return defaults;
+          const timeParts = typeof stored.reminderTime === "string" ? /^(\d{2}):(\d{2})$/.exec(stored.reminderTime) : null;
+          const validReminderTime = timeParts && Number(timeParts[1]) < 24 && Number(timeParts[2]) < 60;
+          return {
+            ...defaults,
+            weeklyGoal: [3, 5, 7].includes(Number(stored.weeklyGoal)) ? Number(stored.weeklyGoal) : defaults.weeklyGoal,
+            reminderEnabled: stored.reminderEnabled === true,
+            reminderTime: validReminderTime ? stored.reminderTime : defaults.reminderTime,
+            messageIndex: Number.isInteger(stored.messageIndex) && stored.messageIndex >= 0 ? stored.messageIndex : 0,
+            readingDates: Array.isArray(stored.readingDates) ? stored.readingDates.filter((value) => /^\d{4}-\d{2}-\d{2}$/.test(value)).slice(-90) : [],
+            remindedDates: Array.isArray(stored.remindedDates) ? stored.remindedDates.filter((value) => /^\d{4}-\d{2}-\d{2}$/.test(value)).slice(-90) : []
+          };
+        } catch (error) {
+          console.warn("Could not load Brasília News reading preferences:", error);
+          return defaults;
+        }
+      }
+
+      function saveReadingPrefs() {
+        try {
+          localStorage.setItem(READING_SETTINGS_KEY, JSON.stringify(readingPrefs));
+          return true;
+        } catch (error) {
+          console.error("Could not save Brasília News reading preferences:", error);
+          return false;
+        }
+      }
+
+      function getCurrentWeekDates() {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const monday = new Date(today);
+        monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+        const start = dateKey(monday);
+        const end = dateKey(today);
+        return [...new Set(readingPrefs.readingDates)].filter((value) => value >= start && value <= end);
+      }
+
+      function updateReadingProgress() {
+        const count = getCurrentWeekDates().length;
+        const goal = readingPrefs.weeklyGoal;
+        const progressValue = Math.min(count, goal);
+        const countLabel = document.getElementById("rhythm-count");
+        countLabel.textContent = count >= goal
+          ? `Meta concluída: ${count} de ${goal} dias de leitura nesta semana`
+          : `${count} de ${goal} dias de leitura nesta semana`;
+        const progress = document.getElementById("rhythm-progress");
+        progress.setAttribute("aria-valuemax", String(goal));
+        progress.setAttribute("aria-valuenow", String(progressValue));
+        document.getElementById("rhythm-progress-fill").style.width = `${Math.round(progressValue / goal * 100)}%`;
+        document.getElementById("weekly-goal").value = String(goal);
+        document.getElementById("reminder-enabled").checked = readingPrefs.reminderEnabled;
+        document.getElementById("reminder-time").value = readingPrefs.reminderTime;
+        document.getElementById("reminder-time").disabled = !readingPrefs.reminderEnabled;
+
+        const completedToday = readingPrefs.readingDates.includes(dateKey());
+        const completeButton = document.getElementById("reading-complete-button");
+        const completeCopy = document.getElementById("reading-complete-copy");
+        completeButton.disabled = completedToday;
+        completeButton.textContent = completedToday ? "Leitura de hoje concluída" : "Concluir leitura de hoje";
+        completeCopy.textContent = completedToday
+          ? "Sua leitura de hoje já está registrada. Volte quando quiser."
+          : "Ao terminar, registre sua leitura de hoje para acompanhar a meta semanal.";
+      }
+
+      function markReadingDone() {
+        const today = dateKey();
+        if (!readingPrefs.readingDates.includes(today)) {
+          readingPrefs.readingDates = [...readingPrefs.readingDates, today].slice(-90);
+          saveReadingPrefs();
+        }
+        document.getElementById("reading-reminder").hidden = true;
+        updateReadingProgress();
+      }
+
+      function refreshReminderHistory() {
+        try {
+          const stored = JSON.parse(localStorage.getItem(READING_SETTINGS_KEY) || "null");
+          if (!stored || typeof stored !== "object") return;
+          if (Array.isArray(stored.readingDates)) {
+            readingPrefs.readingDates = stored.readingDates.filter((value) => /^\d{4}-\d{2}-\d{2}$/.test(value)).slice(-90);
+          }
+          if (Array.isArray(stored.remindedDates)) {
+            readingPrefs.remindedDates = stored.remindedDates.filter((value) => /^\d{4}-\d{2}-\d{2}$/.test(value)).slice(-90);
+          }
+          if (Number.isInteger(stored.messageIndex) && stored.messageIndex >= 0) {
+            readingPrefs.messageIndex = Math.max(readingPrefs.messageIndex, stored.messageIndex);
+          }
+        } catch (error) {
+          console.warn("Could not refresh Brasília News reminder history:", error);
+        }
+      }
+
+      function checkDailyReminder() {
+        if (!readingPrefs.reminderEnabled) return;
+        refreshReminderHistory();
+        const today = dateKey();
+        if (readingPrefs.readingDates.includes(today) || readingPrefs.remindedDates.includes(today)) return;
+        const [hours, minutes] = readingPrefs.reminderTime.split(":").map(Number);
+        const target = new Date();
+        target.setHours(hours, minutes, 0, 0);
+        if (Date.now() < target.getTime()) return;
+
+        const messageIndex = readingPrefs.messageIndex % REMINDER_MESSAGES.length;
+        document.getElementById("reminder-message").textContent = REMINDER_MESSAGES[messageIndex];
+        document.getElementById("reading-reminder").hidden = false;
+        readingPrefs.messageIndex += 1;
+        readingPrefs.remindedDates = [...readingPrefs.remindedDates, today].slice(-90);
+        saveReadingPrefs();
+      }
+
+      function scheduleDailyReminderCheck() {
+        if (reminderTimer) window.clearInterval(reminderTimer);
+        checkDailyReminder();
+        reminderTimer = window.setInterval(checkDailyReminder, 60_000);
+      }
+
+      function dismissReminderForToday() {
+        document.getElementById("reading-reminder").hidden = true;
+      }
+
+      function focusOnHeadlines() {
+        document.getElementById("reading-reminder").hidden = true;
+        const firstFrame = grid.querySelector(".site-preview iframe");
+        const target = firstFrame || grid;
+        if (!firstFrame) grid.tabIndex = -1;
+        target.focus();
+        target.scrollIntoView({
+          behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+          block: "start"
+        });
+      }
+
+      function relativeTime(value) {
+        const date = new Date(value);
+        if (!value || Number.isNaN(date.getTime())) return "Recent";
+        const seconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+        if (seconds < 60) return "Just now";
+        const minutes = Math.floor(seconds / 60);
+        if (minutes < 60) return `${minutes}m ago`;
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) return `${hours}h ago`;
+        const days = Math.floor(hours / 24);
+        return `${days}d ago`;
+      }
+
+      function normalizeArticle(item, sourceName) {
+        const title = String(item.title || "").replace(/\s+/g, " ").trim();
+        const descriptionRaw = item.description || item.summary || "";
+        const descriptionParagraphs = cleanParagraphs(descriptionRaw);
+        const contentCandidates = [
+          item.fullText,
+          item["content:encoded"],
+          item.content,
+          item.description,
+          item.summary
+        ].filter(Boolean).map(cleanParagraphs).sort((a, b) => b.join(" ").length - a.join(" ").length);
+        const paragraphs = contentCandidates[0] || [];
+        const descriptionText = descriptionParagraphs.join(" ").trim();
+        if (!title || !paragraphs.length) return null;
+        return {
+          title,
+          source: sourceName,
+          published: item.pubDate || item.isoDate || item.date || "",
+          author: String(item.author || item["dc:creator"] || item.creator || "").trim(),
+          summary: descriptionText || paragraphs[0] || "",
+          paragraphs,
+          link: String(item.link || "").trim()
+        };
+      }
+
+      function textOf(node, selector) {
+        return node.querySelector(selector)?.textContent?.trim() || "";
+      }
+
+      function nodeTextByLocalName(node, localName) {
+        const found = Array.from(node.getElementsByTagName("*"))
+          .find((child) => child.localName?.toLowerCase() === localName.toLowerCase());
+        return found?.textContent?.trim() || "";
+      }
+
+      function parseXml(xmlText, sourceName) {
+        const doc = new DOMParser().parseFromString(xmlText, "text/xml");
+        if (doc.querySelector("parsererror")) throw new Error("O feed retornou um XML inválido.");
+        const nodes = [...Array.from(doc.getElementsByTagName("item")), ...Array.from(doc.getElementsByTagName("entry"))];
+        const articles = nodes.map((node) => {
+          const description = textOf(node, "description") || textOf(node, "summary");
+          const fullText = nodeTextByLocalName(node, "encoded");
+          const content = nodeTextByLocalName(node, "content");
+          const pubDate = textOf(node, "pubDate") || textOf(node, "published") || textOf(node, "updated");
+          const linkNode = node.querySelector("link");
+          return normalizeArticle({
+            title: textOf(node, "title"),
+            description,
+            fullText,
+            content,
+            author: nodeTextByLocalName(node, "creator"),
+            pubDate,
+            link: linkNode?.getAttribute("href") || linkNode?.textContent?.trim() || ""
+          }, sourceName);
+        }).filter(Boolean);
+        if (!articles.length) throw new Error("O feed não contém manchetes com texto disponível.");
+        return articles;
+      }
+
+      async function fetchWithTimeout(url, timeoutMs = 14000) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+          return await fetch(url, { signal: controller.signal, cache: "no-store" });
+        } finally {
+          clearTimeout(timer);
+        }
+      }
+
+      async function fetchJsonFeed(feed) {
+        const endpoint = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feed.url)}`;
+        const response = await fetchWithTimeout(endpoint);
+        if (!response.ok) throw new Error(`RSS2JSON respondeu ${response.status}.`);
+        const data = await response.json();
+        if (data.status && data.status !== "ok") {
+          throw new Error(data.message || `RSS2JSON informou status ${data.status}.`);
+        }
+        const articles = (Array.isArray(data.items) ? data.items : [])
+          .map((item) => normalizeArticle(item, feed.name))
+          .filter(Boolean);
+        if (!articles.length) throw new Error("RSS2JSON não retornou manchetes com texto.");
+        return articles;
+      }
+
+      async function fetchXmlFeed(feed) {
+        const endpoint = `https://api.allorigins.win/get?url=${encodeURIComponent(feed.url)}`;
+        const response = await fetchWithTimeout(endpoint);
+        if (!response.ok) throw new Error(`AllOrigins respondeu ${response.status}.`);
+        const data = await response.json();
+        if (typeof data.contents !== "string" || !data.contents.trim()) {
+          throw new Error("AllOrigins não retornou o conteúdo XML do feed.");
+        }
+        return parseXml(data.contents, feed.name);
+      }
+
+      async function getFeedArticles(feed, forceRefresh = false) {
+        const cacheKey = CACHE_PREFIX + feed.id;
+        if (!forceRefresh) {
+          try {
+            const cached = JSON.parse(sessionStorage.getItem(cacheKey) || "null");
+            if (cached && Date.now() - cached.savedAt < CACHE_TTL && Array.isArray(cached.articles)) {
+              return { articles: cached.articles, cached: true };
+            }
+          } catch (error) {
+            console.warn(`Could not read the ${feed.name} session cache:`, error);
+          }
+        }
+
+        let articles;
+        try {
+          articles = await fetchJsonFeed(feed);
+        } catch (primaryError) {
+          try {
+            articles = await fetchXmlFeed(feed);
+          } catch (fallbackError) {
+            const primaryMessage = primaryError instanceof Error ? primaryError.message : "falha desconhecida";
+            const fallbackMessage = fallbackError instanceof Error ? fallbackError.message : "falha desconhecida";
+            throw new Error(`Não foi possível carregar o feed. RSS2JSON: ${primaryMessage} Backup: ${fallbackMessage}`);
+          }
+        }
+        saveCache(cacheKey, articles);
+        return { articles, cached: false };
+      }
+
+      function saveCache(key, articles) {
+        try {
+          sessionStorage.setItem(key, JSON.stringify({ savedAt: Date.now(), articles }));
+        } catch (error) {
+          console.warn("Could not save Brasília News session cache:", error);
+        }
+      }
+
+      function sourceAttribution(name) {
+        return `Fonte original: ${name}. Esta coluna carrega o site oficial e acompanha as atualizações publicadas pelo próprio veículo.`;
+      }
+
+      function createSkeletons() {
+        return Array.from({ length: 4 }, () => `
+          <div class="skeleton" aria-hidden="true">
+            <div class="skeleton-block"></div>
+            <div class="skeleton-line short"></div>
+            <div class="skeleton-line medium"></div>
+            <div class="skeleton-line"></div>
+            <div class="skeleton-line short"></div>
+          </div>
+        `).join("");
+      }
+
+      function renderPaper(feed) {
+        const paper = document.createElement("section");
+        paper.className = "paper";
+        paper.dataset.feedId = feed.id;
+        paper.setAttribute("aria-label", feed.name);
+
+        const head = document.createElement("header");
+        head.className = "paper-head";
+        const info = document.createElement("button");
+        info.className = "paper-info";
+        info.type = "button";
+        info.textContent = "(i)";
+        info.setAttribute("aria-label", `Informações sobre ${feed.name}`);
+        info.setAttribute("aria-expanded", "false");
+        const popover = document.createElement("div");
+        popover.className = "source-popover";
+        popover.hidden = true;
+        popover.textContent = sourceAttribution(feed.name);
+        const headingGroup = document.createElement("div");
+        headingGroup.className = "paper-heading-group";
+        const heading = document.createElement("h3");
+        heading.textContent = feed.name;
+        const readButton = document.createElement("button");
+        readButton.className = "paper-read-button";
+        readButton.type = "button";
+        readButton.setAttribute("aria-expanded", "false");
+        readButton.setAttribute("aria-controls", "paper-grid");
+        readButton.setAttribute("aria-label", `Ler a matéria no site oficial de ${feed.name} em destaque`);
+        readButton.innerHTML = '<i data-lucide="book-open" aria-hidden="true"></i><span>Ler a matéria</span>';
+        readButton.addEventListener("click", () => togglePaperSpotlight(paper, readButton));
+        info.addEventListener("click", (event) => {
+          event.stopPropagation();
+          const opening = popover.hidden;
+          popover.hidden = !opening;
+          info.setAttribute("aria-expanded", String(opening));
+        });
+        let hoverTimer;
+        const openPopover = () => {
+          clearTimeout(hoverTimer);
+          popover.hidden = false;
+          info.setAttribute("aria-expanded", "true");
+        };
+        const closePopover = () => {
+          clearTimeout(hoverTimer);
+          hoverTimer = setTimeout(() => {
+            if (info.matches(":hover") || popover.matches(":hover")) return;
+            popover.hidden = true;
+            info.setAttribute("aria-expanded", "false");
+          }, 120);
+        };
+        info.addEventListener("mouseenter", openPopover);
+        info.addEventListener("mouseleave", closePopover);
+        popover.addEventListener("mouseenter", openPopover);
+        popover.addEventListener("mouseleave", closePopover);
+        headingGroup.append(heading, readButton);
+        head.append(info, headingGroup, popover);
+        const preview = document.createElement("div");
+        preview.className = "site-preview";
+        const frame = document.createElement("iframe");
+        frame.title = `Site oficial de notícias: ${feed.name}`;
+        frame.loading = "eager";
+        frame.referrerPolicy = "no-referrer";
+        frame.src = feed.siteUrl;
+        preview.append(frame);
+        paper.append(head, preview);
+        grid.append(paper);
+      }
+
+      function togglePaperSpotlight(paper, button) {
+        const isOpening = !paper.classList.contains("is-spotlight");
+        if (isOpening) {
+          paper.classList.add("is-spotlight");
+          grid.classList.add("is-spotlighting");
+          button.setAttribute("aria-expanded", "true");
+          button.setAttribute("aria-label", `Voltar à grade de jornais; ${paper.querySelector("h3").textContent} está em destaque`);
+          button.innerHTML = '<i data-lucide="minimize-2" aria-hidden="true"></i><span>Voltar aos jornais</span>';
+          paper.scrollIntoView({
+            behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+            block: "start"
+          });
+          if (window.gsap) {
+            window.gsap.fromTo(paper, { opacity: 0, y: 18, scale: .985 }, {
+              opacity: 1, y: 0, scale: 1, duration: .48, ease: "power3.out", clearProps: "transform"
+            });
+            window.gsap.fromTo(paper.querySelector(".paper-head"), { backgroundColor: "#eeece6" }, {
+              backgroundColor: "#fff", duration: .45, ease: "power2.out"
+            });
+          }
+        } else {
+          paper.classList.remove("is-spotlight");
+          grid.classList.remove("is-spotlighting");
+          button.setAttribute("aria-expanded", "false");
+          button.setAttribute("aria-label", `Ler a matéria no site oficial de ${paper.querySelector("h3").textContent} em destaque`);
+          button.innerHTML = '<i data-lucide="book-open" aria-hidden="true"></i><span>Ler a matéria</span>';
+          if (window.gsap) {
+            window.gsap.fromTo(grid.querySelectorAll(".paper"), { opacity: .7, y: 8 }, {
+              opacity: 1, y: 0, duration: .34, stagger: .045, ease: "power2.out", clearProps: "transform"
+            });
+          }
+        }
+        renderIcons();
+      }
+
+      function renderArticle(article, feed) {
+        const story = document.createElement("article");
+        story.className = "story";
+
+        const meta = document.createElement("span");
+        meta.className = "story-meta";
+        meta.textContent = relativeTime(article.published);
+        const title = document.createElement("span");
+        title.className = "story-title";
+        title.textContent = article.title;
+        const summary = document.createElement("span");
+        summary.className = "story-summary";
+        summary.textContent = article.summary || "Texto não disponível no feed.";
+        const action = document.createElement("button");
+        action.className = "story-action";
+        action.type = "button";
+        action.textContent = "Ler a matéria";
+        action.addEventListener("click", () => openReader(article, feed));
+        story.append(meta, title, summary, action);
+        return story;
+      }
+
+      function setFeedLoading(feed) {
+        const content = grid.querySelector(`[data-feed-id="${feed.id}"] .paper-content`);
+        if (content) content.innerHTML = createSkeletons();
+      }
+
+      function setFeedError(feed, message) {
+        const content = grid.querySelector(`[data-feed-id="${feed.id}"] .paper-content`);
+        if (!content) return;
+        content.replaceChildren();
+        const notice = document.createElement("div");
+        notice.className = "feed-message";
+        const title = document.createElement("strong");
+        title.textContent = "Feed indisponível";
+        const details = document.createElement("span");
+        details.textContent = `${message} A prévia oficial da NPR continua disponível acima.`;
+        const retry = document.createElement("button");
+        retry.className = "retry-feed";
+        retry.type = "button";
+        retry.textContent = "Tentar novamente";
+        retry.addEventListener("click", () => loadFeed(feed, true));
+        notice.append(title, details, retry);
+        content.append(notice);
+      }
+
+      function renderFeed(feed, articles, fromCache) {
+        const content = grid.querySelector(`[data-feed-id="${feed.id}"] .paper-content`);
+        if (!content) return;
+        content.replaceChildren();
+        if (fromCache) {
+          const cacheNote = document.createElement("div");
+          cacheNote.className = "story-meta";
+          cacheNote.textContent = "Cache da sessão · atualização a cada 20 minutos";
+          cacheNote.style.paddingTop = "10px";
+          content.append(cacheNote);
+        }
+        if (!articles.length) {
+          const empty = document.createElement("p");
+          empty.className = "feed-message";
+          empty.textContent = "Nenhuma manchete com texto está disponível neste feed no momento.";
+          content.append(empty);
+          return;
+        }
+        articles.forEach((article) => content.append(renderArticle(article, feed)));
+      }
+
+      function renderAllFeeds() {
+        const seenTitles = new Set();
+        FEEDS.forEach((feed) => {
+          const state = feedState.get(feed.id);
+          if (!state || state.loading || state.error || !Array.isArray(state.articles)) return;
+          const visibleArticles = state.articles.filter((article) => {
+            const titleKey = article.title.trim().toLocaleLowerCase().replace(/\s+/g, " ");
+            if (!titleKey || seenTitles.has(titleKey)) return false;
+            seenTitles.add(titleKey);
+            return true;
+          });
+          state.visibleArticles = visibleArticles;
+          renderFeed(feed, visibleArticles, state.cached);
+        });
+        updateTicker();
+      }
+
+      function updateTicker() {
+        if (tickerAnimation) {
+          tickerAnimation.kill();
+          tickerAnimation = null;
+        }
+        const headlines = FEEDS.flatMap((feed) => (feedState.get(feed.id)?.visibleArticles || []).slice(0, 3)
+          .map((article) => `${feed.name}: ${article.title}`));
+        tickerWindow.replaceChildren();
+        if (!headlines.length) {
+          const placeholder = document.createElement("span");
+          placeholder.className = "ticker-placeholder";
+          placeholder.textContent = "Manchetes aparecerão conforme os feeds forem carregados.";
+          tickerWindow.append(placeholder);
+          return;
+        }
+
+        const track = document.createElement("div");
+        track.className = "ticker-track";
+        const makeRun = () => {
+          const run = document.createElement("div");
+          run.className = "ticker-run";
+          headlines.forEach((headline) => {
+            const item = document.createElement("span");
+            item.className = "ticker-item";
+            item.textContent = headline;
+            run.append(item);
+          });
+          return run;
+        };
+        track.append(makeRun(), makeRun());
+        tickerWindow.append(track);
+        if (window.gsap) {
+          tickerAnimation = window.gsap.to(track, {
+            x: () => -track.children[0].getBoundingClientRect().width,
+            duration: Math.max(28, headlines.length * 5),
+            ease: "none",
+            repeat: -1,
+            modifiers: { x: (value) => `${parseFloat(value) % track.children[0].getBoundingClientRect().width}px` }
+          });
+        }
+      }
+
+      async function loadFeed(feed, forceRefresh = false) {
+        const state = feedState.get(feed.id) || {};
+        if (state.loading) return;
+        state.loading = true;
+        feedState.set(feed.id, state);
+        setFeedLoading(feed);
+        try {
+          const result = await getFeedArticles(feed, forceRefresh);
+          feedState.set(feed.id, { articles: result.articles, loading: false, cached: result.cached });
+          renderAllFeeds();
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Não foi possível carregar esta fonte.";
+          feedState.set(feed.id, { articles: [], loading: false, error: message });
+          setFeedError(feed, message);
+          updateTicker();
+          console.warn(`Could not load ${feed.name}:`, error);
+        }
+      }
+
+      async function loadAllFeeds(forceRefresh = false) {
+        refreshButton.disabled = true;
+        try {
+          await Promise.all(FEEDS.map((feed) => loadFeed(feed, forceRefresh)));
+        } finally {
+          refreshButton.disabled = false;
+        }
+      }
+
+      function getSafeArticleUrl(article, feed) {
+        try {
+          const articleUrl = new URL(article.link);
+          const siteHost = new URL(feed.siteUrl).hostname.toLowerCase().replace(/^www\./, "");
+          const articleHost = articleUrl.hostname.toLowerCase().replace(/^www\./, "");
+          if (articleUrl.protocol !== "https:" || !(articleHost === siteHost || articleHost.endsWith(`.${siteHost}`))) return "";
+          return articleUrl.href;
+        } catch {
+          return "";
+        }
+      }
+
+      function setReaderTab(tabName) {
+        const officialTab = document.getElementById("reader-tab-official");
+        const rssTab = document.getElementById("reader-tab-rss");
+        const isOfficial = tabName === "official";
+        officialTab.setAttribute("aria-selected", String(isOfficial));
+        officialTab.tabIndex = isOfficial ? 0 : -1;
+        rssTab.setAttribute("aria-selected", String(!isOfficial));
+        rssTab.tabIndex = isOfficial ? -1 : 0;
+        document.getElementById("reader-site-panel").hidden = !isOfficial;
+        readerBody.hidden = isOfficial;
+        document.querySelector(".reader-controls").hidden = isOfficial;
+        document.querySelector(".audio-bar").hidden = isOfficial;
+        if (isOfficial) stopSpeech();
+        hideTranslation();
+        if (!isOfficial) readerBody.scrollTop = 0;
+      }
+
+      function buildReaderText(article) {
+        const paragraphs = article.paragraphs;
+        const title = document.createElement("h1");
+        title.id = "reader-title";
+        title.className = "reader-title";
+        title.textContent = article.title;
+        const date = document.createElement("p");
+        date.className = "reader-date";
+        date.textContent = formatDate(article.published);
+        readerContent.replaceChildren();
+        readerContent.append(date, title);
+        if (article.author) {
+          const author = document.createElement("p");
+          author.className = "reader-date";
+          author.textContent = `By ${article.author} · ${article.source}`;
+          readerContent.append(author);
+        }
+        const hint = document.createElement("p");
+        hint.className = "reader-hint";
+        hint.textContent = "O texto é o conteúdo disponível no feed RSS e pode ser apenas um resumo. Dê um duplo clique em qualquer palavra em inglês para traduzir na hora.";
+        readerContent.append(hint);
+        const text = document.createElement("div");
+        text.className = "reader-text";
+        if (!paragraphs.length) {
+          const empty = document.createElement("p");
+          empty.textContent = "O feed não forneceu texto para esta matéria.";
+          text.append(empty);
+        } else {
+          paragraphs.forEach((paragraph) => {
+            const element = document.createElement("p");
+            element.textContent = paragraph;
+            text.append(element);
+          });
+        }
+        readerContent.append(text);
+        text.style.fontSize = `${fontSize}px`;
+      }
+
+      function openReader(article, feed) {
+        currentStory = { ...article, source: feed.name };
+        lastFocusedElement = document.activeElement;
+        fontSize = 18;
+        document.getElementById("reader-dialog-title").textContent = article.title;
+        document.getElementById("reader-source").textContent = feed.name;
+        const info = document.getElementById("reader-source-popover");
+        info.textContent = sourceAttribution(feed.name);
+        document.getElementById("reader-info").setAttribute("aria-expanded", "false");
+        info.hidden = true;
+        document.getElementById("reader-theme").value = "light";
+        reader.className = "reader";
+        const articleUrl = getSafeArticleUrl(article, feed);
+        const officialTab = document.getElementById("reader-tab-official");
+        const articleFrame = document.getElementById("reader-article-frame");
+        const siteNote = document.getElementById("reader-site-note");
+        officialTab.disabled = !articleUrl;
+        articleFrame.title = `Página oficial: ${article.title}`;
+        if (articleUrl) {
+          articleFrame.src = articleUrl;
+          siteNote.textContent = `Página oficial de ${feed.name}, carregada ao vivo. Se não aparecer, o jornal pode bloquear iframes. Os controles de leitura funcionam na aba Texto do RSS.`;
+        } else {
+          articleFrame.removeAttribute("src");
+          siteNote.textContent = "O feed não forneceu um endereço oficial seguro para esta matéria. Use a aba Texto do RSS.";
+        }
+        const pauseButton = document.getElementById("pause-button");
+        pauseButton.innerHTML = '<i data-lucide="pause" aria-hidden="true"></i>Pausar';
+        buildReaderText(currentStory);
+        setReaderTab(articleUrl ? "official" : "rss");
+        hideTranslation();
+        backdrop.hidden = false;
+        document.body.style.overflow = "hidden";
+        document.getElementById("audio-status").textContent = speechSupported ? "Pronto para ouvir" : "Áudio não disponível neste navegador";
+        document.getElementById("reader-close").focus();
+        renderIcons();
+        updateReadingProgress();
+        if (window.gsap) {
+          window.gsap.fromTo(reader, { opacity: 0, y: 22, scale: .98 }, { opacity: 1, y: 0, scale: 1, duration: .32, ease: "power2.out" });
+          window.gsap.fromTo(readerContent.children, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: .35, stagger: .045, delay: .08, ease: "power2.out" });
+        }
+        updateSpeechButtons();
+      }
+
+      function stopSpeech() {
+        if (speechSupported) window.speechSynthesis.cancel();
+        audioStatus.textContent = "Pronto para ouvir";
+        const pauseButton = document.getElementById("pause-button");
+        pauseButton.innerHTML = '<i data-lucide="pause" aria-hidden="true"></i>Pausar';
+        renderIcons();
+        updateSpeechButtons();
+      }
+
+      function updateSpeechButtons() {
+        const disabled = !speechSupported;
+        ["speak-button", "pause-button", "stop-button", "speech-rate"].forEach((id) => {
+          document.getElementById(id).disabled = disabled;
+        });
+      }
+
+      function closeReader() {
+        if (backdrop.hidden) return;
+        stopSpeech();
+        hideTranslation();
+        const finish = () => {
+          backdrop.hidden = true;
+          document.body.style.overflow = "";
+          currentStory = null;
+          document.getElementById("reader-article-frame").src = "about:blank";
+          lastFocusedElement?.focus?.();
+        };
+        if (window.gsap) window.gsap.to(reader, { opacity: 0, y: 12, duration: .18, ease: "power1.in", onComplete: finish });
+        else finish();
+      }
+
+      function hideTranslation() {
+        translationTooltip.hidden = true;
+        translationRequest += 1;
+      }
+
+      function showTranslation(position, word, translation, loading = false) {
+        translationTooltip.replaceChildren();
+        const original = document.createElement("strong");
+        original.textContent = word;
+        const result = document.createElement("span");
+        result.textContent = loading ? "Consultando tradução..." : translation;
+        translationTooltip.append(original, result);
+        if (!loading) {
+          const note = document.createElement("small");
+          note.textContent = "Tradução automática para estudo";
+          translationTooltip.append(note);
+        }
+        translationTooltip.hidden = false;
+        const box = translationTooltip.getBoundingClientRect();
+        const left = Math.max(12, Math.min(position.left, window.innerWidth - box.width - 12));
+        const top = position.top - box.height - 12 > 8 ? position.top - box.height - 12 : Math.min(position.bottom + 12, window.innerHeight - box.height - 8);
+        translationTooltip.style.left = `${left}px`;
+        translationTooltip.style.top = `${Math.max(8, top)}px`;
+      }
+
+      async function translateSelection() {
+        const selected = window.getSelection()?.toString().trim() || "";
+        const word = selected.replace(/^[^\p{L}']+|[^\p{L}'-]+$/gu, "").slice(0, 60);
+        if (!word || /\s/.test(word)) return;
+        const range = window.getSelection()?.rangeCount ? window.getSelection().getRangeAt(0) : null;
+        const rect = range?.getBoundingClientRect();
+        if (!rect || !reader.contains(range.commonAncestorContainer)) return;
+
+        const requestId = ++translationRequest;
+        const position = { left: rect.left + rect.width / 2, top: rect.top, bottom: rect.bottom };
+        showTranslation(position, word, "", true);
+        try {
+          const endpoint = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(word)}&langpair=en|pt-BR`;
+          const response = await fetchWithTimeout(endpoint, 10000);
+          if (!response.ok) throw new Error(`O serviço de tradução respondeu ${response.status}.`);
+          const data = await response.json();
+          if (requestId !== translationRequest || backdrop.hidden) return;
+          const translation = data.responseData?.translatedText;
+          if (!translation) throw new Error("A tradução não foi retornada.");
+          showTranslation(position, word, translation);
+        } catch (error) {
+          if (requestId !== translationRequest) return;
+          showTranslation(position, word, error instanceof Error ? "Tradução indisponível agora." : "Tradução indisponível agora.");
+          console.warn("MyMemory translation failed:", error);
+        }
+      }
+
+      function renderIcons() {
+        if (window.lucide && typeof window.lucide.createIcons === "function") window.lucide.createIcons();
+      }
+
+      function updateTvVolumeButton() {
+        const isMuted = tvVideo.muted || tvVideo.volume === 0;
+        tvVolumeButton.setAttribute("aria-label", isMuted ? "Ativar som" : "Silenciar transmissão");
+        tvVolumeButton.setAttribute("aria-pressed", String(!isMuted));
+        tvVolumeButton.innerHTML = `<i data-lucide="${isMuted ? "volume-x" : "volume-2"}" aria-hidden="true"></i>`;
+        tvVolumeValue.value = `${Math.round(tvVideo.volume * 100)}%`;
+        tvVolumeValue.textContent = tvVolumeValue.value;
+        renderIcons();
+      }
+
+      function setTvMuted(isMuted) {
+        tvVideo.muted = isMuted;
+        updateTvVolumeButton();
+        if (!isMuted && tvVideo.paused) void startTvPlayback();
+      }
+
+      function updateTvPlayButton(isPlaying) {
+        tvPlayButton.setAttribute("aria-label", isPlaying ? "Pausar transmissão" : "Reproduzir transmissão");
+        tvPlayButton.innerHTML = `<i data-lucide="${isPlaying ? "pause" : "play"}" aria-hidden="true"></i>`;
+        renderIcons();
+      }
+
+      function showTvUnavailable(message) {
+        tvStreamUnavailable = true;
+        tvOnAir.hidden = true;
+        tvPlaceholderTitle.textContent = "Transmissão indisponível";
+        tvPlaceholderCopy.textContent = message;
+        tvPlaceholder.hidden = false;
+        tvStatus.textContent = message;
+        updateTvPlayButton(false);
+      }
+
+      async function startTvPlayback() {
+        try {
+          await tvVideo.play();
+          tvPlaceholder.hidden = true;
+          tvOnAir.hidden = false;
+          tvStatus.textContent = tvVideo.muted ? "Ao vivo · sem som" : "Ao vivo · som ativado";
+          updateTvPlayButton(true);
+        } catch (error) {
+          if (tvStreamUnavailable) return;
+          tvPlaceholderTitle.textContent = "Pronto para assistir";
+          tvPlaceholderCopy.textContent = "O navegador bloqueou o início automático. Pressione reproduzir para continuar.";
+          tvPlaceholder.hidden = false;
+          tvStatus.textContent = "Pressione reproduzir para iniciar a transmissão.";
+          updateTvPlayButton(false);
+          console.warn("VOA muted autoplay was blocked:", error);
+        }
+      }
+
+      function startTvStream() {
+        tvStreamUnavailable = false;
+        tvVideo.muted = true;
+        tvVideo.volume = Number(tvVolumeSlider.value);
+        updateTvVolumeButton();
+        if (window.Hls && window.Hls.isSupported()) {
+          const hls = new window.Hls({
+            enableWorker: true,
+            lowLatencyMode: true,
+            maxBufferLength: 20,
+            maxMaxBufferLength: 30
+          });
+          activeHls = hls;
+          hls.on(window.Hls.Events.MEDIA_ATTACHED, () => hls.loadSource(TV_STREAM_URL));
+          hls.on(window.Hls.Events.MANIFEST_PARSED, () => { void startTvPlayback(); });
+          hls.on(window.Hls.Events.ERROR, (event, data) => {
+            if (!data.fatal) return;
+            console.error("VOA HLS stream failed:", data.type, data.details);
+            const message = data.details === window.Hls.ErrorDetails.BUFFER_ADD_CODEC_ERROR
+              ? "Este navegador não oferece suporte aos codecs de vídeo desta transmissão."
+              : "A VOA não está entregando o sinal agora. Tente novamente mais tarde.";
+            showTvUnavailable(message);
+            hls.destroy();
+            activeHls = null;
+            tvVideo.pause();
+            tvVideo.removeAttribute("src");
+            tvVideo.load();
+          });
+          hls.attachMedia(tvVideo);
+          return;
+        }
+
+        if (tvVideo.canPlayType("application/vnd.apple.mpegurl")) {
+          tvVideo.src = TV_STREAM_URL;
+          tvVideo.addEventListener("loadedmetadata", () => { void startTvPlayback(); }, { once: true });
+          tvVideo.addEventListener("error", () => {
+            showTvUnavailable("A VOA não está entregando o sinal agora. Tente novamente mais tarde.");
+          }, { once: true });
+          tvVideo.load();
+          return;
+        }
+
+        showTvUnavailable("Este navegador não oferece suporte à reprodução HLS.");
+      }
+
+      async function toggleTvPlayback() {
+        if (tvVideo.paused) {
+          if (!activeHls && !tvVideo.currentSrc) {
+            startTvStream();
+            return;
+          }
+          await startTvPlayback();
+          return;
+        }
+        tvVideo.pause();
+        tvOnAir.hidden = true;
+        tvStatus.textContent = "Transmissão pausada.";
+        updateTvPlayButton(false);
+      }
+
+      function toggleTvMinimized() {
+        const minimized = tvMinimizeButton.getAttribute("aria-expanded") === "true";
+        tvMinimizeButton.setAttribute("aria-expanded", String(!minimized));
+        tvMinimizeButton.setAttribute("aria-label", minimized ? "Expandir Brazilian TV" : "Minimizar Brazilian TV");
+        tvMinimizeButton.innerHTML = `<i data-lucide="${minimized ? "plus" : "minus"}" aria-hidden="true"></i>`;
+        renderIcons();
+        if (!window.gsap || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+          tvBody.hidden = minimized;
+          return;
+        }
+        window.gsap.killTweensOf(tvBody);
+        if (minimized) {
+          tvBody.hidden = false;
+          window.gsap.to(tvBody, {
+            height: 0,
+            opacity: 0,
+            duration: .24,
+            ease: "power2.in",
+            onComplete: () => {
+              tvBody.hidden = true;
+              tvBody.style.removeProperty("height");
+              tvBody.style.removeProperty("opacity");
+            }
+          });
+        } else {
+          tvBody.hidden = false;
+          window.gsap.fromTo(tvBody, { height: 0, opacity: 0 }, {
+            height: "auto",
+            opacity: 1,
+            duration: .32,
+            ease: "power2.out",
+            onComplete: () => {
+              tvBody.style.removeProperty("height");
+              tvBody.style.removeProperty("opacity");
+            }
+          });
+        }
+      }
+
+      FEEDS.forEach(renderPaper);
+      renderIcons();
+      updateReadingProgress();
+      scheduleDailyReminderCheck();
+      tvMinimizeButton.addEventListener("click", toggleTvMinimized);
+      tvVideo.volume = Number(tvVolumeSlider.value);
+      tvVideo.muted = true;
+      updateTvVolumeButton();
+      startTvStream();
+
+      tvVolumeButton.addEventListener("click", () => {
+        const isMuted = tvVideo.muted || tvVideo.volume === 0;
+        if (isMuted && tvVideo.volume === 0) {
+          tvVideo.volume = Number(tvVolumeSlider.value) || .65;
+          tvVolumeSlider.value = String(tvVideo.volume);
+        }
+        setTvMuted(!isMuted);
+      });
+      tvVolumeSlider.addEventListener("input", () => {
+        tvVideo.volume = Number(tvVolumeSlider.value);
+        setTvMuted(tvVideo.volume === 0);
+      });
+      tvPlayButton.addEventListener("click", () => { void toggleTvPlayback(); });
+      tvVideo.addEventListener("playing", () => {
+        tvPlaceholder.hidden = true;
+        tvOnAir.hidden = false;
+        tvStatus.textContent = tvVideo.muted ? "Ao vivo · sem som" : "Ao vivo · som ativado";
+        updateTvPlayButton(true);
+      });
+      tvVideo.addEventListener("pause", () => {
+        if (tvVideo.ended) return;
+        tvOnAir.hidden = true;
+        updateTvPlayButton(false);
+      });
+      tvFullscreenButton.addEventListener("click", async () => {
+        try {
+          if (document.fullscreenElement === tvScreen) await document.exitFullscreen();
+          else if (tvScreen.requestFullscreen) await tvScreen.requestFullscreen();
+          else throw new Error("Fullscreen is unavailable in this browser.");
+        } catch (error) {
+          tvStatus.textContent = "Não foi possível abrir a tela cheia neste navegador.";
+          console.error("Brazilian TV fullscreen failed:", error);
+        }
+      });
+      document.addEventListener("fullscreenchange", () => {
+        const isFullscreen = document.fullscreenElement === tvScreen;
+        tvFullscreenButton.setAttribute("aria-label", isFullscreen ? "Sair da tela cheia" : "Assistir em tela cheia");
+        tvFullscreenButton.innerHTML = `<i data-lucide="${isFullscreen ? "minimize" : "maximize"}" aria-hidden="true"></i>`;
+        renderIcons();
+      });
+
+      document.getElementById("weekly-goal").addEventListener("change", (event) => {
+        readingPrefs.weeklyGoal = Number(event.target.value);
+        saveReadingPrefs();
+        updateReadingProgress();
+      });
+      document.getElementById("reminder-enabled").addEventListener("change", (event) => {
+        readingPrefs.reminderEnabled = event.target.checked;
+        if (!readingPrefs.reminderEnabled) dismissReminderForToday();
+        saveReadingPrefs();
+        updateReadingProgress();
+        checkDailyReminder();
+      });
+      document.getElementById("reminder-time").addEventListener("change", (event) => {
+        readingPrefs.reminderTime = event.target.value || "19:00";
+        saveReadingPrefs();
+        checkDailyReminder();
+      });
+      window.addEventListener("storage", (event) => {
+        if (event.key !== READING_SETTINGS_KEY) return;
+        readingPrefs = loadReadingPrefs();
+        updateReadingProgress();
+        scheduleDailyReminderCheck();
+      });
+      document.getElementById("reading-complete-button").addEventListener("click", markReadingDone);
+      document.getElementById("reminder-read").addEventListener("click", focusOnHeadlines);
+      document.getElementById("reminder-dismiss").addEventListener("click", dismissReminderForToday);
+
+      refreshButton.addEventListener("click", () => {
+        refreshButton.disabled = true;
+        FEEDS.forEach((feed) => {
+          const previewFrame = grid.querySelector(`[data-feed-id="${feed.id}"] .site-preview iframe`);
+          if (previewFrame) previewFrame.src = feed.siteUrl;
+        });
+        window.setTimeout(() => { refreshButton.disabled = false; }, 1200);
+      });
+
+      document.getElementById("reader-close").addEventListener("click", closeReader);
+      document.getElementById("reader-tab-official").addEventListener("click", () => setReaderTab("official"));
+      document.getElementById("reader-tab-rss").addEventListener("click", () => setReaderTab("rss"));
+      document.getElementById("reader-tabs").addEventListener("keydown", (event) => {
+        const tabs = Array.from(event.currentTarget.querySelectorAll('[role="tab"]:not(:disabled)'));
+        const currentIndex = tabs.indexOf(document.activeElement);
+        let nextIndex = currentIndex;
+        if (event.key === "ArrowRight") nextIndex = (currentIndex + 1) % tabs.length;
+        else if (event.key === "ArrowLeft") nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+        else if (event.key === "Home") nextIndex = 0;
+        else if (event.key === "End") nextIndex = tabs.length - 1;
+        else return;
+        event.preventDefault();
+        tabs[nextIndex].focus();
+        setReaderTab(tabs[nextIndex].id === "reader-tab-official" ? "official" : "rss");
+      });
+      backdrop.addEventListener("click", (event) => {
+        if (event.target === backdrop) closeReader();
+      });
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && !backdrop.hidden) closeReader();
+        if (event.key === "Escape") {
+          document.querySelectorAll(".source-popover:not([hidden])").forEach((popover) => { popover.hidden = true; });
+        }
+      });
+
+      document.addEventListener("click", (event) => {
+        if (event.target.closest(".paper-info, .source-popover")) return;
+        grid.querySelectorAll(".source-popover:not([hidden])").forEach((popover) => {
+          popover.hidden = true;
+          popover.parentElement.querySelector(".paper-info")?.setAttribute("aria-expanded", "false");
+        });
+      });
+
+      document.getElementById("reader-info").addEventListener("click", (event) => {
+        const button = event.currentTarget;
+        const popover = document.getElementById("reader-source-popover");
+        popover.hidden = !popover.hidden;
+        button.setAttribute("aria-expanded", String(!popover.hidden));
+      });
+      document.getElementById("font-smaller").addEventListener("click", () => {
+        fontSize = Math.max(15, fontSize - 1);
+        const text = readerContent.querySelector(".reader-text");
+        if (text) text.style.fontSize = `${fontSize}px`;
+      });
+      document.getElementById("font-larger").addEventListener("click", () => {
+        fontSize = Math.min(24, fontSize + 1);
+        const text = readerContent.querySelector(".reader-text");
+        if (text) text.style.fontSize = `${fontSize}px`;
+      });
+      document.getElementById("reader-theme").addEventListener("change", (event) => {
+        reader.className = `reader theme-${event.target.value === "light" ? "light" : event.target.value}`;
+      });
+
+      document.getElementById("speak-button").addEventListener("click", () => {
+        if (!speechSupported || !currentStory) return;
+        window.speechSynthesis.cancel();
+        const storyText = [currentStory.title, ...currentStory.paragraphs].join(". ");
+        const utterance = new SpeechSynthesisUtterance(storyText);
+        utterance.lang = "en-US";
+        utterance.rate = Number(document.getElementById("speech-rate").value);
+        utterance.onstart = () => {
+          audioStatus.textContent = "Narrando em inglês";
+          setTvMuted(true);
+        };
+        utterance.onend = () => { audioStatus.textContent = "Narração concluída"; };
+        utterance.onerror = (event) => {
+          audioStatus.textContent = event.error === "canceled" ? "Narração interrompida" : "Não foi possível iniciar o áudio";
+        };
+        window.speechSynthesis.speak(utterance);
+        updateSpeechButtons();
+      });
+      document.getElementById("pause-button").addEventListener("click", (event) => {
+        if (!speechSupported) return;
+        const button = event.currentTarget;
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+          button.innerHTML = '<i data-lucide="pause" aria-hidden="true"></i>Pausar';
+          audioStatus.textContent = "Narração retomada";
+        } else {
+          window.speechSynthesis.pause();
+          button.innerHTML = '<i data-lucide="play" aria-hidden="true"></i>Retomar';
+          audioStatus.textContent = "Narração pausada";
+        }
+        renderIcons();
+      });
+      document.getElementById("stop-button").addEventListener("click", stopSpeech);
+      document.getElementById("reader-body").addEventListener("dblclick", () => { void translateSelection(); });
+      document.addEventListener("selectionchange", () => {
+        if (backdrop.hidden) hideTranslation();
+      });
+      document.addEventListener("click", (event) => {
+        if (!translationTooltip.contains(event.target) && !event.target.closest(".reader-text")) hideTranslation();
+      });
+      document.getElementById("reader-theme").addEventListener("change", hideTranslation);
+      document.getElementById("reader-body").addEventListener("scroll", hideTranslation, { passive: true });
+
+      if (!speechSupported) updateSpeechButtons();
+    })();
+  </script>
+</body>
+</html>

@@ -163,6 +163,7 @@ const getRequestedStartupApp = () => {
   if (requestedApp === 'actionstreet') return 'actionstreet';
   if (requestedApp === 'flashcards') return 'flashcards';
   if (requestedApp === 'dictionaryaction') return 'dictionaryaction';
+  if (requestedApp === 'braziliannews') return 'braziliannews';
   return 'home';
 };
 
@@ -1779,6 +1780,15 @@ export default function App() {
 
                   {currentApp === 'dictionaryaction' && (
                     <DictionaryAction />
+                  )}
+
+                  {currentApp === 'braziliannews' && (
+                    <iframe
+                      title="Brasília News"
+                      src="/brasilia-news.html"
+                      className="w-full border-0"
+                      style={{ height: 'calc(100vh - 5rem)', minHeight: '680px' }}
+                    />
                   )}
 
                   {currentApp === 'biacompare' && (

@@ -30,6 +30,7 @@ import {
   ToggleLeft,
   ToggleRight,
   BookOpen,
+  Newspaper,
   Coffee,
   VenetianMask,
   Presentation,
@@ -110,6 +111,7 @@ const ALL_STUDENT_APPS = [
   { id: 'stories', label: 'Brazilian Post', icon: Instagram, desc: 'Gravação de stories para o Instagram com teleprompter e mural de destaques' },
   { id: 'practice', label: 'Brazilian Practice', icon: Globe, desc: 'Ambientes ao vivo de conversação, imersão e prática livre' },
   { id: 'readclub', label: 'Coffee & Read', icon: Coffee, desc: 'Biblioteca imersiva e histórias com áudio' },
+  { id: 'braziliannews', label: 'Brasília News', icon: Newspaper, desc: 'Notícias em inglês e transmissão oficial da VOA' },
   { id: 'flashcards', label: 'Brazilian Anki', icon: Layers, desc: 'Flashcards de inglês com revisão espaçada e áudio nativo' },
   { id: 'holybible', label: 'Holy Bible', icon: ChristianCrossIcon, desc: 'Bíblia em inglês com páginas interativas e tradução de vocabulário' },
   { id: 'brazilianhq', label: 'Brazilian HQ', icon: VenetianMask, desc: 'Histórias em quadrinhos em PDF' },
@@ -157,6 +159,7 @@ const ALL_ADMIN_APPS = [
   { id: 'admin_settings', label: 'Painel do CEO', icon: Users, desc: 'Gestão geral de alunos, gateway e finanças' },
   { id: 'feedback', label: 'Feedback dos alunos', icon: MessageSquareText, desc: 'Sugestões enviadas pelos alunos' },
   { id: 'readclub', label: 'Coffee & Read', icon: Coffee, desc: 'Biblioteca completa de leitura' },
+  { id: 'braziliannews', label: 'Brasília News', icon: Newspaper, desc: 'Notícias em inglês e transmissão oficial da VOA' },
   { id: 'flashcards', label: 'Brazilian Anki', icon: Layers, desc: 'Flashcards de inglês com revisão espaçada e áudio nativo' },
   { id: 'holybible', label: 'Holy Bible', icon: ChristianCrossIcon, desc: 'Leitura interativa da King James Version' },
   { id: 'brazilianhq', label: 'Brazilian HQ', icon: VenetianMask, desc: 'Leitura de histórias em quadrinhos' },
@@ -260,8 +263,8 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
 
   // App Order and Global Availability Configuration
   const [appConfig, setAppConfig] = useState<GlobalAppConfig>({
-    studentAppOrder: ['home', 'actionstreet', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'readclub', 'flashcards', 'holybible', 'brazilianhq', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'dictionaryaction', 'youtube', 'studytime', 'feedback', 'settings'],
-    adminAppOrder: ['home', 'work', 'actionstreet', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'flashcards', 'holybible', 'brazilianhq', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'dictionaryaction', 'youtube', 'studytime', 'settings'],
+    studentAppOrder: ['home', 'actionstreet', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'readclub', 'braziliannews', 'flashcards', 'holybible', 'brazilianhq', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'dictionaryaction', 'youtube', 'studytime', 'feedback', 'settings'],
+    adminAppOrder: ['home', 'work', 'actionstreet', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'braziliannews', 'flashcards', 'holybible', 'brazilianhq', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'dictionaryaction', 'youtube', 'studytime', 'settings'],
     studentGlobalEnabled: {
       home: true,
       actionstreet: true,
@@ -270,6 +273,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
       stories: true,
       practice: true,
       readclub: true,
+      braziliannews: true,
       flashcards: true,
       settings: true,
       holybible: true,
@@ -1011,8 +1015,8 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
   // Reset to Default Order
   const handleResetAppOrder = () => {
     const defaultConfig: GlobalAppConfig = {
-      studentAppOrder: ['home', 'actionstreet', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'readclub', 'flashcards', 'holybible', 'brazilianhq', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'dictionaryaction', 'youtube', 'studytime', 'feedback', 'settings'],
-      adminAppOrder: ['home', 'work', 'actionstreet', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'flashcards', 'holybible', 'brazilianhq', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'dictionaryaction', 'youtube', 'studytime', 'settings'],
+      studentAppOrder: ['home', 'actionstreet', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'readclub', 'braziliannews', 'flashcards', 'holybible', 'brazilianhq', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'dictionaryaction', 'youtube', 'studytime', 'feedback', 'settings'],
+      adminAppOrder: ['home', 'work', 'actionstreet', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'braziliannews', 'flashcards', 'holybible', 'brazilianhq', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'dictionaryaction', 'youtube', 'studytime', 'settings'],
       studentGlobalEnabled: {
         home: true,
         actionstreet: true,
@@ -1020,6 +1024,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
         brazilianspace: true,
         flashcards: true,
         readclub: true,
+        braziliannews: true,
         brazilianhq: true,
         board: true,
         quiz: true,
