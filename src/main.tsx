@@ -1,4 +1,4 @@
-import {StrictMode} from 'react';
+import {StrictMode, Suspense, lazy} from 'react';
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import { ErrorBoundary } from './components/ErrorBoundary.tsx';
@@ -6,6 +6,8 @@ import {LegalPage} from './components/LegalPage.tsx';
 import { apiFetch } from './lib/api';
 import { getSupabaseConfig } from './utils/supabaseClient';
 import './index.css';
+
+const DictionaryAction = lazy(() => import('./dictionary-action/DictionaryAction.tsx'));
 
 const PRELOAD_RECOVERY_KEY = 'bia-vite-preload-recovery';
 const PRELOAD_RECOVERY_COOLDOWN_MS = 30_000;
@@ -25,9 +27,13 @@ window.addEventListener('vite:preloadError', (event) => {
 });
 
 const renderApplication = () => {
-  const legal = new URLSearchParams(window.location.search).get('legal');
+  const searchParams = new URLSearchParams(window.location.search);
+  const legal = searchParams.get('legal');
+  const app = searchParams.get('app');
   const initialView = legal === 'terms' || legal === 'privacy'
     ? <LegalPage kind={legal} />
+    : app === 'dictionary-action'
+      ? <Suspense fallback={<div role="status" className="p-8 text-center text-sm text-white/70">Carregando Dictionary Action...</div>}><DictionaryAction /></Suspense>
     : <App />;
 
   createRoot(document.getElementById('root')!).render(

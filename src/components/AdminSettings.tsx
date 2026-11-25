@@ -258,8 +258,8 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
 
   // App Order and Global Availability Configuration
   const [appConfig, setAppConfig] = useState<GlobalAppConfig>({
-    studentAppOrder: ['home', 'actionstreet', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'readclub', 'flashcards', 'holybible', 'brazilianhq', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'studytime', 'feedback', 'settings'],
-    adminAppOrder: ['home', 'work', 'actionstreet', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'flashcards', 'holybible', 'brazilianhq', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'studytime', 'settings'],
+    studentAppOrder: ['home', 'actionstreet', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'readclub', 'flashcards', 'holybible', 'brazilianhq', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'dictionaryaction', 'youtube', 'studytime', 'feedback', 'settings'],
+    adminAppOrder: ['home', 'work', 'actionstreet', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'flashcards', 'holybible', 'brazilianhq', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'dictionaryaction', 'youtube', 'studytime', 'settings'],
     studentGlobalEnabled: {
       home: true,
       actionstreet: true,

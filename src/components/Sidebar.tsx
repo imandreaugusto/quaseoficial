@@ -33,6 +33,7 @@ import {
   Plus,
   MapPin,
   Layers,
+  BookOpen,
 } from 'lucide-react';
 import { UserProfile, GlobalAppConfig } from '../types';
 import { ensureAdminAppsInOrder, ensureAppAfter, ensureStudentAppsInOrder } from '../lib/appMenuOrder';
@@ -98,6 +99,7 @@ const ALL_STUDENT_ITEMS = [
   { id: 'biacompare', label: 'BIA Compare', icon: Sparkles },
   { id: 'conversation', label: 'Conversação IA', icon: Mic },
   { id: 'tradutor', label: 'Tradutor Cultural', icon: Languages },
+  { id: 'dictionaryaction', label: 'Dictionary Action', icon: BookOpen },
   { id: 'youtube', label: 'Brazilian Music', icon: Music },
   { id: 'studytime', label: 'Study Time', icon: StudyTimeIcon },
   { id: 'feedback', label: 'Feedback', icon: MessageSquareText },
@@ -278,6 +280,7 @@ const ALL_ADMIN_ITEMS = [
   { id: 'biacompare', label: 'BIA Compare', icon: Sparkles },
   { id: 'conversation', label: 'Brazilian Conversation', icon: Mic },
   { id: 'tradutor', label: 'Brazilian Tradutor', icon: Languages },
+  { id: 'dictionaryaction', label: 'Dictionary Action', icon: BookOpen },
   { id: 'youtube', label: 'Brazilian Music', icon: Music },
   { id: 'studytime', label: 'Study Time', icon: StudyTimeIcon },
   { id: 'feedback', label: 'Feedback dos alunos', icon: MessageSquareText },
@@ -306,8 +309,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [showInstallHelp, setShowInstallHelp] = useState(false);
   const [installError, setInstallError] = useState('');
   const [appConfig, setAppConfig] = useState<GlobalAppConfig>({
-    studentAppOrder: ['home', 'actionstreet', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'readclub', 'flashcards', 'holybible', 'brazilianhq', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'studytime', 'feedback', 'settings'],
-    adminAppOrder: ['home', 'work', 'actionstreet', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'flashcards', 'holybible', 'brazilianhq', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'youtube', 'studytime', 'settings'],
+    studentAppOrder: ['home', 'actionstreet', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'readclub', 'flashcards', 'holybible', 'brazilianhq', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'dictionaryaction', 'youtube', 'studytime', 'feedback', 'settings'],
+    adminAppOrder: ['home', 'work', 'actionstreet', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'flashcards', 'holybible', 'brazilianhq', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'dictionaryaction', 'youtube', 'studytime', 'settings'],
     studentGlobalEnabled: {
       actionstreet: true,
       brazilianfriends: true,
@@ -476,8 +479,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const effectiveStudentOrder = appConfig.studentAppOrder.includes('home')
     ? appConfig.studentAppOrder
     : ['home', ...appConfig.studentAppOrder];
+  const studentOrderWithDictionary = effectiveStudentOrder.includes('dictionaryaction')
+    ? effectiveStudentOrder
+    : (() => {
+        const tradutorIndex = effectiveStudentOrder.indexOf('tradutor');
+        const insertionIndex = tradutorIndex >= 0 ? tradutorIndex + 1 : effectiveStudentOrder.length;
+        return [
+          ...effectiveStudentOrder.slice(0, insertionIndex),
+          'dictionaryaction',
+          ...effectiveStudentOrder.slice(insertionIndex),
+        ];
+      })();
 
-  const studentItems = ensureAppAfter(effectiveStudentOrder, 'holybible', 'readclub')
+  const studentItems = ensureAppAfter(studentOrderWithDictionary, 'holybible', 'readclub')
     .map((appId) => ALL_STUDENT_ITEMS.find((item) => item.id === appId))
     .filter((item): item is typeof ALL_STUDENT_ITEMS[number] => {
       if (!item) return false;
@@ -487,8 +501,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
     });
 
   // Build Ordered Admin Items
+  const adminOrderWithDictionary = appConfig.adminAppOrder.includes('dictionaryaction')
+    ? appConfig.adminAppOrder
+    : (() => {
+        const tradutorIndex = appConfig.adminAppOrder.indexOf('tradutor');
+        const insertionIndex = tradutorIndex >= 0 ? tradutorIndex + 1 : appConfig.adminAppOrder.length;
+        return [
+          ...appConfig.adminAppOrder.slice(0, insertionIndex),
+          'dictionaryaction',
+          ...appConfig.adminAppOrder.slice(insertionIndex),
+        ];
+      })();
   const adminItems = ensureAppAfter(
-    ensureAppAfter(appConfig.adminAppOrder, 'holybible', 'readclub'),
+    ensureAppAfter(adminOrderWithDictionary, 'holybible', 'readclub'),
     'flashcards',
     'readclub',
   )

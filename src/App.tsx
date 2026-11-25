@@ -26,6 +26,7 @@ const AdminFeedbackPanel = lazy(() => import('./components/AdminFeedbackPanel').
 const StudentFeedback = lazy(() => import('./components/StudentFeedback').then(({ StudentFeedback }) => ({ default: StudentFeedback })));
 const PixPaymentScreen = lazy(() => import('./components/PixPaymentScreen').then(({ PixPaymentScreen }) => ({ default: PixPaymentScreen })));
 const ActionStreet = lazy(() => import('./components/ActionStreet/ActionStreet').then(mod => ({ default: mod.default })));
+const DictionaryAction = lazy(() => import('./dictionary-action/DictionaryAction'));
 import { DEFAULT_YOUTUBE_LIBRARY, type YouTubeLibraryItem } from './youtubeLibrary';
 import { StoryRecordingBar } from './components/StoryRecordingBar';
 import { StudentFeedbackNotifications } from './components/StudentFeedbackNotifications';
@@ -161,6 +162,7 @@ const getRequestedStartupApp = () => {
   if (requestedApp === 'friends') return 'friends';
   if (requestedApp === 'actionstreet') return 'actionstreet';
   if (requestedApp === 'flashcards') return 'flashcards';
+  if (requestedApp === 'dictionaryaction') return 'dictionaryaction';
   return 'home';
 };
 
@@ -1446,8 +1448,8 @@ export default function App() {
       >
         <BackgroundSlideshow
           settings={settings}
-          paused={bgPaused || currentApp === 'actionstreet' || currentApp === 'flashcards'}
-          hidden={currentApp === 'actionstreet' || currentApp === 'flashcards'}
+          paused={bgPaused || currentApp === 'actionstreet' || currentApp === 'flashcards' || currentApp === 'dictionaryaction'}
+          hidden={currentApp === 'actionstreet' || currentApp === 'flashcards' || currentApp === 'dictionaryaction'}
         />
 
         {/* Global Navigation Header with RBAC filtering (Floating islands when logged in) */}
@@ -1568,7 +1570,7 @@ export default function App() {
                 className="w-full h-full page-motion"
               >
                 <ErrorBoundary fallbackTitle="Erro ao carregar este módulo">
-                  <PageReveal enabled={settings.animOn} glassSkin={['quiz', 'conversation', 'tradutor', 'youtube', 'biacompare', 'board', 'dashboard', 'admin_settings', 'feedback', 'settings'].includes(currentApp)}>
+                  <PageReveal enabled={settings.animOn} glassSkin={['quiz', 'conversation', 'tradutor', 'dictionaryaction', 'youtube', 'biacompare', 'board', 'dashboard', 'admin_settings', 'feedback', 'settings'].includes(currentApp)}>
                   <Suspense fallback={<BiaLoadingSpinner size="lg" />}>
                   {/* HOME TAB - Accessible to all authenticated users */}
                   {currentApp === 'home' && (
@@ -1773,6 +1775,10 @@ export default function App() {
 
                   {currentApp === 'tradutor' && (
                     <BrazilianTradutor accentColor={settings.accentColor} />
+                  )}
+
+                  {currentApp === 'dictionaryaction' && (
+                    <DictionaryAction />
                   )}
 
                   {currentApp === 'biacompare' && (
