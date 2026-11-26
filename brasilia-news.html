@@ -679,7 +679,68 @@
       letter-spacing: .12em;
       text-transform: uppercase;
     }
-    .tv-header-actions { display: flex; align-items: center; gap: 6px; }
+    .tv-header-actions { display: flex; align-items: center; gap: 7px; }
+    .tv-info-wrap { position: relative; display: grid; place-items: center; }
+    .tv-info-button {
+      display: grid;
+      width: 23px;
+      height: 23px;
+      place-items: center;
+      padding: 0;
+      border: 1px solid rgba(103, 91, 75, .32);
+      border-radius: 50%;
+      background: rgba(255, 255, 255, .36);
+      color: #766e62;
+      font: 600 12px/1 Georgia, serif;
+      opacity: .76;
+      cursor: help;
+      transition: background-color .16s ease, border-color .16s ease, color .16s ease, opacity .16s ease;
+    }
+    .tv-info-wrap[data-open="true"] .tv-info-button,
+    .tv-info-button:focus-visible { border-color: #9c3d36; background: #fff; color: #9c3d36; opacity: 1; }
+    .tv-copyright-popover {
+      position: absolute;
+      z-index: 20;
+      top: calc(100% + 9px);
+      right: 0;
+      width: min(340px, calc(100vw - 48px));
+      padding: 13px 15px;
+      border: 1px solid rgba(111, 85, 59, .2);
+      border-radius: 12px;
+      background: rgba(255, 253, 248, .98);
+      color: #383229;
+      box-shadow: 0 14px 36px rgba(36, 29, 21, .2);
+      font-size: 10px;
+      line-height: 1.55;
+      letter-spacing: normal;
+      text-align: left;
+      text-transform: none;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transform: translateY(-3px) scale(.98);
+      transform-origin: top right;
+      transition: opacity .16s ease, transform .16s ease, visibility .16s ease;
+    }
+    .tv-copyright-popover strong {
+      display: block;
+      margin-bottom: 5px;
+      color: #9c3d36;
+      font-size: 9px;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+    .tv-copyright-popover p { margin: 0; }
+    .tv-info-wrap[data-open="true"] .tv-copyright-popover,
+    .tv-info-wrap:focus-within .tv-copyright-popover {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transform: translateY(0) scale(1);
+    }
+    @media (hover: hover) and (pointer: fine) {
+      .tv-info-button:hover { border-color: #9c3d36; background: #fff; color: #9c3d36; opacity: 1; }
+    }
     .tv-channel-control {
       display: flex;
       align-items: center;
@@ -849,7 +910,7 @@
     .tv-attribution a:hover { color: var(--red); }
     .tv-body[hidden] { display: none; }
     @media (prefers-reduced-motion: reduce) {
-      .tv-control-button, .tv-header-button, .tv-channel-button { transition: none; }
+      .tv-control-button, .tv-header-button, .tv-channel-button, .tv-info-button, .tv-copyright-popover { transition: none; }
     }
     .translation-tooltip {
       position: fixed;
@@ -986,6 +1047,15 @@
           </div>
           <div class="tv-header-actions">
             <span id="tv-onair" class="tv-live" hidden><span class="tv-live-dot" aria-hidden="true"></span>AO VIVO</span>
+            <div id="tv-info-wrap" class="tv-info-wrap">
+              <button id="tv-info-button" class="tv-info-button" type="button" aria-label="Informações sobre direitos autorais da Brazilian TV" aria-controls="tv-copyright-popover" aria-describedby="tv-copyright-popover" aria-expanded="false">
+                <span aria-hidden="true">i</span>
+              </button>
+              <div id="tv-copyright-popover" class="tv-copyright-popover" role="tooltip">
+                <strong>Aviso de Direitos Autorais</strong>
+                <p>As transmissões exibidas na Brazilian TV são sinais oficiais abertos e gratuitos (FAST TV e Domínio Público), reproduzidos diretamente dos servidores públicos das respectivas emissoras exclusivamente para fins educacionais e prática do idioma inglês. Não hospedamos nem alteramos os sinais. Todos os direitos de imagem, áudio e marcas registradas pertencem aos seus respectivos detentores.</p>
+              </div>
+            </div>
             <button id="tv-minimize-button" class="tv-header-button" type="button" aria-label="Minimizar Brazilian TV" aria-controls="tv-body" aria-expanded="true">
               <i data-lucide="minus" aria-hidden="true"></i>
             </button>
@@ -996,8 +1066,15 @@
             <span>Canal</span>
             <select id="tv-channel-select" aria-label="Selecionar canal da Brazilian TV">
               <option value="voa">VOA English TV</option>
-              <option value="bloomberg">Bloomberg TV</option>
-              <option value="cbs">CBS News</option>
+              <option value="cbs">CBS News 24/7</option>
+              <option value="fox-weather">Fox Weather</option>
+              <option value="newsmax2">Newsmax2</option>
+              <option value="bloomberg">Bloomberg TV US</option>
+              <option value="dw-news">DW News</option>
+              <option value="france24">France 24 English</option>
+              <option value="sky-news">Sky News</option>
+              <option value="abc-australia">ABC News Australia</option>
+              <option value="cheddar">Cheddar News</option>
             </select>
           </label>
           <div id="tv-screen" class="tv-screen">
@@ -1131,17 +1208,53 @@
           streamUrl: "https://voa-ingest.akamaized.net/hls/live/2033876/tvmc07/playlist.m3u8",
           attribution: "Sinal oficial da VOA English TV, reproduzido nesta TV."
         },
-        bloomberg: {
-          name: "Bloomberg TV",
-          streamUrl: "https://www.bloomberg.com/media-manifest/streams/us.m3u8",
-          attribution: "Sinal ao vivo da Bloomberg TV, reproduzido nesta TV."
-        },
         cbs: {
-          name: "CBS News",
+          name: "CBS News 24/7",
           streamUrl: "https://cbsn-us.cbsnstream.cbsnews.com/out/v1/55a8648e8f134e82a470f83d562deeca/master.m3u8",
-          attribution: "Sinal ao vivo da CBS News, reproduzido nesta TV."
+          attribution: "Sinal ao vivo da CBS News 24/7, reproduzido nesta TV."
+        },
+        "fox-weather": {
+          name: "Fox Weather",
+          streamUrl: "https://247wlive.foxweather.com/stream/index.m3u8",
+          attribution: "Sinal ao vivo da Fox Weather, reproduzido nesta TV."
+        },
+        newsmax2: {
+          name: "Newsmax2",
+          streamUrl: "https://nmxlive.akamaized.net/hls/live/529965/Live_1/index.m3u8",
+          attribution: "Sinal ao vivo da Newsmax2, reproduzido nesta TV."
+        },
+        bloomberg: {
+          name: "Bloomberg TV US",
+          streamUrl: "https://bloomberg.com/media-manifest/streams/us.m3u8",
+          attribution: "Sinal ao vivo da Bloomberg TV US, reproduzido nesta TV."
+        },
+        "dw-news": {
+          name: "DW News",
+          streamUrl: "https://dwamdstream102.akamaized.net/hls/live/2015525/dwstream102/index.m3u8",
+          attribution: "Sinal ao vivo da DW News, reproduzido nesta TV."
+        },
+        france24: {
+          name: "France 24 English",
+          streamUrl: "https://live.france24.com/hls/live/2037218/F24_EN_HI_HLS/master_5000.m3u8",
+          attribution: "Sinal ao vivo da France 24 English, reproduzido nesta TV."
+        },
+        "sky-news": {
+          name: "Sky News",
+          streamUrl: "https://skynewsau-live.akamaized.net/hls/live/2002689/skynewsau-extra1/master.m3u8",
+          attribution: "Sinal ao vivo da Sky News, reproduzido nesta TV."
+        },
+        "abc-australia": {
+          name: "ABC News Australia",
+          streamUrl: "https://abc-news-dmd-streams-1.akamaized.net/out/v1/701126012d044971b3fa89406a440133/index.m3u8",
+          attribution: "Sinal ao vivo da ABC News Australia, reproduzido nesta TV."
+        },
+        cheddar: {
+          name: "Cheddar News",
+          streamUrl: "https://hls.livecdn.io/cheddar.com/cheddar/playlist.m3u8",
+          attribution: "Sinal ao vivo da Cheddar News, reproduzido nesta TV."
         }
       };
+      const TV_CHANNEL_ORDER = Object.keys(TV_CHANNELS);
       const REMINDER_MESSAGES = [
         "Que tal alguns minutos de inglês com as manchetes de hoje?",
         "Uma manchete em inglês pode ser seu próximo pequeno passo da semana.",
@@ -1187,14 +1300,19 @@
       const tvAttribution = document.getElementById("tv-attribution");
       const tvBody = document.getElementById("tv-body");
       const tvMinimizeButton = document.getElementById("tv-minimize-button");
+      const tvInfoWrap = document.getElementById("tv-info-wrap");
+      const tvInfoButton = document.getElementById("tv-info-button");
       const translationTooltip = document.getElementById("translation-tooltip");
       const audioStatus = document.getElementById("audio-status");
       const speechSupported = "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
       const feedState = new Map();
       let activeHls = null;
+      let nativeTvErrorHandler = null;
+      let tvStreamStartupTimer = null;
       let activeTvChannelId = "voa";
       let tvStreamUnavailable = false;
       let tvStreamGeneration = 0;
+      const tvFailedChannels = new Set();
       let tickerAnimation = null;
       let currentStory = null;
       let fontSize = 18;
@@ -2008,16 +2126,51 @@
         updateTvPlayButton(false);
       }
 
+      function stopTvStream() {
+        if (tvStreamStartupTimer !== null) {
+          window.clearTimeout(tvStreamStartupTimer);
+          tvStreamStartupTimer = null;
+        }
+        if (nativeTvErrorHandler) {
+          tvVideo.removeEventListener("error", nativeTvErrorHandler);
+          nativeTvErrorHandler = null;
+        }
+        if (activeHls) {
+          const hls = activeHls;
+          activeHls = null;
+          hls.stopLoad();
+          window.setTimeout(() => hls.destroy(), 0);
+        }
+        tvVideo.pause();
+        tvVideo.removeAttribute("src");
+        tvVideo.load();
+      }
+
+      function failoverTvChannel(channelId, generation) {
+        if (generation !== tvStreamGeneration || tvFailedChannels.has(channelId)) return;
+        tvFailedChannels.add(channelId);
+        const nextChannelId = TV_CHANNEL_ORDER.find((id) => !tvFailedChannels.has(id));
+        if (!nextChannelId) {
+          tvStreamGeneration += 1;
+          stopTvStream();
+          showTvUnavailable("Nenhum dos canais disponíveis conseguiu iniciar. Escolha um canal ou tente novamente.");
+          return;
+        }
+
+        tvChannelSelect.value = nextChannelId;
+        switchTvChannel(true);
+      }
+
       async function startTvPlayback(generation = tvStreamGeneration) {
         try {
           await tvVideo.play();
-          if (generation !== tvStreamGeneration || tvStreamUnavailable) return;
+          if (generation !== tvStreamGeneration || tvStreamUnavailable || tvVideo.paused) return;
           tvPlaceholder.hidden = true;
           tvOnAir.hidden = false;
           tvStatus.textContent = tvVideo.muted ? "Ao vivo · sem som" : "Ao vivo · som ativado";
           updateTvPlayButton(true);
         } catch (error) {
-          if (generation !== tvStreamGeneration || tvStreamUnavailable) return;
+          if (generation !== tvStreamGeneration || tvStreamUnavailable || tvVideo.paused) return;
           tvPlaceholderTitle.textContent = "Pronto para assistir";
           tvPlaceholderCopy.textContent = "O navegador bloqueou o início automático. Pressione reproduzir para continuar.";
           tvPlaceholder.hidden = false;
@@ -2029,11 +2182,16 @@
 
       function startTvStream() {
         const generation = ++tvStreamGeneration;
+        const channelId = activeTvChannelId;
         tvStreamUnavailable = false;
-        const channel = TV_CHANNELS[activeTvChannelId];
+        const channel = TV_CHANNELS[channelId];
         tvVideo.muted = true;
         tvVideo.volume = Number(tvVolumeSlider.value);
         updateTvVolumeButton();
+        tvStreamStartupTimer = window.setTimeout(() => {
+          failoverTvChannel(channelId, generation);
+        }, 15000);
+
         if (window.Hls && window.Hls.isSupported()) {
           const hls = new window.Hls({
             enableWorker: true,
@@ -2044,23 +2202,20 @@
           });
           let fatalErrorHandled = false;
           activeHls = hls;
-          hls.on(window.Hls.Events.MEDIA_ATTACHED, () => hls.loadSource(channel.streamUrl));
-          hls.on(window.Hls.Events.MANIFEST_PARSED, () => { void startTvPlayback(generation); });
+          hls.on(window.Hls.Events.MEDIA_ATTACHED, () => {
+            if (generation === tvStreamGeneration && activeHls === hls) hls.loadSource(channel.streamUrl);
+          });
+          hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
+            if (generation !== tvStreamGeneration) return;
+            window.clearTimeout(tvStreamStartupTimer);
+            tvStreamStartupTimer = null;
+            void startTvPlayback(generation);
+          });
           hls.on(window.Hls.Events.ERROR, (event, data) => {
-            if (!data.fatal || fatalErrorHandled) return;
+            if (!data.fatal || fatalErrorHandled || generation !== tvStreamGeneration) return;
             fatalErrorHandled = true;
             console.error(`${channel.name} HLS stream failed:`, data.type, data.details);
-            const isCodecError = String(data.details).toLowerCase().includes("codec");
-            const message = isCodecError
-              ? "Não foi possível reproduzir este canal. Tente outro canal ou volte mais tarde."
-              : `${channel.name} não está entregando o sinal agora. Tente novamente mais tarde.`;
-            showTvUnavailable(message);
-            if (activeHls === hls) activeHls = null;
-            hls.stopLoad();
-            tvVideo.pause();
-            tvVideo.removeAttribute("src");
-            tvVideo.load();
-            window.setTimeout(() => hls.destroy(), 0);
+            failoverTvChannel(channelId, generation);
           });
           hls.attachMedia(tvVideo);
           return;
@@ -2069,28 +2224,24 @@
         if (tvVideo.canPlayType("application/vnd.apple.mpegurl")) {
           tvVideo.src = channel.streamUrl;
           tvVideo.addEventListener("loadedmetadata", () => { void startTvPlayback(generation); }, { once: true });
-          tvVideo.addEventListener("error", () => {
-            showTvUnavailable(`${channel.name} não está entregando o sinal agora. Tente novamente mais tarde.`);
-          }, { once: true });
+          nativeTvErrorHandler = () => {
+            if (generation === tvStreamGeneration) failoverTvChannel(channelId, generation);
+          };
+          tvVideo.addEventListener("error", nativeTvErrorHandler, { once: true });
           tvVideo.load();
           return;
         }
 
-        showTvUnavailable("Não foi possível reproduzir este canal neste navegador.");
+        failoverTvChannel(channelId, generation);
       }
 
-      function switchTvChannel() {
+      function switchTvChannel(automatic = false) {
         const channelId = tvChannelSelect.value;
         const channel = TV_CHANNELS[channelId];
         if (!channel || channelId === activeTvChannelId) return;
 
-        if (activeHls) {
-          activeHls.destroy();
-          activeHls = null;
-        }
-        tvVideo.pause();
-        tvVideo.removeAttribute("src");
-        tvVideo.load();
+        if (!automatic) tvFailedChannels.clear();
+        stopTvStream();
         activeTvChannelId = channelId;
         tvVideo.setAttribute("aria-label", `Transmissão ao vivo ${channel.name}`);
         tvAttribution.textContent = channel.attribution;
@@ -2106,6 +2257,10 @@
       async function toggleTvPlayback() {
         if (tvVideo.paused) {
           if (!activeHls && !tvVideo.currentSrc) {
+            tvFailedChannels.clear();
+            tvPlaceholderTitle.textContent = `Conectando à ${TV_CHANNELS[activeTvChannelId].name}`;
+            tvPlaceholderCopy.textContent = "A transmissão está sendo carregada sem som.";
+            tvStatus.textContent = "Tentando iniciar a transmissão…";
             startTvStream();
             return;
           }
@@ -2113,7 +2268,6 @@
           return;
         }
         tvVideo.pause();
-        tvStreamGeneration += 1;
         tvOnAir.hidden = true;
         tvStatus.textContent = "Transmissão pausada.";
         updateTvPlayButton(false);
@@ -2158,6 +2312,11 @@
         }
       }
 
+      function setTvInfoOpen(isOpen) {
+        tvInfoWrap.dataset.open = String(isOpen);
+        tvInfoButton.setAttribute("aria-expanded", String(isOpen));
+      }
+
       FEEDS.forEach(renderPaper);
       renderIcons();
       updateReadingProgress();
@@ -2167,7 +2326,24 @@
       tvVideo.muted = true;
       updateTvVolumeButton();
       startTvStream();
-      tvChannelSelect.addEventListener("change", switchTvChannel);
+      tvChannelSelect.addEventListener("change", () => switchTvChannel());
+      tvInfoWrap.addEventListener("pointerenter", () => setTvInfoOpen(true));
+      tvInfoWrap.addEventListener("pointerleave", () => {
+        if (!tvInfoWrap.contains(document.activeElement)) setTvInfoOpen(false);
+      });
+      tvInfoWrap.addEventListener("focusin", () => setTvInfoOpen(true));
+      tvInfoWrap.addEventListener("focusout", (event) => {
+        if (!tvInfoWrap.contains(event.relatedTarget) && !tvInfoWrap.matches(":hover")) setTvInfoOpen(false);
+      });
+      tvInfoButton.addEventListener("click", () => setTvInfoOpen(true));
+      document.addEventListener("pointerdown", (event) => {
+        if (!tvInfoWrap.contains(event.target) && !tvInfoWrap.contains(document.activeElement)) setTvInfoOpen(false);
+      });
+      document.addEventListener("keydown", (event) => {
+        if (event.key !== "Escape" || tvInfoWrap.dataset.open !== "true") return;
+        setTvInfoOpen(false);
+        tvInfoButton.blur();
+      });
 
       tvVolumeButton.addEventListener("click", () => {
         const isMuted = tvVideo.muted || tvVideo.volume === 0;
