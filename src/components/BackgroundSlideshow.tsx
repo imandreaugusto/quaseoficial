@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { MapPin } from 'lucide-react';
 import type { AppSettings } from '../types';
@@ -73,6 +73,45 @@ export function BackgroundSlideshow({ settings, paused, hidden = false }: Backgr
   const [incomingIndex, setIncomingIndex] = useState<number | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
+  const advanceToNext = useCallback(() => {
+    const startsNewSequence = currentPosition + 1 >= sequence.length;
+    const nextSequence = startsNewSequence
+      ? shuffleMediaIndexes(currentIndex)
+      : sequence;
+    const nextPosition = startsNewSequence ? 0 : currentPosition + 1;
+    const nextIndex = nextSequence[nextPosition] ?? currentIndex;
+
+    if (startsNewSequence) setSequence(nextSequence);
+    setCurrentPosition(nextPosition);
+
+    const nextSlide = mediaSlides[nextIndex];
+    if (nextSlide.kind === 'video') {
+      setIncomingIndex(nextIndex);
+      return;
+    }
+
+    const preloadedImage = new Image();
+    let handled = false;
+    const showPreloadedSlide = () => {
+      if (handled) return;
+      handled = true;
+      setIncomingIndex(nextIndex);
+    };
+
+    preloadedImage.onload = showPreloadedSlide;
+    preloadedImage.onerror = () => {
+      if (handled) return;
+      handled = true;
+      console.error('Background slideshow image failed to load:', nextSlide.url);
+      setIncomingIndex(null);
+    };
+    preloadedImage.src = nextSlide.url;
+    if (preloadedImage.complete) {
+      if (preloadedImage.naturalWidth > 0) showPreloadedSlide();
+      else preloadedImage.onerror?.(new Event('error'));
+    }
+  }, [currentIndex, currentPosition, sequence]);
+
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -81,55 +120,24 @@ export function BackgroundSlideshow({ settings, paused, hidden = false }: Backgr
   }, [paused, incomingIndex, currentIndex]);
 
   useEffect(() => {
-    if (hidden || !settings.bgEnabled || paused || incomingIndex !== null) return;
+    if (
+      hidden ||
+      !settings.bgEnabled ||
+      paused ||
+      incomingIndex !== null ||
+      mediaSlides[currentIndex].kind === 'video'
+    ) return;
 
-    let active = true;
     const slideDuration =
       (settings.bgInterval && settings.bgInterval > 0 ? settings.bgInterval : 8) * 1000;
     const slideTimer = window.setTimeout(() => {
-      const startsNewSequence = currentPosition + 1 >= sequence.length;
-      const nextSequence = startsNewSequence
-        ? shuffleMediaIndexes(currentIndex)
-        : sequence;
-      const nextPosition = startsNewSequence ? 0 : currentPosition + 1;
-      const nextIndex = nextSequence[nextPosition] ?? currentIndex;
-
-      if (startsNewSequence) setSequence(nextSequence);
-      setCurrentPosition(nextPosition);
-
-      const nextSlide = mediaSlides[nextIndex];
-      if (nextSlide.kind === 'video') {
-        setIncomingIndex(nextIndex);
-        return;
-      }
-
-      const preloadedImage = new Image();
-      let handled = false;
-      const showPreloadedSlide = () => {
-        if (!active || handled) return;
-        handled = true;
-        setIncomingIndex(nextIndex);
-      };
-
-      preloadedImage.onload = showPreloadedSlide;
-      preloadedImage.onerror = () => {
-        if (!active || handled) return;
-        handled = true;
-        console.error('Background slideshow image failed to load:', nextSlide.url);
-        setIncomingIndex(null);
-      };
-      preloadedImage.src = nextSlide.url;
-      if (preloadedImage.complete) {
-        if (preloadedImage.naturalWidth > 0) showPreloadedSlide();
-        else preloadedImage.onerror?.(new Event('error'));
-      }
+      advanceToNext();
     }, slideDuration);
 
     return () => {
-      active = false;
       window.clearTimeout(slideTimer);
     };
-  }, [currentIndex, currentPosition, hidden, incomingIndex, paused, sequence, settings.bgEnabled, settings.bgInterval]);
+  }, [advanceToNext, currentIndex, hidden, incomingIndex, paused, settings.bgEnabled, settings.bgInterval]);
 
   useEffect(() => {
     if (incomingIndex === null) return;
@@ -155,10 +163,10 @@ export function BackgroundSlideshow({ settings, paused, hidden = false }: Backgr
           style={{ opacity, filter: brightness(settings) }}
           src={slide.url}
           autoPlay
-          loop
           muted
           playsInline
           preload="auto"
+          onEnded={key === 'current' ? advanceToNext : undefined}
           aria-hidden="true"
         />
       );
