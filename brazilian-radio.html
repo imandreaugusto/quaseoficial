@@ -237,9 +237,15 @@
     .station-about { display: none; margin: 13px 0 0; max-width: 680px; color: #C4C1BA; font-size: 11px; line-height: 1.7; }
     .station-about.open { display: block; }
     .deck {
+      position: relative; z-index: 5;
       display: grid; grid-template-columns: 1fr auto 1fr; gap: 18px;
       align-items: center; padding: 16px 10px 10px;
       border-top: 1px solid rgba(255,255,255,.08);
+    }
+    .deck button {
+      position: relative; z-index: 6;
+      visibility: visible !important;
+      opacity: 1 !important;
     }
     .transport { display: flex; align-items: center; gap: 10px; }
     .transport button, .icon-control {
@@ -404,6 +410,17 @@
       color: #FFFFFF;
     }
     .photo-background .transport .play-button:hover { background: #D84D64; }
+    .photo-background .transport button:not(.play-button),
+    .photo-background .icon-control {
+      border-color: rgba(255, 255, 255, .62);
+      background: rgba(15, 36, 30, .96);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, .28);
+    }
+    .photo-background .transport button:not(.play-button):hover,
+    .photo-background .icon-control:hover {
+      border-color: #FFFFFF;
+      background: #22473D;
+    }
     .photo-background .volume-control i { color: rgba(239, 236, 228, .8); }
     .photo-background input[type="range"] { accent-color: #E65A70; }
     .photo-background .topbar { border-color: rgba(255, 255, 255, .32); color: #F7F5EF; }
@@ -1491,6 +1508,15 @@
       });
       createEqualizer();
       renderStation(0, false);
+      loadStation(getCurrentStation());
+      playRadio();
+      const startAfterFirstGesture = () => {
+        if (audio.paused) playRadio();
+        document.removeEventListener("pointerdown", startAfterFirstGesture);
+        document.removeEventListener("keydown", startAfterFirstGesture);
+      };
+      document.addEventListener("pointerdown", startAfterFirstGesture, { once: true });
+      document.addEventListener("keydown", startAfterFirstGesture, { once: true });
       renderVocabulary();
       updateDailyDisplay();
       registerMediaSessionHandlers();

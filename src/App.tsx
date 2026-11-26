@@ -1796,6 +1796,7 @@ export default function App() {
                     <iframe
                       title="Brazilian Radio"
                       src="/brazilian-radio.html"
+                      allow="autoplay"
                       className="w-full border-0"
                       style={{ height: 'calc(100vh - 5rem)', minHeight: '680px' }}
                     />
