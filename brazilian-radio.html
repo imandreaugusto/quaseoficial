@@ -70,6 +70,61 @@
       font-size: 11px;
       letter-spacing: .045em;
     }
+    .official-menu-toggle {
+      display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto;
+      padding: 8px 10px 8px 0; border: 0; background: transparent;
+      color: var(--ink); cursor: pointer; font-size: 10px; font-weight: 700;
+      letter-spacing: .08em; text-transform: uppercase;
+    }
+    .official-menu-toggle:hover { color: var(--red); }
+    .official-menu-toggle i { width: 18px; height: 18px; }
+    .official-menu-toggle[hidden] { display: none; }
+    .official-menu-backdrop {
+      position: fixed; z-index: 20; inset: 0; padding: 0; border: 0;
+      background: rgba(20, 20, 20, .42); cursor: default;
+    }
+    .official-menu-backdrop[hidden], .official-menu-panel[hidden] { display: none; }
+    .official-menu-panel {
+      position: fixed; z-index: 21; inset: 0 auto 0 0; width: min(320px, calc(100vw - 28px));
+      display: flex; flex-direction: column; padding: 23px 20px;
+      color: #F7F5EF; background: #141414; border-right: 1px solid #2E2E2E;
+      box-shadow: 12px 0 35px rgba(0, 0, 0, .2);
+      transform: translateX(-105%); transition: transform .24s ease;
+    }
+    .official-menu-panel.open { transform: translateX(0); }
+    .official-menu-head {
+      display: flex; justify-content: space-between; align-items: start; gap: 12px;
+      padding-bottom: 20px; border-bottom: 1px solid #363530;
+    }
+    .official-menu-brand { font: 700 19px/1.2 var(--serif); }
+    .official-menu-caption { margin-top: 5px; color: #AAA79F; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; }
+    .official-menu-close {
+      display: grid; place-items: center; width: 34px; height: 34px;
+      border: 1px solid #48463F; background: transparent; color: white; cursor: pointer;
+    }
+    .official-menu-close:hover { background: #2A2925; }
+    .official-menu-close i { width: 17px; height: 17px; }
+    .official-menu-label {
+      margin: 22px 0 8px; color: #9B988F; font: 700 9px var(--mono);
+      letter-spacing: .13em; text-transform: uppercase;
+    }
+    .official-menu-links { display: grid; gap: 5px; }
+    .official-menu-link {
+      display: flex; align-items: center; gap: 12px; min-height: 46px; padding: 0 11px;
+      border: 1px solid transparent; color: #E8E5DD; text-decoration: none; font-size: 12px;
+      transition: background .16s ease, border-color .16s ease;
+    }
+    .official-menu-link i { width: 17px; height: 17px; color: #B7B3A9; }
+    .official-menu-link:hover { border-color: #49473F; background: #22211E; }
+    .official-menu-link[aria-current="page"] {
+      border-color: #57363C; background: #271B1D; color: white;
+    }
+    .official-menu-link[aria-current="page"] i { color: #E46175; }
+    .official-menu-foot {
+      margin-top: auto; padding-top: 18px; border-top: 1px solid #363530;
+      color: #AAA79F; font-size: 10px; line-height: 1.65;
+    }
+    .official-menu-foot a { display: inline-block; margin-top: 10px; color: white; text-underline-offset: 3px; }
     .lab-label { display: flex; align-items: center; gap: 10px; min-width: 0; font-weight: 700; }
     .lab-label .dash { width: 20px; height: 1px; background: var(--red); }
     .info-wrap { position: relative; display: inline-flex; }
@@ -324,6 +379,8 @@
       .page-shell { width: min(100% - 28px, 920px); }
       .topbar { align-items: flex-start; padding: 12px 0; }
       .lab-label { max-width: 190px; line-height: 1.5; font-size: 9px; }
+      .official-menu-toggle { gap: 5px; padding-right: 3px; font-size: 9px; }
+      .official-menu-toggle i { width: 17px; height: 17px; }
       .daily-summary { display: block; }
       .daily-copy { font-size: 9px; }
       .daily-copy span { display: block; margin: 0; }
@@ -364,8 +421,31 @@
   </style>
 </head>
 <body>
+  <button class="official-menu-backdrop" id="officialMenuBackdrop" type="button" aria-label="Close site menu" hidden></button>
+  <aside class="official-menu-panel" id="officialMenuPanel" role="dialog" aria-modal="true" aria-label="Brazilian in Action site menu" aria-hidden="true" hidden>
+    <div class="official-menu-head">
+      <div>
+        <div class="official-menu-brand">Brazilian in Action</div>
+        <div class="official-menu-caption">Official site navigation</div>
+      </div>
+      <button class="official-menu-close" id="officialMenuClose" type="button" aria-label="Close menu"><i data-lucide="x" aria-hidden="true"></i></button>
+    </div>
+    <p class="official-menu-label">Learning modules</p>
+    <nav class="official-menu-links" aria-label="Site pages">
+      <a class="official-menu-link" href="./" id="homeMenuLink"><i data-lucide="house" aria-hidden="true"></i><span>Home</span></a>
+      <a class="official-menu-link" href="./brasilia-news.html"><i data-lucide="newspaper" aria-hidden="true"></i><span>Brazilian News</span></a>
+      <a class="official-menu-link" href="./brazilian-radio.html" aria-current="page"><i data-lucide="radio" aria-hidden="true"></i><span>Brazilian Radio</span></a>
+    </nav>
+    <div class="official-menu-foot">
+      For the complete student and account menu, open the main platform and sign in.
+      <a href="./" id="platformMenuLink">Open Brazilian in Action platform</a>
+    </div>
+  </aside>
   <header class="page-shell topbar">
     <div class="lab-label">
+      <button class="official-menu-toggle" id="officialMenuToggle" type="button" aria-label="Open Brazilian in Action site menu" aria-expanded="false" aria-controls="officialMenuPanel">
+        <i data-lucide="menu" aria-hidden="true"></i><span>Menu</span>
+      </button>
       <span class="dash" aria-hidden="true"></span>
       <span>Brazilian in Action — Audio Immersion Lab</span>
       <span class="info-wrap" id="infoWrap">
@@ -557,6 +637,7 @@
       const eqRoot = $("#equalizer");
       const clockFormatters = new Map();
       const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const embeddedInPlatform = window.parent !== window;
       let favorites = readStored(STORAGE.favorites, []);
       let vocabulary = readStored(STORAGE.vocabulary, []);
       if (!Array.isArray(favorites)) favorites = [];
@@ -576,6 +657,7 @@
       let timerInterval = null;
       let fadeTween = null;
       let translating = false;
+      let menuOpener = null;
 
       function readStored(key, fallback) {
         try {
@@ -598,6 +680,34 @@
       function refreshIcons() {
         if (window.lucide && typeof window.lucide.createIcons === "function") {
           window.lucide.createIcons();
+        }
+      }
+
+      function setOfficialMenuOpen(open) {
+        const panel = $("#officialMenuPanel");
+        const toggle = $("#officialMenuToggle");
+        const backdrop = $("#officialMenuBackdrop");
+        if (embeddedInPlatform) {
+          toggle.hidden = true;
+          return;
+        }
+        panel.hidden = !open;
+        backdrop.hidden = !open;
+        toggle.setAttribute("aria-expanded", String(open));
+        panel.setAttribute("aria-hidden", String(!open));
+        if (open) {
+          menuOpener = document.activeElement;
+          requestAnimationFrame(() => {
+            panel.classList.add("open");
+            $("#officialMenuClose").focus();
+          });
+        } else {
+          panel.classList.remove("open");
+          if (menuOpener && typeof menuOpener.focus === "function") menuOpener.focus();
+          menuOpener = null;
+          window.setTimeout(() => {
+            if (!panel.classList.contains("open")) panel.hidden = true;
+          }, reducedMotion ? 30 : 270);
         }
       }
 
@@ -794,7 +904,6 @@
             if (data.fatal) showAudioError(`This stream could not be loaded (${data.details || "network error"}). Try another station.`);
           });
         } else {
-          audio.crossOrigin = "anonymous";
           audio.src = url;
           audio.load();
         }
@@ -1134,6 +1243,32 @@
         const open = wrap.classList.toggle("open");
         $("#infoButton").setAttribute("aria-expanded", String(open));
       });
+      $("#officialMenuToggle").addEventListener("click", () => setOfficialMenuOpen(true));
+      $("#officialMenuClose").addEventListener("click", () => setOfficialMenuOpen(false));
+      $("#officialMenuBackdrop").addEventListener("click", () => setOfficialMenuOpen(false));
+      $("#officialMenuPanel").addEventListener("click", (event) => {
+        if (event.target.closest("a")) setOfficialMenuOpen(false);
+      });
+      document.addEventListener("keydown", (event) => {
+        const panel = $("#officialMenuPanel");
+        if (panel.hidden) return;
+        if (event.key === "Escape") {
+          setOfficialMenuOpen(false);
+          return;
+        }
+        if (event.key === "Tab") {
+          const focusable = Array.from(panel.querySelectorAll("a[href], button:not([disabled])"));
+          const first = focusable[0];
+          const last = focusable[focusable.length - 1];
+          if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+          } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+          }
+        }
+      });
       $("#previousButton").addEventListener("click", (event) => { animateButton(event.currentTarget); changeStation(-1); });
       $("#nextButton").addEventListener("click", (event) => { animateButton(event.currentTarget); changeStation(1); });
       $("#playButton").addEventListener("click", (event) => { animateButton(event.currentTarget); togglePlay(); });
@@ -1197,9 +1332,9 @@
         $("#translationStatus").classList.remove("error");
       });
 
-      audio.addEventListener("playing", async () => {
+      audio.addEventListener("playing", () => {
         updatePlayState();
-        await connectAnalyser();
+        fallbackBars();
       });
       audio.addEventListener("pause", () => {
         updatePlayState();
@@ -1246,6 +1381,7 @@
       updateDailyDisplay();
       registerMediaSessionHandlers();
       setMediaPlaybackState("none");
+      if (embeddedInPlatform) $("#officialMenuToggle").hidden = true;
       refreshIcons();
     })();
   </script>
