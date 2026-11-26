@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#F9F8F4">
+  <meta name="theme-color" content="#101114">
   <meta name="description" content="A public-radio listening room for English immersion from Brazilian in Action.">
   <title>Brazilian Radio — Brazilian in Action</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -15,7 +15,6 @@
   <style>
     :root {
       color-scheme: light;
-      --paper: #F9F8F4;
       --white: #FFFFFF;
       --ink: #141414;
       --panel: #1E1E1E;
@@ -33,17 +32,33 @@
     }
 
     * { box-sizing: border-box; }
-    html { scroll-behavior: smooth; }
+    html { scroll-behavior: smooth; background: #101114; }
+    html.embedded-platform { background: transparent; }
     body {
       margin: 0;
       color: var(--ink);
-      background:
-        radial-gradient(circle at 12% 8%, rgba(199, 166, 75, .07), transparent 230px),
-        radial-gradient(circle at 88% 34%, rgba(24, 63, 53, .035), transparent 280px),
-        var(--paper);
+      position: relative;
+      isolation: isolate;
+      background: transparent;
       font-family: var(--sans);
       -webkit-font-smoothing: antialiased;
       overflow-x: hidden;
+    }
+    .radio-background {
+      position: fixed; z-index: -1; inset: 0; overflow: hidden;
+      background: #101114;
+    }
+    .radio-background[hidden] { display: none; }
+    .background-image-layer {
+      position: absolute; inset: 0; background-position: center; background-size: cover;
+      opacity: 0; filter: brightness(.58) saturate(.9);
+      transition: opacity 1.2s ease;
+    }
+    .background-image-layer.active { opacity: 1; }
+    .background-scrim {
+      position: absolute; inset: 0;
+      background: linear-gradient(180deg, rgba(7, 9, 13, .52), rgba(7, 9, 13, .32) 42%, rgba(7, 9, 13, .72));
+      pointer-events: none;
     }
     button, input { font: inherit; }
     button { color: inherit; }
@@ -114,12 +129,12 @@
       border: 1px solid transparent; color: #E8E5DD; text-decoration: none; font-size: 12px;
       transition: background .16s ease, border-color .16s ease;
     }
-    .official-menu-link i { width: 17px; height: 17px; color: #B7B3A9; }
+    .official-menu-link i, .official-menu-link svg { width: 18px; height: 18px; color: #B7B3A9; flex: 0 0 auto; }
     .official-menu-link:hover { border-color: #49473F; background: #22211E; }
     .official-menu-link[aria-current="page"] {
       border-color: #57363C; background: #271B1D; color: white;
     }
-    .official-menu-link[aria-current="page"] i { color: #E46175; }
+    .official-menu-link[aria-current="page"] i, .official-menu-link[aria-current="page"] svg { color: #E46175; }
     .official-menu-foot {
       margin-top: auto; padding-top: 18px; border-top: 1px solid #363530;
       color: #AAA79F; font-size: 10px; line-height: 1.65;
@@ -127,19 +142,6 @@
     .official-menu-foot a { display: inline-block; margin-top: 10px; color: white; text-underline-offset: 3px; }
     .lab-label { display: flex; align-items: center; gap: 10px; min-width: 0; font-weight: 700; }
     .lab-label .dash { width: 20px; height: 1px; background: var(--red); }
-    .info-wrap { position: relative; display: inline-flex; }
-    .info-button {
-      width: 22px; height: 22px; border: 1px solid #AAA69C; border-radius: 50%;
-      background: transparent; font-size: 12px; font-weight: 700; cursor: help;
-    }
-    .info-popover {
-      position: absolute; z-index: 5; top: 31px; left: 0; width: min(300px, 80vw);
-      padding: 12px 14px; border: 1px solid var(--rule); background: white;
-      box-shadow: 0 5px 16px #14141414; font-size: 12px; line-height: 1.55;
-      letter-spacing: 0; font-weight: 400; opacity: 0; visibility: hidden;
-    }
-    .info-wrap:hover .info-popover, .info-wrap:focus-within .info-popover,
-    .info-wrap.open .info-popover { opacity: 1; visibility: visible; }
     .daily-summary { display: flex; align-items: center; gap: 13px; }
     .daily-copy { text-align: right; line-height: 1.5; white-space: nowrap; }
     .daily-copy strong { font-family: var(--mono); font-size: 11px; }
@@ -367,6 +369,72 @@
       overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
     }
 
+    .photo-background { --white: rgba(18, 20, 24, .78); --ink: #F7F5EF; --rule: rgba(255, 255, 255, .24); --muted: rgba(239, 236, 228, .7); }
+    .photo-background .radio-console {
+      border-color: rgba(255, 255, 255, .24);
+      background: rgba(15, 35, 29, .72);
+      box-shadow: 0 18px 44px rgba(0, 0, 0, .24);
+      backdrop-filter: blur(12px);
+    }
+    .photo-background .display {
+      --ink: #F7F5EF;
+      background: rgba(11, 19, 17, .42);
+      border-color: rgba(255, 255, 255, .2);
+      color: #F7F5EF;
+      backdrop-filter: blur(7px);
+    }
+    .photo-background .status-line { color: rgba(239, 236, 228, .75); }
+    .photo-background .status-line.live { color: #C0E3D2; }
+    .photo-background .status-dot { color: rgba(239, 236, 228, .6); }
+    .photo-background .station-slogan { color: rgba(239, 236, 228, .75); }
+    .photo-background .station-meta { color: rgba(239, 236, 228, .84); }
+    .photo-background .station-meta i { color: rgba(239, 236, 228, .7); }
+    .photo-background .local-clock.brazil-clock { color: rgba(239, 236, 228, .72); }
+    .photo-background .accent-tag {
+      border-color: rgba(255, 255, 255, .25);
+      color: rgba(255, 255, 255, .82);
+      background: rgba(255, 255, 255, .08);
+    }
+    .photo-background .equalizer { border-color: rgba(255, 255, 255, .2); }
+    .photo-background .eq-bar { background: rgba(255, 255, 255, .72); }
+    .photo-background .eq-bar:nth-child(4n) { background: #E65A70; }
+    .photo-background .transport .play-button {
+      border-color: #E65A70;
+      background: #E65A70;
+      color: #FFFFFF;
+    }
+    .photo-background .transport .play-button:hover { background: #D84D64; }
+    .photo-background .volume-control i { color: rgba(239, 236, 228, .8); }
+    .photo-background input[type="range"] { accent-color: #E65A70; }
+    .photo-background .topbar { border-color: rgba(255, 255, 255, .32); color: #F7F5EF; }
+    .photo-background .official-menu-toggle { color: #F7F5EF; }
+    .photo-background .official-menu-toggle:hover { color: #FF9AA9; }
+    .photo-background .lab-label .dash { background: #E65A70; }
+    .photo-background .daily-copy span { color: rgba(239, 236, 228, .7); }
+    .photo-background .progress-track { background: rgba(255, 255, 255, .24); }
+    .photo-background .masthead, .photo-background .section-heading h2 { color: #FAF8F3; }
+    .photo-background .masthead p, .photo-background .section-heading p { color: rgba(244, 241, 234, .76); }
+    .photo-background .section-heading { border-color: rgba(255, 255, 255, .5); }
+    .photo-background .filter-button { border-color: rgba(255, 255, 255, .38); color: #F5F2EA; background: rgba(16, 18, 22, .58); }
+    .photo-background .filter-button:hover, .photo-background .filter-button.active { border-color: #F0EDE6; color: #151515; background: #F0EDE6; }
+    .photo-background .station-card, .photo-background .empty-state, .photo-background .vocab-card, .photo-background .vocab-empty {
+      border-color: rgba(255, 255, 255, .26); background: rgba(17, 19, 23, .79); color: #F5F2EB;
+      backdrop-filter: blur(7px);
+    }
+    .photo-background .station-card:hover { border-color: rgba(255, 255, 255, .7); }
+    .photo-background .station-card.selected { border-color: #E35269; }
+    .photo-background .station-card h3, .photo-background .vocab-word { color: #FBF9F4; }
+    .photo-background .card-country, .photo-background .station-card p, .photo-background .card-frequency,
+    .photo-background .vocab-source, .photo-background .empty-state, .photo-background .vocab-empty { color: rgba(239, 236, 228, .72); }
+    .photo-background .card-favorite { color: rgba(239, 236, 228, .7); }
+    .photo-background .scratchpad-form input { border-color: rgba(255, 255, 255, .33); color: #F8F6F0; background: rgba(17, 19, 23, .82); }
+    .photo-background .scratchpad-form input::placeholder { color: rgba(239, 236, 228, .58); }
+    .photo-background .save-word { border-color: rgba(255, 255, 255, .46); color: #F8F6F0; background: #17191D; }
+    .photo-background .save-word:hover { background: #292B30; }
+    .photo-background .translation-status { color: rgba(239, 236, 228, .78); }
+    .photo-background .translation-status.error { color: #FF9AA9; }
+    .photo-background .footer { border-color: rgba(255, 255, 255, .3); color: rgba(239, 236, 228, .7); }
+
     @media (max-width: 760px) {
       .station-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .display { grid-template-columns: minmax(0, 1fr) 94px; gap: 12px; }
@@ -385,7 +453,6 @@
       .daily-copy { font-size: 9px; }
       .daily-copy span { display: block; margin: 0; }
       .progress-track { width: 100%; margin-top: 4px; }
-      .info-popover { position: fixed; top: 54px; left: 14px; right: 14px; width: auto; max-width: none; }
       .masthead { padding: 32px 0 24px; }
       .radio-console { padding: 11px; }
       .display { min-height: 0; grid-template-columns: 1fr; padding: 19px; }
@@ -421,6 +488,11 @@
   </style>
 </head>
 <body>
+  <div class="radio-background" id="radioBackground" aria-hidden="true" hidden>
+    <div class="background-image-layer" id="backgroundLayerA"></div>
+    <div class="background-image-layer" id="backgroundLayerB"></div>
+    <div class="background-scrim"></div>
+  </div>
   <button class="official-menu-backdrop" id="officialMenuBackdrop" type="button" aria-label="Close site menu" hidden></button>
   <aside class="official-menu-panel" id="officialMenuPanel" role="dialog" aria-modal="true" aria-label="Brazilian in Action site menu" aria-hidden="true" hidden>
     <div class="official-menu-head">
@@ -434,7 +506,11 @@
     <nav class="official-menu-links" aria-label="Site pages">
       <a class="official-menu-link" href="./" id="homeMenuLink"><i data-lucide="house" aria-hidden="true"></i><span>Home</span></a>
       <a class="official-menu-link" href="./brasilia-news.html"><i data-lucide="newspaper" aria-hidden="true"></i><span>Brazilian News</span></a>
-      <a class="official-menu-link" href="./brazilian-radio.html" aria-current="page"><i data-lucide="radio" aria-hidden="true"></i><span>Brazilian Radio</span></a>
+      <a class="official-menu-link" href="./brazilian-radio.html" aria-current="page">
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m6 7 11-4"></path><circle cx="18" cy="3" r="1"></circle><rect x="3" y="7" width="18" height="14" rx="2"></rect><circle cx="9" cy="14" r="3.2"></circle><circle cx="17" cy="12" r="1"></circle><path d="M15.5 16h3M15.5 18h3"></path>
+        </svg><span>Brazilian Radio</span>
+      </a>
     </nav>
     <div class="official-menu-foot">
       For the complete student and account menu, open the main platform and sign in.
@@ -447,11 +523,7 @@
         <i data-lucide="menu" aria-hidden="true"></i><span>Menu</span>
       </button>
       <span class="dash" aria-hidden="true"></span>
-      <span>Brazilian in Action — Audio Immersion Lab</span>
-      <span class="info-wrap" id="infoWrap">
-        <button class="info-button" id="infoButton" type="button" aria-label="About these stations" aria-expanded="false">(i)</button>
-        <span class="info-popover" role="tooltip">All stations are open public or state-supported international radio services, selected for educational English listening practice and without commercial advertising.</span>
-      </span>
+      <span>Brazilian in Action</span>
     </div>
     <div class="daily-summary" aria-label="Daily listening progress">
       <div class="daily-copy"><strong id="listeningToday">Listening Today: 00 min</strong><span id="streakCount">Streak: 0 days</span></div>
@@ -709,6 +781,53 @@
             if (!panel.classList.contains("open")) panel.hidden = true;
           }, reducedMotion ? 30 : 270);
         }
+      }
+
+      function initializeBackgroundSlideshow() {
+        document.body.classList.add("photo-background");
+        const background = $("#radioBackground");
+        if (embeddedInPlatform) {
+          document.documentElement.classList.add("embedded-platform");
+          background.hidden = true;
+          return;
+        }
+
+        const files = [
+          "boston-ma", "brooklyn-bridge-ny", "charleston-sc", "chicago-il-grant-park",
+          "chicago-il-lakefront", "chicago-il-night", "empire-state-building-ny",
+          "grand-canyon-az", "lower-manhattan-ny", "manhattan-ny", "miami-fl",
+          "monument-valley-az-ut", "niagara-falls-ny", "philadelphia-pa", "portland-me",
+          "seattle-wa", "times-square-ny", "washington-dc"
+        ].sort(() => Math.random() - .5);
+        const layers = [$("#backgroundLayerA"), $("#backgroundLayerB")];
+        const assetDirectory = window.location.protocol === "file:"
+          ? "./public/backgrounds/"
+          : "./backgrounds/";
+        let slideIndex = 0;
+        let activeLayer = 0;
+
+        background.hidden = false;
+        layers[activeLayer].style.backgroundImage = `url("${assetDirectory}${files[slideIndex]}-1920.jpg")`;
+        layers[activeLayer].classList.add("active");
+
+        window.setInterval(() => {
+          const nextIndex = (slideIndex + 1) % files.length;
+          const nextLayer = 1 - activeLayer;
+          const nextUrl = `${assetDirectory}${files[nextIndex]}-1920.jpg`;
+          const preload = new Image();
+          preload.onload = () => {
+            layers[nextLayer].style.backgroundImage = `url("${nextUrl}")`;
+            layers[nextLayer].classList.add("active");
+            layers[activeLayer].classList.remove("active");
+            activeLayer = nextLayer;
+            slideIndex = nextIndex;
+          };
+          preload.onerror = () => {
+            console.warn("Background image could not be loaded:", nextUrl);
+            slideIndex = nextIndex;
+          };
+          preload.src = nextUrl;
+        }, 7000);
       }
 
       function localDateKey(date = new Date()) {
@@ -1238,11 +1357,6 @@
         }
       }
 
-      $("#infoButton").addEventListener("click", () => {
-        const wrap = $("#infoWrap");
-        const open = wrap.classList.toggle("open");
-        $("#infoButton").setAttribute("aria-expanded", String(open));
-      });
       $("#officialMenuToggle").addEventListener("click", () => setOfficialMenuOpen(true));
       $("#officialMenuClose").addEventListener("click", () => setOfficialMenuOpen(false));
       $("#officialMenuBackdrop").addEventListener("click", () => setOfficialMenuOpen(false));
@@ -1382,6 +1496,7 @@
       registerMediaSessionHandlers();
       setMediaPlaybackState("none");
       if (embeddedInPlatform) $("#officialMenuToggle").hidden = true;
+      initializeBackgroundSlideshow();
       refreshIcons();
     })();
   </script>

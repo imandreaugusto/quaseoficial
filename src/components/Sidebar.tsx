@@ -69,6 +69,33 @@ const StudyTimeIcon: React.FC<{ size?: number; style?: React.CSSProperties; clas
   </svg>
 );
 
+const PortableRadioIcon: React.FC<{ size?: number; style?: React.CSSProperties; className?: string }> = ({
+  size = 20,
+  style,
+  className,
+}) => (
+  <svg
+    aria-hidden="true"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    style={style}
+    className={className}
+  >
+    <path d="m6 7 11-4" />
+    <circle cx="18" cy="3" r="1" />
+    <rect x="3" y="7" width="18" height="14" rx="2" />
+    <circle cx="9" cy="14" r="3.2" />
+    <circle cx="17" cy="12" r="1" />
+    <path d="M15.5 16h3M15.5 18h3" />
+  </svg>
+);
+
 interface SidebarProps {
   currentApp: string;
   onNavigate: (app: string) => void;
@@ -92,7 +119,7 @@ const ALL_STUDENT_ITEMS = [
   { id: 'practice', label: 'Brazilian Practice', icon: Globe },
   { id: 'readclub', label: 'Coffee & Read', icon: Coffee },
   { id: 'braziliannews', label: 'Brazilian News', icon: Newspaper },
-  { id: 'brazilianradio', label: 'Brazilian Radio', icon: Radio },
+  { id: 'brazilianradio', label: 'Brazilian Radio', icon: PortableRadioIcon },
   { id: 'flashcards', label: 'Brazilian Anki', icon: Layers },
   { id: 'holybible', label: 'Holy Bible', icon: ChristianCrossIcon },
   { id: 'brazilianhq', label: 'Brazilian HQ', icon: VenetianMask },
@@ -272,7 +299,7 @@ const ALL_ADMIN_ITEMS = [
   { id: 'admin_settings', label: 'Painel do CEO', icon: Users },
   { id: 'readclub', label: 'Coffee & Read', icon: Coffee },
   { id: 'braziliannews', label: 'Brazilian News', icon: Newspaper },
-  { id: 'brazilianradio', label: 'Brazilian Radio', icon: Radio },
+  { id: 'brazilianradio', label: 'Brazilian Radio', icon: PortableRadioIcon },
   { id: 'flashcards', label: 'Brazilian Anki', icon: Layers },
   { id: 'holybible', label: 'Holy Bible', icon: ChristianCrossIcon },
   { id: 'brazilianhq', label: 'Brazilian HQ', icon: VenetianMask },
