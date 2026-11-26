@@ -1203,7 +1203,7 @@
         { id: "voa-learning", name: "VOA Learning English", siteUrl: "https://learningenglish.voanews.com/", embedAllowed: false },
         { id: "share-america", name: "ShareAmerica", siteUrl: "https://share.america.gov/", embedAllowed: false },
         { id: "nasa-news", name: "NASA News", siteUrl: "https://www.nasa.gov/news/", embedAllowed: false },
-        { id: "cdc-newsroom", name: "CDC Newsroom", siteUrl: "https://www.cdc.gov/media/" },
+        { id: "cdc-newsroom", name: "CDC Newsroom", siteUrl: "https://www.cdc.gov/media/", embedAllowed: false },
         { id: "white-house", name: "White House Briefing Room", siteUrl: "https://www.whitehouse.gov/briefing-room/", embedAllowed: false },
         { id: "state-department", name: "State Department Press Releases", siteUrl: "https://www.state.gov/press-releases/", embedAllowed: false },
         { id: "national-park-service", name: "National Park Service News", siteUrl: "https://www.nps.gov/aboutus/news/news-releases.htm" },
@@ -1212,7 +1212,7 @@
         { id: "propublica", name: "ProPublica", siteUrl: "https://www.propublica.org/", embedAllowed: false },
         { id: "the-19th", name: "The 19th", siteUrl: "https://19thnews.org/", embedAllowed: false },
         { id: "kff-health-news", name: "KFF Health News", siteUrl: "https://kffhealthnews.org/" },
-        { id: "mongabay", name: "Mongabay", siteUrl: "https://news.mongabay.com/" },
+        { id: "mongabay", name: "Mongabay", siteUrl: "https://news.mongabay.com/", embedAllowed: false },
         { id: "global-voices", name: "Global Voices", siteUrl: "https://globalvoices.org/" },
         { id: "wikinews", name: "Wikinews English", siteUrl: "https://en.wikinews.org/" }
       ];
@@ -1745,7 +1745,7 @@
           message.className = "site-embed-message";
           message.setAttribute("role", "note");
           const explanation = document.createElement("p");
-          explanation.textContent = "Este site bloqueia a exibição dentro de outros portais.";
+          explanation.textContent = "A página oficial não pode ser exibida nesta prévia. Abra o site em uma nova aba.";
           const link = document.createElement("a");
           link.href = feed.siteUrl;
           link.target = "_blank";
