@@ -190,6 +190,7 @@ export default function App() {
   const [cloudSaveStatus, setCloudSaveStatus] = useState<'saving' | 'saved' | 'error' | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [currentApp, setCurrentApp] = useState<string>(getRequestedStartupApp);
+  const [radioHasBeenOpened, setRadioHasBeenOpened] = useState(currentApp === 'brazilianradio');
   const [spaceDraftSeed, setSpaceDraftSeed] = useState('');
   const [spaceFocusRequest, setSpaceFocusRequest] = useState(0);
   const [quickTradutorModalOpen, setQuickTradutorModalOpen] = useState(false);
@@ -200,6 +201,10 @@ export default function App() {
 
   // Background Slideshow state
   const [bgPaused, setBgPaused] = useState(false);
+
+  useEffect(() => {
+    if (currentApp === 'brazilianradio') setRadioHasBeenOpened(true);
+  }, [currentApp]);
 
   // App core persistent databases
   const [classes, setClasses] = useState<ClassItem[]>([]);
@@ -1511,6 +1516,28 @@ export default function App() {
         <main className={`relative z-10 ${currentUser ? 'pt-18 sm:pt-20' : 'pt-24 pb-8'} ${
           currentUser && isStudent && !isSubscriptionActive ? 'pb-0' : currentUser ? 'pb-12' : ''
         } ${lockHomeScroll ? 'h-screen box-border overflow-hidden overscroll-none' : 'min-h-[90vh]'}`}>
+          {currentUser && isSubscriptionActive && !needsStudentProfile && radioHasBeenOpened && (
+            <iframe
+              title="Brazilian Radio"
+              src="/brazilian-radio.html"
+              allow="autoplay"
+              aria-hidden={currentApp !== 'brazilianradio'}
+              tabIndex={currentApp === 'brazilianradio' ? 0 : -1}
+              className="w-full border-0"
+              style={currentApp === 'brazilianradio'
+                ? { height: 'calc(100vh - 5rem)', minHeight: '680px' }
+                : {
+                    position: 'fixed',
+                    top: 0,
+                    left: '-10000px',
+                  width: '100vw',
+                  height: '100vh',
+                    opacity: 0,
+                    pointerEvents: 'none',
+                  }}
+            />
+          )}
+
           {/* 1. AUTH MODAL (Unified Login/Cadastro + 17-Click Easter Egg) */}
           <AuthModal
             isOpen={isAuthModalOpen || !currentUser}
@@ -1787,16 +1814,6 @@ export default function App() {
                     <iframe
                       title="Brazilian News"
                       src="/brasilia-news.html"
-                      className="w-full border-0"
-                      style={{ height: 'calc(100vh - 5rem)', minHeight: '680px' }}
-                    />
-                  )}
-
-                  {currentApp === 'brazilianradio' && (
-                    <iframe
-                      title="Brazilian Radio"
-                      src="/brazilian-radio.html"
-                      allow="autoplay"
                       className="w-full border-0"
                       style={{ height: 'calc(100vh - 5rem)', minHeight: '680px' }}
                     />
