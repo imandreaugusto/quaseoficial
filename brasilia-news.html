@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#F9F8F4">
-  <meta name="description" content="Brasília News: notícias em inglês para praticar leitura e escuta no Brazilian in Action.">
-  <title>Brasília News — Brazilian in Action</title>
+  <meta name="description" content="Brazilian News: notícias em inglês para praticar leitura e escuta no Brazilian in Action.">
+  <title>Brazilian News — Brazilian in Action</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@700;800&family=UnifrakturMaguntia&display=swap" rel="stylesheet">
@@ -64,24 +64,6 @@
     }
     .topline-date { justify-self: start; }
     .edition { color: var(--muted); text-align: center; }
-    .refresh-button {
-      justify-self: end;
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-      border: 0;
-      background: transparent;
-      padding: 8px 0 8px 8px;
-      cursor: pointer;
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: .06em;
-      text-transform: uppercase;
-    }
-    .refresh-button:hover { color: var(--ink); }
-    .refresh-button:disabled { cursor: wait; opacity: .6; }
-    .refresh-button svg { width: 14px; height: 14px; }
-
     .brand-block { padding: 13px 0 18px; text-align: center; }
     .brand-title {
       margin: 0;
@@ -107,6 +89,7 @@
       background: var(--white);
       border: 1px solid var(--ink);
     }
+    .ticker[hidden] { display: none; }
     .ticker-label {
       position: relative;
       z-index: 1;
@@ -135,7 +118,6 @@
       white-space: nowrap;
     }
     .ticker-item::after { content: "•"; color: var(--red); font-size: 15px; }
-    .ticker-placeholder { padding: 0 16px; color: var(--muted); font-size: 11px; }
 
     .section-heading {
       display: flex;
@@ -275,8 +257,6 @@
       gap: 18px;
       padding-bottom: 26px;
     }
-    .paper-grid.is-spotlighting { grid-template-columns: minmax(0, 1fr); }
-    .paper-grid.is-spotlighting .paper:not(.is-spotlight) { display: none; }
     .paper {
       position: relative;
       display: flex;
@@ -291,12 +271,6 @@
       scrollbar-color: #aaa69b transparent;
       scrollbar-width: thin;
       transition: border-color .25s ease, box-shadow .25s ease;
-    }
-    .paper.is-spotlight {
-      grid-column: 1;
-      height: min(84vh, 900px);
-      border-color: #a9a59a;
-      box-shadow: 0 12px 36px rgba(17,17,17,.14);
     }
     .paper::-webkit-scrollbar { width: 7px; }
     .paper::-webkit-scrollbar-track { background: transparent; }
@@ -329,25 +303,17 @@
       gap: 10px;
       min-width: 0;
     }
-    .paper-read-button {
-      display: inline-flex;
+    .paper-source-link {
+      display: inline-grid;
       flex: 0 0 auto;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      min-height: 32px;
-      padding: 6px 9px;
-      border: 1px solid var(--ink);
-      background: var(--ink);
-      color: var(--white);
-      font-size: 10px;
-      font-weight: 600;
-      white-space: nowrap;
-      cursor: pointer;
-      transition: background-color .18s ease, color .18s ease, transform .18s ease;
+      width: 23px;
+      height: 23px;
+      place-items: center;
+      color: var(--muted);
+      transition: color .18s ease, transform .18s ease;
     }
-    .paper-read-button:hover { background: #333; transform: translateY(-1px); }
-    .paper-read-button svg { width: 14px; height: 14px; }
+    .paper-source-link:hover { color: var(--ink); transform: translateY(-1px); }
+    .paper-source-link svg { width: 14px; height: 14px; }
     .paper-info {
       position: absolute;
       top: 13px;
@@ -395,6 +361,18 @@
       border: 0;
       background: #fff;
     }
+    .site-embed-message {
+      display: grid;
+      height: 100%;
+      align-content: center;
+      justify-items: center;
+      gap: 8px;
+      padding: 22px;
+      color: var(--muted);
+      text-align: center;
+    }
+    .site-embed-message p { margin: 0; font-size: 12px; line-height: 1.5; }
+    .site-embed-message a { color: var(--ink); font-size: 12px; font-weight: 700; }
     .story {
       display: block;
       width: 100%;
@@ -664,105 +642,215 @@
     .reading-complete button:disabled { background: #e8e6df; color: #555; cursor: default; }
 
     .brazilian-tv {
-      width: min(100%, 430px);
+      width: min(100%, 450px);
       justify-self: end;
+      position: relative;
       min-width: 0;
-      padding: 12px;
-      border: 1px solid #2a2a2a;
-      background: #111;
-      color: #f9f8f4;
+      padding: 16px;
+      border: 1px solid rgba(111, 85, 59, .2);
+      border-radius: 20px;
+      background:
+        radial-gradient(ellipse at 100% 0, rgba(236, 208, 171, .42), transparent 42%),
+        linear-gradient(145deg, #fffefa, #f0ece4);
+      color: #211e19;
+      box-shadow: 0 18px 42px rgba(47, 36, 24, .13), inset 0 1px 0 rgba(255, 255, 255, .9);
     }
     .tv-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 10px;
-      margin-bottom: 10px;
+      margin-bottom: 14px;
     }
     .tv-title {
       margin: 0;
       font-family: var(--serif);
-      font-size: 19px;
+      font-size: 21px;
       font-weight: 700;
       line-height: 1;
+      letter-spacing: -.025em;
       white-space: nowrap;
     }
     .sources-kicker {
       margin: 0 0 4px;
-      color: #bcbab4;
-      font-size: 8px;
+      color: #9c3d36;
+      font-size: 9px;
       font-weight: 600;
-      letter-spacing: .09em;
+      letter-spacing: .12em;
       text-transform: uppercase;
     }
     .tv-header-actions { display: flex; align-items: center; gap: 6px; }
+    .tv-channel-control {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin-bottom: 10px;
+      color: #6f6a61;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .tv-channel-control select {
+      flex: 1;
+      min-width: 0;
+      min-height: 36px;
+      padding: 7px 11px;
+      border: 1px solid #d5cec2;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, .78);
+      color: #27231e;
+      font: inherit;
+      font-size: 11px;
+      letter-spacing: normal;
+      text-transform: none;
+    }
+    .tv-channel-control select:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
     .tv-header-button, .tv-channel-button {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 5px;
-      min-height: 28px;
-      padding: 5px 7px;
-      border: 1px solid #454545;
-      background: #191919;
-      color: #d4d1c9;
+      min-height: 32px;
+      padding: 6px 8px;
+      border: 1px solid #d8d1c5;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .65);
+      color: #48433b;
       font: inherit;
       font-size: 8px;
       line-height: 1.2;
       cursor: pointer;
       transition: background-color .18s ease, border-color .18s ease, color .18s ease, transform .18s ease;
     }
-    .tv-header-button { width: 28px; padding: 0; }
+    .tv-header-button { width: 32px; padding: 0; }
     .tv-header-button svg { width: 14px; height: 14px; }
-    .tv-header-button:hover, .tv-channel-button:hover { border-color: #aaa; background: #292929; color: #fff; transform: translateY(-1px); }
+    @media (hover: hover) and (pointer: fine) {
+      .tv-header-button:hover, .tv-channel-button:hover { border-color: #b7a995; background: #fff; color: #211e19; }
+      .tv-control-button:hover { border-color: #b7a995; background: #fff; }
+    }
     .tv-screen {
       position: relative;
       overflow: hidden;
       aspect-ratio: 16 / 9;
-      background: #080808;
+      border: 1px solid rgba(255, 255, 255, .32);
+      border-radius: 14px;
+      background:
+        radial-gradient(ellipse at 76% 18%, rgba(82, 155, 169, .46), transparent 38%),
+        radial-gradient(ellipse at 16% 100%, rgba(196, 91, 69, .36), transparent 42%),
+        linear-gradient(135deg, #122b39, #172431 58%, #352a30);
+      box-shadow: 0 10px 24px rgba(30, 34, 39, .2), inset 0 1px 0 rgba(255, 255, 255, .12);
     }
     .tv-screen:fullscreen { width: 100vw; height: 100vh; aspect-ratio: auto; }
     .tv-screen video {
       display: block;
       width: 100%;
       height: 100%;
-      background: #080808;
+      background: transparent;
       object-fit: contain;
+    }
+    .tv-placeholder {
+      position: absolute;
+      z-index: 2;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 18px;
+      background:
+        radial-gradient(ellipse at 50% 38%, rgba(78, 142, 157, .28), transparent 40%),
+        linear-gradient(135deg, rgba(12, 31, 43, .9), rgba(28, 43, 57, .88) 58%, rgba(72, 43, 39, .88));
+      color: #fffaf0;
+      text-align: center;
+    }
+    .tv-placeholder[hidden] { display: none; }
+    .tv-placeholder-mark {
+      display: grid;
+      width: 42px;
+      height: 42px;
+      place-items: center;
+      margin-bottom: 2px;
+      border: 1px solid rgba(255, 255, 255, .28);
+      border-radius: 50%;
+      background: rgba(255, 255, 255, .08);
+      box-shadow: 0 0 0 7px rgba(255, 255, 255, .035);
+    }
+    .tv-placeholder-mark svg { width: 19px; height: 19px; color: #f5c99d; stroke-width: 1.5; }
+    .tv-placeholder-label {
+      color: rgba(255, 250, 240, .7);
+      font-size: 8px;
+      font-weight: 600;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+    .tv-placeholder strong {
+      max-width: 28ch;
+      font-family: var(--serif);
+      font-size: clamp(16px, 2.5vw, 21px);
+      font-weight: 700;
+      line-height: 1.2;
+    }
+    .tv-placeholder-copy {
+      max-width: 38ch;
+      color: rgba(255, 250, 240, .76);
+      font-size: 10px;
+      line-height: 1.5;
     }
     .tv-live {
       display: inline-flex;
       align-items: center;
       gap: 5px;
-      color: #dedbd3;
+      padding: 6px 9px;
+      border-radius: 999px;
+      background: var(--red);
+      color: #fff;
       font-size: 8px;
       font-weight: 700;
       letter-spacing: .1em;
       white-space: nowrap;
     }
-    .tv-live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--red); }
-    .tv-control-row { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+    .tv-live[hidden] { display: none; }
+    .tv-live-dot { width: 6px; height: 6px; border-radius: 50%; background: #fff; }
+    .tv-control-row { display: flex; align-items: center; gap: 8px; margin-top: 11px; }
     .tv-control-button {
       display: inline-grid;
       flex: 0 0 auto;
-      width: 29px;
-      height: 29px;
+      width: 32px;
+      height: 32px;
       place-items: center;
       padding: 0;
-      border: 1px solid #454545;
-      background: #191919;
-      color: #f9f8f4;
+      border: 1px solid #d8d1c5;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, .72);
+      color: #302b24;
       cursor: pointer;
+      transition: background-color .18s ease, border-color .18s ease, transform .18s ease;
     }
-    .tv-control-button:hover { border-color: #aaa; background: #292929; }
+    .tv-control-button:active { transform: scale(.97); }
     .tv-control-button svg { width: 14px; height: 14px; }
     .tv-volume-control { display: flex; flex: 0 1 82px; align-items: center; min-width: 54px; }
     .tv-volume-control input { width: 100%; accent-color: var(--red); }
-    .tv-volume-control output { min-width: 25px; margin-left: 4px; color: #c9c6bd; font-size: 8px; text-align: right; }
-    .tv-status { flex: 1; min-width: 55px; margin: 0 0 0 2px; color: #bbb8b0; font-size: 9px; line-height: 1.4; }
-    .tv-attribution { margin: 8px 0 0; color: #aaa79f; font-size: 8px; line-height: 1.5; }
-    .tv-attribution a { color: #dedbd3; text-underline-offset: 2px; }
-    .tv-attribution a:hover { color: #fff; }
+    .tv-volume-control output { min-width: 25px; margin-left: 4px; color: #6f6a61; font-size: 9px; text-align: right; font-variant-numeric: tabular-nums; }
+    .tv-status {
+      flex: 1;
+      min-width: 55px;
+      margin: 0 0 0 2px;
+      padding: 6px 9px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .62);
+      color: #716b62;
+      font-size: 8px;
+      line-height: 1.35;
+    }
+    .tv-attribution { margin: 10px 2px 0; color: #777168; font-size: 9px; line-height: 1.5; }
+    .tv-attribution a { color: #4c443a; text-underline-offset: 2px; }
+    .tv-attribution a:hover { color: var(--red); }
     .tv-body[hidden] { display: none; }
+    @media (prefers-reduced-motion: reduce) {
+      .tv-control-button, .tv-header-button, .tv-channel-button { transition: none; }
+    }
     .translation-tooltip {
       position: fixed;
       z-index: 30;
@@ -796,7 +884,6 @@
       .page-shell { width: min(100% - 28px, 480px); }
       .topline { grid-template-columns: 1fr auto; row-gap: 0; padding: 5px 0; }
       .edition { grid-column: 1 / -1; grid-row: 2; padding: 2px 0 4px; text-align: left; }
-      .refresh-button { grid-column: 2; grid-row: 1; }
       .brand-block { padding: 19px 0 16px; }
       .brand-title { font-size: clamp(50px, 15vw, 76px); }
       .brand-subtitle { max-width: 320px; margin: 7px auto 0; line-height: 1.4; }
@@ -807,7 +894,7 @@
       .reading-rhythm { margin: 16px 0 20px; padding: 12px; gap: 13px; }
       .rhythm-controls { grid-template-columns: 1fr; gap: 8px; }
       .reading-complete { grid-column: auto; align-items: flex-start; }
-      .brazilian-tv { padding: 10px; }
+      .brazilian-tv { padding: 12px; border-radius: 17px; }
       .tv-title { font-size: 17px; }
       .tv-control-button { width: 28px; height: 28px; }
       .tv-volume-control { flex-basis: 68px; }
@@ -820,8 +907,6 @@
       .paper { height: min(78vh, 720px); min-height: 520px; }
       .paper-head h3 { font-size: 20px; }
       .paper-heading-group { gap: 7px; }
-      .paper-read-button { min-height: 30px; padding: 5px 7px; font-size: 9px; }
-      .paper.is-spotlight { height: min(84vh, 820px); }
       .reader-backdrop { padding: 0; }
       .modal-backdrop { padding: 0; }
       .reader { width: 100%; height: 100dvh; max-height: none; border: 0; }
@@ -849,22 +934,16 @@
       <div class="topline">
         <time id="today-date" class="topline-date"></time>
         <span class="edition">Brazilian in Action — English Immersion Edition</span>
-        <button id="refresh-button" class="refresh-button" type="button" aria-label="Recarregar sites oficiais">
-          <i data-lucide="refresh-cw" aria-hidden="true"></i>
-          Recarregar sites
-        </button>
       </div>
       <div class="brand-block">
-        <h1 class="brand-title">Brasília News</h1>
+        <h1 class="brand-title">Brazilian News</h1>
         <p class="brand-subtitle">As melhores notícias para praticar o seu inglês você encontra aqui.</p>
       </div>
     </header>
 
-    <section class="ticker" aria-label="Manchetes em destaque">
+    <section class="ticker" aria-label="Manchetes em destaque" hidden>
       <div class="ticker-label">SITES OFICIAIS</div>
-      <div id="ticker-window" class="ticker-window">
-        <span class="ticker-placeholder">As notícias são carregadas diretamente dos veículos e atualizadas por eles.</span>
-      </div>
+      <div id="ticker-window" class="ticker-window"></div>
     </section>
 
     <section class="reading-rhythm" aria-label="Ritmo semanal e Brazilian TV">
@@ -902,7 +981,7 @@
       <section id="brazilian-tv" class="brazilian-tv" aria-labelledby="tv-title">
         <div class="tv-header">
           <div>
-            <p class="sources-kicker">Transmissão oficial, sem YouTube</p>
+            <p class="sources-kicker">Transmissão oficial</p>
             <h2 id="tv-title" class="tv-title">Brazilian TV</h2>
           </div>
           <div class="tv-header-actions">
@@ -913,13 +992,23 @@
           </div>
         </div>
         <div id="tv-body" class="tv-body">
+          <label class="tv-channel-control" for="tv-channel-select">
+            <span>Canal</span>
+            <select id="tv-channel-select" aria-label="Selecionar canal da Brazilian TV">
+              <option value="voa">VOA English TV</option>
+              <option value="bloomberg">Bloomberg TV</option>
+              <option value="cbs">CBS News</option>
+            </select>
+          </label>
           <div id="tv-screen" class="tv-screen">
             <video id="tv-video" autoplay muted playsinline preload="none" aria-label="Transmissão ao vivo VOA English TV">
               Seu navegador não oferece suporte à reprodução deste canal.
             </video>
             <div id="tv-placeholder" class="tv-placeholder" role="status">
+              <span class="tv-placeholder-mark" aria-hidden="true"><i data-lucide="radio"></i></span>
+              <span class="tv-placeholder-label">Brazilian News · Central de notícias</span>
               <strong id="tv-placeholder-title">Conectando à VOA English TV</strong>
-              <span id="tv-placeholder-copy">A transmissão está sendo carregada sem som.</span>
+              <span id="tv-placeholder-copy" class="tv-placeholder-copy">A transmissão está sendo carregada sem som.</span>
             </div>
           </div>
           <div class="tv-control-row">
@@ -939,7 +1028,7 @@
               <i data-lucide="maximize" aria-hidden="true"></i>
             </button>
           </div>
-          <p class="tv-attribution">Sinal oficial HLS da VOA English TV, tocando nesta TV sem abrir outra página.</p>
+          <p id="tv-attribution" class="tv-attribution">Sinal oficial da VOA English TV, reproduzido nesta TV.</p>
         </div>
       </section>
     </section>
@@ -955,14 +1044,14 @@
     </section>
 
     <div class="section-heading">
-      <h2>Jornais e fontes em inglês</h2>
-      <p>Role cada site oficial dentro da coluna para explorar as notícias sem sair desta página.</p>
+      <h2>Sites e fontes em inglês</h2>
+      <p>Explore cada fonte na coluna; quando o portal bloquear incorporação, abra o site oficial pelo link.</p>
     </div>
     <main id="paper-grid" class="paper-grid" aria-label="Sites oficiais de notícias"></main>
 
     <footer class="page-footer">
-      <span>Brasília News · Brazilian in Action — English Immersion Edition</span>
-      <span>As páginas são incorporadas diretamente dos veículos. Não usamos APIs pagas nem tokens de IA.</span>
+      <span>Brazilian News · Brazilian in Action — English Immersion Edition</span>
+      <span>Os sites são carregados diretamente quando permitem incorporação. Não usamos APIs pagas nem tokens de IA.</span>
     </footer>
   </div>
 
@@ -1020,14 +1109,39 @@
 
       const READING_SETTINGS_KEY = "brasilia-news-reading-v1";
       const FEEDS = [
-        { id: "npr", name: "NPR News", siteUrl: "https://www.npr.org/" },
-        { id: "cbs-news", name: "CBS News", siteUrl: "https://www.cbsnews.com/" },
-        { id: "fox-news", name: "FOX News", siteUrl: "https://www.foxnews.com/" },
-        { id: "democracy-now", name: "Democracy Now!", siteUrl: "https://www.democracynow.org/" },
-        { id: "cnet", name: "CNET", siteUrl: "https://www.cnet.com/" },
-        { id: "sciencedaily", name: "ScienceDaily", siteUrl: "https://www.sciencedaily.com/" }
+        { id: "voa-learning", name: "VOA Learning English", siteUrl: "https://learningenglish.voanews.com/", embedAllowed: false },
+        { id: "share-america", name: "ShareAmerica", siteUrl: "https://share.america.gov/", embedAllowed: false },
+        { id: "nasa-news", name: "NASA News", siteUrl: "https://www.nasa.gov/news/", embedAllowed: false },
+        { id: "cdc-newsroom", name: "CDC Newsroom", siteUrl: "https://www.cdc.gov/media/" },
+        { id: "white-house", name: "White House Briefing Room", siteUrl: "https://www.whitehouse.gov/briefing-room/", embedAllowed: false },
+        { id: "state-department", name: "State Department Press Releases", siteUrl: "https://www.state.gov/press-releases/", embedAllowed: false },
+        { id: "national-park-service", name: "National Park Service News", siteUrl: "https://www.nps.gov/aboutus/news/news-releases.htm" },
+        { id: "nist-news", name: "NIST News", siteUrl: "https://www.nist.gov/news-events/news", embedAllowed: false },
+        { id: "the-conversation", name: "The Conversation US", siteUrl: "https://theconversation.com/us", embedAllowed: false },
+        { id: "propublica", name: "ProPublica", siteUrl: "https://www.propublica.org/", embedAllowed: false },
+        { id: "the-19th", name: "The 19th", siteUrl: "https://19thnews.org/", embedAllowed: false },
+        { id: "kff-health-news", name: "KFF Health News", siteUrl: "https://kffhealthnews.org/" },
+        { id: "mongabay", name: "Mongabay", siteUrl: "https://news.mongabay.com/" },
+        { id: "global-voices", name: "Global Voices", siteUrl: "https://globalvoices.org/" },
+        { id: "wikinews", name: "Wikinews English", siteUrl: "https://en.wikinews.org/" }
       ];
-      const TV_STREAM_URL = "https://voa-ingest.akamaized.net/hls/live/2033874/tvmc06/playlist_0480.m3u8";
+      const TV_CHANNELS = {
+        voa: {
+          name: "VOA English TV",
+          streamUrl: "https://voa-ingest.akamaized.net/hls/live/2033876/tvmc07/playlist.m3u8",
+          attribution: "Sinal oficial da VOA English TV, reproduzido nesta TV."
+        },
+        bloomberg: {
+          name: "Bloomberg TV",
+          streamUrl: "https://www.bloomberg.com/media-manifest/streams/us.m3u8",
+          attribution: "Sinal ao vivo da Bloomberg TV, reproduzido nesta TV."
+        },
+        cbs: {
+          name: "CBS News",
+          streamUrl: "https://cbsn-us.cbsnstream.cbsnews.com/out/v1/55a8648e8f134e82a470f83d562deeca/master.m3u8",
+          attribution: "Sinal ao vivo da CBS News, reproduzido nesta TV."
+        }
+      };
       const REMINDER_MESSAGES = [
         "Que tal alguns minutos de inglês com as manchetes de hoje?",
         "Uma manchete em inglês pode ser seu próximo pequeno passo da semana.",
@@ -1052,7 +1166,6 @@
       ];
 
       const grid = document.getElementById("paper-grid");
-      const refreshButton = document.getElementById("refresh-button");
       const tickerWindow = document.getElementById("ticker-window");
       const backdrop = document.getElementById("reader-backdrop");
       const reader = document.getElementById("reader");
@@ -1070,6 +1183,8 @@
       const tvFullscreenButton = document.getElementById("tv-fullscreen-button");
       const tvScreen = document.getElementById("tv-screen");
       const tvStatus = document.getElementById("tv-status");
+      const tvChannelSelect = document.getElementById("tv-channel-select");
+      const tvAttribution = document.getElementById("tv-attribution");
       const tvBody = document.getElementById("tv-body");
       const tvMinimizeButton = document.getElementById("tv-minimize-button");
       const translationTooltip = document.getElementById("translation-tooltip");
@@ -1077,7 +1192,9 @@
       const speechSupported = "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
       const feedState = new Map();
       let activeHls = null;
+      let activeTvChannelId = "voa";
       let tvStreamUnavailable = false;
+      let tvStreamGeneration = 0;
       let tickerAnimation = null;
       let currentStory = null;
       let fontSize = 18;
@@ -1153,7 +1270,7 @@
             remindedDates: Array.isArray(stored.remindedDates) ? stored.remindedDates.filter((value) => /^\d{4}-\d{2}-\d{2}$/.test(value)).slice(-90) : []
           };
         } catch (error) {
-          console.warn("Could not load Brasília News reading preferences:", error);
+          console.warn("Could not load Brazilian News reading preferences:", error);
           return defaults;
         }
       }
@@ -1163,7 +1280,7 @@
           localStorage.setItem(READING_SETTINGS_KEY, JSON.stringify(readingPrefs));
           return true;
         } catch (error) {
-          console.error("Could not save Brasília News reading preferences:", error);
+          console.error("Could not save Brazilian News reading preferences:", error);
           return false;
         }
       }
@@ -1229,7 +1346,7 @@
             readingPrefs.messageIndex = Math.max(readingPrefs.messageIndex, stored.messageIndex);
           }
         } catch (error) {
-          console.warn("Could not refresh Brasília News reminder history:", error);
+          console.warn("Could not refresh Brazilian News reminder history:", error);
         }
       }
 
@@ -1414,12 +1531,12 @@
         try {
           sessionStorage.setItem(key, JSON.stringify({ savedAt: Date.now(), articles }));
         } catch (error) {
-          console.warn("Could not save Brasília News session cache:", error);
+          console.warn("Could not save Brazilian News session cache:", error);
         }
       }
 
       function sourceAttribution(name) {
-        return `Fonte original: ${name}. Esta coluna carrega o site oficial e acompanha as atualizações publicadas pelo próprio veículo.`;
+        return `Fonte original: ${name}. A página é carregada diretamente quando o portal permite incorporação.`;
       }
 
       function createSkeletons() {
@@ -1456,14 +1573,13 @@
         headingGroup.className = "paper-heading-group";
         const heading = document.createElement("h3");
         heading.textContent = feed.name;
-        const readButton = document.createElement("button");
-        readButton.className = "paper-read-button";
-        readButton.type = "button";
-        readButton.setAttribute("aria-expanded", "false");
-        readButton.setAttribute("aria-controls", "paper-grid");
-        readButton.setAttribute("aria-label", `Ler a matéria no site oficial de ${feed.name} em destaque`);
-        readButton.innerHTML = '<i data-lucide="book-open" aria-hidden="true"></i><span>Ler a matéria</span>';
-        readButton.addEventListener("click", () => togglePaperSpotlight(paper, readButton));
+        const sourceLink = document.createElement("a");
+        sourceLink.className = "paper-source-link";
+        sourceLink.href = feed.siteUrl;
+        sourceLink.target = "_blank";
+        sourceLink.rel = "noopener noreferrer";
+        sourceLink.setAttribute("aria-label", `Abrir o site oficial de ${feed.name} em nova aba`);
+        sourceLink.innerHTML = '<i data-lucide="external-link" aria-hidden="true"></i>';
         info.addEventListener("click", (event) => {
           event.stopPropagation();
           const opening = popover.hidden;
@@ -1488,53 +1604,33 @@
         info.addEventListener("mouseleave", closePopover);
         popover.addEventListener("mouseenter", openPopover);
         popover.addEventListener("mouseleave", closePopover);
-        headingGroup.append(heading, readButton);
+        headingGroup.append(heading, sourceLink);
         head.append(info, headingGroup, popover);
         const preview = document.createElement("div");
         preview.className = "site-preview";
-        const frame = document.createElement("iframe");
-        frame.title = `Site oficial de notícias: ${feed.name}`;
-        frame.loading = "eager";
-        frame.referrerPolicy = "no-referrer";
-        frame.src = feed.siteUrl;
-        preview.append(frame);
+        if (feed.embedAllowed === false) {
+          const message = document.createElement("div");
+          message.className = "site-embed-message";
+          message.setAttribute("role", "note");
+          const explanation = document.createElement("p");
+          explanation.textContent = "Este site bloqueia a exibição dentro de outros portais.";
+          const link = document.createElement("a");
+          link.href = feed.siteUrl;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          link.textContent = `Abrir ${feed.name}`;
+          message.append(explanation, link);
+          preview.append(message);
+        } else {
+          const frame = document.createElement("iframe");
+          frame.title = `Site oficial de notícias: ${feed.name}`;
+          frame.loading = "lazy";
+          frame.referrerPolicy = "no-referrer";
+          frame.src = feed.siteUrl;
+          preview.append(frame);
+        }
         paper.append(head, preview);
         grid.append(paper);
-      }
-
-      function togglePaperSpotlight(paper, button) {
-        const isOpening = !paper.classList.contains("is-spotlight");
-        if (isOpening) {
-          paper.classList.add("is-spotlight");
-          grid.classList.add("is-spotlighting");
-          button.setAttribute("aria-expanded", "true");
-          button.setAttribute("aria-label", `Voltar à grade de jornais; ${paper.querySelector("h3").textContent} está em destaque`);
-          button.innerHTML = '<i data-lucide="minimize-2" aria-hidden="true"></i><span>Voltar aos jornais</span>';
-          paper.scrollIntoView({
-            behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
-            block: "start"
-          });
-          if (window.gsap) {
-            window.gsap.fromTo(paper, { opacity: 0, y: 18, scale: .985 }, {
-              opacity: 1, y: 0, scale: 1, duration: .48, ease: "power3.out", clearProps: "transform"
-            });
-            window.gsap.fromTo(paper.querySelector(".paper-head"), { backgroundColor: "#eeece6" }, {
-              backgroundColor: "#fff", duration: .45, ease: "power2.out"
-            });
-          }
-        } else {
-          paper.classList.remove("is-spotlight");
-          grid.classList.remove("is-spotlighting");
-          button.setAttribute("aria-expanded", "false");
-          button.setAttribute("aria-label", `Ler a matéria no site oficial de ${paper.querySelector("h3").textContent} em destaque`);
-          button.innerHTML = '<i data-lucide="book-open" aria-hidden="true"></i><span>Ler a matéria</span>';
-          if (window.gsap) {
-            window.gsap.fromTo(grid.querySelectorAll(".paper"), { opacity: .7, y: 8 }, {
-              opacity: 1, y: 0, duration: .34, stagger: .045, ease: "power2.out", clearProps: "transform"
-            });
-          }
-        }
-        renderIcons();
       }
 
       function renderArticle(article, feed) {
@@ -1629,11 +1725,8 @@
         const headlines = FEEDS.flatMap((feed) => (feedState.get(feed.id)?.visibleArticles || []).slice(0, 3)
           .map((article) => `${feed.name}: ${article.title}`));
         tickerWindow.replaceChildren();
+        tickerWindow.closest(".ticker").hidden = !headlines.length;
         if (!headlines.length) {
-          const placeholder = document.createElement("span");
-          placeholder.className = "ticker-placeholder";
-          placeholder.textContent = "Manchetes aparecerão conforme os feeds forem carregados.";
-          tickerWindow.append(placeholder);
           return;
         }
 
@@ -1683,12 +1776,7 @@
       }
 
       async function loadAllFeeds(forceRefresh = false) {
-        refreshButton.disabled = true;
-        try {
-          await Promise.all(FEEDS.map((feed) => loadFeed(feed, forceRefresh)));
-        } finally {
-          refreshButton.disabled = false;
-        }
+        await Promise.all(FEEDS.map((feed) => loadFeed(feed, forceRefresh)));
       }
 
       function getSafeArticleUrl(article, feed) {
@@ -1916,19 +2004,20 @@
         tvPlaceholderTitle.textContent = "Transmissão indisponível";
         tvPlaceholderCopy.textContent = message;
         tvPlaceholder.hidden = false;
-        tvStatus.textContent = message;
+        tvStatus.textContent = "Sinal indisponível.";
         updateTvPlayButton(false);
       }
 
-      async function startTvPlayback() {
+      async function startTvPlayback(generation = tvStreamGeneration) {
         try {
           await tvVideo.play();
+          if (generation !== tvStreamGeneration || tvStreamUnavailable) return;
           tvPlaceholder.hidden = true;
           tvOnAir.hidden = false;
           tvStatus.textContent = tvVideo.muted ? "Ao vivo · sem som" : "Ao vivo · som ativado";
           updateTvPlayButton(true);
         } catch (error) {
-          if (tvStreamUnavailable) return;
+          if (generation !== tvStreamGeneration || tvStreamUnavailable) return;
           tvPlaceholderTitle.textContent = "Pronto para assistir";
           tvPlaceholderCopy.textContent = "O navegador bloqueou o início automático. Pressione reproduzir para continuar.";
           tvPlaceholder.hidden = false;
@@ -1939,7 +2028,9 @@
       }
 
       function startTvStream() {
+        const generation = ++tvStreamGeneration;
         tvStreamUnavailable = false;
+        const channel = TV_CHANNELS[activeTvChannelId];
         tvVideo.muted = true;
         tvVideo.volume = Number(tvVolumeSlider.value);
         updateTvVolumeButton();
@@ -1947,40 +2038,69 @@
           const hls = new window.Hls({
             enableWorker: true,
             lowLatencyMode: true,
+            capLevelToPlayerSize: true,
             maxBufferLength: 20,
             maxMaxBufferLength: 30
           });
+          let fatalErrorHandled = false;
           activeHls = hls;
-          hls.on(window.Hls.Events.MEDIA_ATTACHED, () => hls.loadSource(TV_STREAM_URL));
-          hls.on(window.Hls.Events.MANIFEST_PARSED, () => { void startTvPlayback(); });
+          hls.on(window.Hls.Events.MEDIA_ATTACHED, () => hls.loadSource(channel.streamUrl));
+          hls.on(window.Hls.Events.MANIFEST_PARSED, () => { void startTvPlayback(generation); });
           hls.on(window.Hls.Events.ERROR, (event, data) => {
-            if (!data.fatal) return;
-            console.error("VOA HLS stream failed:", data.type, data.details);
-            const message = data.details === window.Hls.ErrorDetails.BUFFER_ADD_CODEC_ERROR
-              ? "Este navegador não oferece suporte aos codecs de vídeo desta transmissão."
-              : "A VOA não está entregando o sinal agora. Tente novamente mais tarde.";
+            if (!data.fatal || fatalErrorHandled) return;
+            fatalErrorHandled = true;
+            console.error(`${channel.name} HLS stream failed:`, data.type, data.details);
+            const isCodecError = String(data.details).toLowerCase().includes("codec");
+            const message = isCodecError
+              ? "Não foi possível reproduzir este canal. Tente outro canal ou volte mais tarde."
+              : `${channel.name} não está entregando o sinal agora. Tente novamente mais tarde.`;
             showTvUnavailable(message);
-            hls.destroy();
-            activeHls = null;
+            if (activeHls === hls) activeHls = null;
+            hls.stopLoad();
             tvVideo.pause();
             tvVideo.removeAttribute("src");
             tvVideo.load();
+            window.setTimeout(() => hls.destroy(), 0);
           });
           hls.attachMedia(tvVideo);
           return;
         }
 
         if (tvVideo.canPlayType("application/vnd.apple.mpegurl")) {
-          tvVideo.src = TV_STREAM_URL;
-          tvVideo.addEventListener("loadedmetadata", () => { void startTvPlayback(); }, { once: true });
+          tvVideo.src = channel.streamUrl;
+          tvVideo.addEventListener("loadedmetadata", () => { void startTvPlayback(generation); }, { once: true });
           tvVideo.addEventListener("error", () => {
-            showTvUnavailable("A VOA não está entregando o sinal agora. Tente novamente mais tarde.");
+            showTvUnavailable(`${channel.name} não está entregando o sinal agora. Tente novamente mais tarde.`);
           }, { once: true });
           tvVideo.load();
           return;
         }
 
-        showTvUnavailable("Este navegador não oferece suporte à reprodução HLS.");
+        showTvUnavailable("Não foi possível reproduzir este canal neste navegador.");
+      }
+
+      function switchTvChannel() {
+        const channelId = tvChannelSelect.value;
+        const channel = TV_CHANNELS[channelId];
+        if (!channel || channelId === activeTvChannelId) return;
+
+        if (activeHls) {
+          activeHls.destroy();
+          activeHls = null;
+        }
+        tvVideo.pause();
+        tvVideo.removeAttribute("src");
+        tvVideo.load();
+        activeTvChannelId = channelId;
+        tvVideo.setAttribute("aria-label", `Transmissão ao vivo ${channel.name}`);
+        tvAttribution.textContent = channel.attribution;
+        tvPlaceholderTitle.textContent = `Conectando à ${channel.name}`;
+        tvPlaceholderCopy.textContent = "A transmissão está sendo carregada sem som.";
+        tvPlaceholder.hidden = false;
+        tvStatus.textContent = `Conectando à ${channel.name}…`;
+        tvOnAir.hidden = true;
+        updateTvPlayButton(false);
+        startTvStream();
       }
 
       async function toggleTvPlayback() {
@@ -1993,6 +2113,7 @@
           return;
         }
         tvVideo.pause();
+        tvStreamGeneration += 1;
         tvOnAir.hidden = true;
         tvStatus.textContent = "Transmissão pausada.";
         updateTvPlayButton(false);
@@ -2046,6 +2167,7 @@
       tvVideo.muted = true;
       updateTvVolumeButton();
       startTvStream();
+      tvChannelSelect.addEventListener("change", switchTvChannel);
 
       tvVolumeButton.addEventListener("click", () => {
         const isMuted = tvVideo.muted || tvVideo.volume === 0;
@@ -2060,12 +2182,6 @@
         setTvMuted(tvVideo.volume === 0);
       });
       tvPlayButton.addEventListener("click", () => { void toggleTvPlayback(); });
-      tvVideo.addEventListener("playing", () => {
-        tvPlaceholder.hidden = true;
-        tvOnAir.hidden = false;
-        tvStatus.textContent = tvVideo.muted ? "Ao vivo · sem som" : "Ao vivo · som ativado";
-        updateTvPlayButton(true);
-      });
       tvVideo.addEventListener("pause", () => {
         if (tvVideo.ended) return;
         tvOnAir.hidden = true;
@@ -2114,15 +2230,6 @@
       document.getElementById("reading-complete-button").addEventListener("click", markReadingDone);
       document.getElementById("reminder-read").addEventListener("click", focusOnHeadlines);
       document.getElementById("reminder-dismiss").addEventListener("click", dismissReminderForToday);
-
-      refreshButton.addEventListener("click", () => {
-        refreshButton.disabled = true;
-        FEEDS.forEach((feed) => {
-          const previewFrame = grid.querySelector(`[data-feed-id="${feed.id}"] .site-preview iframe`);
-          if (previewFrame) previewFrame.src = feed.siteUrl;
-        });
-        window.setTimeout(() => { refreshButton.disabled = false; }, 1200);
-      });
 
       document.getElementById("reader-close").addEventListener("click", closeReader);
       document.getElementById("reader-tab-official").addEventListener("click", () => setReaderTab("official"));

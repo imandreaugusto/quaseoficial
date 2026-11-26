@@ -164,6 +164,7 @@ const getRequestedStartupApp = () => {
   if (requestedApp === 'flashcards') return 'flashcards';
   if (requestedApp === 'dictionaryaction') return 'dictionaryaction';
   if (requestedApp === 'braziliannews') return 'braziliannews';
+  if (requestedApp === 'brazilianradio') return 'brazilianradio';
   return 'home';
 };
 
@@ -1784,8 +1785,17 @@ export default function App() {
 
                   {currentApp === 'braziliannews' && (
                     <iframe
-                      title="Brasília News"
+                      title="Brazilian News"
                       src="/brasilia-news.html"
+                      className="w-full border-0"
+                      style={{ height: 'calc(100vh - 5rem)', minHeight: '680px' }}
+                    />
+                  )}
+
+                  {currentApp === 'brazilianradio' && (
+                    <iframe
+                      title="Brazilian Radio"
+                      src="/brazilian-radio.html"
                       className="w-full border-0"
                       style={{ height: 'calc(100vh - 5rem)', minHeight: '680px' }}
                     />

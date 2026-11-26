@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F9F8F4">
+  <meta name="description" content="A public-radio listening room for English immersion from Brazilian in Action.">
+  <title>Brazilian Radio — Brazilian in Action</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script defer src="https://unpkg.com/lucide@latest"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #F9F8F4;
+      --white: #FFFFFF;
+      --ink: #141414;
+      --panel: #1E1E1E;
+      --rule: #DCD9D0;
+      --soft-rule: #2E2E2E;
+      --muted: #6D6B65;
+      --red: #C8102E;
+      --green: #183F35;
+      --green-light: #F0F4EF;
+      --gold: #C7A64B;
+      --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+      --serif: "Playfair Display", Georgia, serif;
+      --sans: "Inter", Arial, sans-serif;
+      --mono: "JetBrains Mono", Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 12% 8%, rgba(199, 166, 75, .07), transparent 230px),
+        radial-gradient(circle at 88% 34%, rgba(24, 63, 53, .035), transparent 280px),
+        var(--paper);
+      font-family: var(--sans);
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+    button, input { font: inherit; }
+    button { color: inherit; }
+    button {
+      transition: transform 160ms var(--ease-out),
+        background-color 160ms var(--ease-out),
+        border-color 160ms var(--ease-out),
+        color 160ms var(--ease-out);
+    }
+    button:active { transform: scale(.97); }
+    button:focus-visible, input:focus-visible, a:focus-visible {
+      outline: 2px solid var(--red);
+      outline-offset: 3px;
+    }
+    .page-shell { width: min(1120px, calc(100% - 40px)); margin: 0 auto; }
+    .topbar {
+      min-height: 56px;
+      border-bottom: 1px solid var(--rule);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+      min-width: 0;
+      font-size: 11px;
+      letter-spacing: .045em;
+    }
+    .lab-label { display: flex; align-items: center; gap: 10px; min-width: 0; font-weight: 700; }
+    .lab-label .dash { width: 20px; height: 1px; background: var(--red); }
+    .info-wrap { position: relative; display: inline-flex; }
+    .info-button {
+      width: 22px; height: 22px; border: 1px solid #AAA69C; border-radius: 50%;
+      background: transparent; font-size: 12px; font-weight: 700; cursor: help;
+    }
+    .info-popover {
+      position: absolute; z-index: 5; top: 31px; left: 0; width: min(300px, 80vw);
+      padding: 12px 14px; border: 1px solid var(--rule); background: white;
+      box-shadow: 0 5px 16px #14141414; font-size: 12px; line-height: 1.55;
+      letter-spacing: 0; font-weight: 400; opacity: 0; visibility: hidden;
+    }
+    .info-wrap:hover .info-popover, .info-wrap:focus-within .info-popover,
+    .info-wrap.open .info-popover { opacity: 1; visibility: visible; }
+    .daily-summary { display: flex; align-items: center; gap: 13px; }
+    .daily-copy { text-align: right; line-height: 1.5; white-space: nowrap; }
+    .daily-copy strong { font-family: var(--mono); font-size: 11px; }
+    .daily-copy span { color: var(--muted); margin-left: 9px; }
+    .progress-track { width: 88px; height: 3px; background: #E5E2D9; }
+    .progress-fill { width: 0; height: 100%; background: var(--red); transition: width .25s ease; }
+
+    .masthead { position: relative; text-align: center; padding: 40px 0 30px; }
+    .masthead::after {
+      content: ""; position: absolute; left: 50%; bottom: 16px;
+      width: 34px; height: 2px; transform: translateX(-50%);
+      background: var(--red);
+    }
+    .eyebrow, .section-kicker {
+      font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+    }
+    .masthead h1 {
+      margin: 7px 0 5px; font: 800 clamp(42px, 7vw, 72px)/1.08 var(--serif);
+      letter-spacing: -.045em;
+    }
+    .masthead p { margin: 0; color: var(--muted); font-size: 13px; }
+
+    .radio-console {
+      width: min(920px, 100%); margin: 0 auto; padding: 14px;
+      color: #F6F4EF;
+      background: var(--green);
+      border: 1px solid #10332A;
+      border-radius: 4px;
+      box-shadow: 0 18px 44px rgba(24, 63, 53, .12), 0 3px 10px rgba(20, 20, 20, .06);
+    }
+    .console-topline {
+      min-height: 24px; display: flex; align-items: center; justify-content: space-between;
+      color: #C6D2CB; font: 500 9px var(--mono); letter-spacing: .11em;
+      text-transform: uppercase; padding: 3px 4px 13px;
+    }
+    .console-topline .brand-mark { color: #FFFFFF; font-weight: 700; }
+    .display {
+      min-height: 287px; padding: clamp(20px, 4vw, 34px);
+      background:
+        linear-gradient(135deg, rgba(255,255,255,.64), transparent 48%),
+        #F1EFE7;
+      border: 1px solid #D9D5C8;
+      border-radius: 2px;
+      color: var(--ink);
+      display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 22px;
+      align-items: center;
+    }
+    .display-copy { min-width: 0; }
+    .status-line {
+      display: inline-flex; align-items: center; gap: 7px; color: #77776F;
+      font: 700 9px var(--mono); letter-spacing: .12em;
+    }
+    .status-dot { color: #A39F94; font-size: 12px; }
+    .status-line.live { color: var(--green); }
+    .status-line.live .status-dot { color: var(--red); animation: pulse 1.7s ease-in-out infinite; }
+    @keyframes pulse { 50% { opacity: .35; } }
+    .station-name {
+      margin: 13px 0 4px; font: 700 clamp(27px, 4.5vw, 43px)/1.12 var(--serif);
+      letter-spacing: -.025em;
+    }
+    .station-slogan { margin: 0 0 20px; color: #74766F; font-size: 12px; }
+    .station-meta {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 9px 18px;
+      color: #4C514C; font-size: 11px;
+    }
+    .station-meta span { display: inline-flex; align-items: center; gap: 6px; }
+    .station-meta i { width: 13px; height: 13px; color: #85877F; }
+    .local-clocks { display: flex; flex-wrap: wrap; gap: 6px 12px; }
+    .local-clock { font: 500 11px var(--mono); }
+    .local-clock.station-clock { color: var(--ink); }
+    .local-clock.brazil-clock { color: #686C65; }
+    .accent-tag {
+      display: inline-block; margin-top: 13px; border: 1px solid #4A4843;
+      padding: 6px 8px; border-color: #CFCCC1; color: #62655F;
+      background: rgba(255,255,255,.44); font-size: 9px; letter-spacing: .035em;
+    }
+    .equalizer {
+      height: 108px; display: flex; align-items: center; justify-content: center;
+      gap: 4px; border-left: 1px solid #D8D4C7;
+    }
+    .eq-bar { display: block; width: 4px; min-height: 4px; height: 9px; background: #8B978F; opacity: .72; transform-origin: center; }
+    .eq-bar:nth-child(4n) { background: var(--green); }
+    .display-bottom {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      margin: 0; padding: 14px 4px 11px;
+    }
+    .signal-meta { color: #D1DBD5; font: 500 9px var(--mono); letter-spacing: .035em; }
+    .detail-toggle {
+      display: inline-flex; align-items: center; gap: 6px; padding: 4px 0;
+      border: 0; color: #EDF2EF; background: transparent; font-size: 10px; cursor: pointer;
+    }
+    .detail-toggle i { width: 13px; height: 13px; }
+    .station-about { display: none; margin: 13px 0 0; max-width: 680px; color: #C4C1BA; font-size: 11px; line-height: 1.7; }
+    .station-about.open { display: block; }
+    .deck {
+      display: grid; grid-template-columns: 1fr auto 1fr; gap: 18px;
+      align-items: center; padding: 16px 10px 10px;
+      border-top: 1px solid rgba(255,255,255,.08);
+    }
+    .transport { display: flex; align-items: center; gap: 10px; }
+    .transport button, .icon-control {
+      display: inline-grid; place-items: center; border: 1px solid #45443F;
+      background: #22473D; color: #F6F4EF; cursor: pointer;
+      transition: background .16s ease, border-color .16s ease, transform .16s ease;
+    }
+    .transport button:hover, .icon-control:hover { background: #2E5A4D; border-color: #6E9183; }
+    .transport button { width: 44px; height: 42px; }
+    .transport button i { width: 17px; height: 17px; }
+    .transport .play-button { width: 58px; height: 52px; border-color: #F8F4E9; background: #F8F4E9; color: var(--green); }
+    .transport .play-button:hover { background: #FFFFFF; }
+    .transport .play-button i { width: 21px; height: 21px; }
+    .deck-label { display: block; margin-top: 6px; color: #96938B; font: 500 8px var(--mono); letter-spacing: .08em; }
+    .deck-middle { display: flex; align-items: center; justify-content: center; gap: 7px; }
+    .icon-control { width: 38px; height: 38px; }
+    .icon-control i { width: 16px; height: 16px; }
+    .icon-control.favorite.active { color: #F06578; border-color: #79434B; }
+    .volume-control { display: flex; align-items: center; justify-self: end; gap: 9px; }
+    .volume-control i { width: 16px; height: 16px; color: #B6B3AC; }
+    input[type="range"] { accent-color: #E7E3DA; width: 105px; height: 3px; cursor: pointer; }
+    .sleep-row {
+      padding: 14px 10px 3px; border-top: 1px solid rgba(255,255,255,.10);
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    .sleep-heading { display: flex; align-items: center; gap: 8px; color: #B6B3AC; font-size: 10px; }
+    .sleep-heading i { width: 14px; height: 14px; }
+    .sleep-options { display: flex; gap: 5px; }
+    .sleep-option {
+      border: 1px solid transparent; background: transparent; color: #AAA79F;
+      padding: 6px 9px; font: 500 10px var(--mono); cursor: pointer;
+    }
+    .sleep-option:hover { color: white; }
+    .sleep-option.active { border-color: #59574F; color: white; background: #292824; }
+    .timer-readout { min-width: 54px; text-align: right; color: #D6D2C9; font: 500 10px var(--mono); }
+    .audio-error { display: none; margin: 10px 4px 0; color: #FFABB8; font-size: 11px; line-height: 1.5; }
+    .audio-error.visible { display: block; }
+    audio { display: none; }
+
+    .section { margin-top: 54px; }
+    .section-heading {
+      display: flex; justify-content: space-between; align-items: end; gap: 18px;
+      padding-bottom: 13px; border-bottom: 1px solid var(--ink);
+    }
+    .section-heading h2 {
+      margin: 4px 0 0; font: 700 clamp(22px, 3vw, 29px)/1.2 var(--serif);
+      letter-spacing: -.02em;
+    }
+    .section-heading p { max-width: 350px; margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; text-align: right; }
+    .filters { display: flex; flex-wrap: wrap; gap: 7px; padding: 15px 0; }
+    .filter-button {
+      padding: 7px 11px; border: 1px solid var(--rule); border-radius: 999px;
+      background: rgba(255,255,255,.58); font-size: 10px; cursor: pointer;
+    }
+    .filter-button:hover, .filter-button.active { border-color: var(--green); background: var(--green); color: white; }
+    .station-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+    .station-card {
+      position: relative; min-height: 152px; padding: 17px 15px 14px;
+      border: 1px solid var(--rule); border-radius: 3px;
+      background: rgba(255,255,255,.86); text-align: left; cursor: pointer;
+      transition: border-color 180ms var(--ease-out), transform 180ms var(--ease-out),
+        box-shadow 180ms var(--ease-out);
+    }
+    .station-card:hover {
+      border-color: #A8ABA2; transform: translateY(-2px);
+      box-shadow: 0 10px 24px rgba(20, 20, 20, .07);
+    }
+    .station-card.selected {
+      border-color: var(--green);
+      box-shadow: inset 0 0 0 1px var(--green), 0 8px 22px rgba(24,63,53,.08);
+    }
+    .station-card.selected::before {
+      content: ""; position: absolute; top: 0; left: 16px;
+      width: 30px; height: 3px; background: var(--red);
+    }
+    .card-country { color: var(--muted); font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+    .station-card h3 { margin: 10px 27px 5px 0; font: 700 17px/1.2 var(--serif); }
+    .station-card p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
+    .card-frequency { display: block; margin-top: 12px; color: #76736D; font: 500 9px var(--mono); }
+    .card-favorite {
+      position: absolute; top: 12px; right: 12px; width: 25px; height: 25px;
+      z-index: 3; border: 0; background: transparent; color: #8A877F; cursor: pointer;
+    }
+    .card-favorite i { width: 15px; height: 15px; }
+    .card-favorite.active { color: var(--red); }
+    .station-select {
+      position: absolute; z-index: 1; inset: 0; width: 100%; height: 100%;
+      border: 0; background: transparent; cursor: pointer;
+    }
+    .station-card > :not(.station-select):not(.card-favorite) { pointer-events: none; }
+    .empty-state { padding: 24px; border: 1px solid var(--rule); background: white; color: var(--muted); font-size: 12px; }
+
+    .scratchpad { margin: 55px 0 62px; }
+    .scratchpad .section-heading { align-items: start; }
+    .scratchpad-form {
+      display: flex; gap: 9px; margin-top: 17px;
+    }
+    .scratchpad-form input {
+      flex: 1; min-width: 0; height: 43px; padding: 0 13px;
+      border: 1px solid #BEBBB2; border-radius: 0; background: white; font-size: 12px;
+    }
+    .save-word {
+      min-height: 43px; padding: 0 16px; border: 1px solid var(--ink);
+      background: var(--ink); color: white; font-size: 11px; font-weight: 600; cursor: pointer;
+    }
+    .save-word:hover { background: #34332F; }
+    .save-word:disabled { opacity: .65; cursor: wait; }
+    .translation-status { min-height: 20px; margin: 8px 0 0; color: var(--muted); font-size: 11px; }
+    .translation-status.error { color: var(--red); }
+    .vocab-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; margin-top: 12px; }
+    .vocab-card { position: relative; padding: 14px 38px 13px 14px; border: 1px solid var(--rule); background: white; }
+    .vocab-word { font: 700 16px var(--serif); }
+    .vocab-translation { margin-top: 4px; font-size: 12px; }
+    .vocab-source { margin-top: 9px; color: var(--muted); font-size: 9px; }
+    .delete-word {
+      position: absolute; top: 10px; right: 10px; width: 25px; height: 25px;
+      border: 0; background: transparent; color: #77746D; cursor: pointer;
+    }
+    .delete-word i { width: 15px; height: 15px; }
+    .vocab-empty { grid-column: 1/-1; padding: 17px; border: 1px dashed #C9C6BD; color: var(--muted); font-size: 11px; }
+    .footer {
+      padding: 14px 0 22px; border-top: 1px solid var(--rule); color: var(--muted);
+      display: flex; justify-content: space-between; gap: 12px; font-size: 9px;
+    }
+    .sr-only {
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+    }
+
+    @media (max-width: 760px) {
+      .station-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .display { grid-template-columns: minmax(0, 1fr) 94px; gap: 12px; }
+      .equalizer { gap: 3px; }
+      .eq-bar { width: 3px; }
+      .vocab-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .section { margin-top: 44px; }
+    }
+    @media (max-width: 520px) {
+      .page-shell { width: min(100% - 28px, 920px); }
+      .topbar { align-items: flex-start; padding: 12px 0; }
+      .lab-label { max-width: 190px; line-height: 1.5; font-size: 9px; }
+      .daily-summary { display: block; }
+      .daily-copy { font-size: 9px; }
+      .daily-copy span { display: block; margin: 0; }
+      .progress-track { width: 100%; margin-top: 4px; }
+      .info-popover { position: fixed; top: 54px; left: 14px; right: 14px; width: auto; max-width: none; }
+      .masthead { padding: 32px 0 24px; }
+      .radio-console { padding: 11px; }
+      .display { min-height: 0; grid-template-columns: 1fr; padding: 19px; }
+      .equalizer { height: 32px; border-left: 0; border-top: 1px solid #383733; padding-top: 12px; }
+      .eq-bar { width: 5px; }
+      .display-bottom { align-items: start; }
+      .signal-meta { max-width: 58%; line-height: 1.6; }
+      .deck { grid-template-columns: 1fr auto; gap: 12px; }
+      .transport { gap: 7px; }
+      .transport button { width: 39px; height: 39px; }
+      .transport .play-button { width: 51px; height: 47px; }
+      .deck-middle { grid-column: 2; grid-row: 1; }
+      .volume-control { grid-column: 1/-1; justify-self: stretch; padding: 4px 2px 1px; }
+      .volume-control input { flex: 1; }
+      .sleep-row { flex-wrap: wrap; }
+      .sleep-heading { flex: 1; }
+      .sleep-options { order: 3; width: 100%; justify-content: space-between; }
+      .sleep-option { padding: 7px 8px; }
+      .timer-readout { min-width: 48px; }
+      .section-heading { display: block; }
+      .section-heading p { margin-top: 7px; text-align: left; }
+      .station-grid { gap: 7px; }
+      .station-card { min-height: 150px; padding: 14px 11px 12px; }
+      .station-card h3 { font-size: 15px; }
+      .scratchpad-form { flex-direction: column; }
+      .save-word { width: 100%; }
+      .vocab-list { grid-template-columns: 1fr; }
+      .footer { flex-direction: column; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <header class="page-shell topbar">
+    <div class="lab-label">
+      <span class="dash" aria-hidden="true"></span>
+      <span>Brazilian in Action — Audio Immersion Lab</span>
+      <span class="info-wrap" id="infoWrap">
+        <button class="info-button" id="infoButton" type="button" aria-label="About these stations" aria-expanded="false">(i)</button>
+        <span class="info-popover" role="tooltip">All stations are open public or state-supported international radio services, selected for educational English listening practice and without commercial advertising.</span>
+      </span>
+    </div>
+    <div class="daily-summary" aria-label="Daily listening progress">
+      <div class="daily-copy"><strong id="listeningToday">Listening Today: 00 min</strong><span id="streakCount">Streak: 0 days</span></div>
+      <div class="progress-track" role="progressbar" aria-label="Daily goal: 15 minutes" aria-valuemin="0" aria-valuemax="15" aria-valuenow="0" id="dailyProgress"><div class="progress-fill" id="progressFill"></div></div>
+    </div>
+  </header>
+
+  <main class="page-shell">
+    <section class="masthead" aria-labelledby="pageTitle">
+      <div class="eyebrow">A listening room for curious minds</div>
+      <h1 id="pageTitle">Brazilian Radio</h1>
+      <p>Public voices. Real English. One world of listening.</p>
+    </section>
+
+    <section class="radio-console" aria-label="Radio player">
+      <div class="console-topline">
+        <span class="brand-mark">BIA / STUDIO 01</span>
+        <span>WORLD BAND · DIGITAL TUNER</span>
+      </div>
+      <div class="display">
+        <div class="display-copy">
+          <div class="status-line" id="statusLine" aria-live="polite"><span class="status-dot">●</span><span id="statusText">STANDBY</span></div>
+          <h2 class="station-name" id="stationName">NPR News</h2>
+          <p class="station-slogan" id="stationSlogan">24/7 News, interviews &amp; cultural stories</p>
+          <div class="station-meta">
+            <span><i data-lucide="map-pin" aria-hidden="true"></i><span id="stationLocation">Washington, D.C. · United States</span></span>
+            <div class="local-clocks" aria-label="Horários da rádio e de Brasília">
+              <span class="local-clock station-clock" id="stationClock" aria-label="Horário local da rádio">Local da rádio · --:--</span>
+              <span class="local-clock brazil-clock" id="localClock" aria-label="Horário de Brasília">Brasília · --:--</span>
+            </div>
+          </div>
+          <div class="accent-tag" id="accentTag">Accent: General American · Level: B1–C2</div>
+        </div>
+        <div class="equalizer" id="equalizer" role="img" aria-label="Audio level visualizer"></div>
+      </div>
+      <div class="display-bottom">
+        <span class="signal-meta" id="signalMeta">FM 88.5 · STEREO · PUBLIC RADIO</span>
+        <button class="detail-toggle" id="detailToggle" type="button" aria-expanded="false"><i data-lucide="plus" aria-hidden="true"></i><span>Station notes</span></button>
+      </div>
+      <p class="station-about" id="stationAbout"></p>
+      <div class="deck">
+        <div class="transport">
+          <div><button id="previousButton" type="button" aria-label="Previous station"><i data-lucide="skip-back" aria-hidden="true"></i></button><span class="deck-label">PREVIOUS</span></div>
+          <div><button class="play-button" id="playButton" type="button" aria-label="Play"><i data-lucide="play" aria-hidden="true"></i></button><span class="deck-label">PLAY / PAUSE</span></div>
+          <div><button id="nextButton" type="button" aria-label="Next station"><i data-lucide="skip-forward" aria-hidden="true"></i></button><span class="deck-label">NEXT</span></div>
+        </div>
+        <div class="deck-middle">
+          <button class="icon-control favorite" id="favoriteButton" type="button" aria-label="Add station to favorites" aria-pressed="false"><i data-lucide="heart" aria-hidden="true"></i></button>
+          <span class="sr-only" id="favoriteLabel">Not in favorites</span>
+        </div>
+        <label class="volume-control" for="volumeControl"><i data-lucide="volume-2" aria-hidden="true"></i><span class="sr-only">Volume</span><input id="volumeControl" type="range" min="0" max="1" step="0.01" value="0.72"></label>
+      </div>
+      <div class="sleep-row">
+        <div class="sleep-heading"><i data-lucide="moon" aria-hidden="true"></i><span>Sleep timer</span></div>
+        <div class="sleep-options" role="group" aria-label="Sleep timer duration">
+          <button class="sleep-option" type="button" data-minutes="15">15m</button>
+          <button class="sleep-option" type="button" data-minutes="30">30m</button>
+          <button class="sleep-option" type="button" data-minutes="60">60m</button>
+          <button class="sleep-option active" type="button" data-minutes="0">Off</button>
+        </div>
+        <span class="timer-readout" id="timerReadout" aria-live="polite">OFF</span>
+      </div>
+      <p class="audio-error" id="audioError" role="status"></p>
+      <audio id="radioAudio" preload="none" playsinline></audio>
+    </section>
+
+    <section class="section" aria-labelledby="stationsTitle">
+      <div class="section-heading">
+        <div><div class="section-kicker">Tune in · eight open broadcasters</div><h2 id="stationsTitle">Choose your frequency</h2></div>
+        <p>Explore distinct voices, cities and ways of telling a story. Select a station to tune in.</p>
+      </div>
+      <div class="filters" id="stationFilters" role="group" aria-label="Filter stations by region">
+        <button class="filter-button active" type="button" data-filter="all">All stations</button>
+        <button class="filter-button" type="button" data-filter="usa">USA</button>
+        <button class="filter-button" type="button" data-filter="uk">UK</button>
+        <button class="filter-button" type="button" data-filter="canada">Canada</button>
+        <button class="filter-button" type="button" data-filter="oceania">Australia / NZ</button>
+        <button class="filter-button" type="button" data-filter="favorites">Favorites</button>
+      </div>
+      <div class="station-grid" id="stationGrid"></div>
+    </section>
+
+    <section class="scratchpad" aria-labelledby="scratchpadTitle">
+      <div class="section-heading">
+        <div><div class="section-kicker">Collect a phrase · keep it close</div><h2 id="scratchpadTitle">Listening Scratchpad</h2></div>
+        <p>Jot down a word or phrase you just heard. We’ll translate it and save the station where you found it.</p>
+      </div>
+      <form class="scratchpad-form" id="vocabularyForm">
+        <label class="sr-only" for="wordInput">English word or phrase</label>
+        <input id="wordInput" name="word" type="text" maxlength="160" placeholder="A word or phrase you heard in English…" autocomplete="off" required>
+        <button class="save-word" id="saveWordButton" type="submit">Translate &amp; Save</button>
+      </form>
+      <p class="translation-status" id="translationStatus" role="status" aria-live="polite"></p>
+      <div class="vocab-list" id="vocabularyList" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <footer class="page-shell footer">
+    <span>Brazilian Radio · Brazilian in Action</span>
+    <span>Independent public-radio streams · For English immersion</span>
+  </footer>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const STORAGE = {
+        favorites: "biaRadioFavoritesV1",
+        vocabulary: "biaRadioVocabularyV1",
+        listening: "biaRadioListeningV1",
+        volume: "biaRadioVolumeV1"
+      };
+      const stations = [
+        {
+          id: "npr", name: "NPR News", short: "NPR News", country: "USA", filter: "usa",
+          location: "Washington, D.C. · United States", city: "Washington, D.C.", timezone: "America/New_York",
+          accent: "General American", level: "B1–C2", frequency: "FM 88.5", genre: "PUBLIC RADIO",
+          slogan: "24/7 News, interviews & cultural stories",
+          about: "A measured, articulate delivery makes long-form reporting and thoughtful interviews easy to follow. Listen for carefully framed questions, clear transitions and a broad range of American voices.",
+          stream: "https://npr-ice.streamguys1.com/live.mp3", format: "MP3"
+        },
+        {
+          id: "voa", name: "VOA News", short: "Voice of America", country: "USA", filter: "usa",
+          location: "Washington, D.C. · United States", city: "Washington, D.C.", timezone: "America/New_York",
+          accent: "International American", level: "A2–C1", frequency: "WORLD SERVICE", genre: "GLOBAL NEWS",
+          slogan: "Global headlines, explainers & perspectives",
+          about: "Voice of America is a U.S. international broadcaster. Its English programming is designed for a global audience, with clear enunciation, explainers and a steady news-reader pace.",
+          stream: "https://voa-ingest.akamaized.net/hls/live/2035206/151_124L/playlist.m3u8", format: "HLS / AAC"
+        },
+        {
+          id: "wnyc", name: "WNYC 93.9 FM", short: "WNYC 93.9 FM", country: "USA", filter: "usa",
+          location: "New York, NY · United States", city: "New York", timezone: "America/New_York",
+          accent: "New York · Urban", level: "B1–C2", frequency: "93.9 FM", genre: "NEW YORK PUBLIC RADIO",
+          slogan: "New York stories, culture & conversation",
+          about: "A lively mix of New York reporting and culture. Hosts move between polished narration and spontaneous conversation, offering a useful feel for contemporary urban American speech.",
+          stream: "http://fm939.wnyc.org/wnycfm.aac", format: "AAC"
+        },
+        {
+          id: "kqed", name: "KQED Public Radio", short: "KQED Public Radio", country: "USA", filter: "usa",
+          location: "San Francisco, CA · United States", city: "San Francisco", timezone: "America/Los_Angeles",
+          accent: "West Coast · California", level: "B1–C2", frequency: "88.5 FM", genre: "BAY AREA PUBLIC MEDIA",
+          slogan: "Ideas, science, technology & Bay Area life",
+          about: "Reporting from the San Francisco Bay Area pairs clear studio presentation with interviews about science, technology and civic life. Expect a relaxed West Coast conversational cadence.",
+          stream: "https://streams.kqed.org/kqedradio", format: "MP3"
+        },
+        {
+          id: "bbc", name: "BBC World Service", short: "BBC World Service", country: "UK", filter: "uk",
+          location: "London · United Kingdom", city: "London", timezone: "Europe/London",
+          accent: "Standard British · RP", level: "B1–C2", frequency: "WORLD SERVICE", genre: "BBC WORLD SERVICE",
+          slogan: "Global journalism, reporting & analysis",
+          about: "Correspondents and presenters deliver international reporting with crisp studio diction and a variety of British and global accents. News bulletins are concise; interviews offer more natural speech.",
+          stream: "https://stream.live.vc.bbcmedia.co.uk/bbc_world_service", format: "HLS / AAC"
+        },
+        {
+          id: "cbc", name: "CBC Radio One", short: "CBC Radio One", country: "Canada", filter: "canada",
+          location: "Toronto, ON · Canada", city: "Toronto", timezone: "America/Toronto",
+          accent: "Standard Canadian", level: "B1–C2", frequency: "99.1 FM", genre: "CBC RADIO ONE",
+          slogan: "Canadian news, ideas & everyday stories",
+          about: "Warm, listener-focused hosts guide a mix of national news and everyday stories. The speech is generally clear and measured, with Canadian English heard in a North American context.",
+          stream: "https://17813.live.streamtheworld.com/CBLAFM_CBC_SC", format: "MP3"
+        },
+        {
+          id: "abc", name: "ABC NewsRadio", short: "ABC NewsRadio", country: "Australia", filter: "oceania",
+          location: "Sydney, NSW · Australia", city: "Sydney", timezone: "Australia/Sydney",
+          accent: "Australian", level: "B1–C2", frequency: "630 AM", genre: "ABC AUSTRALIA",
+          slogan: "Continuous news, current affairs & Pacific voices",
+          about: "A rolling news service with brisk updates and interviews from across Australia and the Pacific. Listen for Australian vowel sounds, concise bulletins and a broad current-affairs vocabulary.",
+          stream: "https://streaming.abc-cdn.net.au/audio/hls/newsradio.m3u8?source=web", format: "HLS / AAC"
+        },
+        {
+          id: "rnz", name: "RNZ National", short: "RNZ National", country: "New Zealand", filter: "oceania",
+          location: "Wellington · New Zealand", city: "Wellington", timezone: "Pacific/Auckland",
+          accent: "New Zealand", level: "B1–C2", frequency: "101 FM", genre: "RNZ NATIONAL",
+          slogan: "New Zealand current affairs, culture & interviews",
+          about: "Longer interviews and cultural programmes create room to hear natural New Zealand English. Presenters tend to give guests space to speak, making this a good station for extended listening practice.",
+          stream: "https://radionz.streamguys1.com/national/national/national/national-mainstream/chunks.m3u8", format: "HLS"
+        }
+      ];
+
+      const $ = (selector, root = document) => root.querySelector(selector);
+      const audio = $("#radioAudio");
+      const stationGrid = $("#stationGrid");
+      const eqRoot = $("#equalizer");
+      const clockFormatters = new Map();
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      let favorites = readStored(STORAGE.favorites, []);
+      let vocabulary = readStored(STORAGE.vocabulary, []);
+      if (!Array.isArray(favorites)) favorites = [];
+      if (!Array.isArray(vocabulary)) vocabulary = [];
+      let listening = readStored(STORAGE.listening, { date: localDateKey(), seconds: 0, streak: 0, lastActiveDate: "" });
+      let currentStationIndex = 0;
+      let activeFilter = "all";
+      let hlsInstance = null;
+      let audioContext = null;
+      let analyser = null;
+      let sourceNode = null;
+      let visualFrame = 0;
+      let visualFallback = null;
+      let corsFallbackTried = false;
+      let selectedTimerSeconds = 0;
+      let timerEndsAt = 0;
+      let timerInterval = null;
+      let fadeTween = null;
+      let translating = false;
+
+      function readStored(key, fallback) {
+        try {
+          const value = JSON.parse(localStorage.getItem(key));
+          return value === null ? fallback : value;
+        } catch (error) {
+          console.warn("Could not read saved radio data:", key, error);
+          return fallback;
+        }
+      }
+
+      function saveStored(key, value) {
+        try {
+          localStorage.setItem(key, JSON.stringify(value));
+        } catch (error) {
+          console.warn("Could not save radio data:", key, error);
+        }
+      }
+
+      function refreshIcons() {
+        if (window.lucide && typeof window.lucide.createIcons === "function") {
+          window.lucide.createIcons();
+        }
+      }
+
+      function localDateKey(date = new Date()) {
+        const parts = new Intl.DateTimeFormat("en-CA", {
+          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          year: "numeric", month: "2-digit", day: "2-digit"
+        }).formatToParts(date);
+        const part = (type) => parts.find((item) => item.type === type).value;
+        return `${part("year")}-${part("month")}-${part("day")}`;
+      }
+
+      function dayDifference(first, second) {
+        const a = Date.parse(`${first}T00:00:00Z`);
+        const b = Date.parse(`${second}T00:00:00Z`);
+        return Math.round((b - a) / 86400000);
+      }
+
+      function ensureListeningDate() {
+        const today = localDateKey();
+        if (listening.date !== today) {
+          listening.date = today;
+          listening.seconds = 0;
+          saveStored(STORAGE.listening, listening);
+        }
+      }
+
+      function updateDailyDisplay() {
+        ensureListeningDate();
+        const minutes = Math.floor(Math.max(0, listening.seconds) / 60);
+        const progress = Math.min(100, (listening.seconds / (15 * 60)) * 100);
+        $("#listeningToday").textContent = `Listening Today: ${String(minutes).padStart(2, "0")} min`;
+        $("#streakCount").textContent = `Streak: ${listening.streak || 0} ${listening.streak === 1 ? "day" : "days"}`;
+        $("#progressFill").style.width = `${progress}%`;
+        $("#dailyProgress").setAttribute("aria-valuenow", String(Math.min(15, minutes)));
+      }
+
+      function recordListeningSecond() {
+        ensureListeningDate();
+        listening.seconds += 1;
+        if (listening.lastActiveDate !== listening.date) {
+          const gap = listening.lastActiveDate ? dayDifference(listening.lastActiveDate, listening.date) : 0;
+          listening.streak = gap === 1 ? (listening.streak || 0) + 1 : 1;
+          listening.lastActiveDate = listening.date;
+        }
+        if (listening.seconds % 15 === 0) saveStored(STORAGE.listening, listening);
+        if (listening.seconds % 5 === 0) updateDailyDisplay();
+      }
+
+      function getCurrentStation() { return stations[currentStationIndex]; }
+
+      function renderStation(index, shouldAnimate = true) {
+        currentStationIndex = (index + stations.length) % stations.length;
+        const station = getCurrentStation();
+        $("#stationName").textContent = station.name;
+        $("#stationSlogan").textContent = station.slogan;
+        $("#stationLocation").textContent = station.location;
+        $("#accentTag").textContent = `Accent: ${station.accent} · Level: ${station.level}`;
+        $("#stationAbout").textContent = station.about;
+        $("#signalMeta").textContent = `${station.frequency} · ${station.format} · ${station.genre}`;
+        $("#audioError").classList.remove("visible");
+        $("#audioError").textContent = "";
+        $("#stationAbout").classList.remove("open");
+        $("#detailToggle").setAttribute("aria-expanded", "false");
+        $("#detailToggle").innerHTML = '<i data-lucide="plus" aria-hidden="true"></i><span>Station notes</span>';
+        updateClock();
+        updateFavoriteButton();
+        renderStationCards();
+        setMediaSessionMetadata(station);
+        if (shouldAnimate && !reducedMotion && window.gsap) {
+          window.gsap.fromTo(".display-copy", { opacity: .4, y: 5 }, { opacity: 1, y: 0, duration: .32, ease: "power2.out" });
+        }
+        refreshIcons();
+      }
+
+      function updateClock() {
+        const station = getCurrentStation();
+        const brazilTimezone = "America/Sao_Paulo";
+
+        if (!clockFormatters.has(station.timezone)) {
+          clockFormatters.set(station.timezone, new Intl.DateTimeFormat("pt-BR", {
+            timeZone: station.timezone, hour: "2-digit", minute: "2-digit", hour12: false
+          }));
+        }
+        if (!clockFormatters.has(brazilTimezone)) {
+          clockFormatters.set(brazilTimezone, new Intl.DateTimeFormat("pt-BR", {
+            timeZone: brazilTimezone, hour: "2-digit", minute: "2-digit", hour12: false
+          }));
+        }
+
+        const now = new Date();
+        const stationTime = clockFormatters.get(station.timezone).format(now);
+        const brazilTime = clockFormatters.get(brazilTimezone).format(now);
+        $("#stationClock").textContent = `Local da rádio · ${stationTime}`;
+        $("#stationClock").setAttribute("aria-label", `Horário local da rádio em ${station.city}: ${stationTime}`);
+        $("#localClock").textContent = `Brasília · ${brazilTime}`;
+      }
+
+      function isFavorite(id) { return favorites.includes(id); }
+
+      function updateFavoriteButton() {
+        const active = isFavorite(getCurrentStation().id);
+        const button = $("#favoriteButton");
+        button.classList.toggle("active", active);
+        button.setAttribute("aria-pressed", String(active));
+        button.setAttribute("aria-label", active ? "Remove station from favorites" : "Add station to favorites");
+        $("#favoriteLabel").textContent = active ? "In favorites" : "Not in favorites";
+      }
+
+      function renderStationCards() {
+        const visible = stations.filter((station) => {
+          if (activeFilter === "favorites") return isFavorite(station.id);
+          return activeFilter === "all" || station.filter === activeFilter;
+        });
+        if (!visible.length) {
+          stationGrid.innerHTML = '<div class="empty-state">No favorite stations yet. Tap the heart on a station to keep it here.</div>';
+          return;
+        }
+        stationGrid.innerHTML = visible.map((station) => {
+          const selected = station.id === getCurrentStation().id;
+          const favorite = isFavorite(station.id);
+          const label = station.filter === "oceania" ? station.country : station.country;
+          return `<article class="station-card${selected ? " selected" : ""}" aria-current="${selected ? "true" : "false"}">
+            <button class="station-select" type="button" data-station="${station.id}" aria-label="Tune in to ${escapeHTML(station.name)}"></button>
+            <span class="card-country">${escapeHTML(label)}</span>
+            <button class="card-favorite${favorite ? " active" : ""}" type="button" data-favorite="${station.id}" aria-label="${favorite ? "Remove from" : "Add to"} favorites: ${escapeHTML(station.name)}" aria-pressed="${favorite}"><i data-lucide="heart" aria-hidden="true"></i></button>
+            <h3>${escapeHTML(station.short)}</h3>
+            <p>${escapeHTML(station.city)} · ${escapeHTML(station.accent)}</p>
+            <span class="card-frequency">${escapeHTML(station.frequency)} · ${escapeHTML(station.format)}</span>
+          </article>`;
+        }).join("");
+        refreshIcons();
+      }
+
+      function escapeHTML(value) {
+        return String(value).replace(/[&<>"']/g, (character) => ({
+          "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+        })[character]);
+      }
+
+      function setMediaSessionMetadata(station) {
+        if (!("mediaSession" in navigator)) return;
+        if ("MediaMetadata" in window) {
+          navigator.mediaSession.metadata = new MediaMetadata({
+            title: station.name,
+            artist: station.location,
+            album: "Brazilian Radio · Brazilian in Action"
+          });
+        }
+      }
+
+      function setMediaPlaybackState(state) {
+        if ("mediaSession" in navigator && "playbackState" in navigator.mediaSession) {
+          navigator.mediaSession.playbackState = state;
+        }
+      }
+
+      function registerMediaSessionHandlers() {
+        if (!("mediaSession" in navigator) || typeof navigator.mediaSession.setActionHandler !== "function") return;
+        const handlers = {
+          play: () => playRadio(),
+          pause: () => pauseRadio(),
+          previoustrack: () => changeStation(-1),
+          nexttrack: () => changeStation(1)
+        };
+        Object.entries(handlers).forEach(([action, handler]) => {
+          try { navigator.mediaSession.setActionHandler(action, handler); }
+          catch (error) { console.info(`Media Session action is unavailable: ${action}`, error); }
+        });
+      }
+
+      function destroyHls() {
+        if (hlsInstance) {
+          hlsInstance.destroy();
+          hlsInstance = null;
+        }
+      }
+
+      function loadStation(station) {
+        destroyHls();
+        resetVisualizer();
+        audio.pause();
+        audio.removeAttribute("src");
+        audio.load();
+        corsFallbackTried = false;
+        const url = station.stream;
+        const isHls = /\.m3u8(?:$|[?#])/i.test(url);
+
+        if (isHls && !audio.canPlayType("application/vnd.apple.mpegurl") && window.Hls && window.Hls.isSupported()) {
+          hlsInstance = new window.Hls({ enableWorker: true });
+          hlsInstance.loadSource(url);
+          hlsInstance.attachMedia(audio);
+          hlsInstance.on(window.Hls.Events.ERROR, (_event, data) => {
+            if (data.fatal) showAudioError(`This stream could not be loaded (${data.details || "network error"}). Try another station.`);
+          });
+        } else {
+          audio.crossOrigin = "anonymous";
+          audio.src = url;
+          audio.load();
+        }
+      }
+
+      function changeStation(offset) {
+        const wasPlaying = !audio.paused;
+        renderStation(currentStationIndex + offset);
+        loadStation(getCurrentStation());
+        if (wasPlaying) playRadio();
+      }
+
+      function playRadio() {
+        const station = getCurrentStation();
+        if (!audio.currentSrc && !hlsInstance) loadStation(station);
+        setMediaSessionMetadata(station);
+        const result = audio.play();
+        if (result && typeof result.catch === "function") {
+          result.catch((error) => {
+            if (error && error.name === "NotAllowedError") {
+              showAudioError("Playback was blocked by the browser. Press Play again to start the live stream.");
+            } else if (error && error.name !== "AbortError") {
+              showAudioError("This station could not start. Try another station or check your connection.");
+            }
+          });
+        }
+      }
+
+      function pauseRadio() {
+        audio.pause();
+        if (fadeTween && window.gsap) fadeTween.kill();
+        fadeTween = null;
+        audio.volume = Number($("#volumeControl").value);
+      }
+
+      function showAudioError(message) {
+        const notice = $("#audioError");
+        notice.textContent = message;
+        notice.classList.add("visible");
+      }
+
+      function togglePlay() {
+        if (audio.paused) playRadio();
+        else pauseRadio();
+      }
+
+      function animateButton(button) {
+        if (window.gsap && !reducedMotion) {
+          window.gsap.fromTo(button, { scale: .94 }, { scale: 1, duration: .28, ease: "back.out(2)" });
+        }
+      }
+
+      function createEqualizer() {
+        eqRoot.innerHTML = Array.from({ length: 24 }, () => '<span class="eq-bar"></span>').join("");
+      }
+
+      function fallbackBars() {
+        if (visualFallback || reducedMotion) return;
+        const bars = Array.from(eqRoot.children);
+        if (window.gsap) {
+          visualFallback = window.gsap.to(bars, {
+            scaleY: () => .22 + Math.random() * 2.8,
+            duration: () => .22 + Math.random() * .32,
+            stagger: { each: .018, from: "random" },
+            repeat: -1, yoyo: true, ease: "sine.inOut"
+          });
+        } else {
+          visualFallback = window.setInterval(() => {
+            bars.forEach((bar) => { bar.style.transform = `scaleY(${(.2 + Math.random() * 2.4).toFixed(2)})`; });
+          }, 180);
+        }
+      }
+
+      function stopFallbackBars() {
+        if (!visualFallback) return;
+        if (window.gsap && typeof visualFallback.kill === "function") visualFallback.kill();
+        else window.clearInterval(visualFallback);
+        visualFallback = null;
+      }
+
+      function startAnalyser() {
+        if (!audioContext || !analyser || audio.paused) return;
+        stopFallbackBars();
+        const bars = Array.from(eqRoot.children);
+        const data = new Uint8Array(analyser.frequencyBinCount);
+        let allZeroFrames = 0;
+        const draw = () => {
+          if (audio.paused || !analyser) return;
+          analyser.getByteFrequencyData(data);
+          const peak = data.reduce((max, value) => Math.max(max, value), 0);
+          if (peak === 0) allZeroFrames++;
+          else allZeroFrames = 0;
+          if (allZeroFrames > 120 && !corsFallbackTried) {
+            retryWithoutCorsAudio();
+            return;
+          }
+          bars.forEach((bar, index) => {
+            const value = data[Math.floor(index * data.length / bars.length)] || 0;
+            bar.style.transform = `scaleY(${Math.max(.08, value / 95)})`;
+            bar.style.opacity = String(.4 + Math.min(.6, value / 255));
+          });
+          visualFrame = requestAnimationFrame(draw);
+        };
+        cancelAnimationFrame(visualFrame);
+        draw();
+      }
+
+      function stopAnalyser() {
+        cancelAnimationFrame(visualFrame);
+        visualFrame = 0;
+      }
+
+      function retryWithoutCorsAudio() {
+        corsFallbackTried = true;
+        const station = getCurrentStation();
+        stopAnalyser();
+        stopFallbackBars();
+        if (sourceNode) {
+          try { sourceNode.disconnect(); } catch (error) { console.info("Audio analyzer disconnect:", error); }
+        }
+        if (audioContext && audioContext.state !== "closed") {
+          audioContext.close().catch((error) => console.info("Audio context close:", error));
+        }
+        audioContext = null;
+        analyser = null;
+        sourceNode = null;
+        audio.pause();
+        audio.removeAttribute("crossorigin");
+        if (hlsInstance) {
+          destroyHls();
+          const hls = window.Hls;
+          if (hls && hls.isSupported() && /\.m3u8(?:$|[?#])/i.test(station.stream)) {
+            hlsInstance = new hls();
+            hlsInstance.loadSource(station.stream);
+            hlsInstance.attachMedia(audio);
+          } else {
+            audio.src = station.stream;
+          }
+        } else {
+          audio.src = station.stream;
+        }
+        audio.load();
+        fallbackBars();
+        audio.play().catch((error) => {
+          if (error && error.name !== "AbortError") showAudioError("The live stream could not reconnect. Please press Play to try again.");
+        });
+      }
+
+      async function connectAnalyser() {
+        if (!window.AudioContext && !window.webkitAudioContext) {
+          fallbackBars();
+          return;
+        }
+        try {
+          if (audioContext) {
+            if (audioContext.state === "suspended") await audioContext.resume();
+            startAnalyser();
+            return;
+          }
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          audioContext = new AudioContextClass();
+          analyser = audioContext.createAnalyser();
+          analyser.fftSize = 128;
+          analyser.smoothingTimeConstant = .82;
+          sourceNode = audioContext.createMediaElementSource(audio);
+          sourceNode.connect(analyser);
+          analyser.connect(audioContext.destination);
+          await audioContext.resume();
+          startAnalyser();
+        } catch (error) {
+          console.info("Live frequency analysis unavailable; using animated fallback.", error);
+          if (sourceNode) {
+            try { sourceNode.disconnect(); } catch (disconnectError) { console.info("Audio analyzer disconnect:", disconnectError); }
+          }
+          if (audioContext && audioContext.state !== "closed") {
+            try { await audioContext.close(); } catch (closeError) { console.info("Audio context close:", closeError); }
+          }
+          sourceNode = null;
+          analyser = null;
+          audioContext = null;
+          fallbackBars();
+        }
+      }
+
+      function resetVisualizer() {
+        stopAnalyser();
+        stopFallbackBars();
+        Array.from(eqRoot.children).forEach((bar) => {
+          bar.style.transform = "scaleY(.5)";
+          bar.style.opacity = "";
+        });
+      }
+
+      function updatePlayState() {
+        const playing = !audio.paused;
+        $("#statusLine").classList.toggle("live", playing);
+        $("#statusText").textContent = playing ? "ON AIR" : "STANDBY";
+        $("#playButton").setAttribute("aria-label", playing ? "Pause" : "Play");
+        $("#playButton").innerHTML = `<i data-lucide="${playing ? "pause" : "play"}" aria-hidden="true"></i>`;
+        setMediaPlaybackState(playing ? "playing" : "paused");
+        refreshIcons();
+      }
+
+      function setFavorite(id) {
+        favorites = isFavorite(id) ? favorites.filter((item) => item !== id) : [...favorites, id];
+        saveStored(STORAGE.favorites, favorites);
+        updateFavoriteButton();
+        renderStationCards();
+      }
+
+      function selectFilter(filter) {
+        activeFilter = filter;
+        document.querySelectorAll(".filter-button").forEach((button) => {
+          const selected = button.dataset.filter === filter;
+          button.classList.toggle("active", selected);
+          button.setAttribute("aria-pressed", String(selected));
+        });
+        renderStationCards();
+      }
+
+      function startSleepTimer(minutes) {
+        selectedTimerSeconds = minutes * 60;
+        timerEndsAt = minutes ? Date.now() + selectedTimerSeconds * 1000 : 0;
+        if (timerInterval) window.clearInterval(timerInterval);
+        if (fadeTween && window.gsap) fadeTween.kill();
+        fadeTween = null;
+        audio.volume = Number($("#volumeControl").value);
+        document.querySelectorAll(".sleep-option").forEach((button) => {
+          button.classList.toggle("active", Number(button.dataset.minutes) === minutes);
+          button.setAttribute("aria-pressed", String(Number(button.dataset.minutes) === minutes));
+        });
+        if (!minutes) {
+          $("#timerReadout").textContent = "OFF";
+          return;
+        }
+        const tick = () => {
+          const left = Math.max(0, Math.ceil((timerEndsAt - Date.now()) / 1000));
+          $("#timerReadout").textContent = `${String(Math.floor(left / 60)).padStart(2, "0")}:${String(left % 60).padStart(2, "0")}`;
+          if (left <= 12 && left > 0 && !audio.paused && !fadeTween && window.gsap) {
+            const volume = { value: audio.volume };
+            fadeTween = window.gsap.to(volume, {
+              value: 0, duration: left, ease: "power1.out",
+              onUpdate: () => { audio.volume = volume.value; },
+              onComplete: () => { pauseRadio(); audio.volume = Number($("#volumeControl").value); }
+            });
+          }
+          if (left <= 12 && left > 0 && !window.gsap && !audio.paused) {
+            audio.volume = Number($("#volumeControl").value) * (left / 12);
+          }
+          if (left === 0) {
+            window.clearInterval(timerInterval);
+            timerInterval = null;
+            if (!audio.paused) pauseRadio();
+            $("#timerReadout").textContent = "DONE";
+            selectedTimerSeconds = 0;
+            document.querySelectorAll(".sleep-option").forEach((button) => {
+              button.classList.toggle("active", button.dataset.minutes === "0");
+            });
+          }
+        };
+        tick();
+        timerInterval = window.setInterval(tick, 250);
+      }
+
+      async function translateWord(text) {
+        const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|pt-BR`;
+        const response = await fetch(url, { headers: { Accept: "application/json" } });
+        if (!response.ok) throw new Error(`Translation service returned ${response.status}.`);
+        const result = await response.json();
+        const translated = result && result.responseData && result.responseData.translatedText;
+        if (!translated || result.responseStatus >= 400) {
+          throw new Error(result && result.responseDetails ? result.responseDetails : "No translation was returned.");
+        }
+        return decodeEntities(translated);
+      }
+
+      function decodeEntities(text) {
+        const element = document.createElement("textarea");
+        element.innerHTML = text;
+        return element.value;
+      }
+
+      function renderVocabulary() {
+        const list = $("#vocabularyList");
+        if (!vocabulary.length) {
+          list.innerHTML = '<div class="vocab-empty">Your listening notes will appear here. Save a word or phrase to start your collection.</div>';
+          return;
+        }
+        list.innerHTML = vocabulary.slice().reverse().map((entry) => `
+          <article class="vocab-card">
+            <button class="delete-word" type="button" data-delete-word="${escapeHTML(entry.id)}" aria-label="Delete ${escapeHTML(entry.word)}"><i data-lucide="x" aria-hidden="true"></i></button>
+            <div class="vocab-word">${escapeHTML(entry.word)}</div>
+            <div class="vocab-translation">${escapeHTML(entry.translation)}</div>
+            <div class="vocab-source">Heard on ${escapeHTML(entry.station)}</div>
+          </article>`).join("");
+        refreshIcons();
+      }
+
+      async function saveVocabulary(event) {
+        event.preventDefault();
+        if (translating) return;
+        const input = $("#wordInput");
+        const word = input.value.trim();
+        if (!word) {
+          input.focus();
+          return;
+        }
+        translating = true;
+        const button = $("#saveWordButton");
+        const status = $("#translationStatus");
+        button.disabled = true;
+        status.classList.remove("error");
+        status.textContent = "Translating…";
+        try {
+          const translation = await translateWord(word);
+          const station = getCurrentStation();
+          vocabulary.push({
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            word, translation, station: station.name, savedAt: new Date().toISOString()
+          });
+          saveStored(STORAGE.vocabulary, vocabulary);
+          renderVocabulary();
+          input.value = "";
+          status.textContent = `Saved: “${word}” → ${translation}`;
+        } catch (error) {
+          console.error("Could not translate listening note:", error);
+          status.classList.add("error");
+          status.textContent = `Translation failed: ${error.message || "Please check your connection and try again."}`;
+        } finally {
+          translating = false;
+          button.disabled = false;
+        }
+      }
+
+      $("#infoButton").addEventListener("click", () => {
+        const wrap = $("#infoWrap");
+        const open = wrap.classList.toggle("open");
+        $("#infoButton").setAttribute("aria-expanded", String(open));
+      });
+      $("#previousButton").addEventListener("click", (event) => { animateButton(event.currentTarget); changeStation(-1); });
+      $("#nextButton").addEventListener("click", (event) => { animateButton(event.currentTarget); changeStation(1); });
+      $("#playButton").addEventListener("click", (event) => { animateButton(event.currentTarget); togglePlay(); });
+      $("#favoriteButton").addEventListener("click", (event) => {
+        animateButton(event.currentTarget);
+        setFavorite(getCurrentStation().id);
+      });
+      $("#volumeControl").addEventListener("input", (event) => {
+        audio.volume = Number(event.currentTarget.value);
+        saveStored(STORAGE.volume, audio.volume);
+      });
+      $("#detailToggle").addEventListener("click", () => {
+        const notes = $("#stationAbout");
+        const open = !notes.classList.contains("open");
+        $("#detailToggle").setAttribute("aria-expanded", String(open));
+        $("#detailToggle").innerHTML = `<i data-lucide="${open ? "minus" : "plus"}" aria-hidden="true"></i><span>${open ? "Hide notes" : "Station notes"}</span>`;
+        if (window.gsap && !reducedMotion) {
+          if (open) {
+            notes.classList.add("open");
+            window.gsap.fromTo(notes, { opacity: 0, height: 0 }, { opacity: 1, height: "auto", duration: .28, ease: "power2.out" });
+          } else {
+            window.gsap.to(notes, { opacity: 0, height: 0, duration: .2, onComplete: () => { notes.classList.remove("open"); notes.style.height = ""; notes.style.opacity = ""; } });
+          }
+        } else {
+          notes.classList.toggle("open", open);
+        }
+        refreshIcons();
+      });
+      $("#stationFilters").addEventListener("click", (event) => {
+        const button = event.target.closest("[data-filter]");
+        if (button) selectFilter(button.dataset.filter);
+      });
+      stationGrid.addEventListener("click", (event) => {
+        const favoriteButton = event.target.closest("[data-favorite]");
+        if (favoriteButton) {
+          event.stopPropagation();
+          setFavorite(favoriteButton.dataset.favorite);
+          return;
+        }
+        const card = event.target.closest("[data-station]");
+        if (card) {
+          const index = stations.findIndex((station) => station.id === card.dataset.station);
+          if (index >= 0) {
+            renderStation(index);
+            loadStation(getCurrentStation());
+            playRadio();
+          }
+        }
+      });
+      document.querySelectorAll(".sleep-option").forEach((button) => {
+        button.addEventListener("click", () => startSleepTimer(Number(button.dataset.minutes)));
+      });
+      $("#vocabularyForm").addEventListener("submit", saveVocabulary);
+      $("#vocabularyList").addEventListener("click", (event) => {
+        const button = event.target.closest("[data-delete-word]");
+        if (!button) return;
+        vocabulary = vocabulary.filter((entry) => entry.id !== button.dataset.deleteWord);
+        saveStored(STORAGE.vocabulary, vocabulary);
+        renderVocabulary();
+        $("#translationStatus").textContent = "Listening note deleted.";
+        $("#translationStatus").classList.remove("error");
+      });
+
+      audio.addEventListener("playing", async () => {
+        updatePlayState();
+        await connectAnalyser();
+      });
+      audio.addEventListener("pause", () => {
+        updatePlayState();
+        stopAnalyser();
+      });
+      audio.addEventListener("waiting", () => {
+        if (!audio.paused) $("#statusText").textContent = "BUFFERING";
+      });
+      audio.addEventListener("stalled", () => {
+        if (!audio.paused) showAudioError("The stream is taking longer than usual to respond. It may recover automatically.");
+      });
+      audio.addEventListener("error", () => {
+        if (audio.crossOrigin === "anonymous" && !corsFallbackTried) {
+          retryWithoutCorsAudio();
+          return;
+        }
+        const code = audio.error ? audio.error.code : 0;
+        const message = code === 4
+          ? "This stream format is unavailable in this browser. Try a different station."
+          : "The live stream could not be reached. The station may be temporarily offline; try another.";
+        showAudioError(message);
+      });
+      audio.addEventListener("ended", () => {
+        updatePlayState();
+        fallbackBars();
+      });
+
+      setInterval(updateClock, 30000);
+      setInterval(() => {
+        if (!audio.paused && !audio.ended && audio.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) recordListeningSecond();
+      }, 1000);
+
+      const savedVolume = Number(readStored(STORAGE.volume, 0.72));
+      if (Number.isFinite(savedVolume) && savedVolume >= 0 && savedVolume <= 1) {
+        $("#volumeControl").value = String(savedVolume);
+      }
+      audio.volume = Number($("#volumeControl").value);
+      audio.addEventListener("volumechange", () => {
+        $("#volumeControl").value = String(audio.volume);
+      });
+      createEqualizer();
+      renderStation(0, false);
+      renderVocabulary();
+      updateDailyDisplay();
+      registerMediaSessionHandlers();
+      setMediaPlaybackState("none");
+      refreshIcons();
+    })();
+  </script>
+</body>
+</html>

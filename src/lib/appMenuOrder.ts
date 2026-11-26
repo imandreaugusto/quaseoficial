@@ -34,6 +34,7 @@ export const ensureStudentAppsInOrder = (order: string[], appIds: string[]) =>
     actionstreet: 'home',
     flashcards: 'readclub',
     braziliannews: 'readclub',
+    brazilianradio: 'braziliannews',
     dictionaryaction: 'tradutor',
   });
 
@@ -43,5 +44,6 @@ export const ensureAdminAppsInOrder = (order: string[], appIds: string[]) =>
     actionstreet: 'work',
     flashcards: 'readclub',
     braziliannews: 'readclub',
+    brazilianradio: 'braziliannews',
     dictionaryaction: 'tradutor',
   });

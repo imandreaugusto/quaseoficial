@@ -91,7 +91,8 @@ const ALL_STUDENT_ITEMS = [
   { id: 'stories', label: 'Brazilian Post', icon: Instagram },
   { id: 'practice', label: 'Brazilian Practice', icon: Globe },
   { id: 'readclub', label: 'Coffee & Read', icon: Coffee },
-  { id: 'braziliannews', label: 'Brasília News', icon: Newspaper },
+  { id: 'braziliannews', label: 'Brazilian News', icon: Newspaper },
+  { id: 'brazilianradio', label: 'Brazilian Radio', icon: Radio },
   { id: 'flashcards', label: 'Brazilian Anki', icon: Layers },
   { id: 'holybible', label: 'Holy Bible', icon: ChristianCrossIcon },
   { id: 'brazilianhq', label: 'Brazilian HQ', icon: VenetianMask },
@@ -270,7 +271,8 @@ const ALL_ADMIN_ITEMS = [
   { id: 'dashboard', label: 'Controle Financeiro', icon: LayoutDashboard },
   { id: 'admin_settings', label: 'Painel do CEO', icon: Users },
   { id: 'readclub', label: 'Coffee & Read', icon: Coffee },
-  { id: 'braziliannews', label: 'Brasília News', icon: Newspaper },
+  { id: 'braziliannews', label: 'Brazilian News', icon: Newspaper },
+  { id: 'brazilianradio', label: 'Brazilian Radio', icon: Radio },
   { id: 'flashcards', label: 'Brazilian Anki', icon: Layers },
   { id: 'holybible', label: 'Holy Bible', icon: ChristianCrossIcon },
   { id: 'brazilianhq', label: 'Brazilian HQ', icon: VenetianMask },
@@ -312,8 +314,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [showInstallHelp, setShowInstallHelp] = useState(false);
   const [installError, setInstallError] = useState('');
   const [appConfig, setAppConfig] = useState<GlobalAppConfig>({
-    studentAppOrder: ['home', 'actionstreet', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'readclub', 'braziliannews', 'flashcards', 'holybible', 'brazilianhq', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'dictionaryaction', 'youtube', 'studytime', 'feedback', 'settings'],
-    adminAppOrder: ['home', 'work', 'actionstreet', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'braziliannews', 'flashcards', 'holybible', 'brazilianhq', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'dictionaryaction', 'youtube', 'studytime', 'settings'],
+    studentAppOrder: ['home', 'actionstreet', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'readclub', 'braziliannews', 'brazilianradio', 'flashcards', 'holybible', 'brazilianhq', 'board', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'dictionaryaction', 'youtube', 'studytime', 'feedback', 'settings'],
+    adminAppOrder: ['home', 'work', 'actionstreet', 'brazilianfriends', 'brazilianspace', 'stories', 'practice', 'dashboard', 'admin_settings', 'feedback', 'readclub', 'braziliannews', 'brazilianradio', 'flashcards', 'holybible', 'brazilianhq', 'board', 'streamstudio', 'classroom', 'meet', 'quiz', 'braziliangames', 'biacompare', 'conversation', 'tradutor', 'dictionaryaction', 'youtube', 'studytime', 'settings'],
     studentGlobalEnabled: {
       actionstreet: true,
       brazilianfriends: true,
@@ -323,6 +325,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       practice: true,
       readclub: true,
       braziliannews: true,
+      brazilianradio: true,
       flashcards: true,
       holybible: true,
       brazilianhq: true,

@@ -17,6 +17,7 @@ export default defineConfig(() => {
         input: {
           main: path.resolve(__dirname, 'index.html'),
           brasiliaNews: path.resolve(__dirname, 'brasilia-news.html'),
+          brazilianRadio: path.resolve(__dirname, 'brazilian-radio.html'),
         },
       },
     },
