@@ -8,8 +8,8 @@ self.addEventListener('push', (event) => {
 
   event.waitUntil(self.registration.showNotification(payload.title || 'Brazilian Friends', {
     body: payload.body || 'Você recebeu uma nova mensagem privada.',
-    icon: '/brazilian-in-action-icon.svg',
-    badge: '/brazilian-in-action-icon.svg',
+    icon: '/brazilian-in-action-192.png',
+    badge: '/brazilian-in-action-192.png',
     tag: payload.tag || 'brazilian-friends-private-message',
     renotify: true,
     requireInteraction: Boolean(payload.requireInteraction),

@@ -199,8 +199,8 @@ export function BrazilianSpace({ user, initialDraft = '', focusRequestId }: Spac
           const registration = await navigator.serviceWorker.getRegistration('/');
           await registration?.showNotification(`${authorName} publicou no Brazilian Space`, {
             body: preview,
-            icon: '/brazilian-in-action-icon.svg',
-            badge: '/brazilian-in-action-icon.svg',
+            icon: '/brazilian-in-action-192.png',
+            badge: '/brazilian-in-action-192.png',
             tag: `brazilian-space-post-${latestPost.id}`,
             data: { url: '/' }
           });

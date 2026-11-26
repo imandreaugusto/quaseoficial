@@ -236,8 +236,8 @@ export function BrazilianFriendsGlobalStatus({
         if (registration) {
           await registration.showNotification(notice.title, {
             body: notice.body,
-            icon: '/brazilian-in-action-icon.svg',
-            badge: '/brazilian-in-action-icon.svg',
+            icon: '/brazilian-in-action-192.png',
+            badge: '/brazilian-in-action-192.png',
             tag: `platform-update-${notice.id}`,
             data: { url: '/' }
           });
