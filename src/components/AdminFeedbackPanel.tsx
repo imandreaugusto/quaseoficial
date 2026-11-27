@@ -41,6 +41,8 @@ const PRIORITY_LABELS: Record<StudentFeedbackTriage['priority'], string> = {
   low: 'Baixa',
 };
 
+const FEEDBACK_PAGE_SIZE = 50;
+
 const LEGACY_ANSWERS: Array<{ key: keyof StudentFeedbackRecord['answers']; question: string }> = [
   { key: 'platform', question: 'O que está achando da plataforma?' },
   { key: 'improve', question: 'Como podemos melhorar?' },
@@ -62,8 +64,10 @@ const formatDate = (date: string, includeTime = false) => new Date(date).toLocal
 
 export const AdminFeedbackPanel: React.FC = () => {
   const [feedback, setFeedback] = useState<StudentFeedbackRecord[]>([]);
+  const [totalFeedbackCount, setTotalFeedbackCount] = useState(0);
   const [drafts, setDrafts] = useState<Record<string, { status: StudentFeedbackRecord['status']; reply: string }>>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [classifyingId, setClassifyingId] = useState<string | null>(null);
   const [classifications, setClassifications] = useState<Record<string, StudentFeedbackTriage>>({});
@@ -78,9 +82,10 @@ export const AdminFeedbackPanel: React.FC = () => {
     setIsLoading(true);
     setMessage(null);
     try {
-      const records = await loadAllStudentFeedback();
-      setFeedback(records);
-      setDrafts(Object.fromEntries(records.map((item) => [item.id, {
+      const page = await loadAllStudentFeedback(0, FEEDBACK_PAGE_SIZE);
+      setFeedback(page.records);
+      setTotalFeedbackCount(page.totalCount);
+      setDrafts(Object.fromEntries(page.records.map((item) => [item.id, {
         status: getFeedbackStatus(item),
         reply: item.admin_reply || '',
       }])));
@@ -94,6 +99,35 @@ export const AdminFeedbackPanel: React.FC = () => {
       setIsLoading(false);
     }
   }, []);
+
+  const loadMore = async () => {
+    if (isLoading || isLoadingMore || feedback.length >= totalFeedbackCount) return;
+    setIsLoadingMore(true);
+    setMessage(null);
+    try {
+      const page = await loadAllStudentFeedback(feedback.length, FEEDBACK_PAGE_SIZE);
+      setFeedback((current) => [
+        ...current,
+        ...page.records.filter((item) => !current.some((loaded) => loaded.id === item.id)),
+      ]);
+      setTotalFeedbackCount(page.totalCount);
+      setDrafts((current) => ({
+        ...current,
+        ...Object.fromEntries(page.records.map((item) => [item.id, {
+          status: getFeedbackStatus(item),
+          reply: item.admin_reply || '',
+        }])),
+      }));
+    } catch (error) {
+      console.error('Could not load more student feedback for CEO:', error);
+      setMessage({
+        text: error instanceof Error ? error.message : 'Não foi possível carregar mais feedbacks.',
+        error: true,
+      });
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
 
   useEffect(() => {
     void refresh();
@@ -358,6 +392,12 @@ export const AdminFeedbackPanel: React.FC = () => {
 
       {!isLoading && feedback.length > 0 && (
         <>
+          {feedback.length < totalFeedbackCount && (
+            <p className="mb-3 text-xs text-white/50">
+              Filtros e busca consideram os {feedback.length} feedbacks carregados de {totalFeedbackCount}.
+              Carregue mais para incluir registros antigos.
+            </p>
+          )}
           <div className="mb-4 grid grid-cols-2 gap-2 lg:grid-cols-4">
             {statCards.map((card) => (
               <button
@@ -471,6 +511,17 @@ export const AdminFeedbackPanel: React.FC = () => {
             </article>
           )}
         </div>
+      )}
+      {!isLoading && feedback.length < totalFeedbackCount && (
+        <button
+          type="button"
+          onClick={() => void loadMore()}
+          disabled={isLoadingMore}
+          className="mt-4 inline-flex items-center gap-2 rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-white/75 hover:bg-white/5 disabled:opacity-50"
+        >
+          {isLoadingMore && <Loader2 size={15} className="animate-spin" />}
+          {isLoadingMore ? 'Carregando...' : 'Carregar mais feedbacks'}
+        </button>
       )}
     </section>
   );

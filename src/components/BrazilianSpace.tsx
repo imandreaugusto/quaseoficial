@@ -170,8 +170,10 @@ export function BrazilianSpace({ user, initialDraft = '', focusRequestId }: Spac
 
   useEffect(() => {
     let cancelled = false;
+    let requestInProgress = false;
     const checkForNewPosts = async () => {
-      if (cancelled || document.visibilityState !== 'visible') return;
+      if (cancelled || requestInProgress || document.visibilityState !== 'visible') return;
+      requestInProgress = true;
       try {
         const updates = await requestJson<{
           posts: Array<{ id: string; author_id: string; body: string; created_at: string; author: SpaceUser | null }>;
@@ -208,6 +210,8 @@ export function BrazilianSpace({ user, initialDraft = '', focusRequestId }: Spac
         void loadFeed();
       } catch (updateError) {
         if (!cancelled) console.error('Não foi possível verificar novas publicações do Space:', updateError);
+      } finally {
+        requestInProgress = false;
       }
     };
     void checkForNewPosts();

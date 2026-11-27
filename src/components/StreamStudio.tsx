@@ -1142,7 +1142,8 @@ export const StreamStudio: React.FC<StreamStudioProps> = ({
   // --- CUSTOM SCENE BACKGROUND & STINGER FILE UPLOADS ---
   const [customSceneBgUrl, setCustomSceneBgUrl] = useState<string | null>(() => {
     try {
-      return localStorage.getItem('bia_custom_scene_bg');
+      const savedBackground = localStorage.getItem('bia_custom_scene_bg');
+      return savedBackground?.startsWith('data:image/') ? savedBackground : null;
     } catch (e) {}
     return null;
   });
@@ -1160,6 +1161,11 @@ export const StreamStudio: React.FC<StreamStudioProps> = ({
   const handleSceneFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (!file.type.startsWith('image/')) {
+        console.warn('Custom scene backgrounds must be image files.');
+        e.target.value = '';
+        return;
+      }
       const reader = new FileReader();
       reader.onload = (evt) => {
         const res = evt.target?.result as string;
@@ -2151,11 +2157,7 @@ export const StreamStudio: React.FC<StreamStudioProps> = ({
 
             {streamSource === 'scene' && activeScene === 'custom' && customSceneBgUrl && (
               <div className="absolute inset-0 z-0 bg-black flex items-center justify-center overflow-hidden">
-                {customSceneBgUrl.startsWith('data:video') || customSceneBgUrl.endsWith('.mp4') ? (
-                  <video src={customSceneBgUrl} autoPlay loop muted className="w-full h-full object-cover" />
-                ) : (
-                  <img src={customSceneBgUrl} alt="Cena Customizada" className="w-full h-full object-cover" />
-                )}
+                <img src={customSceneBgUrl} alt="Cena Customizada" className="w-full h-full object-cover" />
               </div>
             )}
 
@@ -2382,7 +2384,7 @@ export const StreamStudio: React.FC<StreamStudioProps> = ({
                     ? 'bg-amber-500 text-neutral-950 shadow-lg font-black'
                     : 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30'
                 }`}
-                title="Upload de Imagem ou Vídeo para Fundo de Cena Customizado"
+                title="Upload de imagem para fundo de cena customizado"
               >
                 <Upload size={13} />
                 <span>{customSceneBgUrl ? '️ Cena Upload' : ' + Upload Cena'}</span>
@@ -2390,7 +2392,7 @@ export const StreamStudio: React.FC<StreamStudioProps> = ({
               <input
                 ref={sceneFileInputRef}
                 type="file"
-                accept="image/*,video/*"
+                accept="image/*"
                 onChange={handleSceneFileUpload}
                 className="hidden"
               />
@@ -4133,11 +4135,7 @@ export const StreamStudio: React.FC<StreamStudioProps> = ({
 
             {streamSource === 'scene' && activeScene === 'custom' && customSceneBgUrl && (
               <div className="absolute inset-0 z-0 bg-black flex items-center justify-center overflow-hidden">
-                {customSceneBgUrl.startsWith('data:video') || customSceneBgUrl.endsWith('.mp4') ? (
-                  <video src={customSceneBgUrl} autoPlay loop muted className="w-full h-full object-cover" />
-                ) : (
-                  <img src={customSceneBgUrl} alt="Cena Customizada" className="w-full h-full object-cover" />
-                )}
+                <img src={customSceneBgUrl} alt="Cena Customizada" className="w-full h-full object-cover" />
               </div>
             )}
 

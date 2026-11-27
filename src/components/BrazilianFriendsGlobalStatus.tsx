@@ -156,9 +156,11 @@ export function BrazilianFriendsGlobalStatus({
     if (!client || !userId || isFriendsOpen) return;
 
     let cancelled = false;
+    let requestInProgress = false;
     let cursor = localStorage.getItem(`bia_friends_global_cursor_${userId}`) || new Date().toISOString();
     const poll = async () => {
-      if (cancelled || document.visibilityState !== 'visible') return;
+      if (cancelled || requestInProgress || document.visibilityState !== 'visible') return;
+      requestInProgress = true;
       try {
         const { data, error } = await client.auth.getSession();
         if (error) throw error;
@@ -199,11 +201,13 @@ export function BrazilianFriendsGlobalStatus({
         if (typeof navigator.vibrate === 'function') navigator.vibrate(70);
       } catch (error) {
         console.error('Could not check for private messages across the platform:', error);
+      } finally {
+        requestInProgress = false;
       }
     };
 
     void poll();
-    const interval = window.setInterval(() => void poll(), 5_000);
+    const interval = window.setInterval(() => void poll(), 15_000);
     const onVisibilityChange = () => {
       if (document.visibilityState === 'visible') void poll();
     };
@@ -219,34 +223,41 @@ export function BrazilianFriendsGlobalStatus({
     if (!userId) return;
 
     let cancelled = false;
+    let requestInProgress = false;
     const checkForUpdates = async () => {
-      const notice = await loadUpdatesNotice();
-      if (cancelled || !notice?.active || !notice.id) return;
-      const storageKey = `bia_platform_notice_seen_${userId}`;
-      if (localStorage.getItem(storageKey) === notice.id) return;
-      localStorage.setItem(storageKey, notice.id);
-      setToast({ type: 'platform-update', text: `Novidade: ${notice.title}` });
-      if (
-        document.visibilityState !== 'visible' &&
-        'Notification' in window &&
-        Notification.permission === 'granted' &&
-        'serviceWorker' in navigator
-      ) {
-        const registration = await navigator.serviceWorker.getRegistration('/');
-        if (registration) {
-          await registration.showNotification(notice.title, {
-            body: notice.body,
-            icon: '/brazilian-in-action-192.png',
-            badge: '/brazilian-in-action-192.png',
-            tag: `platform-update-${notice.id}`,
-            data: { url: '/' }
-          });
+      if (cancelled || requestInProgress) return;
+      requestInProgress = true;
+      try {
+        const notice = await loadUpdatesNotice();
+        if (cancelled || !notice?.active || !notice.id) return;
+        const storageKey = `bia_platform_notice_seen_${userId}`;
+        if (localStorage.getItem(storageKey) === notice.id) return;
+        localStorage.setItem(storageKey, notice.id);
+        setToast({ type: 'platform-update', text: `Novidade: ${notice.title}` });
+        if (
+          document.visibilityState !== 'visible' &&
+          'Notification' in window &&
+          Notification.permission === 'granted' &&
+          'serviceWorker' in navigator
+        ) {
+          const registration = await navigator.serviceWorker.getRegistration('/');
+          if (registration) {
+            await registration.showNotification(notice.title, {
+              body: notice.body,
+              icon: '/brazilian-in-action-192.png',
+              badge: '/brazilian-in-action-192.png',
+              tag: `platform-update-${notice.id}`,
+              data: { url: '/' }
+            });
+          }
         }
+      } finally {
+        requestInProgress = false;
       }
     };
 
     void checkForUpdates();
-    const interval = window.setInterval(() => void checkForUpdates(), 30_000);
+    const interval = window.setInterval(() => void checkForUpdates(), 60_000);
     return () => {
       cancelled = true;
       window.clearInterval(interval);

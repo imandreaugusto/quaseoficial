@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { MapPin } from 'lucide-react';
 import type { AppSettings } from '../types';
@@ -10,46 +10,23 @@ interface BackgroundSlideshowProps {
   hidden?: boolean;
 }
 
-type MediaSlide =
-  | { kind: 'image'; name: string; url: string }
-  | { kind: 'video'; name: string; url: string };
+type MediaSlide = { name: string; url: string };
 
 const getLandmarkImageUrl = (slide: (typeof BACKGROUND_SLIDES)[number]) =>
   window.innerWidth * window.devicePixelRatio > 1920 ? slide.highResolutionUrl : slide.url;
 
 const imageSlides: MediaSlide[] = BACKGROUND_SLIDES.map((slide) => ({
-  kind: 'image',
   name: slide.name,
   url: getLandmarkImageUrl(slide),
 }));
 
-const baseUrl = (fileName: string) => `${import.meta.env.BASE_URL}backgrounds/${fileName}`;
-
-const videoSlides: MediaSlide[] = [
-  { kind: 'video', name: 'Central Park, New York, NY', url: baseUrl('central-park.mp4') },
-  { kind: 'video', name: 'Brooklyn Bridge, New York, NY', url: baseUrl('brooklyn-bridge.mp4') },
-  { kind: 'video', name: 'Empire State Building, Midtown Manhattan, New York, NY', url: baseUrl('empire-state.mp4') },
-];
-
-const mediaSlides: MediaSlide[] = [...imageSlides, ...videoSlides];
+const mediaSlides = imageSlides;
 
 const shuffleMediaIndexes = (avoidFirst?: number) => {
   const indexes = mediaSlides.map((_, index) => index);
   for (let index = indexes.length - 1; index > 0; index -= 1) {
     const swapIndex = Math.floor(Math.random() * (index + 1));
     [indexes[index], indexes[swapIndex]] = [indexes[swapIndex], indexes[index]];
-  }
-
-  for (let index = 1; index < indexes.length; index += 1) {
-    if (mediaSlides[indexes[index]].kind !== 'video') continue;
-    if (mediaSlides[indexes[index - 1]].kind !== 'video') continue;
-
-    const imagePosition = indexes.findIndex(
-      (mediaIndex, position) => position > index && mediaSlides[mediaIndex].kind === 'image',
-    );
-    if (imagePosition >= 0) {
-      [indexes[index], indexes[imagePosition]] = [indexes[imagePosition], indexes[index]];
-    }
   }
 
   if (indexes.length > 1 && indexes[0] === avoidFirst) {
@@ -71,8 +48,6 @@ export function BackgroundSlideshow({ settings, paused, hidden = false }: Backgr
   const [currentPosition, setCurrentPosition] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(() => sequence[0] ?? 0);
   const [incomingIndex, setIncomingIndex] = useState<number | null>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-
   const advanceToNext = useCallback(() => {
     const startsNewSequence = currentPosition + 1 >= sequence.length;
     const nextSequence = startsNewSequence
@@ -85,11 +60,6 @@ export function BackgroundSlideshow({ settings, paused, hidden = false }: Backgr
     setCurrentPosition(nextPosition);
 
     const nextSlide = mediaSlides[nextIndex];
-    if (nextSlide.kind === 'video') {
-      setIncomingIndex(nextIndex);
-      return;
-    }
-
     const preloadedImage = new Image();
     let handled = false;
     const showPreloadedSlide = () => {
@@ -113,20 +83,7 @@ export function BackgroundSlideshow({ settings, paused, hidden = false }: Backgr
   }, [currentIndex, currentPosition, sequence]);
 
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-    if (paused) video.pause();
-    else void video.play().catch(() => undefined);
-  }, [paused, incomingIndex, currentIndex]);
-
-  useEffect(() => {
-    if (
-      hidden ||
-      !settings.bgEnabled ||
-      paused ||
-      incomingIndex !== null ||
-      mediaSlides[currentIndex].kind === 'video'
-    ) return;
+    if (hidden || !settings.bgEnabled || paused || incomingIndex !== null) return;
 
     const slideDuration =
       (settings.bgInterval && settings.bgInterval > 0 ? settings.bgInterval : 8) * 1000;
@@ -154,23 +111,6 @@ export function BackgroundSlideshow({ settings, paused, hidden = false }: Backgr
   const incomingSlide = incomingIndex === null ? null : mediaSlides[incomingIndex];
 
   const renderMedia = (slide: MediaSlide, key: string, opacity: number) => {
-    if (slide.kind === 'video') {
-      return (
-        <video
-          ref={key === 'current' ? videoRef : undefined}
-          key={key}
-          className="absolute inset-0 h-full w-full object-cover transition-opacity duration-1000"
-          style={{ opacity, filter: brightness(settings) }}
-          src={slide.url}
-          autoPlay
-          muted
-          playsInline
-          preload="auto"
-          onEnded={key === 'current' ? advanceToNext : undefined}
-          aria-hidden="true"
-        />
-      );
-    }
     return (
       <div
         key={key}

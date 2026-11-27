@@ -1,4 +1,8 @@
-import { loadSharedContentFromSupabase, syncSharedContentToSupabase } from '../utils/supabaseClient';
+import {
+  loadSharedContentFromSupabase,
+  loadSharedContentUpdatedAtFromSupabase,
+  syncSharedContentToSupabase
+} from '../utils/supabaseClient';
 
 export interface UpdatesNotice {
   id: string;
@@ -11,9 +15,18 @@ export interface UpdatesNotice {
 export const UPDATES_CONTENT_KEY = 'bia_updates_notice';
 const MAX_VIEWS = 2;
 
+let cachedVersion: string | null | undefined;
+let cachedNotice: UpdatesNotice | null = null;
+
 export const loadUpdatesNotice = async (): Promise<UpdatesNotice | null> => {
   try {
-    return await loadSharedContentFromSupabase<UpdatesNotice>(UPDATES_CONTENT_KEY);
+    const version = await loadSharedContentUpdatedAtFromSupabase(UPDATES_CONTENT_KEY);
+    if (version === cachedVersion) return cachedNotice;
+
+    const notice = await loadSharedContentFromSupabase<UpdatesNotice>(UPDATES_CONTENT_KEY);
+    cachedVersion = version;
+    cachedNotice = notice;
+    return notice;
   } catch {
     return null;
   }

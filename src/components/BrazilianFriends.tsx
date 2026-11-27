@@ -174,6 +174,21 @@ const requestFriendsApi = async <T,>(client: SupabaseClientLike, path: string, i
   }
 };
 
+const startVisiblePolling = (callback: () => void, intervalMs: number) => {
+  const pollWhenVisible = () => {
+    if (document.visibilityState === 'visible') callback();
+  };
+
+  pollWhenVisible();
+  const intervalId = window.setInterval(pollWhenVisible, intervalMs);
+  document.addEventListener('visibilitychange', pollWhenVisible);
+
+  return () => {
+    window.clearInterval(intervalId);
+    document.removeEventListener('visibilitychange', pollWhenVisible);
+  };
+};
+
 const upsertFriendProfile = async (client: SupabaseClientLike, profile: FriendProfile) => {
   const result = await requestFriendsApi(client, '/api/friends/profile', {
     method: 'POST',
@@ -406,66 +421,72 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
     if (privateNotificationStateRef.current.userId !== socialUserId) return;
 
     let cancelled = false;
+    let requestInProgress = false;
     const pollPrivateNotifications = async () => {
+      if (cancelled || requestInProgress || document.visibilityState !== 'visible') return;
       const state = privateNotificationStateRef.current;
       if (state.userId !== socialUserId || !state.cursor) return;
 
-      const result = await requestFriendsApi<{ messages: PrivateNotification[] }>(
-        client,
-        `/api/friends/private-notifications?since=${encodeURIComponent(state.cursor)}`
-      );
-      if (cancelled || result.error || !result.data) return;
+      requestInProgress = true;
+      try {
+        const result = await requestFriendsApi<{ messages: PrivateNotification[] }>(
+          client,
+          `/api/friends/private-notifications?since=${encodeURIComponent(state.cursor)}`
+        );
+        if (cancelled || result.error || !result.data) return;
 
-      const nextState: PrivateNotificationState = {
-        ...state,
-        unreadIdsBySender: { ...state.unreadIdsBySender },
-        readAtBySender: { ...state.readAtBySender }
-      };
-      let latestCreatedAt = nextState.cursor;
-      const newlyUnreadMessages: PrivateNotification[] = [];
-      const newlyReceivedMessages: PrivateNotification[] = [];
+        const nextState: PrivateNotificationState = {
+          ...state,
+          unreadIdsBySender: { ...state.unreadIdsBySender },
+          readAtBySender: { ...state.readAtBySender }
+        };
+        let latestCreatedAt = nextState.cursor;
+        const newlyUnreadMessages: PrivateNotification[] = [];
+        const newlyReceivedMessages: PrivateNotification[] = [];
 
-      for (const message of result.data.messages || []) {
-        if (!message.id || !message.sender_id || !message.created_at) continue;
-        if (Date.parse(message.created_at) > Date.parse(latestCreatedAt)) latestCreatedAt = message.created_at;
-        newlyReceivedMessages.push(message);
+        for (const message of result.data.messages || []) {
+          if (!message.id || !message.sender_id || !message.created_at) continue;
+          if (Date.parse(message.created_at) > Date.parse(latestCreatedAt)) latestCreatedAt = message.created_at;
+          newlyReceivedMessages.push(message);
 
-        const readAt = nextState.readAtBySender[message.sender_id];
-        if (activePrivateFriendRef.current === message.sender_id || (readAt && Date.parse(message.created_at) <= Date.parse(readAt))) {
-          continue;
+          const readAt = nextState.readAtBySender[message.sender_id];
+          if (activePrivateFriendRef.current === message.sender_id || (readAt && Date.parse(message.created_at) <= Date.parse(readAt))) {
+            continue;
+          }
+
+          const unreadIds = nextState.unreadIdsBySender[message.sender_id] || [];
+          if (!unreadIds.includes(message.id)) {
+            nextState.unreadIdsBySender[message.sender_id] = [...unreadIds, message.id].slice(-100);
+            newlyUnreadMessages.push(message);
+          }
         }
 
-        const unreadIds = nextState.unreadIdsBySender[message.sender_id] || [];
-        if (!unreadIds.includes(message.id)) {
-          nextState.unreadIdsBySender[message.sender_id] = [...unreadIds, message.id].slice(-100);
-          newlyUnreadMessages.push(message);
+        nextState.cursor = latestCreatedAt;
+        privateNotificationStateRef.current = nextState;
+        localStorage.setItem(`bia_friends_private_${socialUserId}`, JSON.stringify(nextState));
+        setUnreadPrivateBySender(Object.fromEntries(
+          Object.entries(nextState.unreadIdsBySender).map(([senderId, ids]) => [senderId, ids.length])
+        ));
+        if (newlyReceivedMessages.length > 0) {
+          playPrivateMessageSound();
+          if (typeof navigator.vibrate === 'function') navigator.vibrate(70);
         }
-      }
-
-      nextState.cursor = latestCreatedAt;
-      privateNotificationStateRef.current = nextState;
-      localStorage.setItem(`bia_friends_private_${socialUserId}`, JSON.stringify(nextState));
-      setUnreadPrivateBySender(Object.fromEntries(
-        Object.entries(nextState.unreadIdsBySender).map(([senderId, ids]) => [senderId, ids.length])
-      ));
-      if (newlyReceivedMessages.length > 0 && document.visibilityState === 'visible') {
-        playPrivateMessageSound();
-        if (typeof navigator.vibrate === 'function') navigator.vibrate(70);
-      }
-      if (newlyUnreadMessages.length > 0) {
-        const latestMessage = newlyUnreadMessages[newlyUnreadMessages.length - 1];
-        setPrivateMessageToast({
-          senderId: latestMessage.sender_id,
-          messageCount: newlyUnreadMessages.filter((message) => message.sender_id === latestMessage.sender_id).length
-        });
+        if (newlyUnreadMessages.length > 0) {
+          const latestMessage = newlyUnreadMessages[newlyUnreadMessages.length - 1];
+          setPrivateMessageToast({
+            senderId: latestMessage.sender_id,
+            messageCount: newlyUnreadMessages.filter((message) => message.sender_id === latestMessage.sender_id).length
+          });
+        }
+      } finally {
+        requestInProgress = false;
       }
     };
 
-    void pollPrivateNotifications();
-    const intervalId = window.setInterval(() => void pollPrivateNotifications(), 5_000);
+    const stopPolling = startVisiblePolling(() => void pollPrivateNotifications(), 15_000);
     return () => {
       cancelled = true;
-      window.clearInterval(intervalId);
+      stopPolling();
     };
   }, [isSessionReady, socialUserId]);
 
@@ -666,36 +687,73 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
       return;
     }
     let cancelled = false;
+    let requestInProgress = false;
+    let cursor: string | null = null;
     const loadConversation = async (showLoading = false) => {
+      if (requestInProgress || document.visibilityState !== 'visible') return;
+      requestInProgress = true;
       if (showLoading) setIsLoadingMessages(true);
-      const path = selectedFriendId
-        ? `/api/friends/messages?recipientId=${encodeURIComponent(selectedFriendId)}`
-        : '/api/friends/messages';
-      const { data, error: messagesError } = await requestFriendsApi<{ messages: FriendMessage[] }>(client, path);
+      try {
+        const sinceQuery = cursor ? `&since=${encodeURIComponent(cursor)}` : '';
+        const path = selectedFriendId
+          ? `/api/friends/messages?recipientId=${encodeURIComponent(selectedFriendId)}${sinceQuery}`
+          : `/api/friends/messages${cursor ? `?since=${encodeURIComponent(cursor)}` : ''}`;
+        const { data, error: messagesError } = await requestFriendsApi<{ messages: FriendMessage[] }>(client, path);
 
-      if (cancelled) return;
-      if (messagesError) {
-        setError('Não foi possível carregar esta conversa no momento.');
-      } else {
-        const nextMessages = (data?.messages || []).filter((message) =>
-          !message.expires_at || Date.parse(message.expires_at) > Date.now()
+        if (cancelled) return;
+        if (messagesError) {
+          setError('Não foi possível carregar esta conversa no momento.');
+          return;
+        }
+
+        const incremental = cursor !== null;
+        const nextMessages = (data?.messages || []).sort((left, right) =>
+          Date.parse(left.created_at) - Date.parse(right.created_at) || left.id.localeCompare(right.id)
         );
+        if (nextMessages.length > 0) cursor = nextMessages[nextMessages.length - 1].created_at;
+
         setMessages((current) => {
-          const unchanged = current.length === nextMessages.length && current.every((message, index) => {
-            const nextMessage = nextMessages[index];
+          const currentMessages = incremental
+            ? current.filter((message) => !message.expires_at || Date.parse(message.expires_at) > Date.now())
+            : [];
+          const merged = new globalThis.Map<string, FriendMessage>();
+          currentMessages.forEach((message) => merged.set(message.id, message));
+          nextMessages.forEach((message) => {
+            if (!message.expires_at || Date.parse(message.expires_at) > Date.now()) {
+              merged.set(message.id, message);
+            }
+          });
+          const updated = [...merged.values()]
+            .sort((left, right) =>
+              Date.parse(left.created_at) - Date.parse(right.created_at) || left.id.localeCompare(right.id)
+            )
+            .slice(-200);
+          const unchanged = current.length === updated.length && current.every((message, index) => {
+            const nextMessage = updated[index];
             return message.id === nextMessage.id && message.body === nextMessage.body;
           });
-          return unchanged ? current : nextMessages;
+          return unchanged ? current : updated;
         });
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Could not load Brazilian Friends conversation:', error);
+          setError('Não foi possível carregar esta conversa no momento.');
+        }
+      } finally {
+        requestInProgress = false;
+        if (!cancelled) setIsLoadingMessages(false);
       }
-      setIsLoadingMessages(false);
     };
 
-    void loadConversation(true);
-    const pollingId = window.setInterval(() => void loadConversation(), 5_000);
+    let initialLoad = true;
+    const stopPolling = startVisiblePolling(() => {
+      const showLoading = initialLoad;
+      initialLoad = false;
+      void loadConversation(showLoading);
+    }, 15_000);
     return () => {
       cancelled = true;
-      window.clearInterval(pollingId);
+      stopPolling();
     };
   }, [isSessionReady, socialUserId, selectedFriendId]);
 
@@ -1005,33 +1063,39 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
     }
 
     let cancelled = false;
+    let requestInProgress = false;
     const loadInvitations = async () => {
-      const result = await requestFriendsApi<{ invitations: CallInvitation[] }>(
-        client,
-        '/api/friends/call-invitations'
-      );
-      if (cancelled || result.error || !result.data) return;
-      const requestedInvitationId = new URLSearchParams(window.location.search).get('callInvite');
-      const requestedCallAction = new URLSearchParams(window.location.search).get('callAction');
-      const invitations = result.data.invitations || [];
-      setIncomingCallInvitations(requestedInvitationId
-        ? [...invitations].sort((a, b) => Number(b.id === requestedInvitationId) - Number(a.id === requestedInvitationId))
-        : invitations);
-      const requestedInvitation = invitations.find((invitation) => invitation.id === requestedInvitationId);
-      if (requestedInvitation && (requestedCallAction === 'accept' || requestedCallAction === 'decline')) {
-        const url = new URL(window.location.href);
-        url.searchParams.delete('callInvite');
-        url.searchParams.delete('callAction');
-        window.history.replaceState(window.history.state, '', url);
-        if (requestedCallAction === 'accept') void handleAcceptCallInvitation(requestedInvitation);
-        else void handleDeclineCallInvitation(requestedInvitation);
+      if (cancelled || requestInProgress || document.visibilityState !== 'visible') return;
+      requestInProgress = true;
+      try {
+        const result = await requestFriendsApi<{ invitations: CallInvitation[] }>(
+          client,
+          '/api/friends/call-invitations'
+        );
+        if (cancelled || result.error || !result.data) return;
+        const requestedInvitationId = new URLSearchParams(window.location.search).get('callInvite');
+        const requestedCallAction = new URLSearchParams(window.location.search).get('callAction');
+        const invitations = result.data.invitations || [];
+        setIncomingCallInvitations(requestedInvitationId
+          ? [...invitations].sort((a, b) => Number(b.id === requestedInvitationId) - Number(a.id === requestedInvitationId))
+          : invitations);
+        const requestedInvitation = invitations.find((invitation) => invitation.id === requestedInvitationId);
+        if (requestedInvitation && (requestedCallAction === 'accept' || requestedCallAction === 'decline')) {
+          const url = new URL(window.location.href);
+          url.searchParams.delete('callInvite');
+          url.searchParams.delete('callAction');
+          window.history.replaceState(window.history.state, '', url);
+          if (requestedCallAction === 'accept') void handleAcceptCallInvitation(requestedInvitation);
+          else void handleDeclineCallInvitation(requestedInvitation);
+        }
+      } finally {
+        requestInProgress = false;
       }
     };
-    void loadInvitations();
-    const pollingId = window.setInterval(() => void loadInvitations(), 5_000);
+    const stopPolling = startVisiblePolling(() => void loadInvitations(), 10_000);
     return () => {
       cancelled = true;
-      window.clearInterval(pollingId);
+      stopPolling();
     };
   }, [isSessionReady, socialUserId]);
 
@@ -1042,15 +1106,21 @@ export function BrazilianFriends({ currentUser, accentColor }: BrazilianFriendsP
     const client = getSupabaseClient();
     if (!client || !isSessionReady || !socialUserId) return;
     let cancelled = false;
+    let requestInProgress = false;
     const loadPinnedMessages = async () => {
-      const result = await requestFriendsApi<{ pinnedMessages: PinnedMessage[] }>(client, '/api/friends/pinned-messages');
-      if (!cancelled && !result.error) setPinnedMessages(result.data?.pinnedMessages || []);
+      if (cancelled || requestInProgress || document.visibilityState !== 'visible') return;
+      requestInProgress = true;
+      try {
+        const result = await requestFriendsApi<{ pinnedMessages: PinnedMessage[] }>(client, '/api/friends/pinned-messages');
+        if (!cancelled && !result.error) setPinnedMessages(result.data?.pinnedMessages || []);
+      } finally {
+        requestInProgress = false;
+      }
     };
-    void loadPinnedMessages();
-    const pollingId = window.setInterval(() => void loadPinnedMessages(), 15_000);
+    const stopPolling = startVisiblePolling(() => void loadPinnedMessages(), 15_000);
     return () => {
       cancelled = true;
-      window.clearInterval(pollingId);
+      stopPolling();
     };
   }, [isSessionReady, socialUserId]);
 

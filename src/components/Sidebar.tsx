@@ -42,7 +42,12 @@ import { PlanetOrbitIcon } from './PlanetOrbitIcon';
 import { ChristianCrossIcon } from './ChristianCrossIcon';
 import { BrazilianLogo } from './BrazilianLogo';
 import { SocialLinksBar } from './SocialLinksBar';
-import { getSupabaseClient, loadPendingStudentFeedbackCounts, loadSharedContentFromSupabase } from '../utils/supabaseClient';
+import {
+  getSupabaseClient,
+  loadPendingStudentFeedbackCounts,
+  loadSharedContentFromSupabase,
+  loadSharedContentUpdatedAtFromSupabase,
+} from '../utils/supabaseClient';
 
 const StudyTimeIcon: React.FC<{ size?: number; style?: React.CSSProperties; className?: string }> = ({
   size = 20,
@@ -368,6 +373,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       feedback: true
     }
   });
+  const sharedConfigVersionRef = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
     const updateInstalledState = () => setIsInstalled(isAppInstalled());
@@ -474,7 +480,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
       if (refreshInProgress) return;
       refreshInProgress = true;
       try {
+        const version = await loadSharedContentUpdatedAtFromSupabase('global_app_config');
+        if (version === sharedConfigVersionRef.current) return;
         const sharedConfig = await loadSharedContentFromSupabase<GlobalAppConfig>('global_app_config');
+        sharedConfigVersionRef.current = version;
         if (!cancelled) applyConfig(sharedConfig);
       } catch (error) {
         console.error('Could not load shared student app visibility settings:', error);
@@ -498,7 +507,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       });
     const refreshInterval = window.setInterval(() => {
       if (document.visibilityState === 'visible') void refreshSharedConfig();
-    }, 15_000);
+    }, 60_000);
 
     return () => {
       cancelled = true;
@@ -602,7 +611,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     void refreshFeedbackCounts();
     const refreshInterval = window.setInterval(() => {
       if (document.visibilityState === 'visible') void refreshFeedbackCounts();
-    }, 20_000);
+    }, 60_000);
     const client = getSupabaseClient();
     const channel = client?.channel('ceo-student-feedback-notifications')
       .on(

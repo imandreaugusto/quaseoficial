@@ -52,6 +52,7 @@ import { LayoutPositionProvider } from './lib/LayoutPositionContext';
 import {
   fetchAdminSubscribers,
   loadSharedContentFromSupabase,
+  loadSharedContentUpdatedAtFromSupabase,
   loadStudentProgressFromSupabase,
   removeCurrentDevicePrivatePushSubscription,
   syncSharedContentToSupabase,
@@ -263,6 +264,7 @@ export default function App() {
   const adminSettingsBeforePreviewRef = useRef<AppSettings | null>(null);
   const sharedReadClubLibrarySnapshotRef = useRef('');
   const sharedYoutubeLibrarySnapshotRef = useRef('');
+  const sharedContentVersionsRef = useRef<Record<string, string | null>>({});
   const liveActiveSubscriberCountRef = useRef<number | null>(null);
 
   const queueStudentPreferencesSync = (userId: string, preferences: StudentPreferences) => {
@@ -688,10 +690,25 @@ export default function App() {
       if (cancelled || refreshInProgress) return;
       refreshInProgress = true;
       try {
-        const [platform, music] = await Promise.all([
-          loadSharedContentFromSupabase<{ library?: StoryItem[] }>('platform'),
-          loadSharedContentFromSupabase<{ youtube_library?: YouTubeLibraryItem[] }>('youtube_library')
+        const [platformVersion, musicVersion] = await Promise.all([
+          loadSharedContentUpdatedAtFromSupabase('platform'),
+          loadSharedContentUpdatedAtFromSupabase('youtube_library')
         ]);
+        const platformChanged = sharedContentVersionsRef.current.platform !== platformVersion;
+        const musicChanged = sharedContentVersionsRef.current.youtube_library !== musicVersion;
+        const [platform, music] = await Promise.all([
+          platformChanged
+            ? loadSharedContentFromSupabase<{ library?: StoryItem[] }>('platform')
+            : Promise.resolve(null),
+          musicChanged
+            ? loadSharedContentFromSupabase<{ youtube_library?: YouTubeLibraryItem[] }>('youtube_library')
+            : Promise.resolve(null)
+        ]);
+        sharedContentVersionsRef.current = {
+          ...sharedContentVersionsRef.current,
+          platform: platformVersion,
+          youtube_library: musicVersion
+        };
         if (cancelled) return;
 
         if (Array.isArray(platform?.library) && !pendingPlatformPayloadRef.current) {
@@ -704,11 +721,11 @@ export default function App() {
           }
         }
 
-        if (Array.isArray(music?.youtube_library) && !pendingYoutubeLibraryRef.current) {
+        if (music?.youtube_library && !pendingYoutubeLibraryRef.current) {
           const snapshot = JSON.stringify(music.youtube_library);
           if (snapshot !== sharedYoutubeLibrarySnapshotRef.current) {
             sharedYoutubeLibrarySnapshotRef.current = snapshot;
-            const formattedLibrary = formatLyricsLibrary(music.youtube_library);
+            const formattedLibrary = formatLyricsLibrary<YouTubeLibraryItem>(music.youtube_library);
             setYoutubeLibrary(formattedLibrary);
             localStorage.setItem('bia_youtube_library', JSON.stringify(formattedLibrary));
           }
@@ -740,7 +757,7 @@ export default function App() {
 
     const intervalId = window.setInterval(() => {
       if (document.visibilityState === 'visible') void refreshSharedLibraries();
-    }, 15_000);
+    }, 60_000);
     const refreshWhenVisible = () => {
       if (document.visibilityState === 'visible') void refreshSharedLibraries();
     };

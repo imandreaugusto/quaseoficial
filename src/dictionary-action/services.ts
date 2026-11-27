@@ -77,7 +77,7 @@ export const lookupDictionary = async (term: string): Promise<DictionaryLookup> 
   const culturalRequest = client
     ? client
         .from('cultural_dictionary')
-        .select('*')
+      .select('word_key,word,scenario_tag,grammatical_roles,phonetic_tips,connected_speech,false_twin_comparison,cultural_usage,brazilian_pitfalls,social_temp,examples_json')
         .eq('word_key', word)
         .maybeSingle()
     : Promise.resolve({ data: null, error: null });

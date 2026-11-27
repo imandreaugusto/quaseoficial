@@ -368,7 +368,7 @@ export const syncUserProfileToSupabase = async (profile: UserProfile) => {
         created_at: profile.created_at,
         updated_at: new Date().toISOString()
       }, { onConflict: 'id' })
-      .select();
+      .select('id,email,full_name,role,status,data_expiracao,permissions,ip_country,ip_region,ip_city,created_at,updated_at');
 
     if (error) throw error;
     return data?.[0] ?? null;
@@ -391,7 +391,7 @@ export const syncSubscriptionToSupabase = async (email: string, status: string, 
         subscription_expires_at: expiresAt || null,
         updated_at: new Date().toISOString()
       }, { onConflict: 'email' })
-      .select();
+      .select('email,status,subscription_expires_at,updated_at');
 
     if (error) throw error;
     return data?.[0] ?? null;
@@ -495,7 +495,7 @@ export const syncSharedContentToSupabase = async (contentKey: string, payload: u
     const { data, error } = await client
       .from('bia_shared_content')
       .upsert({ content_key: contentKey, payload, updated_at: new Date().toISOString() }, { onConflict: 'content_key' })
-      .select()
+      .select('content_key,updated_at')
       .single();
     if (error) throw error;
     return data;
@@ -524,6 +524,23 @@ export const loadSharedContentFromSupabase = async <T>(contentKey: string): Prom
   }
 };
 
+export const loadSharedContentUpdatedAtFromSupabase = async (contentKey: string) => {
+  const client = getSupabaseClient();
+  if (!client) throw new Error('Supabase não está configurado para consultar o conteúdo compartilhado.');
+  if (!contentKey) throw new Error('A chave do conteúdo compartilhado está vazia.');
+
+  const { data, error } = await client
+    .from('bia_shared_content')
+    .select('updated_at')
+    .eq('content_key', contentKey)
+    .maybeSingle();
+  if (error) {
+    console.warn('Supabase shared content version check failed:', error);
+    throw error;
+  }
+  return data?.updated_at ?? null;
+};
+
 export const syncStudentProgressToSupabase = async (userId: string, progress: {
   sessions: unknown;
   glossary: unknown;
@@ -544,7 +561,7 @@ export const syncStudentProgressToSupabase = async (userId: string, progress: {
       .from('bia_student_progress')
       .update(progressData)
       .eq('user_id', userId)
-      .select()
+      .select('user_id,updated_at')
       .maybeSingle();
     if (error) throw error;
     if (data) return data;
@@ -552,14 +569,14 @@ export const syncStudentProgressToSupabase = async (userId: string, progress: {
     const { data: inserted, error: insertError } = await client
       .from('bia_student_progress')
       .insert({ user_id: userId, ...progressData })
-      .select()
+      .select('user_id,updated_at')
       .single();
     if (insertError?.code === '23505') {
       const { data: updated, error: updateError } = await client
         .from('bia_student_progress')
         .update(progressData)
         .eq('user_id', userId)
-        .select()
+        .select('user_id,updated_at')
         .single();
       if (updateError) throw updateError;
       return updated;
@@ -663,7 +680,7 @@ export const submitStudentFeedback = async (feedback: {
   return data as Pick<StudentFeedbackRecord, 'id' | 'status' | 'created_at'>;
 };
 
-export const loadStudentFeedback = async () => {
+export const loadStudentFeedback = async (offset = 0, pageSize = 50) => {
   const client = getSupabaseClient();
   if (!client) throw new Error('Supabase não está configurado para carregar feedbacks.');
 
@@ -673,15 +690,38 @@ export const loadStudentFeedback = async () => {
 
   const { data, error } = await client
     .from('bia_student_feedback')
-    .select('id, auth_user_id, student_name, student_email, answers, status, admin_reply, student_reply_seen_at, created_at, updated_at')
+    .select('id,answers,status,admin_reply,student_reply_seen_at,created_at')
     .eq('auth_user_id', authData.user.id)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .range(offset, offset + pageSize - 1);
 
   if (error) {
     console.error('Student feedback history load failed:', error);
     throw error;
   }
-  return (data || []) as StudentFeedbackRecord[];
+  return (data || []) as Pick<StudentFeedbackRecord, 'id' | 'answers' | 'status' | 'admin_reply' | 'student_reply_seen_at' | 'created_at'>[];
+};
+
+export const loadUnreadStudentFeedbackReplyCount = async () => {
+  const client = getSupabaseClient();
+  if (!client) throw new Error('Supabase não está configurado para carregar as notificações.');
+
+  const { data: authData, error: authError } = await client.auth.getUser();
+  if (authError) throw authError;
+  if (!authData.user) throw new Error('Entre novamente para ver as notificações.');
+
+  const { count, error } = await client
+    .from('bia_student_feedback')
+    .select('id', { count: 'exact', head: true })
+    .eq('auth_user_id', authData.user.id)
+    .not('admin_reply', 'is', null)
+    .is('student_reply_seen_at', null);
+
+  if (error) {
+    console.error('Unread student feedback reply count load failed:', error);
+    throw error;
+  }
+  return count || 0;
 };
 
 export const markStudentFeedbackRepliesSeen = async (feedbackIds: string[]) => {
@@ -700,20 +740,24 @@ export const markStudentFeedbackRepliesSeen = async (feedbackIds: string[]) => {
 };
 
 
-export const loadAllStudentFeedback = async () => {
+export const loadAllStudentFeedback = async (offset = 0, pageSize = 50) => {
   const client = getSupabaseClient();
   if (!client) throw new Error('Supabase não está configurado para carregar feedbacks.');
 
-  const { data, error } = await client
+  const { data, count, error } = await client
     .from('bia_student_feedback')
-    .select('id, auth_user_id, student_name, student_email, answers, status, admin_reply, student_reply_seen_at, created_at, updated_at')
-    .order('created_at', { ascending: false });
+    .select('id,student_name,student_email,answers,status,admin_reply,created_at,updated_at', { count: 'exact' })
+    .order('created_at', { ascending: false })
+    .range(offset, offset + pageSize - 1);
 
   if (error) {
     console.error('Admin feedback list load failed:', error);
     throw error;
   }
-  return (data || []) as StudentFeedbackRecord[];
+  return {
+    records: (data || []) as StudentFeedbackRecord[],
+    totalCount: count || 0,
+  };
 };
 
 export const loadPendingStudentFeedbackCounts = async () => {
@@ -789,7 +833,7 @@ export const findUserProfileByEmail = async (email: string) => {
   try {
     const { data, error } = await client
       .from('profiles')
-      .select('*')
+      .select('id,email,full_name,role,status,data_expiracao,permissions')
       .ilike('email', email.trim().toLowerCase())
       .limit(1)
       .maybeSingle();

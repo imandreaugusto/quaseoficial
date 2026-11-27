@@ -26,35 +26,61 @@ const STATUS_LABELS: Record<StudentFeedbackRecord['status'], string> = {
   answered: 'Respondido',
 };
 
+const HISTORY_PAGE_SIZE = 50;
+type StudentFeedbackHistoryRecord = Pick<
+  StudentFeedbackRecord,
+  'id' | 'answers' | 'status' | 'admin_reply' | 'student_reply_seen_at' | 'created_at'
+>;
+
 export const StudentFeedback: React.FC<StudentFeedbackProps> = ({ currentUser, accentColor }) => {
   const [answer, setAnswer] = useState('');
-  const [history, setHistory] = useState<StudentFeedbackRecord[]>([]);
+  const [history, setHistory] = useState<StudentFeedbackHistoryRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMoreHistory, setHasMoreHistory] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
+  const markUnreadRepliesSeen = async (records: StudentFeedbackHistoryRecord[]) => {
+    const unreadReplyIds = records
+      .filter((record) => Boolean(record.admin_reply?.trim()) && !record.student_reply_seen_at)
+      .map((record) => record.id);
+    if (unreadReplyIds.length === 0) return records;
+
+    await markStudentFeedbackRepliesSeen(unreadReplyIds);
+    const seenAt = new Date().toISOString();
+    return records.map((record) => unreadReplyIds.includes(record.id)
+      ? { ...record, student_reply_seen_at: seenAt }
+      : record);
+  };
+
   const refreshHistory = async () => {
     try {
-      const records = await loadStudentFeedback();
-      setHistory(records);
-      const unreadReplyIds = records
-        .filter((record) => Boolean(record.admin_reply?.trim()) && !record.student_reply_seen_at)
-        .map((record) => record.id);
-      if (unreadReplyIds.length > 0) {
-        await markStudentFeedbackRepliesSeen(unreadReplyIds);
-        const seenAt = new Date().toISOString();
-        setHistory((current) => current.map((record) =>
-          unreadReplyIds.includes(record.id)
-            ? { ...record, student_reply_seen_at: seenAt }
-            : record
-        ));
-      }
+      const records = await loadStudentFeedback(0, HISTORY_PAGE_SIZE);
+      setHistory(await markUnreadRepliesSeen(records));
+      setHasMoreHistory(records.length === HISTORY_PAGE_SIZE);
     } catch (error) {
       console.error('Could not load your feedback history:', error);
       setErrorMessage('Não foi possível carregar seus feedbacks. Tente novamente mais tarde.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadMoreHistory = async () => {
+    if (isLoadingMore || !hasMoreHistory) return;
+    setIsLoadingMore(true);
+    try {
+      const records = await loadStudentFeedback(history.length, HISTORY_PAGE_SIZE);
+      const visibleRecords = await markUnreadRepliesSeen(records);
+      setHistory((current) => [...current, ...visibleRecords]);
+      setHasMoreHistory(records.length === HISTORY_PAGE_SIZE);
+    } catch (error) {
+      console.error('Could not load older student feedback:', error);
+      setErrorMessage('Não foi possível carregar feedbacks anteriores. Tente novamente.');
+    } finally {
+      setIsLoadingMore(false);
     }
   };
 
@@ -177,6 +203,17 @@ export const StudentFeedback: React.FC<StudentFeedbackProps> = ({ currentUser, a
               </article>
             ))}
           </div>
+        )}
+        {hasMoreHistory && (
+          <button
+            type="button"
+            onClick={() => void loadMoreHistory()}
+            disabled={isLoadingMore}
+            className="mt-4 inline-flex items-center gap-2 rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-white/75 hover:bg-white/5 disabled:opacity-50"
+          >
+            {isLoadingMore ? <Loader2 size={15} className="animate-spin" /> : null}
+            {isLoadingMore ? 'Carregando...' : 'Carregar feedbacks anteriores'}
+          </button>
         )}
       </section>
     </section>

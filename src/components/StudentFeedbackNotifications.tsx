@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { MessageSquareText } from 'lucide-react';
-import { loadStudentFeedback, type StudentFeedbackRecord } from '../utils/supabaseClient';
+import { loadUnreadStudentFeedbackReplyCount } from '../utils/supabaseClient';
 import type { UserProfile } from '../types';
 
 interface StudentFeedbackNotificationsProps {
@@ -14,14 +14,11 @@ export function StudentFeedbackNotifications({
   isFeedbackOpen,
   onOpenFeedback
 }: StudentFeedbackNotificationsProps) {
-  const [unreadReplies, setUnreadReplies] = useState<StudentFeedbackRecord[]>([]);
+  const [unreadReplyCount, setUnreadReplyCount] = useState(0);
 
   const refreshUnreadReplies = useCallback(async () => {
     try {
-      const records = await loadStudentFeedback();
-      setUnreadReplies(records.filter((record) =>
-        Boolean(record.admin_reply?.trim()) && !record.student_reply_seen_at
-      ));
+      setUnreadReplyCount(await loadUnreadStudentFeedbackReplyCount());
     } catch (error) {
       console.error('Could not load private feedback reply notifications:', error);
     }
@@ -29,14 +26,14 @@ export function StudentFeedbackNotifications({
 
   useEffect(() => {
     if (isFeedbackOpen) {
-      setUnreadReplies([]);
+      setUnreadReplyCount(0);
       return;
     }
 
     void refreshUnreadReplies();
     const intervalId = window.setInterval(() => {
       if (!document.hidden) void refreshUnreadReplies();
-    }, 20_000);
+    }, 60_000);
     const handleVisibilityChange = () => {
       if (!document.hidden) void refreshUnreadReplies();
     };
@@ -49,7 +46,7 @@ export function StudentFeedbackNotifications({
     };
   }, [isFeedbackOpen, refreshUnreadReplies]);
 
-  if (isFeedbackOpen || unreadReplies.length === 0) return null;
+  if (isFeedbackOpen || unreadReplyCount === 0) return null;
 
   return (
     <aside
@@ -59,9 +56,9 @@ export function StudentFeedbackNotifications({
     >
       <MessageSquareText size={19} className="shrink-0 text-emerald-300" aria-hidden="true" />
       <p className="min-w-0 flex-1">
-        {unreadReplies.length === 1
+        {unreadReplyCount === 1
           ? 'Você recebeu uma resposta privada ao seu feedback.'
-          : `Você recebeu ${unreadReplies.length} respostas privadas aos seus feedbacks.`}
+          : `Você recebeu ${unreadReplyCount} respostas privadas aos seus feedbacks.`}
       </p>
       <button
         type="button"

@@ -1604,7 +1604,8 @@ async function startServer() {
       const visibility = admin
         ? ''
         : `&or=${encodeURIComponent(`(status.in.(approved,featured),student_id.eq.${authUser.id})`)}`;
-      const response = await supabaseServiceRequest(`stories?select=*&order=created_at.desc&limit=200${visibility}`);
+      const storyFields = 'id,student_id,student_name,title,category,prompt_used,video_url,thumbnail_url,created_at,status,likes_count,instagram_handle';
+      const response = await supabaseServiceRequest(`stories?select=${storyFields}&order=created_at.desc&limit=200${visibility}`);
       if (!response.ok) {
         console.error('Stories list failed:', response.status, await response.text());
         return res.status(502).json({ error: 'Não foi possível carregar os stories.' });
@@ -2862,9 +2863,28 @@ async function startServer() {
       }
 
       const recipientId = req.query.recipientId;
-      const resource = isFriendUserId(recipientId)
-        ? `brazilian_friends_messages?select=${friendsMessageFields}&or=(and(sender_id.eq.${authUser.id},receiver_id.eq.${recipientId}),and(sender_id.eq.${recipientId},receiver_id.eq.${authUser.id}))&order=created_at.asc&limit=200`
-        : 'brazilian_friends_messages?select=id,sender_id,receiver_id,body,created_at,expires_at&receiver_id=is.null&order=created_at.asc&limit=200';
+      const since = typeof req.query.since === 'string' ? req.query.since : '';
+      const sinceTimestamp = since ? Date.parse(since) : NaN;
+      if (since && !Number.isFinite(sinceTimestamp)) {
+        return res.status(400).json({ error: 'Cursor da conversa inválido.' });
+      }
+
+      const query = new URLSearchParams({
+        select: friendsMessageFields,
+        order: since ? 'created_at.asc' : 'created_at.desc',
+        limit: '200',
+        expires_at: `gt.${new Date().toISOString()}`
+      });
+      if (since) query.set('created_at', `gte.${since}`);
+      if (isFriendUserId(recipientId)) {
+        query.set(
+          'or',
+          `(and(sender_id.eq.${authUser.id},receiver_id.eq.${recipientId}),and(sender_id.eq.${recipientId},receiver_id.eq.${authUser.id}))`
+        );
+      } else {
+        query.set('receiver_id', 'is.null');
+      }
+      const resource = `brazilian_friends_messages?${query.toString()}`;
       const messagesResponse = await supabaseServiceRequest(resource);
       if (!messagesResponse.ok) {
         console.error('Brazilian Friends message read failed:', messagesResponse.status, await messagesResponse.text());
